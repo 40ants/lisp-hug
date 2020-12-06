@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>sys::open-url doesn't check $PATH</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+           </head>
+           <body>
+            <div class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </div>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>sys::open-url doesn't check $PATH</h1>
+                <pre>Hi.
+
+Is the code for #'sys::open-url available anywhere?
+
+I'm running lw-7.1, x86-64 on a linux machine here.  It seems #'open-url
+doesn't do what the docs suggest, checking for candidate executables
+(browsers) in $PATH.
+
+firefox is installed as /usr/local/bin/firefox
+
+   CL-USER&gt (sys::open-url "file:///usr/lib64/LispWorks/lib/7-1-0-0/manual/online/LW/html/lw-736.htm#77892")
+
+shows a gui window with an error message:
+
+ "Error running browser.  Not an executable to call-process: /usr/bin/firefox"
+
+and the set of hardcoded alternatives of standard browsers to choose from.
+
+Some more info:
+
+   (setq sys::*browser-location*  :unset)  ;; same behavior if set to nil
+   :UNSET
+   CL-USER&gt (sys::getenv "PATH")
+   "/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/home/andersvi/.local/bin:/home/andersvi/bin"
+   CL-USER&gt (sys::call-system-showing-output "which firefox")
+   ; which firefox
+   ; /usr/local/bin/firefox
+
+Using #'sys::call-system or #'sys::open-pipe work as expected:
+
+   CL-USER&gt (sys::call-system "firefox file:///usr/lib64/LispWorks/lib/7-1-0-0/manual/online/LW/html/lw-736.htm#77892")
+   0
+
+I can't find any sources for the hqn-web module referred to in the docs,
+
+Any suggestions?
+
+-anders
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: sys::open-url doesn't check $PATH</h1>
+                 <pre>
+Hi,
+
+try (setf (HQN-WEB::DB-BROWSER-LOCATION) "/usr/local/bin/")
+
+Best regards,
+
+Leif Hammarström
+
+
+On 5.1.2018 12:27, anders.vinjar@bek.no wrote:
+&gt Hi.
+&gt
+&gt Is the code for #'sys::open-url available anywhere?
+&gt
+&gt I'm running lw-7.1, x86-64 on a linux machine here.  It seems #'open-url
+&gt doesn't do what the docs suggest, checking for candidate executables
+&gt (browsers) in $PATH.
+&gt
+&gt firefox is installed as /usr/local/bin/firefox
+&gt
+&gt     CL-USER&gt (sys::open-url "file:///usr/lib64/LispWorks/lib/7-1-0-0/manual/online/LW/html/lw-736.htm#77892")
+&gt
+&gt shows a gui window with an error message:
+&gt
+&gt   "Error running browser.  Not an executable to call-process: /usr/bin/firefox"
+&gt
+&gt and the set of hardcoded alternatives of standard browsers to choose from.
+&gt
+&gt Some more info:
+&gt
+&gt     (setq sys::*browser-location*  :unset)  ;; same behavior if set to nil
+&gt     :UNSET
+&gt     CL-USER&gt (sys::getenv "PATH")
+&gt     "/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/home/andersvi/.local/bin:/home/andersvi/bin"
+&gt     CL-USER&gt (sys::call-system-showing-output "which firefox")
+&gt     ; which firefox
+&gt     ; /usr/local/bin/firefox
+&gt
+&gt Using #'sys::call-system or #'sys::open-pipe work as expected:
+&gt
+&gt     CL-USER&gt (sys::call-system "firefox file:///usr/lib64/LispWorks/lib/7-1-0-0/manual/online/LW/html/lw-736.htm#77892")
+&gt     0
+&gt
+&gt I can't find any sources for the hqn-web module referred to in the docs,
+&gt
+&gt Any suggestions?
+&gt
+&gt -anders
+&gt
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+
+
+---
+This email has been checked for viruses by AVG.
+http://www.avg.com
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: sys::open-url doesn't check $PATH</h1>
+                 <pre>Hei Leif.
+
+    L&gt try (setf (HQN-WEB::DB-BROWSER-LOCATION) "/usr/local/bin/")
+
+Thanks for this suggestion, but this seems more like a hack.
+
+I'm making software for others to run, so would prefer open-url to do
+what it says in its docs, to check for browser candidates in the users
+PATH environment variable.
+
+Cheers,
+
+-anders
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: sys::open-url doesn't check $PATH</h1>
+                 <p>
+                  Unable to parse email body. Email id is 14708
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: sys::open-url doesn't check $PATH</h1>
+                 <pre>    M&gt The problem is that the location is cached when you call
+    M&gt sys:open-url for the first time.  If you set
+    M&gt lw:*browser-location* to nil before the first call to
+    M&gt sys:open-url then it should work as documented.
+
+Right, that did the job for me locally.  Thanks.
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+           </body>
+          </html>

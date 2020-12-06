@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>CAPI: Adding a push-button to an interface after displaying the interface</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+           </head>
+           <body>
+            <div class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </div>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>CAPI: Adding a push-button to an interface after displaying the interface</h1>
+                <pre>Hello all,
+
+I have an interface that gets displayed as a window. The interface is created using make-instance like this:
+
+(defun make-simple-capi-interface (&amp;key create-cb destroy-cb)
+  (make-instance 'capi:interface
+		 :title "MAIN"
+		 :menu-bar-items nil
+		 :auto-menus nil
+		 :message-area t
+		 :enable-tooltips t
+		 :help-callback nil
+		 :external-border nil
+		 :internal-border nil
+		 :visible-border nil
+		 :geometry-change-callback nil
+		 :iconify-callback nil
+		 :iconize-callback nil
+		 :display-state :normal
+		 :transparency 100
+		 :window-styles nil
+		 #|
+		 :toolbar-items nil
+		 :toolbar-states nil
+		 :default-toolbar-states nil
+		 |#
+		 :create-callback create-cb
+		 :destroy-callback destroy-cb
+		 :best-width 800
+		 :best-height 600
+		 :best-x 0
+		 :best-y 0
+		 :visible-min-width 800
+		 :visible-min-height 600
+		 ))
+
+Simple, and works. Now I also create a push-button that I want to add to the interface. It really should just be a simple push-button that also gets created with make-instance 'capi:push-button.
+
+Now I would like to add this button to the interface at run-time. I can’t figure out how to do this … Any hints very welcome!
+(Yes, bloody beginner here re CAPI).
+
+Kind regards
+
+   Frank
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: CAPI: Adding a push-button to an interface after displaying the interface</h1>
+                 <pre>Hi,
+
+You need to define a layout for the interface, and then you can push the button to that layout’s description. For example
+
+(let ((interface (capi:display (make-instance 'capi:interface
+                                             :title "MAIN"
+                                             :layout (make-instance 'capi:column-layout)
+                                             ; other parameters...
+                                             ))))
+ (capi:execute-with-interface interface
+                              (lambda ()
+                                (push (make-instance 'capi:push-button :text "A Button") (capi:layout-description (capi:pane-layout interface))))))
+
+You may want to take a look the documentation for capi:layout, to see the different layout options:
+http://www.lispworks.com/documentation/lw70/CAPI-W/html/capi-w-383.htm to 
+
+Erik
+
+
+&gt 15 juni 2017 kl. 18:41 skrev Frank Gönninger | Gönninger B&amp;T &lt;frank.goenninger@goenninger.net&gt:
+&gt 
+&gt Hello all,
+&gt 
+&gt I have an interface that gets displayed as a window. The interface is created using make-instance like this:
+&gt 
+&gt (defun make-simple-capi-interface (&amp;key create-cb destroy-cb)
+&gt  (make-instance 'capi:interface
+&gt 		 :title "MAIN"
+&gt 		 :menu-bar-items nil
+&gt 		 :auto-menus nil
+&gt 		 :message-area t
+&gt 		 :enable-tooltips t
+&gt 		 :help-callback nil
+&gt 		 :external-border nil
+&gt 		 :internal-border nil
+&gt 		 :visible-border nil
+&gt 		 :geometry-change-callback nil
+&gt 		 :iconify-callback nil
+&gt 		 :iconize-callback nil
+&gt 		 :display-state :normal
+&gt 		 :transparency 100
+&gt 		 :window-styles nil
+&gt 		 #|
+&gt 		 :toolbar-items nil
+&gt 		 :toolbar-states nil
+&gt 		 :default-toolbar-states nil
+&gt 		 |#
+&gt 		 :create-callback create-cb
+&gt 		 :destroy-callback destroy-cb
+&gt 		 :best-width 800
+&gt 		 :best-height 600
+&gt 		 :best-x 0
+&gt 		 :best-y 0
+&gt 		 :visible-min-width 800
+&gt 		 :visible-min-height 600
+&gt 		 ))
+&gt 
+&gt Simple, and works. Now I also create a push-button that I want to add to the interface. It really should just be a simple push-button that also gets created with make-instance 'capi:push-button.
+&gt 
+&gt Now I would like to add this button to the interface at run-time. I can’t figure out how to do this … Any hints very welcome!
+&gt (Yes, bloody beginner here re CAPI).
+&gt 
+&gt Kind regards
+&gt 
+&gt   Frank
+&gt 
+&gt 
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+           </body>
+          </html>

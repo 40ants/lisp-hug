@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>NSSpeechRecognizer commands</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+           </head>
+           <body>
+            <div class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </div>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>NSSpeechRecognizer commands</h1>
+                <pre>I am trying to set a list of commands for the MacOS NSSpeechRecognizer class (Objective-C/Cocoa) without success. 
+
+Here is some of the code I am using:
+
+(objc:ensure-objc-initialized
+  :modules
+  '("/System/Library/Frameworks/Carbon.framework/Versions/A/Frameworks/SpeechRecognition.framework/Versions/A/SpeechRecognition"))
+
+(defparameter *Speech-Recognizer*
+ (objc:alloc-init-object "NSSpeechRecognizer"))
+
+(objc:description *Speech-Recognizer*)  —&gt  "&lt;NSSpeechRecognizer: 0x10290b880&gt"
+
+So far so good. 
+
+The Apple documentation says that NSSpeechRecognizer  has a “commands" variable with the following signature. 
+var commands: [String]? { get set }
+
+Unfortunately, the objc:objc-object-var-value method does not allow to set or get this value. 
+Because as its documentation says: "Note that it is only possible to access instance variables that are defined in Lisp by define-objc-class, not those inherited from superclasses implemented in Objective-C.”
+
+Interestingly, it appears that there is a “commands” method that can be invoked on an NSSpeechRecognizer instance.  
+
+(objc:can-invoke-p *Speech-Recognizer* "commands”) —&gt T
+
+(objc:invoke *Speech-Recognizer* “commands”)
+returns a null pointer, which would make sense given that there is no list of commands yet. 
+
+This is where I am stuck. How could I add to the list of commands ?
+
+Bruno
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: NSSpeechRecognizer commands</h1>
+                 <pre>Sorry for the noise. 
+I just found the solution:
+
+(objc:invoke *Speech-Recognizer* "setCommands:" (vector "Hello”))
+
+Bruno
+
+
+&gt On Jun 27, 2018, at 13:06, Bruno Emond &lt;emond.bruno@gmail.com&gt wrote:
+&gt 
+&gt I am trying to set a list of commands for the MacOS NSSpeechRecognizer class (Objective-C/Cocoa) without success. 
+&gt 
+&gt Here is some of the code I am using:
+&gt 
+&gt (objc:ensure-objc-initialized
+&gt  :modules
+&gt  '("/System/Library/Frameworks/Carbon.framework/Versions/A/Frameworks/SpeechRecognition.framework/Versions/A/SpeechRecognition"))
+&gt 
+&gt (defparameter *Speech-Recognizer*
+&gt (objc:alloc-init-object "NSSpeechRecognizer"))
+&gt 
+&gt (objc:description *Speech-Recognizer*)  —&gt  "&lt;NSSpeechRecognizer: 0x10290b880&gt"
+&gt 
+&gt So far so good. 
+&gt 
+&gt The Apple documentation says that NSSpeechRecognizer  has a “commands" variable with the following signature. 
+&gt var commands: [String]? { get set }
+&gt 
+&gt Unfortunately, the objc:objc-object-var-value method does not allow to set or get this value. 
+&gt Because as its documentation says: "Note that it is only possible to access instance variables that are defined in Lisp by define-objc-class, not those inherited from superclasses implemented in Objective-C.”
+&gt 
+&gt Interestingly, it appears that there is a “commands” method that can be invoked on an NSSpeechRecognizer instance.  
+&gt 
+&gt (objc:can-invoke-p *Speech-Recognizer* "commands”) —&gt T
+&gt 
+&gt (objc:invoke *Speech-Recognizer* “commands”)
+&gt returns a null pointer, which would make sense given that there is no list of commands yet. 
+&gt 
+&gt This is where I am stuck. How could I add to the list of commands ?
+&gt 
+&gt Bruno
+&gt 
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: NSSpeechRecognizer commands</h1>
+                 <pre>Hi,
+
+IIRC there is no compile-time checks on if method is implemented by the
+class, as calling Obj-C method is a way to "send a message" to the
+class, and Obj-C may define runtime ways to determine what to do if the
+method is not found.
+
+Bruno Emond &lt;emond.bruno@gmail.com&gt writes:
+
+&gt Hi Ron, 
+&gt thanks for your quick response, unfortunately it is not helping.
+&gt The kind of issue you are having is quite different than mine.
+&gt It has noting to do with application delivery, and only remotely with Foreign
+&gt Language Interface.
+&gt
+&gt LispWorks has specific functions and methods to use Objective-C and Cocoa on
+&gt MacOS.
+&gt http://www.lispworks.com/documentation/lw60/OBJC/html/objc.htm
+&gt I was trying to figure out some method names I want to call.
+&gt Some methods can be easily identified from the Apple documentation
+&gt (ex. “setCommands:" from my previous message).
+&gt
+&gt Others are more difficult like  "startSpeaking(_:)”.
+&gt After many trial-and-errors, I finally figured that one out as well.
+&gt (objc:can-invoke-p *ss* "startSpeakingString:")
+&gt T
+&gt
+&gt Bruno
+&gt
+&gt&gt On Jun 28, 2018, at 16:00, Ron Lewis &lt;rlewis-4d@indinfer.com&gt wrote:
+&gt&gt 
+&gt&gt I have NOT done this and don't really know what I am doing. Still, maybe what
+&gt&gt I say could help figure out how to do what you want to do.
+&gt&gt 
+&gt&gt Hopefully, someone who DOES know what they are doing will reply with a more
+&gt&gt useful answer.
+&gt&gt 
+&gt&gt I think that LispWorks produces DLLs that are compatible with C Language
+&gt&gt access. And LispWorks can access DLLs compiled by a C compiler. So, DLLs go
+&gt&gt both ways, Lisp calls to DLL functions and C calls to DLL functions.
+&gt&gt 
+&gt&gt So in my thinking, what you want to do involves learning the "LispWorks
+&gt&gt Delivery User Guide", particularly at these links:
+&gt&gt http://www.lispworks.com/documentation/lw71/DV/html/delivery-130.htm
+&gt&gt 
+&gt&gt 
+&gt&gt http://www.lispworks.com/documentation/lw60/LW/html/lw-200.htm#pgfId-885976
+&gt&gt 
+&gt&gt and maybe this as well for Foreign Language Interface
+&gt&gt http://www.lispworks.com/documentation/lw60/FLI/html/fli.htm
+&gt&gt 
+&gt&gt I have perused a little but not actually tried interfacing with C.
+&gt&gt 
+&gt&gt I think the LispWorks compiler can compile a C Language program if the file
+&gt&gt ends with ".c" . This is Windows. You are doing Mac. So, maybe you designate a
+&gt&gt C source file differently.
+&gt&gt 
+&gt&gt I tried to compile a file named "try.c" with contents
+&gt&gt void f (void) {}
+&gt&gt 
+&gt&gt I loaded the file into LispWorks. Clicked the Compile Buffer button. The
+&gt&gt output looked to me that LispWorks was doing a C Language compile by
+&gt&gt automatically calling a C compiler that I had installed. LispWorks was not
+&gt&gt doing a Lisp source code compilation.
+&gt&gt 
+&gt&gt My test did not compile because "Error: the variable 'void' is unbound. So,
+&gt&gt for sure I am not doing something right.
+&gt&gt 
+&gt&gt Still, what I have said maybe could lead you to find the answer for what you
+&gt&gt are trying to do. If so, I hope you will share what you figure out on this C
+&gt&gt and Lisp interfacing because I anticipate going there at some point.
+&gt&gt 
+&gt&gt Or, maybe you have already been to the links I suggested and it is not
+&gt&gt helpful.
+&gt&gt 
+&gt&gt Hopefully, someone who knows what they are doing will respond. I am trying to
+&gt&gt post in the spirit of Lisp HUG members trying to help each other. I know I
+&gt&gt have been helped fantastically several times in Lisp HUG.
+&gt&gt 
+&gt&gt 
+&gt&gt Ron Lewis
+&gt&gt Baltimore, MD 21215-3551
+&gt&gt USA
+&gt&gt 
+&gt&gt 
+&gt&gt -----Original Message-----
+&gt&gt From: owner-lisp-hug@lispworks.com &lt;owner-lisp-hug@lispworks.com&gt On Behalf Of
+&gt&gt Bruno Emond
+&gt&gt Sent: Thursday, June 28, 2018 2:55 PM
+&gt&gt To: Lisp HUG &lt;lisp-hug@lispworks.com&gt
+&gt&gt Subject: Re: NSSpeechRecognizer commands
+&gt&gt 
+&gt&gt I am just wondering. 
+&gt&gt 
+&gt&gt Is there a way to inspect the list of available Objective-C methods for a
+&gt&gt class?
+&gt&gt 
+&gt&gt Calling objc:can-invoke-p on a trial and error basis is not very optional.
+&gt&gt 
+&gt&gt I am looking specifically to know what would be the method name for
+&gt&gt startSpeaking(_:)
+&gt&gt https://developer.apple.com/documentation/appkit/nsspeechsynthesizer/1448378-startspeaking
+&gt&gt 
+&gt&gt Thanks.
+&gt&gt 
+&gt&gt Bruno
+&gt&gt 
+&gt&gt 
+&gt&gt&gt On Jun 27, 2018, at 14:36, Bruno Emond &lt;emond.bruno@gmail.com&gt wrote:
+&gt&gt&gt 
+&gt&gt&gt Sorry for the noise. 
+&gt&gt&gt I just found the solution:
+&gt&gt&gt 
+&gt&gt&gt (objc:invoke *Speech-Recognizer* "setCommands:" (vector "Hello”))
+&gt&gt&gt 
+&gt&gt&gt Bruno
+&gt&gt&gt 
+&gt&gt&gt 
+&gt&gt&gt&gt On Jun 27, 2018, at 13:06, Bruno Emond &lt;emond.bruno@gmail.com&gt wrote:
+&gt&gt&gt&gt 
+&gt&gt&gt&gt I am trying to set a list of commands for the MacOS NSSpeechRecognizer class
+&gt&gt&gt&gt (Objective-C/Cocoa) without success.
+&gt&gt&gt&gt 
+&gt&gt&gt&gt Here is some of the code I am using:
+&gt&gt&gt&gt 
+&gt&gt&gt&gt (objc:ensure-objc-initialized
+&gt&gt&gt&gt :modules
+&gt&gt&gt&gt '("/System/Library/Frameworks/Carbon.framework/Versions/A/Frameworks/
+&gt&gt&gt&gt SpeechRecognition.framework/Versions/A/SpeechRecognition"))
+&gt&gt&gt&gt 
+&gt&gt&gt&gt (defparameter *Speech-Recognizer*
+&gt&gt&gt&gt (objc:alloc-init-object "NSSpeechRecognizer"))
+&gt&gt&gt&gt 
+&gt&gt&gt&gt (objc:description *Speech-Recognizer*) —&gt "&lt;NSSpeechRecognizer:
+&gt&gt&gt&gt 0x10290b880&gt"
+&gt&gt&gt&gt 
+&gt&gt&gt&gt So far so good. 
+&gt&gt&gt&gt 
+&gt&gt&gt&gt The Apple documentation says that NSSpeechRecognizer has a “commands"
+&gt&gt&gt&gt variable with the following signature.
+&gt&gt&gt&gt var commands: [String]? { get set }
+&gt&gt&gt&gt 
+&gt&gt&gt&gt Unfortunately, the objc:objc-object-var-value method does not allow to set
+&gt&gt&gt&gt or get this value.
+&gt&gt&gt&gt Because as its documentation says: "Note that it is only possible to access
+&gt&gt&gt&gt instance variables that are defined in Lisp by define-objc-class, not those
+&gt&gt&gt&gt inherited from superclasses implemented in Objective-C.”
+&gt&gt&gt&gt 
+&gt&gt&gt&gt Interestingly, it appears that there is a “commands” method that can be
+&gt&gt&gt&gt invoked on an NSSpeechRecognizer instance.
+&gt&gt&gt&gt 
+&gt&gt&gt&gt (objc:can-invoke-p *Speech-Recognizer* "commands”) —&gt T
+&gt&gt&gt&gt 
+&gt&gt&gt&gt (objc:invoke *Speech-Recognizer* “commands”) returns a null pointer,
+&gt&gt&gt&gt which would make sense given that there is no list of commands yet.
+&gt&gt&gt&gt 
+&gt&gt&gt&gt This is where I am stuck. How could I add to the list of commands ?
+&gt&gt&gt&gt 
+&gt&gt&gt&gt Bruno
+&gt&gt&gt&gt 
+&gt&gt&gt 
+&gt&gt 
+&gt&gt 
+&gt&gt _______________________________________________
+&gt&gt Lisp Hug - the mailing list for LispWorks users lisp-hug@lispworks.com
+&gt&gt http://www.lispworks.com/support/lisp-hug.html
+&gt&gt 
+&gt&gt 
+&gt&gt _______________________________________________
+&gt&gt Lisp Hug - the mailing list for LispWorks users
+&gt&gt lisp-hug@lispworks.com
+&gt&gt http://www.lispworks.com/support/lisp-hug.html
+&gt
+&gt
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+
+-- 
+Br,
+/Alexey
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: NSSpeechRecognizer commands</h1>
+                 <pre>Understood. 
+
+But even if there was a check at compile time, you would still be in a trial-and-error mode to figure out which string to use for the call (message to send). 
+
+In this respect, the Lispworks Java Interface is really well done.  
+A call to lw-ji:import-java-class-definitions with the class name as a string argument returns the list of all callable methods.
+
+Bruno
+ 
+
+&gt On Jun 29, 2018, at 02:20, Alexey Veretennikov &lt;txm.fourier@gmail.com&gt wrote:
+&gt 
+&gt Hi,
+&gt 
+&gt IIRC there is no compile-time checks on if method is implemented by the
+&gt class, as calling Obj-C method is a way to "send a message" to the
+&gt class, and Obj-C may define runtime ways to determine what to do if the
+&gt method is not found.
+&gt 
+&gt Bruno Emond &lt;emond.bruno@gmail.com&gt writes:
+&gt 
+&gt&gt Hi Ron, 
+&gt&gt thanks for your quick response, unfortunately it is not helping.
+&gt&gt The kind of issue you are having is quite different than mine.
+&gt&gt It has noting to do with application delivery, and only remotely with Foreign
+&gt&gt Language Interface.
+&gt&gt 
+&gt&gt LispWorks has specific functions and methods to use Objective-C and Cocoa on
+&gt&gt MacOS.
+&gt&gt http://www.lispworks.com/documentation/lw60/OBJC/html/objc.htm
+&gt&gt I was trying to figure out some method names I want to call.
+&gt&gt Some methods can be easily identified from the Apple documentation
+&gt&gt (ex. “setCommands:" from my previous message).
+&gt&gt 
+&gt&gt Others are more difficult like  "startSpeaking(_:)”.
+&gt&gt After many trial-and-errors, I finally figured that one out as well.
+&gt&gt (objc:can-invoke-p *ss* "startSpeakingString:")
+&gt&gt T
+&gt&gt 
+&gt&gt Bruno
+&gt&gt 
+&gt&gt&gt On Jun 28, 2018, at 16:00, Ron Lewis &lt;rlewis-4d@indinfer.com&gt wrote:
+&gt&gt&gt 
+&gt&gt&gt I have NOT done this and don't really know what I am doing. Still, maybe what
+&gt&gt&gt I say could help figure out how to do what you want to do.
+&gt&gt&gt 
+&gt&gt&gt Hopefully, someone who DOES know what they are doing will reply with a more
+&gt&gt&gt useful answer.
+&gt&gt&gt 
+&gt&gt&gt I think that LispWorks produces DLLs that are compatible with C Language
+&gt&gt&gt access. And LispWorks can access DLLs compiled by a C compiler. So, DLLs go
+&gt&gt&gt both ways, Lisp calls to DLL functions and C calls to DLL functions.
+&gt&gt&gt 
+&gt&gt&gt So in my thinking, what you want to do involves learning the "LispWorks
+&gt&gt&gt Delivery User Guide", particularly at these links:
+&gt&gt&gt http://www.lispworks.com/documentation/lw71/DV/html/delivery-130.htm
+&gt&gt&gt 
+&gt&gt&gt 
+&gt&gt&gt http://www.lispworks.com/documentation/lw60/LW/html/lw-200.htm#pgfId-885976
+&gt&gt&gt 
+&gt&gt&gt and maybe this as well for Foreign Language Interface
+&gt&gt&gt http://www.lispworks.com/documentation/lw60/FLI/html/fli.htm
+&gt&gt&gt 
+&gt&gt&gt I have perused a little but not actually tried interfacing with C.
+&gt&gt&gt 
+&gt&gt&gt I think the LispWorks compiler can compile a C Language program if the file
+&gt&gt&gt ends with ".c" . This is Windows. You are doing Mac. So, maybe you designate a
+&gt&gt&gt C source file differently.
+&gt&gt&gt 
+&gt&gt&gt I tried to compile a file named "try.c" with contents
+&gt&gt&gt void f (void) {}
+&gt&gt&gt 
+&gt&gt&gt I loaded the file into LispWorks. Clicked the Compile Buffer button. The
+&gt&gt&gt output looked to me that LispWorks was doing a C Language compile by
+&gt&gt&gt automatically calling a C compiler that I had installed. LispWorks was not
+&gt&gt&gt doing a Lisp source code compilation.
+&gt&gt&gt 
+&gt&gt&gt My test did not compile because "Error: the variable 'void' is unbound. So,
+&gt&gt&gt for sure I am not doing something right.
+&gt&gt&gt 
+&gt&gt&gt Still, what I have said maybe could lead you to find the answer for what you
+&gt&gt&gt are trying to do. If so, I hope you will share what you figure out on this C
+&gt&gt&gt and Lisp interfacing because I anticipate going there at some point.
+&gt&gt&gt 
+&gt&gt&gt Or, maybe you have already been to the links I suggested and it is not
+&gt&gt&gt helpful.
+&gt&gt&gt 
+&gt&gt&gt Hopefully, someone who knows what they are doing will respond. I am trying to
+&gt&gt&gt post in the spirit of Lisp HUG members trying to help each other. I know I
+&gt&gt&gt have been helped fantastically several times in Lisp HUG.
+&gt&gt&gt 
+&gt&gt&gt 
+&gt&gt&gt Ron Lewis
+&gt&gt&gt Baltimore, MD 21215-3551
+&gt&gt&gt USA
+&gt&gt&gt 
+&gt&gt&gt 
+&gt&gt&gt -----Original Message-----
+&gt&gt&gt From: owner-lisp-hug@lispworks.com &lt;owner-lisp-hug@lispworks.com&gt On Behalf Of
+&gt&gt&gt Bruno Emond
+&gt&gt&gt Sent: Thursday, June 28, 2018 2:55 PM
+&gt&gt&gt To: Lisp HUG &lt;lisp-hug@lispworks.com&gt
+&gt&gt&gt Subject: Re: NSSpeechRecognizer commands
+&gt&gt&gt 
+&gt&gt&gt I am just wondering. 
+&gt&gt&gt 
+&gt&gt&gt Is there a way to inspect the list of available Objective-C methods for a
+&gt&gt&gt class?
+&gt&gt&gt 
+&gt&gt&gt Calling objc:can-invoke-p on a trial and error basis is not very optional.
+&gt&gt&gt 
+&gt&gt&gt I am looking specifically to know what would be the method name for
+&gt&gt&gt startSpeaking(_:)
+&gt&gt&gt https://developer.apple.com/documentation/appkit/nsspeechsynthesizer/1448378-startspeaking
+&gt&gt&gt 
+&gt&gt&gt Thanks.
+&gt&gt&gt 
+&gt&gt&gt Bruno
+&gt&gt&gt 
+&gt&gt&gt 
+&gt&gt&gt&gt On Jun 27, 2018, at 14:36, Bruno Emond &lt;emond.bruno@gmail.com&gt wrote:
+&gt&gt&gt&gt 
+&gt&gt&gt&gt Sorry for the noise. 
+&gt&gt&gt&gt I just found the solution:
+&gt&gt&gt&gt 
+&gt&gt&gt&gt (objc:invoke *Speech-Recognizer* "setCommands:" (vector "Hello”))
+&gt&gt&gt&gt 
+&gt&gt&gt&gt Bruno
+&gt&gt&gt&gt 
+&gt&gt&gt&gt 
+&gt&gt&gt&gt&gt On Jun 27, 2018, at 13:06, Bruno Emond &lt;emond.bruno@gmail.com&gt wrote:
+&gt&gt&gt&gt&gt 
+&gt&gt&gt&gt&gt I am trying to set a list of commands for the MacOS NSSpeechRecognizer class
+&gt&gt&gt&gt&gt (Objective-C/Cocoa) without success.
+&gt&gt&gt&gt&gt 
+&gt&gt&gt&gt&gt Here is some of the code I am using:
+&gt&gt&gt&gt&gt 
+&gt&gt&gt&gt&gt (objc:ensure-objc-initialized
+&gt&gt&gt&gt&gt :modules
+&gt&gt&gt&gt&gt '("/System/Library/Frameworks/Carbon.framework/Versions/A/Frameworks/
+&gt&gt&gt&gt&gt SpeechRecognition.framework/Versions/A/SpeechRecognition"))
+&gt&gt&gt&gt&gt 
+&gt&gt&gt&gt&gt (defparameter *Speech-Recognizer*
+&gt&gt&gt&gt&gt (objc:alloc-init-object "NSSpeechRecognizer"))
+&gt&gt&gt&gt&gt 
+&gt&gt&gt&gt&gt (objc:description *Speech-Recognizer*) —&gt "&lt;NSSpeechRecognizer:
+&gt&gt&gt&gt&gt 0x10290b880&gt"
+&gt&gt&gt&gt&gt 
+&gt&gt&gt&gt&gt So far so good. 
+&gt&gt&gt&gt&gt 
+&gt&gt&gt&gt&gt The Apple documentation says that NSSpeechRecognizer has a “commands"
+&gt&gt&gt&gt&gt variable with the following signature.
+&gt&gt&gt&gt&gt var commands: [String]? { get set }
+&gt&gt&gt&gt&gt 
+&gt&gt&gt&gt&gt Unfortunately, the objc:objc-object-var-value method does not allow to set
+&gt&gt&gt&gt&gt or get this value.
+&gt&gt&gt&gt&gt Because as its documentation says: "Note that it is only possible to access
+&gt&gt&gt&gt&gt instance variables that are defined in Lisp by define-objc-class, not those
+&gt&gt&gt&gt&gt inherited from superclasses implemented in Objective-C.”
+&gt&gt&gt&gt&gt 
+&gt&gt&gt&gt&gt Interestingly, it appears that there is a “commands” method that can be
+&gt&gt&gt&gt&gt invoked on an NSSpeechRecognizer instance.
+&gt&gt&gt&gt&gt 
+&gt&gt&gt&gt&gt (objc:can-invoke-p *Speech-Recognizer* "commands”) —&gt T
+&gt&gt&gt&gt&gt 
+&gt&gt&gt&gt&gt (objc:invoke *Speech-Recognizer* “commands”) returns a null pointer,
+&gt&gt&gt&gt&gt which would make sense given that there is no list of commands yet.
+&gt&gt&gt&gt&gt 
+&gt&gt&gt&gt&gt This is where I am stuck. How could I add to the list of commands ?
+&gt&gt&gt&gt&gt 
+&gt&gt&gt&gt&gt Bruno
+&gt&gt&gt&gt&gt 
+&gt&gt&gt&gt 
+&gt&gt&gt 
+&gt&gt&gt 
+&gt&gt&gt _______________________________________________
+&gt&gt&gt Lisp Hug - the mailing list for LispWorks users lisp-hug@lispworks.com
+&gt&gt&gt http://www.lispworks.com/support/lisp-hug.html
+&gt&gt&gt 
+&gt&gt&gt 
+&gt&gt&gt _______________________________________________
+&gt&gt&gt Lisp Hug - the mailing list for LispWorks users
+&gt&gt&gt lisp-hug@lispworks.com
+&gt&gt&gt http://www.lispworks.com/support/lisp-hug.html
+&gt&gt 
+&gt&gt 
+&gt&gt _______________________________________________
+&gt&gt Lisp Hug - the mailing list for LispWorks users
+&gt&gt lisp-hug@lispworks.com
+&gt&gt http://www.lispworks.com/support/lisp-hug.html
+&gt 
+&gt -- 
+&gt Br,
+&gt /Alexey
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: NSSpeechRecognizer commands</h1>
+                 <pre>Yes!
+Thanks Martin
+Bruno
+
+&gt On Jun 29, 2018, at 12:47, Martin Simmons &lt;martin@lispworks.com&gt wrote:
+&gt 
+&gt Hi Bruno,
+&gt 
+&gt It is easier to find the method names for use in LispWorks if you change the
+&gt Language to Objective-C in the dropdown at the top of Apple's documentation.
+&gt 
+&gt -- 
+&gt Martin Simmons
+&gt LispWorks Ltd
+&gt http://www.lispworks.com/
+&gt 
+&gt 
+&gt&gt&gt&gt&gt&gt On Thu, 28 Jun 2018 17:01:41 -0400, Bruno Emond said:
+&gt&gt 
+&gt&gt Hi Ron, 
+&gt&gt thanks for your quick response, unfortunately it is not helping. 
+&gt&gt The kind of issue you are having is quite different than mine. 
+&gt&gt It has noting to do with application delivery, and only remotely with Foreign Language Interface. 
+&gt&gt 
+&gt&gt LispWorks has specific functions and methods to use Objective-C and Cocoa on MacOS. 
+&gt&gt http://www.lispworks.com/documentation/lw60/OBJC/html/objc.htm
+&gt&gt I was trying to figure out some method names I want to call. 
+&gt&gt Some methods can be easily identified from the Apple documentation (ex. “setCommands:" from my previous message). 
+&gt&gt 
+&gt&gt Others are more difficult like  "startSpeaking(_:)”.
+&gt&gt After many trial-and-errors, I finally figured that one out as well. 
+&gt&gt (objc:can-invoke-p *ss* "startSpeakingString:")
+&gt&gt T
+&gt&gt 
+&gt&gt Bruno
+&gt&gt 
+&gt&gt&gt On Jun 28, 2018, at 16:00, Ron Lewis &lt;rlewis-4d@indinfer.com&gt wrote:
+&gt&gt&gt 
+&gt&gt&gt I have NOT done this and don't really know what I am doing. Still, maybe what I say could help figure out how to do what you want to do.
+&gt&gt&gt 
+&gt&gt&gt Hopefully, someone who DOES know what they are doing will reply with a more useful answer.
+&gt&gt&gt 
+&gt&gt&gt I think that LispWorks produces DLLs that are compatible with C Language access. And LispWorks can access DLLs compiled by a C compiler. So, DLLs go both ways, Lisp calls to DLL functions and C calls to DLL functions.
+&gt&gt&gt 
+&gt&gt&gt So in my thinking, what you want to do involves learning the "LispWorks Delivery User Guide", particularly at these links:
+&gt&gt&gt http://www.lispworks.com/documentation/lw71/DV/html/delivery-130.htm
+&gt&gt&gt 
+&gt&gt&gt 
+&gt&gt&gt http://www.lispworks.com/documentation/lw60/LW/html/lw-200.htm#pgfId-885976
+&gt&gt&gt 
+&gt&gt&gt and maybe this as well for Foreign Language Interface
+&gt&gt&gt http://www.lispworks.com/documentation/lw60/FLI/html/fli.htm
+&gt&gt&gt 
+&gt&gt&gt I have perused a little but not actually tried interfacing with C. 
+&gt&gt&gt 
+&gt&gt&gt I think the LispWorks compiler can compile a C Language program if the file ends with ".c" . This is Windows. You are doing Mac. So, maybe you designate a C source file differently.
+&gt&gt&gt 
+&gt&gt&gt I tried to compile a file named "try.c" with contents
+&gt&gt&gt void f (void) {}
+&gt&gt&gt 
+&gt&gt&gt I loaded the file into LispWorks. Clicked the Compile Buffer button. The output looked to me that LispWorks was doing a C Language compile by automatically calling a C compiler that I had installed. LispWorks was not doing a Lisp source code compilation.
+&gt&gt&gt 
+&gt&gt&gt My test did not compile because "Error: the variable 'void' is unbound. So, for sure I am not doing something right.
+&gt&gt&gt 
+&gt&gt&gt Still, what I have said maybe could lead you to find the answer for what you are trying to do. If so, I hope you will share what you figure out on this C and Lisp interfacing because I anticipate going there at some point.
+&gt&gt&gt 
+&gt&gt&gt Or, maybe you have already been to the links I suggested and it is not helpful.
+&gt&gt&gt 
+&gt&gt&gt Hopefully, someone who knows what they are doing will respond. I am trying to post in the spirit of Lisp HUG members trying to help each other. I know I have been helped fantastically several times in Lisp HUG.
+&gt&gt&gt 
+&gt&gt&gt 
+&gt&gt&gt Ron Lewis
+&gt&gt&gt Baltimore, MD 21215-3551
+&gt&gt&gt USA
+&gt&gt&gt 
+&gt&gt&gt 
+&gt&gt&gt -----Original Message-----
+&gt&gt&gt From: owner-lisp-hug@lispworks.com &lt;owner-lisp-hug@lispworks.com&gt On Behalf Of Bruno Emond
+&gt&gt&gt Sent: Thursday, June 28, 2018 2:55 PM
+&gt&gt&gt To: Lisp HUG &lt;lisp-hug@lispworks.com&gt
+&gt&gt&gt Subject: Re: NSSpeechRecognizer commands
+&gt&gt&gt 
+&gt&gt&gt I am just wondering. 
+&gt&gt&gt 
+&gt&gt&gt Is there a way to inspect the list of available Objective-C methods for a class? 
+&gt&gt&gt 
+&gt&gt&gt Calling objc:can-invoke-p on a trial and error basis is not very optional. 
+&gt&gt&gt 
+&gt&gt&gt I am looking specifically to know what would be the method name for
+&gt&gt&gt startSpeaking(_:)
+&gt&gt&gt https://developer.apple.com/documentation/appkit/nsspeechsynthesizer/1448378-startspeaking
+&gt&gt&gt 
+&gt&gt&gt Thanks.
+&gt&gt&gt 
+&gt&gt&gt Bruno
+&gt&gt&gt 
+&gt&gt&gt 
+&gt&gt&gt&gt On Jun 27, 2018, at 14:36, Bruno Emond &lt;emond.bruno@gmail.com&gt wrote:
+&gt&gt&gt&gt 
+&gt&gt&gt&gt Sorry for the noise. 
+&gt&gt&gt&gt I just found the solution:
+&gt&gt&gt&gt 
+&gt&gt&gt&gt (objc:invoke *Speech-Recognizer* "setCommands:" (vector "Hello”))
+&gt&gt&gt&gt 
+&gt&gt&gt&gt Bruno
+&gt&gt&gt&gt 
+&gt&gt&gt&gt 
+&gt&gt&gt&gt&gt On Jun 27, 2018, at 13:06, Bruno Emond &lt;emond.bruno@gmail.com&gt wrote:
+&gt&gt&gt&gt&gt 
+&gt&gt&gt&gt&gt I am trying to set a list of commands for the MacOS NSSpeechRecognizer class (Objective-C/Cocoa) without success. 
+&gt&gt&gt&gt&gt 
+&gt&gt&gt&gt&gt Here is some of the code I am using:
+&gt&gt&gt&gt&gt 
+&gt&gt&gt&gt&gt (objc:ensure-objc-initialized
+&gt&gt&gt&gt&gt :modules
+&gt&gt&gt&gt&gt '("/System/Library/Frameworks/Carbon.framework/Versions/A/Frameworks/
+&gt&gt&gt&gt&gt SpeechRecognition.framework/Versions/A/SpeechRecognition"))
+&gt&gt&gt&gt&gt 
+&gt&gt&gt&gt&gt (defparameter *Speech-Recognizer*
+&gt&gt&gt&gt&gt (objc:alloc-init-object "NSSpeechRecognizer"))
+&gt&gt&gt&gt&gt 
+&gt&gt&gt&gt&gt (objc:description *Speech-Recognizer*)  —&gt  "&lt;NSSpeechRecognizer: 0x10290b880&gt"
+&gt&gt&gt&gt&gt 
+&gt&gt&gt&gt&gt So far so good. 
+&gt&gt&gt&gt&gt 
+&gt&gt&gt&gt&gt The Apple documentation says that NSSpeechRecognizer  has a “commands" variable with the following signature. 
+&gt&gt&gt&gt&gt var commands: [String]? { get set }
+&gt&gt&gt&gt&gt 
+&gt&gt&gt&gt&gt Unfortunately, the objc:objc-object-var-value method does not allow to set or get this value. 
+&gt&gt&gt&gt&gt Because as its documentation says: "Note that it is only possible to access instance variables that are defined in Lisp by define-objc-class, not those inherited from superclasses implemented in Objective-C.”
+&gt&gt&gt&gt&gt 
+&gt&gt&gt&gt&gt Interestingly, it appears that there is a “commands” method that can be invoked on an NSSpeechRecognizer instance.  
+&gt&gt&gt&gt&gt 
+&gt&gt&gt&gt&gt (objc:can-invoke-p *Speech-Recognizer* "commands”) —&gt T
+&gt&gt&gt&gt&gt 
+&gt&gt&gt&gt&gt (objc:invoke *Speech-Recognizer* “commands”) returns a null pointer, 
+&gt&gt&gt&gt&gt which would make sense given that there is no list of commands yet.
+&gt&gt&gt&gt&gt 
+&gt&gt&gt&gt&gt This is where I am stuck. How could I add to the list of commands ?
+&gt&gt&gt&gt&gt 
+&gt&gt&gt&gt&gt Bruno
+&gt&gt&gt&gt&gt 
+&gt&gt&gt&gt 
+&gt&gt&gt 
+&gt&gt&gt 
+&gt&gt&gt _______________________________________________
+&gt&gt&gt Lisp Hug - the mailing list for LispWorks users lisp-hug@lispworks.com http://www.lispworks.com/support/lisp-hug.html
+&gt&gt&gt 
+&gt&gt&gt 
+&gt&gt&gt _______________________________________________
+&gt&gt&gt Lisp Hug - the mailing list for LispWorks users
+&gt&gt&gt lisp-hug@lispworks.com
+&gt&gt&gt http://www.lispworks.com/support/lisp-hug.html
+&gt&gt 
+&gt&gt 
+&gt&gt _______________________________________________
+&gt&gt Lisp Hug - the mailing list for LispWorks users
+&gt&gt lisp-hug@lispworks.com
+&gt&gt http://www.lispworks.com/support/lisp-hug.html
+&gt&gt 
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+           </body>
+          </html>

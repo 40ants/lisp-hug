@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Re: Anti-hacker security restrictions on UDP?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+           </head>
+           <body>
+            <div class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </div>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Re: Anti-hacker security restrictions on UDP?</h1>
+                <pre>LOTS of folks implement their own protocol on top of UDP instead of TCP to get some, but not all, of the features of TCP.
+
+TCP has a whole lot of features that slow it down, and if you don’t need all of them, why pay for them, particularly if you are writing time-critical applications? Sometimes you just don’t need a virtual circuit, flow control, etc.
+
+http://www.diffen.com/difference/TCP_vs_UDP
+
+
+From: &lt;owner-lisp-hug@lispworks.com&gt on behalf of David McClain &lt;dbm@refined-audiometrics.com&gt
+Reply-To: David McClain &lt;dbm@refined-audiometrics.com&gt
+Date: Tuesday, October 3, 2017 at 10:26 AM
+To: Lispworks HUG &lt;lisp-hug@lispworks.com&gt
+Subject: EXT: Re: Anti-hacker security restrictions on UDP?
+
+Hi binghe,
+
+That sounds very interesting… but I’m curious about why you want to reinvent the reliability of TCP/IP using UDP? If you need this kind of reliability then why not just use TCP/IP? And how could you possibly re-transmit a lost packet unless the sender were informed of this loss - which is part of the protocol embedded in TCP/IP?
+
+- DM
+
+
+On Oct 3, 2017, at 05:43, Chun Tian (binghe) &lt;binghe.lisp@gmail.com&lt;mailto:binghe.lisp@gmail.com&gt&gt wrote:
+
+I never heard "CLUDP", but my LispWorks-UDP project [1] was used by IRCAM in their OMAX music-related software [2], its public available OMax 3.0 sources still contains old version of my code. Whenever the specific UDP protocol contains a sequential number indicating the order of packets, my package has the ability to automatic retransmit lost UDP packets using a TCP-like RTT algorithm (this part is not ported to USOCKET [3], which provides synchronized LispWorks/UDP API).
+
+[1] https://github.com/binghe/lispworks-udp
+[2] http://repmus.ircam.fr/omax/home
+[3] https://common-lisp.net/project/usocket/
+
+
+On 2 October 2017 at 15:41, David McClain &lt;dbm@refined-audiometrics.com&lt;mailto:dbm@refined-audiometrics.com&gt&gt wrote:
+Oh! Thanks for pointing that out. That’s new in LW 7.0. I have been using LW for so long that I was just accustomed to its relatively few deficiencies. It just keeps getting better all the time.
+
+And thanks for pointing to that OSC lib. UDP is always a more natural choice in real time signal processing. If things don’t get done, just drop it on the floor and continue running. TCP/IP presents the (unlikely) possibility that things will hang waiting on some comm.
+
+Anyway, I’ll certainly have a look at that OSC lib. I’m trying to interface across the lab to a computer running a Kyma system. I would think that I must use the same protocol (IP or UDP) as the listening Pacarana box. ( http://kyma.symbolicsound.com&lt;http://kyma.symbolicsound.com/&gt )
+
+- DM
+
+
+On Oct 1, 2017, at 22:36, Erik Ronström &lt;erik.ronstrom@doremir.com&lt;mailto:erik.ronstrom@doremir.com&gt&gt wrote:
+
+UDP is supported natively by LispWorks, at least in LW 7.0:
+http://www.lispworks.com/documentation/lw70/LW/html/lw-178.htm
+
+Of course, if you want it portable, an external module could still be preferred.
+
+As a side note, we’ve successfully been using the OSC protocol via TCP/IP for some time (using the osc lib found at https://github.com/zzkt/osc), although UDP is perhaps a more obvious choice.
+
+Erik
+
+
+
+
+1 okt. 2017 kl. 17:26 skrev David McClain &lt;dbm@refined-audiometrics.com&lt;mailto:dbm@refined-audiometrics.com&gt&gt:
+
+… sorry for the noise… I found the problems in CLUDP itself.
+
+1. For support function access - you need to ensure that the dylib is compiled with extern “C” around all the utility functions in the .c and .h source files. This so that the C++ compile won’t mangle the names on you.
+
+2. For library loading, there was an EVAL-WHEN in the main source code of CLUDP that attempts to perform a REGISTER-MODULE on its own, overriding my own ad-hoc attempt in the FLI interface code. The original source looks to be from Linux, and wanted a .so module name in the same directory as the other CLUDP code. Fix that to point to the Lib64 repository and it now works okay.
+
+- DM
+
+
+
+On Oct 1, 2017, at 08:12, Christopher Stacy &lt;cstacy@dtpq.com&lt;mailto:cstacy@dtpq.com&gt&gt wrote:
+
+UDP is a supported "socket" API on OSX.
+
+Your problem could conceivably be security related, but not about UDP per se.
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com&lt;mailto:lisp-hug@lispworks.com&gt
+http://www.lispworks.com/support/lisp-hug.html
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com&lt;mailto:lisp-hug@lispworks.com&gt
+http://www.lispworks.com/support/lisp-hug.html
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com&lt;mailto:lisp-hug@lispworks.com&gt
+http://www.lispworks.com/support/lisp-hug.html
+
+
+
+
+--
+Chun Tian (binghe)
+University of Bologna (Italy)
+
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Anti-hacker security restrictions on UDP?</h1>
+                 <pre>Yes… I have seen a number of audio studio networking protocols being introduced. I had no idea what they were actually doing. But it seems like it must be a variant of what binghe describes. Their hope seems to be in claiming massive bandwidth for audio transfers.
+
+- DM
+
+&gt On Oct 3, 2017, at 08:03, Miller, Bradford W (GE Global Research, US) &lt;millerb@ge.com&gt wrote:
+&gt 
+&gt LOTS of folks implement their own protocol on top of UDP instead of TCP to get some, but not all, of the features of TCP.
+&gt 
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Anti-hacker security restrictions on UDP?</h1>
+                 <pre>Okay… you guys all got me to look more deeply at the issues…
+
+I’m running a Behringer X32 console in the lab, with AES50/SuperMAC protocol. That is a transport layer protocol for point-point connections, offering 24 channels of 48 kHz audio with 3 sample delay at each connection. This is intended to support digital snakes from a stage to the mixing console, over CAT-5 copper connections. I, personally, have never used this feature on my board.
+
+Since it is proprietary and transport level, it is incompatible with standard routers. Special AES50 bridges must be used to connect a network of consoles and sources into a star network.
+
+The Capybara appears to have a standard UDP implementation, which means that I can connect over standard WiFI and Ethernet cable, or use through a router with diminished perkiness. I truly doubt that its implementation of UDP offers any kind of lost-packet notification, unless that is part of standard OSC protocol.
+
+Thanks for nudging me to look more closely…
+
+- DM
+
+
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Anti-hacker security restrictions on UDP?</h1>
+                 <pre>I can't believe it, DM.&nbsp; That girl's standing over there listening and 
+you're telling him about our back doors? You're giving away all our best 
+tricks!
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Anti-hacker security restrictions on UDP?</h1>
+                 <pre>* Christopher Stacy &lt;ce8713f6-cf86-f6b0-393f-06da39800601@dtpq.com&gt :
+Wrote on Tue, 3 Oct 2017 14:26:34 -0400:
+
+&gt I can't believe it, DM. That girl's standing over there listening and
+&gt you're telling him about our back doors? You're giving away all our
+&gt best tricks!
+
+I didn't get the reference as I hadn't seen the movie.  In case others
+missed it, it is from a 1983 film "Wargames" with Alley Sheedy, the
+script goes like this:
+
+Malvin: I can't believe it, Jim. That girl's standing over there listening and
+	you're telling him about our back doors?
+Jim Sting: [yelling] Mister Potato Head! MISTER POTATO HEAD!! Back doors are
+	not secrets!
+Malvin: Yeah, but Jim, you're giving away all our best tricks!
+Jim Sting: They're not tricks.
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+           </body>
+          </html>

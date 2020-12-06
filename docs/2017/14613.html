@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Actors package</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+           </head>
+           <body>
+            <div class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </div>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Actors package</h1>
+                <pre>I just completed version 1.0 of a new Actors package. This implements a system of Green threads across a dynamically expandable pool of OS Executive threads. Executive pools are created on first demand whenever an Actor exchange is initiated. Written entirely in LW Lisp, no external C libraries needed.
+
+Initial benchmarks showed that a simple message send + thread teardown across 10 million Actors took about 82 seconds on my Mac Mini with 4 CPU cores. That’s 8 usec per context switch. The Mac remained responsive during that test, and the pool never needed to augment the original 4 Executives in the pool. The CPU meter showed a steady 270% utilization across all 4 cores.
+
+The performance scales linearly from 1,000 Actors to 10 Million Actors. Below 1,000 Actors the test is too fast to get timings, and I didn’t bother attempting more than 10 Million Actors.
+
+The Executive pool implements a system for managing the OS threads that allows for blocking activity in Actor green threads, whether the result of blocking I/O calls, or just compute bound Actors. A system watchdog keeps an eye on things to automatically spawn off additional Executive red pool threads if it detects that all of the pool Executives have been tied up for too long while Actors await in the ready queue. 
+
+So this also solves the problem of deadlocks arising from Actor messaging loops. Most of the time, with normal activity, even with blocking I/O, things run happily given the other available Executives living in the pool. I put a limit of 1,000 Executives when growing before barking at the user. The system is very fluid and does not seem to bind up and become unresponsive.
+
+SMP coordination is only needed in the Executive pool, the ready queue, global shared data (when you really must), and each Actor object when you need to read / write consistent data in the object itself. Actors otherwise maintain their own persistent state in closure bindings so that the code in their body can assume single thread unencumbered access to local state. Reentrant code is never needed in Actor bodies because they can only be instantiated for running on one OS thread. That’s a huge burden lifted from most complex code. So much so that portions of the Actor system were migrated to Actors when possible.
+
+[ I’m too much of a lamer to deal successfully with GitHub after just trying to upload for the past half hour. I give up. ]
+
+The Actor system benefits greatly from Doug Hoyte’s DLAMBDA and the Optima MATCH, although neither is mandated by the Actor system. These two just make life much nicer for you.
+
+My earlier Butterfly system was entirely OS thread based and is quite versatile for distributed computing here in the lab and elsewhere. But it was always heavy compared to Erlang. Now we have the potential for the best of Lisp, combined with lightweight and simple to use concurrent programming.
+
+- DM
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Actors package</h1><html><head><meta http-equiv="Content-Type" content="text/html charset=us-ascii"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">You can download a copy from <a href="http://refined-audiometrics.com/tekram/Actors.zip" class="">refined-audiometrics.com/tekram/Actors.zip</a>&nbsp;(25 KB)<div class=""><br class=""></div><div class=""><br class=""></div></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Actors package</h1><html><head><meta http-equiv="Content-Type" content="text/html charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">I have received a number of e-mails worrying about the restrictiveness in my implied license. Apparently, somewhere in the code is found the statement:&nbsp;<div class=""><br class=""></div><div class=""><span style="color: rgb(34, 34, 34); background-color: rgb(255, 255, 255);" class="">"Copyright (c) 2017 by Refined Audiometrics Laboratory, LLC. All rights reserved.</span><font color="#222222" class="">”</font></div><div class=""><font color="#222222" class=""><span style="background-color: rgb(255, 255, 255);" class=""><br class=""></span></font></div><div class="">That means nothing in reality. To repeat what I said to one person:</div><div class=""><br class=""></div><div class=""><blockquote type="cite" class=""><div class="" style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;"><div class="">Fear not… I have no intention of limiting the use of the code contained in that Actors system. I know there has been a ton of commentary about various licenses, but honestly, it all makes my head spin. I’m a scientist, and I believe that knowledge belongs to no one, and to everyone. Let’s please unbind the wheels of progress. Use the code as you will, hack it to death, etc.</div></div></blockquote></div><div class=""><div class="" style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;"><div class=""><br class=""></div></div></div><div class=""><br class=""></div><div class=""><font color="#222222" class=""><span style="background-color: rgb(255, 255, 255);" class="">Any license stands as a warning to poachers, but it is toothless without resources to mount a challenge against inevitable poaching. I have that same issue with the Patents that I now hold. To me these are just trophies. And as an individual, I am powerless to mount a defense against a Google or an Apple. So come on, see the realities at hand.</span></font></div><div class=""><font color="#222222" class=""><span style="background-color: rgb(255, 255, 255);" class=""><br class=""></span></font></div><div class=""><font color="#222222" class=""><span style="background-color: rgb(255, 255, 255);" class="">- DM</span></font></div><div class=""><font color="#222222" class=""><span style="background-color: rgb(255, 255, 255);" class=""><br class=""></span></font></div><div class=""><font color="#222222" class=""><span style="background-color: rgb(255, 255, 255);" class=""><br class=""></span></font><div><blockquote type="cite" class=""><div class="">On Oct 22, 2017, at 15:25, David McClain &lt;<a href="mailto:dbm@refined-audiometrics.com" class="">dbm@refined-audiometrics.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><meta http-equiv="Content-Type" content="text/html charset=utf-8" class=""><div style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">Hi Zach,<div class=""><br class=""></div><div class="">Fear not… I have no intention of limiting the use of the code contained in that Actors system. I know there has been a ton of commentary about various licenses, but honestly, it all makes my head spin. I’m a scientist, and I believe that knowledge belongs to no one, and to everyone. Let’s please unbind the wheels of progress. Use the code as you will, hack it to death, etc.</div><div class=""><br class=""></div><div class="">Cheers,</div><div class=""><br class=""></div><div class="">- DM</div><div class=""><br class=""></div><div class=""><br class=""><div class=""><blockquote type="cite" class=""><div class="">On Oct 22, 2017, at 15:17, Zach Beane &lt;<a href="mailto:xach@xach.com" class="">xach@xach.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><div dir="ltr" class="">The license in the system file looks quite restrictive - is that what you had in mind? It is such that I'm not even going to look at the rest of the code for fear of unintentional copying.<br class=""><div class=""><br class=""></div><div class="">Zach</div></div><div class="gmail_extra"><br class=""><div class="gmail_quote">On Sat, Oct 21, 2017 at 3:57 PM, David McClain <span dir="ltr" class="">&lt;<a href="mailto:dbm@refined-audiometrics.com" target="_blank" class="">dbm@refined-audiometrics.com</a>&gt;</span> wrote:<br class=""><blockquote class="gmail_quote" style="margin:0 0 0 ..8ex;border-left:1px #ccc solid;padding-left:1ex"><div style="word-wrap:break-word" class="">You can download a copy from <a href="http://refined-audiometrics.com/tekram/Actors.zip" target="_blank" class="">refined-audiometrics.com/<wbr class="">tekram/Actors.zip</a>&nbsp;(25 KB)<div class=""><br class=""></div><div class=""><br class=""></div></div></blockquote></div><br class=""></div>
+</div></blockquote></div><br class=""></div></div></div></blockquote></div><br class=""></div></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>RE: Actors package</h1><html xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns:m="http://schemas.microsoft.com/office/2004/12/omml" xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="Generator" content="Microsoft Word 15 (filtered medium)">
+<!--[if !mso]><style>v\:* {behavior:url(#default#VML);}
+o\:* {behavior:url(#default#VML);}
+w\:* {behavior:url(#default#VML);}
+.shape {behavior:url(#default#VML);}
+</style><![endif]--><style><!--
+/* Font Definitions */
+@font-face
+	{font-family:"Cambria Math";
+	panose-1:2 4 5 3 5 4 6 3 2 4;}
+@font-face
+	{font-family:Calibri;
+	panose-1:2 15 5 2 2 2 4 3 2 4;}
+/* Style Definitions */
+p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{margin:0in;
+	margin-bottom:.0001pt;
+	font-size:11.0pt;
+	font-family:"Calibri",sans-serif;}
+a:link, span.MsoHyperlink
+	{mso-style-priority:99;
+	color:blue;
+	text-decoration:underline;}
+a:visited, span.MsoHyperlinkFollowed
+	{mso-style-priority:99;
+	color:purple;
+	text-decoration:underline;}
+p.msonormal0, li.msonormal0, div.msonormal0
+	{mso-style-name:msonormal;
+	mso-margin-top-alt:auto;
+	margin-right:0in;
+	mso-margin-bottom-alt:auto;
+	margin-left:0in;
+	font-size:11.0pt;
+	font-family:"Calibri",sans-serif;}
+span.EmailStyle18
+	{mso-style-type:personal-reply;
+	font-family:"Calibri",sans-serif;
+	color:windowtext;}
+.MsoChpDefault
+	{mso-style-type:export-only;
+	font-size:10.0pt;}
+@page WordSection1
+	{size:8.5in 11.0in;
+	margin:1.0in 1.0in 1.0in 1.0in;}
+div.WordSection1
+	{page:WordSection1;}
+--></style><!--[if gte mso 9]><xml>
+<o:shapedefaults v:ext="edit" spidmax="1026" />
+</xml><![endif]--><!--[if gte mso 9]><xml>
+<o:shapelayout v:ext="edit">
+<o:idmap v:ext="edit" data="1" />
+</o:shapelayout></xml><![endif]-->
+</head>
+<body lang="EN-US" link="blue" vlink="purple">
+<div class="WordSection1">
+<p class="MsoNormal">It would probably be better to just make the license explicit. See, for example, the story of BusyBox:<o:p></o:p></p>
+<p class="MsoNormal"><o:p>&nbsp;</o:p></p>
+<p class="MsoNormal"><a href="https://torquemag.io/2013/03/busybox/">https://torquemag.io/2013/03/busybox/</a><o:p></o:p></p>
+<p class="MsoNormal"><o:p>&nbsp;</o:p></p>
+<p class="MsoNormal">BSD/MIT/Apache are usually good choices.<o:p></o:p></p>
+<p class="MsoNormal"><o:p>&nbsp;</o:p></p>
+<div>
+<p class="MsoNormal">--&nbsp;<o:p></o:p></p>
+<p class="MsoNormal" style="background:white"><span style="color:black">Steve Nunez</span><span style="color:#222222"><o:p></o:p></span></p>
+<p class="MsoNormal" style="background:white"><span style="color:black">Senior Director, Field Technical Services, APAC</span><span style="color:#222222"><o:p></o:p></span></p>
+<p class="MsoNormal" style="background:white"><span style="color:black">&#43;65 9623 5172<o:p></o:p></span></p>
+<p class="MsoNormal" style="background:white"><span style="font-size:9.0pt;color:black"><o:p>&nbsp;</o:p></span></p>
+<p class="MsoNormal" style="background:white"><span style="font-size:9.0pt;color:black"><img border="0" width="114" height="38" style="width:1.1916in;height:.3916in" id="Picture_x0020_1" src="cid:image002.png@01D34BD4.C1B486E0" alt="MapR_technologies_logo_signature_transparent"></span><span style="font-size:9.0pt;color:#222222"><o:p></o:p></span></p>
+<p class="MsoNormal" style="background:white"><span style="font-size:12.0pt;color:#222222"><o:p>&nbsp;</o:p></span></p>
+</div>
+<p class="MsoNormal"><o:p>&nbsp;</o:p></p>
+<div>
+<div style="border:none;border-top:solid #E1E1E1 1.0pt;padding:3.0pt 0in 0in 0in">
+<p class="MsoNormal"><b>From:</b> owner-lisp-hug@lispworks.com [mailto:owner-lisp-hug@lispworks.com]
+<b>On Behalf Of </b>David McClain<br>
+<b>Sent:</b> 23 October, 2017 06:34<br>
+<b>To:</b> Lispworks HUG &lt;lisp-hug@lispworks.com&gt;<br>
+<b>Subject:</b> Re: Actors package<o:p></o:p></p>
+</div>
+</div>
+<p class="MsoNormal"><o:p>&nbsp;</o:p></p>
+<p class="MsoNormal">I have received a number of e-mails worrying about the restrictiveness in my implied license. Apparently, somewhere in the code is found the statement:&nbsp;<o:p></o:p></p>
+<div>
+<p class="MsoNormal"><o:p>&nbsp;</o:p></p>
+</div>
+<div>
+<p class="MsoNormal"><span style="color:#222222;background:white">&quot;Copyright (c) 2017 by Refined Audiometrics Laboratory, LLC. All rights reserved.</span><span style="color:#222222">”</span><o:p></o:p></p>
+</div>
+<div>
+<p class="MsoNormal"><o:p>&nbsp;</o:p></p>
+</div>
+<div>
+<p class="MsoNormal">That means nothing in reality. To repeat what I said to one person:<o:p></o:p></p>
+</div>
+<div>
+<p class="MsoNormal"><o:p>&nbsp;</o:p></p>
+</div>
+<div>
+<blockquote style="margin-top:5.0pt;margin-bottom:5.0pt">
+<div>
+<div>
+<p class="MsoNormal">Fear not… I have no intention of limiting the use of the code contained in that Actors system. I know there has been a ton of commentary about various licenses, but honestly, it all makes my head spin. I’m a scientist, and I believe that
+ knowledge belongs to no one, and to everyone. Let’s please unbind the wheels of progress. Use the code as you will, hack it to death, etc.<o:p></o:p></p>
+</div>
+</div>
+</blockquote>
+</div>
+<div>
+<div>
+<div>
+<p class="MsoNormal"><o:p>&nbsp;</o:p></p>
+</div>
+</div>
+</div>
+<div>
+<p class="MsoNormal"><o:p>&nbsp;</o:p></p>
+</div>
+<div>
+<p class="MsoNormal"><span style="color:#222222;background:white">Any license stands as a warning to poachers, but it is toothless without resources to mount a challenge against inevitable poaching. I have that same issue with the Patents that I now hold. To
+ me these are just trophies. And as an individual, I am powerless to mount a defense against a Google or an Apple. So come on, see the realities at hand.</span><o:p></o:p></p>
+</div>
+<div>
+<p class="MsoNormal"><o:p>&nbsp;</o:p></p>
+</div>
+<div>
+<p class="MsoNormal"><span style="color:#222222;background:white">- DM</span><o:p></o:p></p>
+</div>
+<div>
+<p class="MsoNormal"><o:p>&nbsp;</o:p></p>
+</div>
+<div>
+<p class="MsoNormal"><o:p>&nbsp;</o:p></p>
+<div>
+<blockquote style="margin-top:5.0pt;margin-bottom:5.0pt">
+<div>
+<p class="MsoNormal">On Oct 22, 2017, at 15:25, David McClain &lt;<a href="mailto:dbm@refined-audiometrics.com">dbm@refined-audiometrics.com</a>&gt; wrote:<o:p></o:p></p>
+</div>
+<p class="MsoNormal"><o:p>&nbsp;</o:p></p>
+<div>
+<div>
+<p class="MsoNormal">Hi Zach,<o:p></o:p></p>
+<div>
+<p class="MsoNormal"><o:p>&nbsp;</o:p></p>
+</div>
+<div>
+<p class="MsoNormal">Fear not… I have no intention of limiting the use of the code contained in that Actors system. I know there has been a ton of commentary about various licenses, but honestly, it all makes my head spin. I’m a scientist, and I believe that
+ knowledge belongs to no one, and to everyone. Let’s please unbind the wheels of progress. Use the code as you will, hack it to death, etc.<o:p></o:p></p>
+</div>
+<div>
+<p class="MsoNormal"><o:p>&nbsp;</o:p></p>
+</div>
+<div>
+<p class="MsoNormal">Cheers,<o:p></o:p></p>
+</div>
+<div>
+<p class="MsoNormal"><o:p>&nbsp;</o:p></p>
+</div>
+<div>
+<p class="MsoNormal">- DM<o:p></o:p></p>
+</div>
+<div>
+<p class="MsoNormal"><o:p>&nbsp;</o:p></p>
+</div>
+<div>
+<p class="MsoNormal"><o:p>&nbsp;</o:p></p>
+<div>
+<blockquote style="margin-top:5.0pt;margin-bottom:5.0pt">
+<div>
+<p class="MsoNormal">On Oct 22, 2017, at 15:17, Zach Beane &lt;<a href="mailto:xach@xach.com">xach@xach.com</a>&gt; wrote:<o:p></o:p></p>
+</div>
+<p class="MsoNormal"><o:p>&nbsp;</o:p></p>
+<div>
+<div>
+<p class="MsoNormal">The license in the system file looks quite restrictive - is that what you had in mind? It is such that I'm not even going to look at the rest of the code for fear of unintentional copying.<o:p></o:p></p>
+<div>
+<p class="MsoNormal"><o:p>&nbsp;</o:p></p>
+</div>
+<div>
+<p class="MsoNormal">Zach<o:p></o:p></p>
+</div>
+</div>
+<div>
+<p class="MsoNormal"><o:p>&nbsp;</o:p></p>
+<div>
+<p class="MsoNormal">On Sat, Oct 21, 2017 at 3:57 PM, David McClain &lt;<a href="mailto:dbm@refined-audiometrics.com" target="_blank">dbm@refined-audiometrics.com</a>&gt; wrote:<o:p></o:p></p>
+<blockquote style="border:none;border-left:solid #CCCCCC 1.0pt;padding:0in 0in 0in 6.0pt;margin-left:4.8pt;margin-right:0in">
+<div>
+<p class="MsoNormal">You can download a copy from <a href="http://refined-audiometrics.com/tekram/Actors.zip" target="_blank">
+refined-audiometrics.com/tekram/Actors.zip</a>&nbsp;(25 KB)<o:p></o:p></p>
+<div>
+<p class="MsoNormal"><o:p>&nbsp;</o:p></p>
+</div>
+<div>
+<p class="MsoNormal"><o:p>&nbsp;</o:p></p>
+</div>
+</div>
+</blockquote>
+</div>
+<p class="MsoNormal"><o:p>&nbsp;</o:p></p>
+</div>
+</div>
+</blockquote>
+</div>
+<p class="MsoNormal"><o:p>&nbsp;</o:p></p>
+</div>
+</div>
+</div>
+</blockquote>
+</div>
+<p class="MsoNormal"><o:p>&nbsp;</o:p></p>
+</div>
+</div>
+</body>
+</html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Actors package</h1><html><head><meta http-equiv="Content-Type" content="text/html charset=us-ascii"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">Already done. Zip file contains MIT License terms.<div class=""><br class=""></div><div class="">- DM<br class=""><div class=""><br class=""></div><div class=""><br class=""><div><blockquote type="cite" class=""><div class="">On Oct 22, 2017, at 16:58, Steven Nunez &lt;<a href="mailto:snunez@mapr.com" class="">snunez@mapr.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><div class="WordSection1" style="page: WordSection1; font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px;"><div style="margin: 0in 0in 0.0001pt; font-size: 11pt; font-family: Calibri, sans-serif;" class="">It would probably be better to just make the license explicit. See, for example, the story of BusyBox:<o:p class=""></o:p></div><div style="margin: 0in 0in 0.0001pt; font-size: 11pt; font-family: Calibri, sans-serif;" class=""><o:p class="">&nbsp;</o:p></div><div style="margin: 0in 0in 0.0001pt; font-size: 11pt; font-family: Calibri, sans-serif;" class=""><a href="https://torquemag.io/2013/03/busybox/" style="color: purple; text-decoration: underline;" class="">https://torquemag.io/2013/03/busybox/</a><o:p class=""></o:p></div><div style="margin: 0in 0in 0.0001pt; font-size: 11pt; font-family: Calibri, sans-serif;" class=""><o:p class="">&nbsp;</o:p></div><div style="margin: 0in 0in 0.0001pt; font-size: 11pt; font-family: Calibri, sans-serif;" class="">BSD/MIT/Apache are usually good choices.<o:p class=""></o:p></div><div style="margin: 0in 0in 0.0001pt; font-size: 11pt; font-family: Calibri, sans-serif;" class=""><o:p class="">&nbsp;</o:p></div><div class=""><div style="margin: 0in 0in 0.0001pt; font-size: 11pt; font-family: Calibri, sans-serif;" class="">--&nbsp;<o:p class=""></o:p></div><div style="margin: 0in 0in 0.0001pt; font-size: 11pt; font-family: Calibri, sans-serif; background-color: white;" class=""><span style="" class="">Steve Nunez</span><span style="color: rgb(34, 34, 34);" class=""><o:p class=""></o:p></span></div><div style="margin: 0in 0in 0.0001pt; font-size: 11pt; font-family: Calibri, sans-serif; background-color: white;" class=""><span style="" class="">Senior Director, Field Technical Services, APAC</span><span style="color: rgb(34, 34, 34);" class=""><o:p class=""></o:p></span></div><div style="margin: 0in 0in 0.0001pt; font-size: 11pt; font-family: Calibri, sans-serif; background-color: white;" class=""><span style="" class="">+65 9623 5172<o:p class=""></o:p></span></div><div style="margin: 0in 0in 0.0001pt; font-size: 11pt; font-family: Calibri, sans-serif; background-color: white;" class=""><span style="font-size: 9pt;" class=""><o:p class="">&nbsp;</o:p></span></div><div style="margin: 0in 0in 0.0001pt; font-size: 11pt; font-family: Calibri, sans-serif; background-color: white;" class=""><span style="font-size: 9pt;" class=""><span id="cid:image002.png@01D34BD4.C1B486E0">&lt;image002.png&gt;</span></span><span style="font-size: 9pt; color: rgb(34, 34, 34);" class=""><o:p class=""></o:p></span></div></div></div></div></blockquote></div><br class=""></div></div></body></html>
+
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+           </body>
+          </html>

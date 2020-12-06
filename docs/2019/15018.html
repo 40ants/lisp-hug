@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Understanding satisfies clauses and eval-when</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+           </head>
+           <body>
+            <div class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </div>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Understanding satisfies clauses and eval-when</h1>
+                <pre>Hi,
+
+I'm using LispWorks and wrote a deftype using a satisfies clause:
+
+(defun cardp (object)
+  (and (stringp object)
+       (= (length object) 2)
+       (find (char object 0) "A23456789TJQK")
+       (find (char object 1) "cdhs")))
+
+(deftype card ()
+  "Cards are two-letter strings made of a rank followed by a suit."
+  '(and (string 2) (satisfies cardp)))
+
+It seems to work fine for me. But the Google Common Lisp Style Guide says "Implementations may, and some will, invoke SATISFIES-specified function at compile-time to test various relevant objects. That is why any function specified in a SATISFIES clause MUST accept objects of any type as argument to the function, and MUST be defined within an EVAL-WHEN".
+
+So when I put it in an eval-when like this:
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defun cardp (object)
+    (and (stringp object)
+         (= (length object) 2)
+         (find (char object 0) "A23456789TJQK")
+         (find (char object 1) "cdhs"))))
+
+In LispWorks, (compiled-function-p #'cardp) now returns NIL, SBCL returns T.
+
+If I want it to be a compiled function, what should I do?
+
+I guess I can do something like:
+(unless (compiled-function-p #'cardp)
+  (compile 'cardp))
+
+Or even just (compile 'cardp), but I'm not sure where the best place for it is (inside the same eval-when, or outside of it), or if there's something else I should be doing.
+
+Mitch
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Understanding satisfies clauses and eval-when</h1><html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class=""><br class=""><div><br class=""><blockquote type="cite" class=""><div class="">On 15 Sep 2019, at 19:43, Mitchell Chung &lt;<a href="mailto:mkc94@hotmail.com" class="">mkc94@hotmail.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><div class="">Hi,<br class=""><br class="">I'm using LispWorks and wrote a deftype using a satisfies clause:<br class=""><br class="">(defun cardp (object)<br class=""> &nbsp;(and (stringp object)<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(= (length object) 2)<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(find (char object 0) "A23456789TJQK")<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(find (char object 1) "cdhs")))<br class=""><br class="">(deftype card ()<br class=""> &nbsp;"Cards are two-letter strings made of a rank followed by a suit."<br class=""> &nbsp;'(and (string 2) (satisfies cardp)))<br class=""><br class="">It seems to work fine for me. But the Google Common Lisp Style Guide says "Implementations may, and some will, invoke SATISFIES-specified function at compile-time to test various relevant objects. That is why any function specified in a SATISFIES clause MUST accept objects of any type as argument to the function, and MUST be defined within an EVAL-WHEN".<br class=""><br class="">So when I put it in an eval-when like this:<br class="">(eval-when (:compile-toplevel :load-toplevel :execute)<br class=""> &nbsp;(defun cardp (object)<br class=""> &nbsp;&nbsp;&nbsp;(and (stringp object)<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(= (length object) 2)<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(find (char object 0) "A23456789TJQK")<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(find (char object 1) "cdhs"))))<br class=""><br class="">In LispWorks, (compiled-function-p #'cardp) now returns NIL, SBCL returns T.<br class=""><br class="">If I want it to be a compiled function, what should I do?<br class=""><br class="">I guess I can do something like:<br class="">(unless (compiled-function-p #'cardp)<br class=""> &nbsp;(compile 'cardp))<br class=""><br class="">Or even just (compile 'cardp), but I'm not sure where the best place for it is (inside the same eval-when, or outside of it), or if there's something else I should be doing.<br class=""></div></div></blockquote><br class=""></div><div>One simple way to ensure what you want, is to put the definition of cardp in a separate file, and to specify it as a dependency in the asd.</div><div><br class=""></div><div>If you insist on keeping everything in a single file, &nbsp;I would, for sake of clarity and simplicity write it as:</div><div><br class=""></div><div><blockquote type="cite" class=""></blockquote><font face="Menlo" class="">(eval-when (:compile-toplevel :load-toplevel :execute)<br class=""></font><blockquote type="cite" class=""></blockquote><font face="Menlo" class="">&nbsp;(defun cardp (object)<br class=""></font><blockquote type="cite" class=""></blockquote><font face="Menlo" class="">&nbsp; &nbsp;(and (stringp object)<br class=""></font><blockquote type="cite" class=""></blockquote><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; (= (length object) 2)<br class=""></font><blockquote type="cite" class=""></blockquote><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; (find (char object 0) "A23456789TJQK")<br class="">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(find (char object 1) "cdhs"))))</font></div><div><font face="Menlo" class=""><br class=""></font></div><div><font face="Menlo" class="">(eval-when (:compile-toplevel)</font></div><div><font face="Menlo" class="">&nbsp; (compile ‘cardp))</font></div><div><br class=""></div><div><br class=""></div><div class="">
+<div style="color: rgb(0, 0, 0); letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class=""><div style="color: rgb(0, 0, 0); letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class=""><div style="color: rgb(0, 0, 0); letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class="">--&nbsp;<br class="">__Pascal J. Bourguignon__</div><div style="color: rgb(0, 0, 0); letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class=""><br class=""><br class=""><br class=""></div></div></div>
+</div>
+<br class=""></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Understanding satisfies clauses and eval-when</h1><html><head><meta http-equiv="Content-Type" content="text/html; charset=us-ascii"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class="">On 15 Sep 2019, at 18:43, Mitchell Chung &lt;<a href="mailto:mkc94@hotmail.com" class="">mkc94@hotmail.com</a>&gt; wrote:<br class=""><div><blockquote type="cite" class=""><br class="Apple-interchange-newline"><div class=""><span style="caret-color: rgb(0, 0, 0); font-family: Menlo-Regular; font-size: 11px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none; float: none; display: inline !important;" class="">In LispWorks, (compiled-function-p #'cardp) now returns NIL, SBCL returns T.</span><br style="caret-color: rgb(0, 0, 0); font-family: Menlo-Regular; font-size: 11px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""></div></blockquote><br class=""></div><div>What this means is that, at compile time, CARDP is available as a function, but in LW it is not yet compiled. &nbsp;That means that any typechecks done at compile-time might be a bit slower.</div><div><br class=""></div><div>At run time (after your code is loaded), the function is compiled. &nbsp;For instance, if I have a file "ts.lisp" containing:</div><div><br class=""></div><div><div>&nbsp; &nbsp; (eval-when (:compile-toplevel :load-toplevel :execute)</div><div>&nbsp; &nbsp; &nbsp; (defun cardp (object)</div><div>&nbsp; &nbsp; &nbsp; &nbsp; (and (stringp object)</div><div>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(= (length object) 2)</div><div>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(find (char object 0) "A23456789TJQK")</div><div>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(find (char object 1) "cdhs"))))</div><div>&nbsp; &nbsp;&nbsp;</div><div>&nbsp; &nbsp; (deftype card ()</div><div>&nbsp; &nbsp; &nbsp;"Cards are two-letter strings made of a rank followed by a suit."</div><div>&nbsp; &nbsp; &nbsp;'(and (string 2) (satisfies cardp)))</div><div><br class=""></div><div>Then (in a cold Lisp):</div><div><br class=""></div><div>- if you (compile-file "ts") then (compiled-function-p #'cardp) will be nil</div><div>- if you say (compile-file "ts: :load t) then (compiled-function-p #'cardp) will be true</div><div><br class=""></div><div>Unless you are doing a huge number of typechecks at compile time it's hard to see that this would matter.</div><div><br class=""></div><div>--tim&nbsp;</div></div><br class=""></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>RE: Understanding satisfies clauses and eval-when</h1><html xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns:m="http://schemas.microsoft.com/office/2004/12/omml" xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
+<meta name="Generator" content="Microsoft Word 15 (filtered medium)">
+<style><!--
+/* Font Definitions */
+@font-face
+	{font-family:"Cambria Math";
+	panose-1:2 4 5 3 5 4 6 3 2 4;}
+@font-face
+	{font-family:Calibri;
+	panose-1:2 15 5 2 2 2 4 3 2 4;}
+@font-face
+	{font-family:"Malgun Gothic";
+	panose-1:2 11 5 3 2 0 0 2 0 4;}
+@font-face
+	{font-family:Menlo-Regular;
+	panose-1:0 0 0 0 0 0 0 0 0 0;}
+@font-face
+	{font-family:"\@Malgun Gothic";}
+/* Style Definitions */
+p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{margin:0in;
+	margin-bottom:.0001pt;
+	font-size:11.0pt;
+	font-family:"Calibri",sans-serif;}
+a:link, span.MsoHyperlink
+	{mso-style-priority:99;
+	color:blue;
+	text-decoration:underline;}
+a:visited, span.MsoHyperlinkFollowed
+	{mso-style-priority:99;
+	color:purple;
+	text-decoration:underline;}
+p.msonormal0, li.msonormal0, div.msonormal0
+	{mso-style-name:msonormal;
+	mso-margin-top-alt:auto;
+	margin-right:0in;
+	mso-margin-bottom-alt:auto;
+	margin-left:0in;
+	font-size:11.0pt;
+	font-family:"Calibri",sans-serif;}
+span.EmailStyle18
+	{mso-style-type:personal;
+	font-family:"Calibri",sans-serif;
+	color:windowtext;}
+span.EmailStyle19
+	{mso-style-type:personal-compose;
+	font-family:"Calibri",sans-serif;
+	color:windowtext;}
+..MsoChpDefault
+	{mso-style-type:export-only;
+	font-size:10.0pt;}
+@page WordSection1
+	{size:8.5in 11.0in;
+	margin:1.0in 1.0in 1.0in 1.0in;}
+div.WordSection1
+	{page:WordSection1;}
+--></style><!--[if gte mso 9]><xml>
+<o:shapedefaults v:ext="edit" spidmax="1026" />
+</xml><![endif]--><!--[if gte mso 9]><xml>
+<o:shapelayout v:ext="edit">
+<o:idmap v:ext="edit" data="1" />
+</o:shapelayout></xml><![endif]-->
+</head>
+<body lang="EN-US" link="blue" vlink="purple">
+<div class="WordSection1">
+<p class="MsoNormal">Thanks for your replies, Pascal and Tim.<o:p></o:p></p>
+<p class="MsoNormal"><o:p>&nbsp;</o:p></p>
+<p class="MsoNormal">After doing some experiments, what&#8217;s happening to me is that I often use the LispWorks editor&#8217;s &#8220;Compile Defun&#8221; (Ctrl&#43;Shift&#43;C) or &#8220;Compile Buffer&#8221; (Ctrl&#43;Shift&#43;B) commands during development, and it results in (compiled-function-p #&#8217;cardp)
+ being nil, similar to (compile-file &#8220;ts&#8221;) without :load t. Both of Pascal&#8217;s suggestions make (compiled-function-p #&#8217;cardp) true, or I can stop using those commands and use something else like asdf:load-system.<o:p></o:p></p>
+<p class="MsoNormal"><o:p>&nbsp;</o:p></p>
+<p class="MsoNormal"><o:p>&nbsp;</o:p></p>
+<div>
+<div style="border:none;border-top:solid #E1E1E1 1.0pt;padding:3.0pt 0in 0in 0in">
+<p class="MsoNormal"><b>From:</b> Tim Bradshaw &lt;tfb@tfeb.org&gt; <br>
+<b>Sent:</b> Sunday, September 15, 2019 1:12 PM<br>
+<b>To:</b> Mitchell Chung &lt;mkc94@hotmail.com&gt;<br>
+<b>Cc:</b> lisp-hug@lispworks.com<br>
+<b>Subject:</b> Re: Understanding satisfies clauses and eval-when<o:p></o:p></p>
+</div>
+</div>
+<p class="MsoNormal"><o:p>&nbsp;</o:p></p>
+<p class="MsoNormal">On 15 Sep 2019, at 18:43, Mitchell Chung &lt;<a href="mailto:mkc94@hotmail.com">mkc94@hotmail.com</a>&gt; wrote:<o:p></o:p></p>
+<div>
+<blockquote style="margin-top:5.0pt;margin-bottom:5.0pt">
+<p class="MsoNormal"><o:p>&nbsp;</o:p></p>
+<div>
+<p class="MsoNormal"><span style="font-size:8.5pt;font-family:&quot;Menlo-Regular&quot;,serif">In LispWorks, (compiled-function-p #'cardp) now returns NIL, SBCL returns T.</span><o:p></o:p></p>
+</div>
+</blockquote>
+<p class="MsoNormal"><o:p>&nbsp;</o:p></p>
+</div>
+<div>
+<p class="MsoNormal">What this means is that, at compile time, CARDP is available as a function, but in LW it is not yet compiled. &nbsp;That means that any typechecks done at compile-time might be a bit slower.<o:p></o:p></p>
+</div>
+<div>
+<p class="MsoNormal"><o:p>&nbsp;</o:p></p>
+</div>
+<div>
+<p class="MsoNormal">At run time (after your code is loaded), the function is compiled. &nbsp;For instance, if I have a file &quot;ts.lisp&quot; containing:<o:p></o:p></p>
+</div>
+<div>
+<p class="MsoNormal"><o:p>&nbsp;</o:p></p>
+</div>
+<div>
+<div>
+<p class="MsoNormal">&nbsp; &nbsp; (eval-when (:compile-toplevel :load-toplevel :execute)<o:p></o:p></p>
+</div>
+<div>
+<p class="MsoNormal">&nbsp; &nbsp; &nbsp; (defun cardp (object)<o:p></o:p></p>
+</div>
+<div>
+<p class="MsoNormal">&nbsp; &nbsp; &nbsp; &nbsp; (and (stringp object)<o:p></o:p></p>
+</div>
+<div>
+<p class="MsoNormal">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(= (length object) 2)<o:p></o:p></p>
+</div>
+<div>
+<p class="MsoNormal">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(find (char object 0) &quot;A23456789TJQK&quot;)<o:p></o:p></p>
+</div>
+<div>
+<p class="MsoNormal">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(find (char object 1) &quot;cdhs&quot;))))<o:p></o:p></p>
+</div>
+<div>
+<p class="MsoNormal">&nbsp; &nbsp;&nbsp;<o:p></o:p></p>
+</div>
+<div>
+<p class="MsoNormal">&nbsp; &nbsp; (deftype card ()<o:p></o:p></p>
+</div>
+<div>
+<p class="MsoNormal">&nbsp; &nbsp; &nbsp;&quot;Cards are two-letter strings made of a rank followed by a suit.&quot;<o:p></o:p></p>
+</div>
+<div>
+<p class="MsoNormal">&nbsp; &nbsp; &nbsp;'(and (string 2) (satisfies cardp)))<o:p></o:p></p>
+</div>
+<div>
+<p class="MsoNormal"><o:p>&nbsp;</o:p></p>
+</div>
+<div>
+<p class="MsoNormal">Then (in a cold Lisp):<o:p></o:p></p>
+</div>
+<div>
+<p class="MsoNormal"><o:p>&nbsp;</o:p></p>
+</div>
+<div>
+<p class="MsoNormal">- if you (compile-file &quot;ts&quot;) then (compiled-function-p #'cardp) will be nil<o:p></o:p></p>
+</div>
+<div>
+<p class="MsoNormal">- if you say (compile-file &quot;ts: :load t) then (compiled-function-p #'cardp) will be true<o:p></o:p></p>
+</div>
+<div>
+<p class="MsoNormal"><o:p>&nbsp;</o:p></p>
+</div>
+<div>
+<p class="MsoNormal">Unless you are doing a huge number of typechecks at compile time it's hard to see that this would matter.<o:p></o:p></p>
+</div>
+<div>
+<p class="MsoNormal"><o:p>&nbsp;</o:p></p>
+</div>
+<div>
+<p class="MsoNormal">--tim&nbsp;<o:p></o:p></p>
+</div>
+</div>
+<p class="MsoNormal"><o:p>&nbsp;</o:p></p>
+</div>
+</body>
+</html>
+
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Understanding satisfies clauses and eval-when</h1><html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class="">Just thinking about it, I would expect that a function inside EVAL-WHEN gets compiled with an editor <b class="">compile</b>-defun/region/buffer command.<div class=""><br class=""></div><div class="">You might check with LispWorks support and propose it as a feature.</div><div class=""><br class=""></div><div class="">Another way would be to use the menu command: File &gt; Compile and Load ...</div><div class=""><br class=""></div><div class="">Regards</div><div class=""><br class=""></div><div class="">Rainer Joswig</div><div class=""><br class=""><div><br class=""><blockquote type="cite" class=""><div class="">Am 16.09.2019 um 03:23 schrieb Mitchell Chung &lt;<a href="mailto:mkc94@hotmail.com" class="">mkc94@hotmail.com</a>&gt;:</div><br class="Apple-interchange-newline"><div class=""><div class="WordSection1" style="page: WordSection1; caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 14px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;"><div style="margin: 0in 0in 0.0001pt; font-size: 11pt; font-family: Calibri, sans-serif;" class="">Thanks for your replies, Pascal and Tim.<o:p class=""></o:p></div><div style="margin: 0in 0in 0.0001pt; font-size: 11pt; font-family: Calibri, sans-serif;" class=""><o:p class="">&nbsp;</o:p></div><div style="margin: 0in 0in 0.0001pt; font-size: 11pt; font-family: Calibri, sans-serif;" class="">After doing some experiments, what’s happening to me is that I often use the LispWorks editor’s “Compile Defun” (Ctrl+Shift+C) or “Compile Buffer” (Ctrl+Shift+B) commands during development, and it results in (compiled-function-p #’cardp) being nil, similar to (compile-file “ts”) without :load t. Both of Pascal’s suggestions make (compiled-function-p #’cardp) true, or I can stop using those commands and use something else like asdf:load-system.<o:p class=""></o:p></div><div style="margin: 0in 0in 0.0001pt; font-size: 11pt; font-family: Calibri, sans-serif;" class=""><o:p class="">&nbsp;</o:p></div><div style="margin: 0in 0in 0.0001pt; font-size: 11pt; font-family: Calibri, sans-serif;" class=""><o:p class="">&nbsp;</o:p></div><div class=""><div style="border-style: solid none none; border-top-width: 1pt; border-top-color: rgb(225, 225, 225); padding: 3pt 0in 0in;" class=""><div style="margin: 0in 0in 0.0001pt; font-size: 11pt; font-family: Calibri, sans-serif;" class=""><b class="">From:</b><span class="Apple-converted-space">&nbsp;</span>Tim Bradshaw &lt;<a href="mailto:tfb@tfeb.org" class="">tfb@tfeb.org</a>&gt;<span class="Apple-converted-space">&nbsp;</span><br class=""><b class="">Sent:</b><span class="Apple-converted-space">&nbsp;</span>Sunday, September 15, 2019 1:12 PM<br class=""><b class="">To:</b><span class="Apple-converted-space">&nbsp;</span>Mitchell Chung &lt;<a href="mailto:mkc94@hotmail.com" class="">mkc94@hotmail.com</a>&gt;<br class=""><b class="">Cc:</b><span class="Apple-converted-space">&nbsp;</span><a href="mailto:lisp-hug@lispworks.com" class="">lisp-hug@lispworks.com</a><br class=""><b class="">Subject:</b><span class="Apple-converted-space">&nbsp;</span>Re: Understanding satisfies clauses and eval-when<o:p class=""></o:p></div></div></div><div style="margin: 0in 0in 0.0001pt; font-size: 11pt; font-family: Calibri, sans-serif;" class=""><o:p class="">&nbsp;</o:p></div><div style="margin: 0in 0in 0.0001pt; font-size: 11pt; font-family: Calibri, sans-serif;" class="">On 15 Sep 2019, at 18:43, Mitchell Chung &lt;<a href="mailto:mkc94@hotmail.com" style="color: purple; text-decoration: underline;" class="">mkc94@hotmail.com</a>&gt; wrote:<o:p class=""></o:p></div><div class=""><blockquote style="margin-top: 5pt; margin-bottom: 5pt;" class=""><div style="margin: 0in 0in 0.0001pt; font-size: 11pt; font-family: Calibri, sans-serif;" class=""><o:p class="">&nbsp;</o:p></div><div class=""><div style="margin: 0in 0in 0.0001pt; font-size: 11pt; font-family: Calibri, sans-serif;" class=""><span style="font-size: 8.5pt; font-family: Menlo-Regular, serif;" class="">In LispWorks, (compiled-function-p #'cardp) now returns NIL, SBCL returns T.</span><o:p class=""></o:p></div></div></blockquote><div style="margin: 0in 0in 0.0001pt; font-size: 11pt; font-family: Calibri, sans-serif;" class=""><o:p class="">&nbsp;</o:p></div></div><div class=""><div style="margin: 0in 0in 0.0001pt; font-size: 11pt; font-family: Calibri, sans-serif;" class="">What this means is that, at compile time, CARDP is available as a function, but in LW it is not yet compiled. &nbsp;That means that any typechecks done at compile-time might be a bit slower.<o:p class=""></o:p></div></div><div class=""><div style="margin: 0in 0in 0.0001pt; font-size: 11pt; font-family: Calibri, sans-serif;" class=""><o:p class="">&nbsp;</o:p></div></div><div class=""><div style="margin: 0in 0in 0.0001pt; font-size: 11pt; font-family: Calibri, sans-serif;" class="">At run time (after your code is loaded), the function is compiled. &nbsp;For instance, if I have a file "ts.lisp" containing:<o:p class=""></o:p></div></div><div class=""><div style="margin: 0in 0in 0.0001pt; font-size: 11pt; font-family: Calibri, sans-serif;" class=""><o:p class="">&nbsp;</o:p></div></div><div class=""><div class=""><div style="margin: 0in 0in 0.0001pt; font-size: 11pt; font-family: Calibri, sans-serif;" class="">&nbsp; &nbsp; (eval-when (:compile-toplevel :load-toplevel :execute)<o:p class=""></o:p></div></div><div class=""><div style="margin: 0in 0in 0.0001pt; font-size: 11pt; font-family: Calibri, sans-serif;" class="">&nbsp; &nbsp; &nbsp; (defun cardp (object)<o:p class=""></o:p></div></div><div class=""><div style="margin: 0in 0in 0.0001pt; font-size: 11pt; font-family: Calibri, sans-serif;" class="">&nbsp; &nbsp; &nbsp; &nbsp; (and (stringp object)<o:p class=""></o:p></div></div><div class=""><div style="margin: 0in 0in 0.0001pt; font-size: 11pt; font-family: Calibri, sans-serif;" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(= (length object) 2)<o:p class=""></o:p></div></div><div class=""><div style="margin: 0in 0in 0.0001pt; font-size: 11pt; font-family: Calibri, sans-serif;" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(find (char object 0) "A23456789TJQK")<o:p class=""></o:p></div></div><div class=""><div style="margin: 0in 0in 0.0001pt; font-size: 11pt; font-family: Calibri, sans-serif;" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(find (char object 1) "cdhs"))))<o:p class=""></o:p></div></div><div class=""><div style="margin: 0in 0in 0.0001pt; font-size: 11pt; font-family: Calibri, sans-serif;" class="">&nbsp; &nbsp;&nbsp;<o:p class=""></o:p></div></div><div class=""><div style="margin: 0in 0in 0.0001pt; font-size: 11pt; font-family: Calibri, sans-serif;" class="">&nbsp; &nbsp; (deftype card ()<o:p class=""></o:p></div></div><div class=""><div style="margin: 0in 0in 0.0001pt; font-size: 11pt; font-family: Calibri, sans-serif;" class="">&nbsp; &nbsp; &nbsp;"Cards are two-letter strings made of a rank followed by a suit."<o:p class=""></o:p></div></div><div class=""><div style="margin: 0in 0in 0.0001pt; font-size: 11pt; font-family: Calibri, sans-serif;" class="">&nbsp; &nbsp; &nbsp;'(and (string 2) (satisfies cardp)))<o:p class=""></o:p></div></div><div class=""><div style="margin: 0in 0in 0.0001pt; font-size: 11pt; font-family: Calibri, sans-serif;" class=""><o:p class="">&nbsp;</o:p></div></div><div class=""><div style="margin: 0in 0in 0.0001pt; font-size: 11pt; font-family: Calibri, sans-serif;" class="">Then (in a cold Lisp):<o:p class=""></o:p></div></div><div class=""><div style="margin: 0in 0in 0.0001pt; font-size: 11pt; font-family: Calibri, sans-serif;" class=""><o:p class="">&nbsp;</o:p></div></div><div class=""><div style="margin: 0in 0in 0.0001pt; font-size: 11pt; font-family: Calibri, sans-serif;" class="">- if you (compile-file "ts") then (compiled-function-p #'cardp) will be nil<o:p class=""></o:p></div></div><div class=""><div style="margin: 0in 0in 0.0001pt; font-size: 11pt; font-family: Calibri, sans-serif;" class="">- if you say (compile-file "ts: :load t) then (compiled-function-p #'cardp) will be true<o:p class=""></o:p></div></div><div class=""><div style="margin: 0in 0in 0.0001pt; font-size: 11pt; font-family: Calibri, sans-serif;" class=""><o:p class="">&nbsp;</o:p></div></div><div class=""><div style="margin: 0in 0in 0.0001pt; font-size: 11pt; font-family: Calibri, sans-serif;" class="">Unless you are doing a huge number of typechecks at compile time it's hard to see that this would matter.<o:p class=""></o:p></div></div><div class=""><div style="margin: 0in 0in 0.0001pt; font-size: 11pt; font-family: Calibri, sans-serif;" class=""><o:p class="">&nbsp;</o:p></div></div><div class=""><div style="margin: 0in 0in 0.0001pt; font-size: 11pt; font-family: Calibri, sans-serif;" class="">--tim&nbsp;</div></div></div></div></div></blockquote></div><br class=""></div></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Understanding satisfies clauses and eval-when</h1>
+                 <pre>Yes, it is a bug that prevents it from being a compiled function in this case.
+
+-- 
+Martin Simmons
+LispWorks Ltd
+http://www.lispworks.com/
+
+
+&gt&gt&gt&gt&gt On Mon, 16 Sep 2019 12:34:49 +0200, Rainer Joswig said:
+&gt 
+&gt Just thinking about it, I would expect that a function inside EVAL-WHEN gets compiled with an editor compile-defun/region/buffer command.
+&gt 
+&gt You might check with LispWorks support and propose it as a feature.
+&gt 
+&gt Another way would be to use the menu command: File &gt Compile and Load ...
+&gt 
+&gt Regards
+&gt 
+&gt Rainer Joswig
+&gt 
+&gt 
+&gt &gt Am 16.09.2019 um 03:23 schrieb Mitchell Chung &lt;mkc94@hotmail.com&gt:
+&gt &gt 
+&gt &gt Thanks for your replies, Pascal and Tim.
+&gt &gt  
+&gt &gt After doing some experiments, what’s happening to me is that I often use the LispWorks editor’s “Compile Defun” (Ctrl+Shift+C) or “Compile Buffer” (Ctrl+Shift+B) commands during development, and it results in (compiled-function-p #’cardp) being nil, similar to (compile-file “ts”) without :load t. Both of Pascal’s suggestions make (compiled-function-p #’cardp) true, or I can stop using those commands and use something else like asdf:load-system.
+&gt &gt  
+&gt &gt  
+&gt &gt From: Tim Bradshaw &lt;tfb@tfeb.org&gt 
+&gt &gt Sent: Sunday, September 15, 2019 1:12 PM
+&gt &gt To: Mitchell Chung &lt;mkc94@hotmail.com&gt
+&gt &gt Cc: lisp-hug@lispworks.com
+&gt &gt Subject: Re: Understanding satisfies clauses and eval-when
+&gt &gt  
+&gt &gt On 15 Sep 2019, at 18:43, Mitchell Chung &lt;mkc94@hotmail.com &lt;mailto:mkc94@hotmail.com&gt&gt wrote:
+&gt &gt  
+&gt &gt In LispWorks, (compiled-function-p #'cardp) now returns NIL, SBCL returns T.
+&gt &gt  
+&gt &gt What this means is that, at compile time, CARDP is available as a function, but in LW it is not yet compiled.  That means that any typechecks done at compile-time might be a bit slower.
+&gt &gt  
+&gt &gt At run time (after your code is loaded), the function is compiled.  For instance, if I have a file "ts.lisp" containing:
+&gt &gt  
+&gt &gt     (eval-when (:compile-toplevel :load-toplevel :execute)
+&gt &gt       (defun cardp (object)
+&gt &gt         (and (stringp object)
+&gt &gt              (= (length object) 2)
+&gt &gt              (find (char object 0) "A23456789TJQK")
+&gt &gt              (find (char object 1) "cdhs"))))
+&gt &gt     
+&gt &gt     (deftype card ()
+&gt &gt      "Cards are two-letter strings made of a rank followed by a suit."
+&gt &gt      '(and (string 2) (satisfies cardp)))
+&gt &gt  
+&gt &gt Then (in a cold Lisp):
+&gt &gt  
+&gt &gt - if you (compile-file "ts") then (compiled-function-p #'cardp) will be nil
+&gt &gt - if you say (compile-file "ts: :load t) then (compiled-function-p #'cardp) will be true
+&gt &gt  
+&gt &gt Unless you are doing a huge number of typechecks at compile time it's hard to see that this would matter.
+&gt &gt  
+&gt &gt --tim 
+&gt 
+&gt 
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>RE: Understanding satisfies clauses and eval-when</h1>
+                 <pre>Thanks Rainer and Martin.
+
+I was thinking the "Compile and Load Buffer File" command is pretty similar and it's compiled, and was thinking in terms of having to load afterwards, so I am glad I could hear others' thoughts.
+
+-----Original Message-----
+From: owner-lisp-hug@lispworks.com &lt;owner-lisp-hug@lispworks.com&gt On Behalf Of Martin Simmons
+Sent: Tuesday, September 17, 2019 9:07 AM
+To: lisp-hug@lispworks.com
+Subject: Re: Understanding satisfies clauses and eval-when
+
+Yes, it is a bug that prevents it from being a compiled function in this case.
+
+-- 
+Martin Simmons
+LispWorks Ltd
+https://nam11.safelinks.protection.outlook.com/?url=http%3A%2F%2Fwww.lispworks.com%2F&amp;amp;data=02%7C01%7C%7Cbb91dbf644f14666497e08d73b898773%7C84df9e7fe9f640afb435aaaaaaaaaaaa%7C1%7C0%7C637043334177286207&amp;amp;sdata=0BjmVuQOp7FtgiYpUDA87sF3U9Cx8FGJfBwCR%2FRElAA%3D&amp;amp;reserved=0
+
+
+&gt&gt&gt&gt&gt On Mon, 16 Sep 2019 12:34:49 +0200, Rainer Joswig said:
+&gt 
+&gt Just thinking about it, I would expect that a function inside EVAL-WHEN gets compiled with an editor compile-defun/region/buffer command.
+&gt 
+&gt You might check with LispWorks support and propose it as a feature.
+&gt 
+&gt Another way would be to use the menu command: File &gt Compile and Load ...
+&gt 
+&gt Regards
+&gt 
+&gt Rainer Joswig
+&gt 
+&gt 
+&gt &gt Am 16.09.2019 um 03:23 schrieb Mitchell Chung &lt;mkc94@hotmail.com&gt:
+&gt &gt 
+&gt &gt Thanks for your replies, Pascal and Tim.
+&gt &gt  
+&gt &gt After doing some experiments, what’s happening to me is that I often use the LispWorks editor’s “Compile Defun” (Ctrl+Shift+C) or “Compile Buffer” (Ctrl+Shift+B) commands during development, and it results in (compiled-function-p #’cardp) being nil, similar to (compile-file “ts”) without :load t. Both of Pascal’s suggestions make (compiled-function-p #’cardp) true, or I can stop using those commands and use something else like asdf:load-system.
+&gt &gt  
+&gt &gt  
+&gt &gt From: Tim Bradshaw &lt;tfb@tfeb.org&gt 
+&gt &gt Sent: Sunday, September 15, 2019 1:12 PM
+&gt &gt To: Mitchell Chung &lt;mkc94@hotmail.com&gt
+&gt &gt Cc: lisp-hug@lispworks.com
+&gt &gt Subject: Re: Understanding satisfies clauses and eval-when
+&gt &gt  
+&gt &gt On 15 Sep 2019, at 18:43, Mitchell Chung &lt;mkc94@hotmail.com &lt;mailto:mkc94@hotmail.com&gt&gt wrote:
+&gt &gt  
+&gt &gt In LispWorks, (compiled-function-p #'cardp) now returns NIL, SBCL returns T.
+&gt &gt  
+&gt &gt What this means is that, at compile time, CARDP is available as a function, but in LW it is not yet compiled.  That means that any typechecks done at compile-time might be a bit slower.
+&gt &gt  
+&gt &gt At run time (after your code is loaded), the function is compiled.  For instance, if I have a file "ts.lisp" containing:
+&gt &gt  
+&gt &gt     (eval-when (:compile-toplevel :load-toplevel :execute)
+&gt &gt       (defun cardp (object)
+&gt &gt         (and (stringp object)
+&gt &gt              (= (length object) 2)
+&gt &gt              (find (char object 0) "A23456789TJQK")
+&gt &gt              (find (char object 1) "cdhs"))))
+&gt &gt     
+&gt &gt     (deftype card ()
+&gt &gt      "Cards are two-letter strings made of a rank followed by a suit."
+&gt &gt      '(and (string 2) (satisfies cardp)))
+&gt &gt  
+&gt &gt Then (in a cold Lisp):
+&gt &gt  
+&gt &gt - if you (compile-file "ts") then (compiled-function-p #'cardp) will be nil
+&gt &gt - if you say (compile-file "ts: :load t) then (compiled-function-p #'cardp) will be true
+&gt &gt  
+&gt &gt Unless you are doing a huge number of typechecks at compile time it's hard to see that this would matter.
+&gt &gt  
+&gt &gt --tim 
+&gt 
+&gt 
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+https://nam11.safelinks.protection.outlook.com/?url=http%3A%2F%2Fwww.lispworks.com%2Fsupport%2Flisp-hug.html&amp;amp;data=02%7C01%7C%7Cbb91dbf644f14666497e08d73b898773%7C84df9e7fe9f640afb435aaaaaaaaaaaa%7C1%7C0%7C637043334177286207&amp;amp;sdata=I8BG2w2o%2BnxDeZtqNpBJeAbUfoYyfHFsSYjiZV6Z3UA%3D&amp;amp;reserved=0
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+           </body>
+          </html>

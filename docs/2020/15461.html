@@ -1,0 +1,1183 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Building deliverables using CFFI libraries</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+           </head>
+           <body>
+            <div class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </div>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Building deliverables using CFFI libraries</h1><!DOCTYPE html><html><head><title></title><style type="text/css">p.MsoNormal,p.MsoNoSpacing{margin:0}</style></head><body><div>Hi all,<br></div><div><br></div><div>This is a convoluted question, but to start, I'm wondering if folks have successfully used the lisp works delivery mechanism incorporating libraries that use the CFFI module (not the builtin ffi module that is part of lispworks).<br></div><div><br></div><div>I need to use freetype2 with my project, and as part of that, fixed up a few things [1] in cl-freetype2 so that it will run in&nbsp;<br></div><div>lispworks. &nbsp;As part of this, I've also compiled the underlying freetype2 library for macOS as "libfreetype.6.dylib". &nbsp;<br></div><div><br></div><div>Now, when I ql:quickload/asdf:load-system cl-freetype2, I push the library folder location on to:&nbsp;<font color="#000000">cffi:*foreign-library-directories*. &nbsp;When delivering this ends up&nbsp;<span style="caret-color:rgb(0, 0, 0);">being</span>&nbsp;a different value than when the MacOS application is run, since that is calculated at runtime using: "</font><span style="color:rgb(0, 0, 0);">(</span><span style="color:rgb(175, 0, 219);">pathname-directory</span><span style="color:rgb(0, 0, 0);"> (lw:lisp-image-name))".</span><br></div><div><br></div><div>As you can imagine, I've gotten some invalid library handles and some segmentation faults, as the loaded library instance is different during delivery and actual application run. &nbsp;I've tried a few things... fiddling around with CFFI:unload-xyzed and reloading. &nbsp;I've also tried just asdf:compile-system for cl-freetype2 during the delivery stage and avoided using it at all in my code until the application is started up.<br></div><div><br></div><div>The easiest thing to do would likely be to include cl-freetype2 locally in the application bundle and just load it at application startup and avoid any dependencies on it during delivery, but the CFFI and groveling stuff requires compile-file which doesn't work in a delivered image (just tried this).<br></div><div><br></div><div>I'm sort of a mid-level lisp programmer (if that), so I'm not sure if there is some combination of CFFI [2] magic with lispworks delivery magic that should be obvious here. &nbsp;But if anyone has experience using a library that's backed by CFFI where you're including the C dynamic library so that it's not required to be on the users system, and have figured out how to make this work with lispworks delivery, I would greatly appreciate any advice or tips.<br></div><div><br></div><div>Cheers!<br></div><div>Steve</div><div><br></div><div>[1] or at least am in the process of. Fixed one thing, and commented out another:<br></div><div><a href="https://github.com/sgithens/cl-freetype2/tree/lispworks-fixup">https://github.com/sgithens/cl-freetype2/tree/lispworks-fixup</a><br></div><div><br></div><div>[2] which this is likely the wrong email list for</div></body></html>
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Building deliverables using CFFI libraries</h1><html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  </head>
+  <body>
+    <p>I have no idea if <a class="moz-txt-link-freetext" href="https://github.com/Shinmera/deploy">https://github.com/Shinmera/deploy</a> has been
+      tried with LispWorks, but it attempts to copy all found foreign
+      libraries into the directory of the deployed binary to
+      avoiddeployment issues. It is based around CFFI + ASDF and should
+      therefore work with LispWorks as long as ASDF works with LispWorks
+      (which I suppose it does).<br>
+    </p>
+    <p>BR<br>
+      ~phoe<br>
+    </p>
+    <div class="moz-cite-prefix">On 04.12.2020 22:02, Steven Githens
+      wrote:<br>
+    </div>
+    <blockquote type="cite"
+      cite="mid:48a50868-7643-4585-9435-c5724d08f845@www.fastmail.com">
+      <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+      <title></title>
+      <style type="text/css">p.MsoNormal,p.MsoNoSpacing{margin:0}</style>
+      <div>Hi all,<br>
+      </div>
+      <div><br>
+      </div>
+      <div>This is a convoluted question, but to start, I'm wondering if
+        folks have successfully used the lisp works delivery mechanism
+        incorporating libraries that use the CFFI module (not the
+        builtin ffi module that is part of lispworks).<br>
+      </div>
+      <div><br>
+      </div>
+      <div>I need to use freetype2 with my project, and as part of that,
+        fixed up a few things [1] in cl-freetype2 so that it will run
+        in <br>
+      </div>
+      <div>lispworks.  As part of this, I've also compiled the
+        underlying freetype2 library for macOS as "libfreetype.6.dylib".
+         <br>
+      </div>
+      <div><br>
+      </div>
+      <div>Now, when I ql:quickload/asdf:load-system cl-freetype2, I
+        push the library folder location on to: <font color="#000000">cffi:*foreign-library-directories*.
+           When delivering this ends up <span style="caret-color:rgb(0,
+            0, 0);">being</span> a different value than when the MacOS
+          application is run, since that is calculated at runtime using:
+          "</font><span style="color:rgb(0, 0, 0);">(</span><span
+          style="color:rgb(175, 0, 219);">pathname-directory</span><span
+          style="color:rgb(0, 0, 0);"> (lw:lisp-image-name))".</span><br>
+      </div>
+      <div><br>
+      </div>
+      <div>As you can imagine, I've gotten some invalid library handles
+        and some segmentation faults, as the loaded library instance is
+        different during delivery and actual application run.  I've
+        tried a few things... fiddling around with CFFI:unload-xyzed and
+        reloading.  I've also tried just asdf:compile-system for
+        cl-freetype2 during the delivery stage and avoided using it at
+        all in my code until the application is started up.<br>
+      </div>
+      <div><br>
+      </div>
+      <div>The easiest thing to do would likely be to include
+        cl-freetype2 locally in the application bundle and just load it
+        at application startup and avoid any dependencies on it during
+        delivery, but the CFFI and groveling stuff requires compile-file
+        which doesn't work in a delivered image (just tried this).<br>
+      </div>
+      <div><br>
+      </div>
+      <div>I'm sort of a mid-level lisp programmer (if that), so I'm not
+        sure if there is some combination of CFFI [2] magic with
+        lispworks delivery magic that should be obvious here.  But if
+        anyone has experience using a library that's backed by CFFI
+        where you're including the C dynamic library so that it's not
+        required to be on the users system, and have figured out how to
+        make this work with lispworks delivery, I would greatly
+        appreciate any advice or tips.<br>
+      </div>
+      <div><br>
+      </div>
+      <div>Cheers!<br>
+      </div>
+      <div>Steve</div>
+      <div><br>
+      </div>
+      <div>[1] or at least am in the process of. Fixed one thing, and
+        commented out another:<br>
+      </div>
+      <div><a
+          href="https://github.com/sgithens/cl-freetype2/tree/lispworks-fixup"
+          moz-do-not-send="true">https://github.com/sgithens/cl-freetype2/tree/lispworks-fixup</a><br>
+      </div>
+      <div><br>
+      </div>
+      <div>[2] which this is likely the wrong email list for</div>
+    </blockquote>
+  </body>
+</html>
+
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Building deliverables using CFFI libraries</h1><html><head><meta http-equiv="Content-Type" content="text/html; charset=us-ascii"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class="">Hi Steven,<div class=""><br class=""></div><div class="">About 2 years ago, we ran into the same kinds of problems, and solved them for ourselves in our Crypto libs for the Emotiq blockchain system. The source is publicly available here:</div><div class=""><br class=""></div><div class=""><font color="#419cff" class=""><span style="caret-color: rgb(65, 156, 255);" class=""><u class=""><a href="https://github.com/stegos/Chat/tree/dev/src/Crypto" class="">https://github.com/stegos/Chat/tree/dev/src/Crypto</a></u></span></font></div><div class=""><font color="#419cff" class=""><span style="caret-color: rgb(65, 156, 255);" class=""><u class=""><br class=""></u></span></font></div><div class=""><br class=""></div><div class=""><div>and more specifically here,</div><div><br class=""></div><div><a href="https://github.com/stegos/Chat/blob/dev/src/Crypto/lib-loads.lisp" class="">https://github.com/stegos/Chat/blob/dev/src/Crypto/lib-loads.lisp</a></div><div><br class=""></div><div>but the details of what we finally did elude me at the moment. We did make use of CFFI throughout to keep the source code maximally portable. Each major subcomponent calls an initialization routine when it becomes loaded, see example at end of source for PBC (Pairing Based Crypto)</div><div><br class=""></div><div><a href="https://github.com/stegos/Chat/blob/dev/src/Crypto/pbc-cffi.lisp" class="">https://github.com/stegos/Chat/blob/dev/src/Crypto/pbc-cffi.lisp</a></div><div><br class=""></div><div><br class=""></div><div>- David McClain</div><div>Refined Audiometrics Laboratory, LLC</div><div><a href="http://refined-audiometrics.com" class="">refined-audiometrics.com</a></div><div><br class=""></div><div><br class=""></div><div><br class=""><blockquote type="cite" class=""><div class="">On Dec 4, 2020, at 2:02 PM, Steven Githens &lt;<a href="mailto:steve@githens.org" class="">steve@githens.org</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class="">Hi all,<br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class="">This is a convoluted question, but to start, I'm wondering if folks have successfully used the lisp works delivery mechanism incorporating libraries that use the CFFI module (not the builtin ffi module that is part of lispworks).<br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class="">I need to use freetype2 with my project, and as part of that, fixed up a few things [1] in cl-freetype2 so that it will run in&nbsp;<br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class="">lispworks. &nbsp;As part of this, I've also compiled the underlying freetype2 library for macOS as "libfreetype.6.dylib". &nbsp;<br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class="">Now, when I ql:quickload/asdf:load-system cl-freetype2, I push the library folder location on to:&nbsp;<font class="">cffi:*foreign-library-directories*. &nbsp;When delivering this ends up&nbsp;<span style="caret-color: rgb(0, 0, 0);" class="">being</span>&nbsp;a different value than when the MacOS application is run, since that is calculated at runtime using: "</font><span style="" class="">(</span><span style="color: rgb(175, 0, 219);" class="">pathname-directory</span><span style="" class=""><span class="Apple-converted-space">&nbsp;</span>(lw:lisp-image-name))".</span><br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class="">As you can imagine, I've gotten some invalid library handles and some segmentation faults, as the loaded library instance is different during delivery and actual application run. &nbsp;I've tried a few things... fiddling around with CFFI:unload-xyzed and reloading. &nbsp;I've also tried just asdf:compile-system for cl-freetype2 during the delivery stage and avoided using it at all in my code until the application is started up.<br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class="">The easiest thing to do would likely be to include cl-freetype2 locally in the application bundle and just load it at application startup and avoid any dependencies on it during delivery, but the CFFI and groveling stuff requires compile-file which doesn't work in a delivered image (just tried this).<br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class="">I'm sort of a mid-level lisp programmer (if that), so I'm not sure if there is some combination of CFFI [2] magic with lispworks delivery magic that should be obvious here. &nbsp;But if anyone has experience using a library that's backed by CFFI where you're including the C dynamic library so that it's not required to be on the users system, and have figured out how to make this work with lispworks delivery, I would greatly appreciate any advice or tips.<br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class="">Cheers!<br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class="">Steve</div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class="">[1] or at least am in the process of. Fixed one thing, and commented out another:<br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><a href="https://github.com/sgithens/cl-freetype2/tree/lispworks-fixup" class="">https://github.com/sgithens/cl-freetype2/tree/lispworks-fixup</a><br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class="">[2] which this is likely the wrong email list for</div></div></blockquote></div><br class=""></div></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Building deliverables using CFFI libraries</h1><!DOCTYPE html><html><head><title></title><style type="text/css">p.MsoNormal,p.MsoNoSpacing{margin:0}</style></head><body><div>Hi again,<br></div><div><br>Thanks for the responses, it's been helpful to look through all the example code. &nbsp;Also, thanks Arnold for pointing out that CFFI actually does use fli under the covers, it was helpful to clone the CFFI repo and look through how that actually works.</div><div><br></div><div>I think I'm starting to get close... &nbsp;in my Delivery script I'm using:<br></div><div style="text-align:start;text-indent:0px;background-color:rgb(255, 255, 255);line-height:18px;"><div style="color:rgb(0, 0, 0);font-family:Menlo, Monaco, &quot;Courier New&quot;, monospace;font-size:12px;font-style:normal;font-variant-caps:normal;font-weight:normal;letter-spacing:normal;text-transform:none;white-space:pre;word-spacing:0px;text-decoration:none;-webkit-text-stroke-width:0px;"><br></div><div style="color:rgb(0, 0, 0);font-family:Menlo, Monaco, &quot;Courier New&quot;, monospace;font-size:12px;font-style:normal;font-variant-caps:normal;font-weight:normal;letter-spacing:normal;text-transform:none;white-space:pre;word-spacing:0px;text-decoration:none;-webkit-text-stroke-width:0px;"><span style="color:rgb(0, 0, 0);">(cffi:close-foreign-library 'FREETYPE2::FREETYPE2)</span><br></div><div style="color:rgb(0, 0, 0);font-family:Menlo, Monaco, &quot;Courier New&quot;, monospace;font-size:12px;font-style:normal;font-variant-caps:normal;font-weight:normal;letter-spacing:normal;text-transform:none;white-space:pre;word-spacing:0px;text-decoration:none;-webkit-text-stroke-width:0px;"><br></div><div style="color:rgb(0, 0, 0);font-family:Menlo, Monaco, &quot;Courier New&quot;, monospace;font-size:12px;font-style:normal;font-variant-caps:normal;font-weight:normal;letter-spacing:normal;text-transform:none;white-space:pre;word-spacing:0px;text-decoration:none;-webkit-text-stroke-width:0px;"><span style="color:rgb(0, 0, 0);">and I can see that it's returning T.</span><br></div><div style="color:rgb(0, 0, 0);font-family:Menlo, Monaco, &quot;Courier New&quot;, monospace;font-size:12px;font-style:normal;font-variant-caps:normal;font-weight:normal;letter-spacing:normal;text-transform:none;white-space:pre;word-spacing:0px;text-decoration:none;-webkit-text-stroke-width:0px;"><br></div><div><font color="#000000" face="Menlo, Monaco, Courier New, monospace"><span style="font-size:12px;white-space:pre;">and in application start </span><span style="caret-color:rgb(0, 0, 0);font-size:12px;white-space:pre;">defun I'm using:</span></font><br></div><div><br></div><div><span style="color:rgb(0, 0, 0);">(</span><span style="color:rgb(175, 0, 219);">pushnew</span><br></div></div><div style="text-align:start;text-indent:0px;background-color:rgb(255, 255, 255);line-height:18px;"><div style="color:rgb(0, 0, 0);font-family:Menlo, Monaco, &quot;Courier New&quot;, monospace;font-size:12px;font-style:normal;font-variant-caps:normal;font-weight:normal;letter-spacing:normal;text-transform:none;white-space:pre;word-spacing:0px;text-decoration:none;-webkit-text-stroke-width:0px;"><span style="color:rgb(0, 0, 0);">  (</span><span style="color:rgb(175, 0, 219);">make-pathname</span><span style="color:rgb(0, 0, 0);"> </span><span style="color:rgb(0, 0, 255);">:directory</span><br></div><div style="color:rgb(0, 0, 0);font-family:Menlo, Monaco, &quot;Courier New&quot;, monospace;font-size:12px;font-style:normal;font-variant-caps:normal;font-weight:normal;letter-spacing:normal;text-transform:none;white-space:pre;word-spacing:0px;text-decoration:none;-webkit-text-stroke-width:0px;"><span style="color:rgb(0, 0, 0);">    (</span><span style="color:rgb(175, 0, 219);">append</span><span style="color:rgb(0, 0, 0);"> (</span><span style="color:rgb(175, 0, 219);">butlast</span><span style="color:rgb(0, 0, 0);"> (</span><span style="color:rgb(175, 0, 219);">pathname-directory</span><span style="color:rgb(0, 0, 0);"> (lw:lisp-image-name)))</span><br></div><div style="color:rgb(0, 0, 0);font-family:Menlo, Monaco, &quot;Courier New&quot;, monospace;font-size:12px;font-style:normal;font-variant-caps:normal;font-weight:normal;letter-spacing:normal;text-transform:none;white-space:pre;word-spacing:0px;text-decoration:none;-webkit-text-stroke-width:0px;"><span style="color:rgb(0, 0, 0);">      '(</span><span style="color:rgb(163, 21, 21);">"Resources"</span><span style="color:rgb(0, 0, 0);"> </span><span style="color:rgb(163, 21, 21);">"libs"</span><span style="color:rgb(0, 0, 0);">)))</span><br></div><div style="color:rgb(0, 0, 0);font-family:Menlo, Monaco, &quot;Courier New&quot;, monospace;font-size:12px;font-style:normal;font-variant-caps:normal;font-weight:normal;letter-spacing:normal;text-transform:none;white-space:pre;word-spacing:0px;text-decoration:none;-webkit-text-stroke-width:0px;"><span style="color:rgb(0, 0, 0);">    cffi:*foreign-library-directories* </span><span style="color:rgb(0, 0, 255);">:test</span><span style="color:rgb(0, 0, 0);"> </span><span style="color:rgb(0, 0, 255);">#'equal</span><span style="color:rgb(0, 0, 0);">)</span><br></div><div style="color:rgb(0, 0, 0);font-family:Menlo, Monaco, &quot;Courier New&quot;, monospace;font-size:12px;font-style:normal;font-variant-caps:normal;font-weight:normal;letter-spacing:normal;text-transform:none;white-space:pre;word-spacing:0px;text-decoration:none;-webkit-text-stroke-width:0px;"><span style="color:rgb(0, 0, 0);">(cffi:use-foreign-library freetype2::freetype2)</span><br></div><div style="color:rgb(0, 0, 0);font-family:Menlo, Monaco, &quot;Courier New&quot;, monospace;font-size:12px;font-style:normal;font-variant-caps:normal;font-weight:normal;letter-spacing:normal;text-transform:none;white-space:pre;word-spacing:0px;text-decoration:none;-webkit-text-stroke-width:0px;"><br></div><div><font color="#000000" face="Menlo, Monaco, Courier New, monospace"><span style="font-size:12px;white-space:pre;">Which appears to be reloading it, although I reliably get a handful of&nbsp;different loading errors. (some of them below) The path in these errors IS the correct path to the library file though...</span></font><br></div><div><br></div><div><font color="#000000" face="Menlo, Monaco, Courier New, monospace"><span style="font-size:12px;white-space:pre;">-Steve</span></font><br></div><div><br></div><div><span style="font-variant-ligatures:no-common-ligatures;">sgithens load-foreign-library FREETYPE2 /Users/sgithens/code/boxer-sunrise2/data/<a href="http://boxersunrise.app/Contents/Resources/libs/libfreetype.6.dylib">boxersunrise.app/Contents/Resources/libs/libfreetype.6.dylib</a><span class="Apple-converted-space">&nbsp;</span></span><br></div></div><p style="margin-top:0px;margin-right:0px;margin-bottom:0px;margin-left:0px;font-style:normal;font-variant-caps:normal;font-weight:normal;font-stretch:normal;font-size:11px;line-height:normal;font-family:Menlo;color:rgb(0, 0, 0);min-height:13px;"><br></p><p style="margin-top:0px;margin-right:0px;margin-bottom:0px;margin-left:0px;font-style:normal;font-variant-caps:normal;font-weight:normal;font-stretch:normal;font-size:11px;line-height:normal;font-family:Menlo;color:rgb(0, 0, 0);"><span style="font-variant-ligatures:no-common-ligatures;">Error: Segmentation violation(11) [code 0] at 1006BF128</span><br></p><p style="margin-top:0px;margin-right:0px;margin-bottom:0px;margin-left:0px;font-style:normal;font-variant-caps:normal;font-weight:normal;font-stretch:normal;font-size:11px;line-height:normal;font-family:Menlo;color:rgb(0, 0, 0);"><span style="font-variant-ligatures:no-common-ligatures;"><span class="Apple-converted-space">&nbsp; &nbsp; &nbsp; &nbsp; </span>Foreign code offset #x38 from symbol "FT_Stream_New"</span><br></p><p style="margin-top:0px;margin-right:0px;margin-bottom:0px;margin-left:0px;font-style:normal;font-variant-caps:normal;font-weight:normal;font-stretch:normal;font-size:11px;line-height:normal;font-family:Menlo;color:rgb(0, 0, 0);"><span style="font-variant-ligatures:no-common-ligatures;"><span class="Apple-converted-space">&nbsp; &nbsp; &nbsp; &nbsp; </span>module "/Users/sgithens/code/boxer-sunrise2/data/<a href="http://boxersunrise.app/Contents/Resources/libs/libfreetype.6.dylib">boxersunrise.app/Contents/Resources/libs/libfreetype.6.dylib</a>" [ #x1006B8000 ]</span><br></p><p style="margin-top:0px;margin-right:0px;margin-bottom:0px;margin-left:0px;font-style:normal;font-variant-caps:normal;font-weight:normal;font-stretch:normal;font-size:11px;line-height:normal;font-family:Menlo;color:rgb(0, 0, 0);"><span style="font-variant-ligatures:no-common-ligatures;">rax<span class="Apple-converted-space">&nbsp; &nbsp; &nbsp; &nbsp; </span>1EC00 ; rbx<span class="Apple-converted-space">&nbsp; &nbsp; </span>108164810 ; rcx 600000008600 ; rdx 70000101FB58</span><br></p><p style="margin-top:0px;margin-right:0px;margin-bottom:0px;margin-left:0px;font-style:normal;font-variant-caps:normal;font-weight:normal;font-stretch:normal;font-size:11px;line-height:normal;font-family:Menlo;color:rgb(0, 0, 0);"><span style="font-variant-ligatures:no-common-ligatures;">rsp 70000101FAE0 ; rbp 70000101FB10 ; rdi<span class="Apple-converted-space">&nbsp; &nbsp; </span>1080F5570 ; rsi <span class="Apple-converted-space">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; </span>50</span><br></p><p style="margin-top:0px;margin-right:0px;margin-bottom:0px;margin-left:0px;font-style:normal;font-variant-caps:normal;font-weight:normal;font-stretch:normal;font-size:11px;line-height:normal;font-family:Menlo;color:rgb(0, 0, 0);"><span style="font-variant-ligatures:no-common-ligatures;">r8 <span class="Apple-converted-space">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; </span>1 ; r9<span class="Apple-converted-space">&nbsp; &nbsp; </span>40A03B6D3B ; r10 <span class="Apple-converted-space">&nbsp; </span>4040070C6B ; r11<span class="Apple-converted-space">&nbsp; &nbsp; </span>1006C00A0</span><br></p><p style="margin-top:0px;margin-right:0px;margin-bottom:0px;margin-left:0px;font-style:normal;font-variant-caps:normal;font-weight:normal;font-stretch:normal;font-size:11px;line-height:normal;font-family:Menlo;color:rgb(0, 0, 0);"><span style="font-variant-ligatures:no-common-ligatures;">r12 70000101FBB0 ; r13 600000008680 ; r14 70000101FB58 ; r15<span class="Apple-converted-space">&nbsp; &nbsp; </span>1080F5570</span><br></p><p style="margin-top:0px;margin-right:0px;margin-bottom:0px;margin-left:0px;font-style:normal;font-variant-caps:normal;font-weight:normal;font-stretch:normal;font-size:11px;line-height:normal;font-family:Menlo;color:rgb(0, 0, 0);"><span style="font-variant-ligatures:no-common-ligatures;"><span class="Apple-converted-space">&nbsp; </span>1 (abort) Quit process.</span><br></p><div><br></div><div><span style="font-variant-ligatures:no-common-ligatures;">or </span><br></div><div><br></div><div><span style="font-variant-ligatures:no-common-ligatures;">sgithens load-foreign-library FREETYPE2 /Users/sgithens/code/boxer-sunrise2/data/<a href="http://boxersunrise.app/Contents/Resources/libs/libfreetype.6.dylib">boxersunrise.app/Contents/Resources/libs/libfreetype.6.dylib</a><span class="Apple-converted-space">&nbsp;</span></span><br></div><p style="margin-top:0px;margin-right:0px;margin-bottom:0px;margin-left:0px;font-style:normal;font-variant-caps:normal;font-weight:normal;font-stretch:normal;font-size:11px;line-height:normal;font-family:Menlo;color:rgb(0, 0, 0);min-height:13px;"><br></p><p style="margin-top:0px;margin-right:0px;margin-bottom:0px;margin-left:0px;font-style:normal;font-variant-caps:normal;font-weight:normal;font-stretch:normal;font-size:11px;line-height:normal;font-family:Menlo;color:rgb(0, 0, 0);"><span style="font-variant-ligatures:no-common-ligatures;">Error: FreeType error: INVALID-LIBRARY-HANDLE</span><br></p><p style="margin-top:0px;margin-right:0px;margin-bottom:0px;margin-left:0px;font-style:normal;font-variant-caps:normal;font-weight:normal;font-stretch:normal;font-size:11px;line-height:normal;font-family:Menlo;color:rgb(0, 0, 0);"><span style="font-variant-ligatures:no-common-ligatures;"><span class="Apple-converted-space">&nbsp; </span>1 (abort) Quit process.</span></p><div style="text-align:start;text-indent:0px;background-color:rgb(255, 255, 255);line-height:18px;"><div style="color:rgb(0, 0, 0);font-family:Menlo, Monaco, &quot;Courier New&quot;, monospace;font-size:12px;font-style:normal;font-variant-caps:normal;font-weight:normal;letter-spacing:normal;text-transform:none;white-space:pre;word-spacing:0px;text-decoration:none;-webkit-text-stroke-width:0px;"><br></div><div style="color:rgb(0, 0, 0);font-family:Menlo, Monaco, &quot;Courier New&quot;, monospace;font-size:12px;font-style:normal;font-variant-caps:normal;font-weight:normal;letter-spacing:normal;text-transform:none;white-space:pre;word-spacing:0px;text-decoration:none;-webkit-text-stroke-width:0px;"><br></div></div><div><br></div><div>On Fri, Dec 4, 2020, at 2:11 PM, Arnold Noronha wrote:<br></div><blockquote type="cite" id="qt" style=""><div><br></div><div>On Fri, Dec 04, 2020 at 01:02:50PM -0800, Steven Githens wrote:<br></div><div>&gt; Hi all,<br></div><div>&gt;<br></div><div>&gt; This is a convoluted question, but to start, I'm wondering if folks have successfully used the lisp works delivery mechanism incorporating libraries that use the CFFI module (not the builtin ffi module that is part of lispworks).<br></div><div><br></div><div>Since CFFI uses FLI under the hood you should still be able to use FLI<br></div><div>functions.<br></div><div><br></div><div>I used fli:disconnect-module just before delivery. (I am using my own<br></div><div>library though, so not 100% sure it's easy to do this from an external<br></div><div>library loaded with CFFI). Then use fli:get-embedded-module in your<br></div><div>app, and fli:install-embedded-module in your init function in the<br></div><div>delivered app.<br></div><div><br></div><div>--Arnold<br></div><div><br></div></blockquote><div><br></div></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Building deliverables using CFFI libraries</h1><html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=Windows-1252">
+</head>
+<body>
+<div>
+<div>
+<div style="direction: ltr;">I came upon a similar issue, and was able to find the solution in the LispWorks documentation.</div>
+<div><br>
+</div>
+<div style="direction: ltr;">You can work your way through the following list of solutions from top to bottom:</div>
+<div><br>
+</div>
+<div style="direction: ltr;">- LW 29.8, external libraries used with 64-bit LispWorks must be 64-bit libraries, with 32-bit LispWorks must be 32-bit libraries</div>
+<div style="direction: ltr;">- DV 4.4.5, be certain the calls to load the foreign libraries with CFFI, register-module (or the embedded-module interface mentioned below) are made within function bodies and not top-level. This ensures the dynamic library is
+ loaded in full at runtime, when the wrapper function is called, and not during compilation or delivery.</div>
+<div style="direction: ltr;">- DV 10.6, there are some useful notes here on how the FLI converts between foreign and Lisp objects, and parts of the delivery process that might clobber your FLI; mostly missing templates, occasionally memory errors.</div>
+<div style="direction: ltr;">- FLI 5.5, how to correctly load and access both C and C++ dynamic libraries; there’s some extra work with C++. Haven’t used FREETYPE2 myself, so not immediately clear on its implementation.</div>
+<div style="direction: ltr;">- FLI 5.6, covers embedding dynamically-loaded foreign libraries inside the Lisp image, instead of relying separate libraries loaded at runtime. The embedded-module interface handles a lot of extra complexity, if it can be used
+ with CFFI. Maybe try this on a new branch of your source control some other time.</div>
+<div><br>
+</div>
+<div style="direction: ltr;">That should cover all of the possible cases for the errors you’re getting. If not, see LW 11.4 for a review of memory management in 64-bit LispWorks, or LW 11.3 for 32-bit.</div>
+<div><br>
+</div>
+<div style="direction: ltr;">If you’re interested in why you’re getting those specific memory error patterns, LW 11.6 has a few notes on reducing image size and garbage collection of foreign-objects that explains most of it. For example, clean-down is called
+ automatically before <span id="ms-outlook-ios-cursor"></span>delivery, IIRC.</div>
+</div>
+<div><br>
+</div>
+<div class="ms-outlook-ios-signature">
+<div><br>
+</div>
+<div style="direction: ltr;">--</div>
+<div><br>
+</div>
+<div style="direction: ltr;">Colin J.E. Lupton</div>
+<div style="direction: ltr;"><i>CEO, Founder, Principal Quantum Metamachinist</i></div>
+<div style="direction: ltr;"><b>Black Brane Systems, Inc.</b></div>
+<div style="direction: ltr;">https://blackbrane.com/</div>
+<div style="direction: ltr;">
+<hr>
+</div>
+<div style="direction: ltr;">phone: +1 (833) 227-2630 x700</div>
+<div style="direction: ltr;">fax: +1 (833) 227-2630</div>
+<div style="direction: ltr;">email: colin@blackbrane.com</div>
+<div style="direction: ltr;">
+<hr>
+</div>
+<div style="direction: ltr;">Sent from <a href="https://aka.ms/qtex0l">Outlook</a> for iOS</div>
+</div>
+</div>
+<hr style="display:inline-block;width:98%" tabindex="-1">
+<div id="divRplyFwdMsg" dir="ltr"><font face="Calibri, sans-serif" style="font-size:11pt" color="#000000"><b>From:</b> owner-lisp-hug@lispworks.com &lt;owner-lisp-hug@lispworks.com&gt; on behalf of Steven Githens &lt;steve@githens.org&gt;<br>
+<b>Sent:</b> Friday, December 4, 2020 7:48:39 PM<br>
+<b>To:</b> Arnold Noronha &lt;arnold@tdrhq.com&gt;<br>
+<b>Cc:</b> lisp-hug@lispworks.com &lt;lisp-hug@lispworks.com&gt;<br>
+<b>Subject:</b> Re: Building deliverables using CFFI libraries</font>
+<div>&nbsp;</div>
+</div>
+<style type="text/css">
+<!--
+p.x_MsoNormal, p.x_MsoNoSpacing
+	{margin:0}
+-->
+</style>
+<div>
+<div>Hi again,<br>
+</div>
+<div><br>
+Thanks for the responses, it's been helpful to look through all the example code. &nbsp;Also, thanks Arnold for pointing out that CFFI actually does use fli under the covers, it was helpful to clone the CFFI repo and look through how that actually works.</div>
+<div><br>
+</div>
+<div>I think I'm starting to get close... &nbsp;in my Delivery script I'm using:<br>
+</div>
+<div style="text-align:start; text-indent:0px; background-color:rgb(255,255,255); line-height:18px">
+<div style="color:rgb(0,0,0); font-family:Menlo,Monaco,&quot;Courier New&quot;,monospace; font-size:12px; font-style:normal; font-variant-caps:normal; font-weight:normal; letter-spacing:normal; text-transform:none; white-space:pre; word-spacing:0px; text-decoration:none">
+<br>
+</div>
+<div style="color:rgb(0,0,0); font-family:Menlo,Monaco,&quot;Courier New&quot;,monospace; font-size:12px; font-style:normal; font-variant-caps:normal; font-weight:normal; letter-spacing:normal; text-transform:none; white-space:pre; word-spacing:0px; text-decoration:none">
+<span style="color:rgb(0,0,0)">(cffi:close-foreign-library 'FREETYPE2::FREETYPE2)</span><br>
+</div>
+<div style="color:rgb(0,0,0); font-family:Menlo,Monaco,&quot;Courier New&quot;,monospace; font-size:12px; font-style:normal; font-variant-caps:normal; font-weight:normal; letter-spacing:normal; text-transform:none; white-space:pre; word-spacing:0px; text-decoration:none">
+<br>
+</div>
+<div style="color:rgb(0,0,0); font-family:Menlo,Monaco,&quot;Courier New&quot;,monospace; font-size:12px; font-style:normal; font-variant-caps:normal; font-weight:normal; letter-spacing:normal; text-transform:none; white-space:pre; word-spacing:0px; text-decoration:none">
+<span style="color:rgb(0,0,0)">and I can see that it's returning T.</span><br>
+</div>
+<div style="color:rgb(0,0,0); font-family:Menlo,Monaco,&quot;Courier New&quot;,monospace; font-size:12px; font-style:normal; font-variant-caps:normal; font-weight:normal; letter-spacing:normal; text-transform:none; white-space:pre; word-spacing:0px; text-decoration:none">
+<br>
+</div>
+<div><font color="#000000" face="Menlo, Monaco, Courier New, monospace"><span style="font-size:12px; white-space:pre">and in application start
+</span><span style="font-size:12px; white-space:pre">defun I'm using:</span></font><br>
+</div>
+<div><br>
+</div>
+<div><span style="color:rgb(0,0,0)">(</span><span style="color:rgb(175,0,219)">pushnew</span><br>
+</div>
+</div>
+<div style="text-align:start; text-indent:0px; background-color:rgb(255,255,255); line-height:18px">
+<div style="color:rgb(0,0,0); font-family:Menlo,Monaco,&quot;Courier New&quot;,monospace; font-size:12px; font-style:normal; font-variant-caps:normal; font-weight:normal; letter-spacing:normal; text-transform:none; white-space:pre; word-spacing:0px; text-decoration:none">
+<span style="color:rgb(0,0,0)">(</span><span style="color:rgb(175,0,219)">make-pathname</span><span style="color:rgb(0,0,0)">
+</span><span style="color:rgb(0,0,255)">:directory</span><br>
+</div>
+<div style="color:rgb(0,0,0); font-family:Menlo,Monaco,&quot;Courier New&quot;,monospace; font-size:12px; font-style:normal; font-variant-caps:normal; font-weight:normal; letter-spacing:normal; text-transform:none; white-space:pre; word-spacing:0px; text-decoration:none">
+<span style="color:rgb(0,0,0)">(</span><span style="color:rgb(175,0,219)">append</span><span style="color:rgb(0,0,0)"> (</span><span style="color:rgb(175,0,219)">butlast</span><span style="color:rgb(0,0,0)"> (</span><span style="color:rgb(175,0,219)">pathname-directory</span><span style="color:rgb(0,0,0)">
+ (lw:lisp-image-name)))</span><br>
+</div>
+<div style="color:rgb(0,0,0); font-family:Menlo,Monaco,&quot;Courier New&quot;,monospace; font-size:12px; font-style:normal; font-variant-caps:normal; font-weight:normal; letter-spacing:normal; text-transform:none; white-space:pre; word-spacing:0px; text-decoration:none">
+<span style="color:rgb(0,0,0)">'(</span><span style="color:rgb(163,21,21)">&quot;Resources&quot;</span><span style="color:rgb(0,0,0)">
+</span><span style="color:rgb(163,21,21)">&quot;libs&quot;</span><span style="color:rgb(0,0,0)">)))</span><br>
+</div>
+<div style="color:rgb(0,0,0); font-family:Menlo,Monaco,&quot;Courier New&quot;,monospace; font-size:12px; font-style:normal; font-variant-caps:normal; font-weight:normal; letter-spacing:normal; text-transform:none; white-space:pre; word-spacing:0px; text-decoration:none">
+<span style="color:rgb(0,0,0)">cffi:*foreign-library-directories* </span><span style="color:rgb(0,0,255)">:test</span><span style="color:rgb(0,0,0)">
+</span><span style="color:rgb(0,0,255)">#'equal</span><span style="color:rgb(0,0,0)">)</span><br>
+</div>
+<div style="color:rgb(0,0,0); font-family:Menlo,Monaco,&quot;Courier New&quot;,monospace; font-size:12px; font-style:normal; font-variant-caps:normal; font-weight:normal; letter-spacing:normal; text-transform:none; white-space:pre; word-spacing:0px; text-decoration:none">
+<span style="color:rgb(0,0,0)">(cffi:use-foreign-library freetype2::freetype2)</span><br>
+</div>
+<div style="color:rgb(0,0,0); font-family:Menlo,Monaco,&quot;Courier New&quot;,monospace; font-size:12px; font-style:normal; font-variant-caps:normal; font-weight:normal; letter-spacing:normal; text-transform:none; white-space:pre; word-spacing:0px; text-decoration:none">
+<br>
+</div>
+<div><font color="#000000" face="Menlo, Monaco, Courier New, monospace"><span style="font-size:12px; white-space:pre">Which appears to be reloading it, although I reliably get a handful of&nbsp;different loading errors. (some of them below) The path in these errors
+ IS the correct path to the library file though...</span></font><br>
+</div>
+<div><br>
+</div>
+<div><font color="#000000" face="Menlo, Monaco, Courier New, monospace"><span style="font-size:12px; white-space:pre">-Steve</span></font><br>
+</div>
+<div><br>
+</div>
+<div><span style="font-variant-ligatures:no-common-ligatures">sgithens load-foreign-library FREETYPE2 /Users/sgithens/code/boxer-sunrise2/data/<a href="http://boxersunrise.app/Contents/Resources/libs/libfreetype.6.dylib">boxersunrise.app/Contents/Resources/libs/libfreetype.6.dylib</a><span class="x_Apple-converted-space">&nbsp;</span></span><br>
+</div>
+</div>
+<p style="margin-top:0px; margin-right:0px; margin-bottom:0px; margin-left:0px; font-style:normal; font-variant-caps:normal; font-weight:normal; font-stretch:normal; font-size:11px; line-height:normal; font-family:Menlo; color:rgb(0,0,0); min-height:13px">
+<br>
+</p>
+<p style="margin-top:0px; margin-right:0px; margin-bottom:0px; margin-left:0px; font-style:normal; font-variant-caps:normal; font-weight:normal; font-stretch:normal; font-size:11px; line-height:normal; font-family:Menlo; color:rgb(0,0,0)">
+<span style="font-variant-ligatures:no-common-ligatures">Error: Segmentation violation(11) [code 0] at 1006BF128</span><br>
+</p>
+<p style="margin-top:0px; margin-right:0px; margin-bottom:0px; margin-left:0px; font-style:normal; font-variant-caps:normal; font-weight:normal; font-stretch:normal; font-size:11px; line-height:normal; font-family:Menlo; color:rgb(0,0,0)">
+<span style="font-variant-ligatures:no-common-ligatures"><span class="x_Apple-converted-space">&nbsp; &nbsp; &nbsp; &nbsp;
+</span>Foreign code offset #x38 from symbol &quot;FT_Stream_New&quot;</span><br>
+</p>
+<p style="margin-top:0px; margin-right:0px; margin-bottom:0px; margin-left:0px; font-style:normal; font-variant-caps:normal; font-weight:normal; font-stretch:normal; font-size:11px; line-height:normal; font-family:Menlo; color:rgb(0,0,0)">
+<span style="font-variant-ligatures:no-common-ligatures"><span class="x_Apple-converted-space">&nbsp; &nbsp; &nbsp; &nbsp;
+</span>module &quot;/Users/sgithens/code/boxer-sunrise2/data/<a href="http://boxersunrise.app/Contents/Resources/libs/libfreetype.6.dylib">boxersunrise.app/Contents/Resources/libs/libfreetype.6.dylib</a>&quot; [ #x1006B8000 ]</span><br>
+</p>
+<p style="margin-top:0px; margin-right:0px; margin-bottom:0px; margin-left:0px; font-style:normal; font-variant-caps:normal; font-weight:normal; font-stretch:normal; font-size:11px; line-height:normal; font-family:Menlo; color:rgb(0,0,0)">
+<span style="font-variant-ligatures:no-common-ligatures">rax<span class="x_Apple-converted-space">&nbsp; &nbsp; &nbsp; &nbsp;
+</span>1EC00 ; rbx<span class="x_Apple-converted-space">&nbsp; &nbsp; </span>108164810 ; rcx 600000008600 ; rdx 70000101FB58</span><br>
+</p>
+<p style="margin-top:0px; margin-right:0px; margin-bottom:0px; margin-left:0px; font-style:normal; font-variant-caps:normal; font-weight:normal; font-stretch:normal; font-size:11px; line-height:normal; font-family:Menlo; color:rgb(0,0,0)">
+<span style="font-variant-ligatures:no-common-ligatures">rsp 70000101FAE0 ; rbp 70000101FB10 ; rdi<span class="x_Apple-converted-space">&nbsp; &nbsp;
+</span>1080F5570 ; rsi <span class="x_Apple-converted-space">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; </span>50</span><br>
+</p>
+<p style="margin-top:0px; margin-right:0px; margin-bottom:0px; margin-left:0px; font-style:normal; font-variant-caps:normal; font-weight:normal; font-stretch:normal; font-size:11px; line-height:normal; font-family:Menlo; color:rgb(0,0,0)">
+<span style="font-variant-ligatures:no-common-ligatures">r8 <span class="x_Apple-converted-space">
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; </span>1 ; r9<span class="x_Apple-converted-space">&nbsp; &nbsp; </span>40A03B6D3B ; r10
+<span class="x_Apple-converted-space">&nbsp; </span>4040070C6B ; r11<span class="x_Apple-converted-space">&nbsp; &nbsp;
+</span>1006C00A0</span><br>
+</p>
+<p style="margin-top:0px; margin-right:0px; margin-bottom:0px; margin-left:0px; font-style:normal; font-variant-caps:normal; font-weight:normal; font-stretch:normal; font-size:11px; line-height:normal; font-family:Menlo; color:rgb(0,0,0)">
+<span style="font-variant-ligatures:no-common-ligatures">r12 70000101FBB0 ; r13 600000008680 ; r14 70000101FB58 ; r15<span class="x_Apple-converted-space">&nbsp; &nbsp;
+</span>1080F5570</span><br>
+</p>
+<p style="margin-top:0px; margin-right:0px; margin-bottom:0px; margin-left:0px; font-style:normal; font-variant-caps:normal; font-weight:normal; font-stretch:normal; font-size:11px; line-height:normal; font-family:Menlo; color:rgb(0,0,0)">
+<span style="font-variant-ligatures:no-common-ligatures"><span class="x_Apple-converted-space">&nbsp;
+</span>1 (abort) Quit process.</span><br>
+</p>
+<div><br>
+</div>
+<div><span style="font-variant-ligatures:no-common-ligatures">or </span><br>
+</div>
+<div><br>
+</div>
+<div><span style="font-variant-ligatures:no-common-ligatures">sgithens load-foreign-library FREETYPE2 /Users/sgithens/code/boxer-sunrise2/data/<a href="http://boxersunrise.app/Contents/Resources/libs/libfreetype.6.dylib">boxersunrise.app/Contents/Resources/libs/libfreetype.6.dylib</a><span class="x_Apple-converted-space">&nbsp;</span></span><br>
+</div>
+<p style="margin-top:0px; margin-right:0px; margin-bottom:0px; margin-left:0px; font-style:normal; font-variant-caps:normal; font-weight:normal; font-stretch:normal; font-size:11px; line-height:normal; font-family:Menlo; color:rgb(0,0,0); min-height:13px">
+<br>
+</p>
+<p style="margin-top:0px; margin-right:0px; margin-bottom:0px; margin-left:0px; font-style:normal; font-variant-caps:normal; font-weight:normal; font-stretch:normal; font-size:11px; line-height:normal; font-family:Menlo; color:rgb(0,0,0)">
+<span style="font-variant-ligatures:no-common-ligatures">Error: FreeType error: INVALID-LIBRARY-HANDLE</span><br>
+</p>
+<p style="margin-top:0px; margin-right:0px; margin-bottom:0px; margin-left:0px; font-style:normal; font-variant-caps:normal; font-weight:normal; font-stretch:normal; font-size:11px; line-height:normal; font-family:Menlo; color:rgb(0,0,0)">
+<span style="font-variant-ligatures:no-common-ligatures"><span class="x_Apple-converted-space">&nbsp;
+</span>1 (abort) Quit process.</span></p>
+<div style="text-align:start; text-indent:0px; background-color:rgb(255,255,255); line-height:18px">
+<div style="color:rgb(0,0,0); font-family:Menlo,Monaco,&quot;Courier New&quot;,monospace; font-size:12px; font-style:normal; font-variant-caps:normal; font-weight:normal; letter-spacing:normal; text-transform:none; white-space:pre; word-spacing:0px; text-decoration:none">
+<br>
+</div>
+<div style="color:rgb(0,0,0); font-family:Menlo,Monaco,&quot;Courier New&quot;,monospace; font-size:12px; font-style:normal; font-variant-caps:normal; font-weight:normal; letter-spacing:normal; text-transform:none; white-space:pre; word-spacing:0px; text-decoration:none">
+<br>
+</div>
+</div>
+<div><br>
+</div>
+<div>On Fri, Dec 4, 2020, at 2:11 PM, Arnold Noronha wrote:<br>
+</div>
+<blockquote type="cite" id="x_qt" style="">
+<div><br>
+</div>
+<div>On Fri, Dec 04, 2020 at 01:02:50PM -0800, Steven Githens wrote:<br>
+</div>
+<div>&gt; Hi all,<br>
+</div>
+<div>&gt;<br>
+</div>
+<div>&gt; This is a convoluted question, but to start, I'm wondering if folks have successfully used the lisp works delivery mechanism incorporating libraries that use the CFFI module (not the builtin ffi module that is part of lispworks).<br>
+</div>
+<div><br>
+</div>
+<div>Since CFFI uses FLI under the hood you should still be able to use FLI<br>
+</div>
+<div>functions.<br>
+</div>
+<div><br>
+</div>
+<div>I used fli:disconnect-module just before delivery. (I am using my own<br>
+</div>
+<div>library though, so not 100% sure it's easy to do this from an external<br>
+</div>
+<div>library loaded with CFFI). Then use fli:get-embedded-module in your<br>
+</div>
+<div>app, and fli:install-embedded-module in your init function in the<br>
+</div>
+<div>delivered app.<br>
+</div>
+<div><br>
+</div>
+<div>--Arnold<br>
+</div>
+<div><br>
+</div>
+</blockquote>
+<div><br>
+</div>
+</div>
+</body>
+</html>
+
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Building deliverables using CFFI libraries</h1><!DOCTYPE html><html><head><title></title><style type="text/css">
+p.MsoNormal,p.MsoNoSpacing{margin:0}</style></head><body><div>Hi Colin,<br></div><div><br></div><div>Thanks for this meticulously crafted set of references.&nbsp; I'm on MacOS Catalina with Lispworks 7.1.2, so everything should be 64-bit since it doesn't support 32-bit apps.&nbsp; I actually went ahead and hacked up cl-freetype2 quick to use embedded-modules since that would be great, but pretty much get the same errors.<br></div><div><br></div><div>I did try out the deliver option "<span style="color:rgb(0, 128, 0);">:in-memory-delivery t" </span>and of course it works fine, so it's definitely some particular issue with loading the lisp image back up.&nbsp;&nbsp;<br></div><div><br></div><div>Also randomly, I just did some small testing in the REPL with unloading the dylib, and got results that surprised me, in that I was still able to use the library after unloading it... I don't think it's being aggressively reloaded, because when I unload it again I get `nil` which would be expected...<br></div><div><br></div><div>I have a transcript of it here:&nbsp; <a href="https://gist.github.com/sgithens/1e6c68bb985e2cc31af0e8fcd19422a6">https://gist.github.com/sgithens/1e6c68bb985e2cc31af0e8fcd19422a6</a><br></div><div><br></div><div>~Steve<br></div><div><br></div><div>On Fri, Dec 4, 2020, at 6:14 PM, Colin J.E. Lupton wrote:<br></div><blockquote type="cite" id="qt" style=""><div><div><div style="direction:ltr;">I came upon a similar issue, and was able to find the solution in the LispWorks documentation.<br></div><div><br></div><div style="direction:ltr;">You can work your way through the following list of solutions from top to bottom:<br></div><div><br></div><div style="direction:ltr;">- LW 29.8, external libraries used with 64-bit LispWorks must be 64-bit libraries, with 32-bit LispWorks must be 32-bit libraries<br></div><div style="direction:ltr;">- DV 4.4.5, be certain the calls to load the foreign libraries with CFFI, register-module (or the embedded-module interface mentioned below) are made within function bodies and not top-level. This ensures the dynamic library is
+ loaded in full at runtime, when the wrapper function is called, and not during compilation or delivery.<br></div><div style="direction:ltr;">- DV 10.6, there are some useful notes here on how the FLI converts between foreign and Lisp objects, and parts of the delivery process that might clobber your FLI; mostly missing templates, occasionally memory errors.<br></div><div style="direction:ltr;">- FLI 5.5, how to correctly load and access both C and C++ dynamic libraries; there’s some extra work with C++. Haven’t used FREETYPE2 myself, so not immediately clear on its implementation.<br></div><div style="direction:ltr;">- FLI 5.6, covers embedding dynamically-loaded foreign libraries inside the Lisp image, instead of relying separate libraries loaded at runtime. The embedded-module interface handles a lot of extra complexity, if it can be used
+ with CFFI. Maybe try this on a new branch of your source control some other time.<br></div><div><br></div><div style="direction:ltr;">That should cover all of the possible cases for the errors you’re getting. If not, see LW 11.4 for a review of memory management in 64-bit LispWorks, or LW 11.3 for 32-bit.<br></div><div><br></div><div style="direction:ltr;">If you’re interested in why you’re getting those specific memory error patterns, LW 11.6 has a few notes on reducing image size and garbage collection of foreign-objects that explains most of it. For example, clean-down is called
+ automatically before <span id="qt-ms-outlook-ios-cursor"></span>delivery, IIRC.<br></div></div><div><br></div><div class="qt-ms-outlook-ios-signature"><div><br></div><div style="direction:ltr;">--<br></div><div><br></div><div style="direction:ltr;">Colin J.E. Lupton<br></div><div style="direction:ltr;"><i>CEO, Founder, Principal Quantum Metamachinist</i><br></div><div style="direction:ltr;"><b>Black Brane Systems, Inc.</b><br></div><div style="direction:ltr;">https://blackbrane.com/<br></div><div style="direction:ltr;"><hr><br></div><div style="direction:ltr;">phone: +1 (833) 227-2630 x700<br></div><div style="direction:ltr;">fax: +1 (833) 227-2630<br></div><div style="direction:ltr;">email: colin@blackbrane.com<br></div><div style="direction:ltr;"><hr><br></div><div style="direction:ltr;">Sent from <a href="https://aka.ms/qtex0l">Outlook</a> for iOS<br></div></div></div><div><hr style="display:inline-block;width:98%;"><br></div><div id="qt-divRplyFwdMsg" dir="ltr"><div><span class="font" style="font-family:Calibri, sans-serif;"><span class="colour" style="color:rgb(0, 0, 0);"><b>From:</b> owner-lisp-hug@lispworks.com &lt;owner-lisp-hug@lispworks.com&gt; on behalf of Steven Githens &lt;steve@githens.org&gt;<br> <b>Sent:</b> Friday, December 4, 2020 7:48:39 PM<br> <b>To:</b> Arnold Noronha &lt;arnold@tdrhq..com&gt;<br> <b>Cc:</b> lisp-hug@lispworks.com &lt;lisp-hug@lispworks.com&gt;<br> <b>Subject:</b> Re: Building deliverables using CFFI libraries</span></span> </div><div>&nbsp;<br></div></div><div><div>Hi again,<br></div><div><div><br></div><div>Thanks for the responses, it's been helpful to look through all the example code. &nbsp;Also, thanks Arnold for pointing out that CFFI actually does use fli under the covers, it was helpful to clone the CFFI repo and look through how that actually works.<br></div></div><div><br></div><div>I think I'm starting to get close... &nbsp;in my Delivery script I'm using:<br></div><div style="text-align:start;text-indent:0px;background-color:rgb(255, 255, 255);line-height:18px;"><div style="color:rgb(0, 0, 0);font-family:Menlo, Monaco, &quot;Courier New&quot;, monospace;font-size:12px;font-style:normal;font-variant-caps:normal;font-weight:normal;letter-spacing:normal;text-transform:none;white-space:pre;word-spacing:0px;text-decoration-line:none;text-decoration-style:solid;text-decoration-color:currentcolor;text-decoration-thickness:auto;"><br></div><div style="color:rgb(0, 0, 0);font-family:Menlo, Monaco, &quot;Courier New&quot;, monospace;font-size:12px;font-style:normal;font-variant-caps:normal;font-weight:normal;letter-spacing:normal;text-transform:none;white-space:pre;word-spacing:0px;text-decoration-line:none;text-decoration-style:solid;text-decoration-color:currentcolor;text-decoration-thickness:auto;"><span style="color:rgb(0, 0, 0);">(cffi:close-foreign-library 'FREETYPE2::FREETYPE2)</span><br></div><div style="color:rgb(0, 0, 0);font-family:Menlo, Monaco, &quot;Courier New&quot;, monospace;font-size:12px;font-style:normal;font-variant-caps:normal;font-weight:normal;letter-spacing:normal;text-transform:none;white-space:pre;word-spacing:0px;text-decoration-line:none;text-decoration-style:solid;text-decoration-color:currentcolor;text-decoration-thickness:auto;"><br></div><div style="color:rgb(0, 0, 0);font-family:Menlo, Monaco, &quot;Courier New&quot;, monospace;font-size:12px;font-style:normal;font-variant-caps:normal;font-weight:normal;letter-spacing:normal;text-transform:none;white-space:pre;word-spacing:0px;text-decoration-line:none;text-decoration-style:solid;text-decoration-color:currentcolor;text-decoration-thickness:auto;"><span style="color:rgb(0, 0, 0);">and I can see that it's returning T.</span><br></div><div style="color:rgb(0, 0, 0);font-family:Menlo, Monaco, &quot;Courier New&quot;, monospace;font-size:12px;font-style:normal;font-variant-caps:normal;font-weight:normal;letter-spacing:normal;text-transform:none;white-space:pre;word-spacing:0px;text-decoration-line:none;text-decoration-style:solid;text-decoration-color:currentcolor;text-decoration-thickness:auto;"><br></div><div><span class="font" style="font-family:Menlo, Monaco, Courier New, monospace;"><span class="colour" style="color:rgb(0, 0, 0);"><span style="white-space:pre;"><span class="size" style="font-size:12px;">and in application start </span></span><span style="white-space:pre;"><span class="size" style="font-size:12px;">defun I'm using:</span></span></span></span><br></div><div><br></div><div><span style="color:rgb(0, 0, 0);">(</span><span style="color:rgb(175, 0, 219);">pushnew</span><br></div></div><div style="text-align:start;text-indent:0px;background-color:rgb(255, 255, 255);line-height:18px;"><div style="color:rgb(0, 0, 0);font-family:Menlo, Monaco, &quot;Courier New&quot;, monospace;font-size:12px;font-style:normal;font-variant-caps:normal;font-weight:normal;letter-spacing:normal;text-transform:none;white-space:pre;word-spacing:0px;text-decoration-line:none;text-decoration-style:solid;text-decoration-color:currentcolor;text-decoration-thickness:auto;"><span style="color:rgb(0, 0, 0);">(</span><span style="color:rgb(175, 0, 219);">make-pathname</span><span style="color:rgb(0, 0, 0);"> </span><span style="color:rgb(0, 0, 255);">:directory</span><br></div><div style="color:rgb(0, 0, 0);font-family:Menlo, Monaco, &quot;Courier New&quot;, monospace;font-size:12px;font-style:normal;font-variant-caps:normal;font-weight:normal;letter-spacing:normal;text-transform:none;white-space:pre;word-spacing:0px;text-decoration-line:none;text-decoration-style:solid;text-decoration-color:currentcolor;text-decoration-thickness:auto;"><span style="color:rgb(0, 0, 0);">(</span><span style="color:rgb(175, 0, 219);">append</span><span style="color:rgb(0, 0, 0);"> (</span><span style="color:rgb(175, 0, 219);">butlast</span><span style="color:rgb(0, 0, 0);"> (</span><span style="color:rgb(175, 0, 219);">pathname-directory</span><span style="color:rgb(0, 0, 0);"> (lw:lisp-image-name)))</span><br></div><div style="color:rgb(0, 0, 0);font-family:Menlo, Monaco, &quot;Courier New&quot;, monospace;font-size:12px;font-style:normal;font-variant-caps:normal;font-weight:normal;letter-spacing:normal;text-transform:none;white-space:pre;word-spacing:0px;text-decoration-line:none;text-decoration-style:solid;text-decoration-color:currentcolor;text-decoration-thickness:auto;"><span style="color:rgb(0, 0, 0);">'(</span><span style="color:rgb(163, 21, 21);">"Resources"</span><span style="color:rgb(0, 0, 0);"> </span><span style="color:rgb(163, 21, 21);">"libs"</span><span style="color:rgb(0, 0, 0);">)))</span><br></div><div style="color:rgb(0, 0, 0);font-family:Menlo, Monaco, &quot;Courier New&quot;, monospace;font-size:12px;font-style:normal;font-variant-caps:normal;font-weight:normal;letter-spacing:normal;text-transform:none;white-space:pre;word-spacing:0px;text-decoration-line:none;text-decoration-style:solid;text-decoration-color:currentcolor;text-decoration-thickness:auto;"><span style="color:rgb(0, 0, 0);">cffi:*foreign-library-directories* </span><span style="color:rgb(0, 0, 255);">:test</span><span style="color:rgb(0, 0, 0);"> </span><span style="color:rgb(0, 0, 255);">#'equal</span><span style="color:rgb(0, 0, 0);">)</span><br></div><div style="color:rgb(0, 0, 0);font-family:Menlo, Monaco, &quot;Courier New&quot;, monospace;font-size:12px;font-style:normal;font-variant-caps:normal;font-weight:normal;letter-spacing:normal;text-transform:none;white-space:pre;word-spacing:0px;text-decoration-line:none;text-decoration-style:solid;text-decoration-color:currentcolor;text-decoration-thickness:auto;"><span style="color:rgb(0, 0, 0);">(cffi:use-foreign-library freetype2::freetype2)</span><br></div><div style="color:rgb(0, 0, 0);font-family:Menlo, Monaco, &quot;Courier New&quot;, monospace;font-size:12px;font-style:normal;font-variant-caps:normal;font-weight:normal;letter-spacing:normal;text-transform:none;white-space:pre;word-spacing:0px;text-decoration-line:none;text-decoration-style:solid;text-decoration-color:currentcolor;text-decoration-thickness:auto;"><br></div><div><span class="font" style="font-family:Menlo, Monaco, Courier New, monospace;"><span class="colour" style="color:rgb(0, 0, 0);"><span style="white-space:pre;"><span class="size" style="font-size:12px;">Which appears to be reloading it, although I reliably get a handful of&nbsp;different loading errors. (some of them below) The path in these errors
+ IS the correct path to the library file though...</span></span></span></span><br></div><div><br></div><div><span class="font" style="font-family:Menlo, Monaco, Courier New, monospace;"><span class="colour" style="color:rgb(0, 0, 0);"><span style="white-space:pre;"><span class="size" style="font-size:12px;">-Steve</span></span></span></span><br></div><div><br></div><div><span style="font-variant-ligatures:no-common-ligatures;">sgithens load-foreign-library FREETYPE2 /Users/sgithens/code/boxer-sunrise2/data/<a href="http://boxersunrise.app/Contents/Resources/libs/libfreetype.6.dylib">boxersunrise.app/Contents/Resources/libs/libfreetype.6.dylib</a><span class="qt-x_Apple-converted-space">&nbsp;</span></span><br></div></div><p style="margin-top:0px;margin-right:0px;margin-bottom:0px;margin-left:0px;font-style:normal;font-variant-caps:normal;font-weight:normal;font-stretch:normal;font-size:11px;line-height:normal;font-family:Menlo;color:rgb(0, 0, 0);min-height:13px;"><br></p><p style="margin-top:0px;margin-right:0px;margin-bottom:0px;margin-left:0px;font-style:normal;font-variant-caps:normal;font-weight:normal;font-stretch:normal;font-size:11px;line-height:normal;font-family:Menlo;color:rgb(0, 0, 0);"><span style="font-variant-ligatures:no-common-ligatures;">Error: Segmentation violation(11) [code 0] at 1006BF128</span><br></p><p style="margin-top:0px;margin-right:0px;margin-bottom:0px;margin-left:0px;font-style:normal;font-variant-caps:normal;font-weight:normal;font-stretch:normal;font-size:11px;line-height:normal;font-family:Menlo;color:rgb(0, 0, 0);"><span style="font-variant-ligatures:no-common-ligatures;"><span class="qt-x_Apple-converted-space">&nbsp; &nbsp; &nbsp; &nbsp; </span>Foreign code offset #x38 from symbol "FT_Stream_New"</span><br></p><p style="margin-top:0px;margin-right:0px;margin-bottom:0px;margin-left:0px;font-style:normal;font-variant-caps:normal;font-weight:normal;font-stretch:normal;font-size:11px;line-height:normal;font-family:Menlo;color:rgb(0, 0, 0);"><span style="font-variant-ligatures:no-common-ligatures;"><span class="qt-x_Apple-converted-space">&nbsp; &nbsp; &nbsp; &nbsp; </span>module "/Users/sgithens/code/boxer-sunrise2/data/<a href="http://boxersunrise.app/Contents/Resources/libs/libfreetype.6.dylib">boxersunrise.app/Contents/Resources/libs/libfreetype.6.dylib</a>" [ #x1006B8000 ]</span><br></p><p style="margin-top:0px;margin-right:0px;margin-bottom:0px;margin-left:0px;font-style:normal;font-variant-caps:normal;font-weight:normal;font-stretch:normal;font-size:11px;line-height:normal;font-family:Menlo;color:rgb(0, 0, 0);"><span style="font-variant-ligatures:no-common-ligatures;">rax<span class="qt-x_Apple-converted-space">&nbsp; &nbsp; &nbsp; &nbsp; </span>1EC00 ; rbx<span class="qt-x_Apple-converted-space">&nbsp; &nbsp; </span>108164810 ; rcx 600000008600 ; rdx 70000101FB58</span><br></p><p style="margin-top:0px;margin-right:0px;margin-bottom:0px;margin-left:0px;font-style:normal;font-variant-caps:normal;font-weight:normal;font-stretch:normal;font-size:11px;line-height:normal;font-family:Menlo;color:rgb(0, 0, 0);"><span style="font-variant-ligatures:no-common-ligatures;">rsp 70000101FAE0 ; rbp 70000101FB10 ; rdi<span class="qt-x_Apple-converted-space">&nbsp; &nbsp; </span>1080F5570 ; rsi <span class="qt-x_Apple-converted-space">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; </span>50</span><br></p><p style="margin-top:0px;margin-right:0px;margin-bottom:0px;margin-left:0px;font-style:normal;font-variant-caps:normal;font-weight:normal;font-stretch:normal;font-size:11px;line-height:normal;font-family:Menlo;color:rgb(0, 0, 0);"><span style="font-variant-ligatures:no-common-ligatures;">r8 <span class="qt-x_Apple-converted-space"> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; </span>1 ; r9<span class="qt-x_Apple-converted-space">&nbsp; &nbsp; </span>40A03B6D3B ; r10 <span class="qt-x_Apple-converted-space">&nbsp; </span>4040070C6B ; r11<span class="qt-x_Apple-converted-space">&nbsp; &nbsp; </span>1006C00A0</span><br></p><p style="margin-top:0px;margin-right:0px;margin-bottom:0px;margin-left:0px;font-style:normal;font-variant-caps:normal;font-weight:normal;font-stretch:normal;font-size:11px;line-height:normal;font-family:Menlo;color:rgb(0, 0, 0);"><span style="font-variant-ligatures:no-common-ligatures;">r12 70000101FBB0 ; r13 600000008680 ; r14 70000101FB58 ; r15<span class="qt-x_Apple-converted-space">&nbsp; &nbsp; </span>1080F5570</span><br></p><p style="margin-top:0px;margin-right:0px;margin-bottom:0px;margin-left:0px;font-style:normal;font-variant-caps:normal;font-weight:normal;font-stretch:normal;font-size:11px;line-height:normal;font-family:Menlo;color:rgb(0, 0, 0);"><span style="font-variant-ligatures:no-common-ligatures;"><span class="qt-x_Apple-converted-space">&nbsp; </span>1 (abort) Quit process.</span><br></p><div><br></div><div><span style="font-variant-ligatures:no-common-ligatures;">or </span><br></div><div><br></div><div><span style="font-variant-ligatures:no-common-ligatures;">sgithens load-foreign-library FREETYPE2 /Users/sgithens/code/boxer-sunrise2/data/<a href="http://boxersunrise.app/Contents/Resources/libs/libfreetype.6.dylib">boxersunrise.app/Contents/Resources/libs/libfreetype.6.dylib</a><span class="qt-x_Apple-converted-space">&nbsp;</span></span><br></div><p style="margin-top:0px;margin-right:0px;margin-bottom:0px;margin-left:0px;font-style:normal;font-variant-caps:normal;font-weight:normal;font-stretch:normal;font-size:11px;line-height:normal;font-family:Menlo;color:rgb(0, 0, 0);min-height:13px;"><br></p><p style="margin-top:0px;margin-right:0px;margin-bottom:0px;margin-left:0px;font-style:normal;font-variant-caps:normal;font-weight:normal;font-stretch:normal;font-size:11px;line-height:normal;font-family:Menlo;color:rgb(0, 0, 0);"><span style="font-variant-ligatures:no-common-ligatures;">Error: FreeType error: INVALID-LIBRARY-HANDLE</span><br></p><p style="margin-top:0px;margin-right:0px;margin-bottom:0px;margin-left:0px;font-style:normal;font-variant-caps:normal;font-weight:normal;font-stretch:normal;font-size:11px;line-height:normal;font-family:Menlo;color:rgb(0, 0, 0);"><span style="font-variant-ligatures:no-common-ligatures;"><span class="qt-x_Apple-converted-space">&nbsp; </span>1 (abort) Quit process.</span><br></p><div style="text-align:start;text-indent:0px;background-color:rgb(255, 255, 255);line-height:18px;"><div style="color:rgb(0, 0, 0);font-family:Menlo, Monaco, &quot;Courier New&quot;, monospace;font-size:12px;font-style:normal;font-variant-caps:normal;font-weight:normal;letter-spacing:normal;text-transform:none;white-space:pre;word-spacing:0px;text-decoration-line:none;text-decoration-style:solid;text-decoration-color:currentcolor;text-decoration-thickness:auto;"><br></div><div style="color:rgb(0, 0, 0);font-family:Menlo, Monaco, &quot;Courier New&quot;, monospace;font-size:12px;font-style:normal;font-variant-caps:normal;font-weight:normal;letter-spacing:normal;text-transform:none;white-space:pre;word-spacing:0px;text-decoration-line:none;text-decoration-style:solid;text-decoration-color:currentcolor;text-decoration-thickness:auto;"><br></div></div><div><br></div><div>On Fri, Dec 4, 2020, at 2:11 PM, Arnold Noronha wrote:<br></div><blockquote type="cite" id="qt-x_qt" style=""><div><br></div><div>On Fri, Dec 04, 2020 at 01:02:50PM -0800, Steven Githens wrote:<br></div><div>&gt; Hi all,<br></div><div>&gt;<br></div><div>&gt; This is a convoluted question, but to start, I'm wondering if folks have successfully used the lisp works delivery mechanism incorporating libraries that use the CFFI module (not the builtin ffi module that is part of lispworks).<br></div><div><br></div><div>Since CFFI uses FLI under the hood you should still be able to use FLI<br></div><div>functions.<br></div><div><br></div><div>I used fli:disconnect-module just before delivery. (I am using my own<br></div><div>library though, so not 100% sure it's easy to do this from an external<br></div><div>library loaded with CFFI). Then use fli:get-embedded-module in your<br></div><div>app, and fli:install-embedded-module in your init function in the<br></div><div>delivered app.<br></div><div><br></div><div>--Arnold<br></div><div><br></div></blockquote><div><br></div></div></blockquote><div><br></div></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Building deliverables using CFFI libraries</h1><html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=Windows-1252">
+</head>
+<body>
+<div>
+<div>
+<div style="direction: ltr;">It was no trouble. To be honest, that was off the top of my head, other then double-checking section references.</div>
+<div><br>
+</div>
+<div style="direction: ltr;">I figured the 32 vs 64-bit issue was unlikely or impossible on any recent Mac, it was only there for the just-in-case.</div>
+<div><br>
+</div>
+<div style="direction: ltr;">In-memory delivery is a great feature. But that’s really interesting that it works delivered in memory, but not reloaded.</div>
+<div><br>
+</div>
+<div style="direction: ltr;">That last part isn’t unusual. Memory architectures are typically hierarchical and cached, and Lisp images operate under the closed-world assumption, so the effect is even more pronounced as a result. Unloading the module isn’t the
+ actual action of wiping the addressed range of blocks, it’s tagging it for collection at the next run of the garbage collector.</div>
+<div><br>
+</div>
+<div style="direction: ltr;">Anything else left from the list?</div>
+<div><br>
+</div>
+<div style="direction: ltr;">I’ll check the transcript for any insights, as well.<span id="ms-outlook-ios-cursor"></span></div>
+</div>
+<div><br>
+</div>
+<div class="ms-outlook-ios-signature">
+<div><br>
+</div>
+<div style="direction: ltr;">--</div>
+<div><br>
+</div>
+<div style="direction: ltr;">Colin J.E. Lupton</div>
+<div style="direction: ltr;"><i>CEO, Founder, Principal Quantum Metamachinist</i></div>
+<div style="direction: ltr;"><b>Black Brane Systems, Inc.</b></div>
+<div style="direction: ltr;">https://blackbrane.com/</div>
+<div style="direction: ltr;">
+<hr>
+</div>
+<div style="direction: ltr;">phone: +1 (833) 227-2630 x700</div>
+<div style="direction: ltr;">fax: +1 (833) 227-2630</div>
+<div style="direction: ltr;">email: colin@blackbrane.com</div>
+<div style="direction: ltr;">
+<hr>
+</div>
+<div style="direction: ltr;">Sent from <a href="https://aka.ms/qtex0l">Outlook</a> for iOS</div>
+</div>
+</div>
+<hr style="display:inline-block;width:98%" tabindex="-1">
+<div id="divRplyFwdMsg" dir="ltr"><font face="Calibri, sans-serif" style="font-size:11pt" color="#000000"><b>From:</b> owner-lisp-hug@lispworks.com &lt;owner-lisp-hug@lispworks.com&gt; on behalf of Steven Githens &lt;steve@githens.org&gt;<br>
+<b>Sent:</b> Friday, December 4, 2020 11:00:22 PM<br>
+<b>To:</b> lisp-hug@lispworks.com &lt;lisp-hug@lispworks.com&gt;<br>
+<b>Subject:</b> Re: Building deliverables using CFFI libraries</font>
+<div>&nbsp;</div>
+</div>
+<style type="text/css">
+<!--
+p.x_MsoNormal, p.x_MsoNoSpacing
+	{margin:0}
+-->
+</style>
+<div>
+<div>Hi Colin,<br>
+</div>
+<div><br>
+</div>
+<div>Thanks for this meticulously crafted set of references.&nbsp; I'm on MacOS Catalina with Lispworks 7.1.2, so everything should be 64-bit since it doesn't support 32-bit apps.&nbsp; I actually went ahead and hacked up cl-freetype2 quick to use embedded-modules since
+ that would be great, but pretty much get the same errors.<br>
+</div>
+<div><br>
+</div>
+<div>I did try out the deliver option &quot;<span style="color:rgb(0,128,0)">:in-memory-delivery t&quot;
+</span>and of course it works fine, so it's definitely some particular issue with loading the lisp image back up.&nbsp;&nbsp;<br>
+</div>
+<div><br>
+</div>
+<div>Also randomly, I just did some small testing in the REPL with unloading the dylib, and got results that surprised me, in that I was still able to use the library after unloading it... I don't think it's being aggressively reloaded, because when I unload
+ it again I get `nil` which would be expected...<br>
+</div>
+<div><br>
+</div>
+<div>I have a transcript of it here:&nbsp; <a href="https://gist.github.com/sgithens/1e6c68bb985e2cc31af0e8fcd19422a6">
+https://gist.github.com/sgithens/1e6c68bb985e2cc31af0e8fcd19422a6</a><br>
+</div>
+<div><br>
+</div>
+<div>~Steve<br>
+</div>
+<div><br>
+</div>
+<div>On Fri, Dec 4, 2020, at 6:14 PM, Colin J.E. Lupton wrote:<br>
+</div>
+<blockquote type="cite" id="x_qt" style="">
+<div>
+<div>
+<div style="direction:ltr">I came upon a similar issue, and was able to find the solution in the LispWorks documentation.<br>
+</div>
+<div><br>
+</div>
+<div style="direction:ltr">You can work your way through the following list of solutions from top to bottom:<br>
+</div>
+<div><br>
+</div>
+<div style="direction:ltr">- LW 29.8, external libraries used with 64-bit LispWorks must be 64-bit libraries, with 32-bit LispWorks must be 32-bit libraries<br>
+</div>
+<div style="direction:ltr">- DV 4.4.5, be certain the calls to load the foreign libraries with CFFI, register-module (or the embedded-module interface mentioned below) are made within function bodies and not top-level. This ensures the dynamic library is loaded
+ in full at runtime, when the wrapper function is called, and not during compilation or delivery.<br>
+</div>
+<div style="direction:ltr">- DV 10.6, there are some useful notes here on how the FLI converts between foreign and Lisp objects, and parts of the delivery process that might clobber your FLI; mostly missing templates, occasionally memory errors.<br>
+</div>
+<div style="direction:ltr">- FLI 5.5, how to correctly load and access both C and C++ dynamic libraries; there’s some extra work with C++. Haven’t used FREETYPE2 myself, so not immediately clear on its implementation.<br>
+</div>
+<div style="direction:ltr">- FLI 5.6, covers embedding dynamically-loaded foreign libraries inside the Lisp image, instead of relying separate libraries loaded at runtime. The embedded-module interface handles a lot of extra complexity, if it can be used with
+ CFFI. Maybe try this on a new branch of your source control some other time.<br>
+</div>
+<div><br>
+</div>
+<div style="direction:ltr">That should cover all of the possible cases for the errors you’re getting. If not, see LW 11.4 for a review of memory management in 64-bit LispWorks, or LW 11.3 for 32-bit.<br>
+</div>
+<div><br>
+</div>
+<div style="direction:ltr">If you’re interested in why you’re getting those specific memory error patterns, LW 11.6 has a few notes on reducing image size and garbage collection of foreign-objects that explains most of it. For example, clean-down is called
+ automatically before <span id="x_qt-ms-outlook-ios-cursor"></span>delivery, IIRC.<br>
+</div>
+</div>
+<div><br>
+</div>
+<div class="x_qt-ms-outlook-ios-signature">
+<div><br>
+</div>
+<div style="direction:ltr">--<br>
+</div>
+<div><br>
+</div>
+<div style="direction:ltr">Colin J.E. Lupton<br>
+</div>
+<div style="direction:ltr"><i>CEO, Founder, Principal Quantum Metamachinist</i><br>
+</div>
+<div style="direction:ltr"><b>Black Brane Systems, Inc.</b><br>
+</div>
+<div style="direction:ltr">https://blackbrane.com/<br>
+</div>
+<div style="direction:ltr">
+<hr>
+<br>
+</div>
+<div style="direction:ltr">phone: +1 (833) 227-2630 x700<br>
+</div>
+<div style="direction:ltr">fax: +1 (833) 227-2630<br>
+</div>
+<div style="direction:ltr">email: colin@blackbrane.com<br>
+</div>
+<div style="direction:ltr">
+<hr>
+<br>
+</div>
+<div style="direction:ltr">Sent from <a href="https://aka.ms/qtex0l">Outlook</a> for iOS<br>
+</div>
+</div>
+</div>
+<div>
+<hr style="display:inline-block; width:98%">
+<br>
+</div>
+<div id="x_qt-divRplyFwdMsg" dir="ltr">
+<div><span class="x_font" style="font-family:Calibri,sans-serif"><span class="x_colour" style="color:rgb(0,0,0)"><b>From:</b> owner-lisp-hug@lispworks.com &lt;owner-lisp-hug@lispworks.com&gt; on behalf of Steven Githens &lt;steve@githens.org&gt;<br>
+<b>Sent:</b> Friday, December 4, 2020 7:48:39 PM<br>
+<b>To:</b> Arnold Noronha &lt;arnold@tdrhq.com&gt;<br>
+<b>Cc:</b> lisp-hug@lispworks.com &lt;lisp-hug@lispworks.com&gt;<br>
+<b>Subject:</b> Re: Building deliverables using CFFI libraries</span></span> </div>
+<div>&nbsp;<br>
+</div>
+</div>
+<div>
+<div>Hi again,<br>
+</div>
+<div>
+<div><br>
+</div>
+<div>Thanks for the responses, it's been helpful to look through all the example code. &nbsp;Also, thanks Arnold for pointing out that CFFI actually does use fli under the covers, it was helpful to clone the CFFI repo and look through how that actually works.<br>
+</div>
+</div>
+<div><br>
+</div>
+<div>I think I'm starting to get close... &nbsp;in my Delivery script I'm using:<br>
+</div>
+<div style="text-align:start; text-indent:0px; background-color:rgb(255,255,255); line-height:18px">
+<div style="color:rgb(0,0,0); font-family:Menlo,Monaco,&quot;Courier New&quot;,monospace; font-size:12px; font-style:normal; font-variant-caps:normal; font-weight:normal; letter-spacing:normal; text-transform:none; white-space:pre; word-spacing:0px; text-decoration-line:none; text-decoration-style:solid; text-decoration-color:currentcolor">
+<br>
+</div>
+<div style="color:rgb(0,0,0); font-family:Menlo,Monaco,&quot;Courier New&quot;,monospace; font-size:12px; font-style:normal; font-variant-caps:normal; font-weight:normal; letter-spacing:normal; text-transform:none; white-space:pre; word-spacing:0px; text-decoration-line:none; text-decoration-style:solid; text-decoration-color:currentcolor">
+<span style="color:rgb(0,0,0)">(cffi:close-foreign-library 'FREETYPE2::FREETYPE2)</span><br>
+</div>
+<div style="color:rgb(0,0,0); font-family:Menlo,Monaco,&quot;Courier New&quot;,monospace; font-size:12px; font-style:normal; font-variant-caps:normal; font-weight:normal; letter-spacing:normal; text-transform:none; white-space:pre; word-spacing:0px; text-decoration-line:none; text-decoration-style:solid; text-decoration-color:currentcolor">
+<br>
+</div>
+<div style="color:rgb(0,0,0); font-family:Menlo,Monaco,&quot;Courier New&quot;,monospace; font-size:12px; font-style:normal; font-variant-caps:normal; font-weight:normal; letter-spacing:normal; text-transform:none; white-space:pre; word-spacing:0px; text-decoration-line:none; text-decoration-style:solid; text-decoration-color:currentcolor">
+<span style="color:rgb(0,0,0)">and I can see that it's returning T.</span><br>
+</div>
+<div style="color:rgb(0,0,0); font-family:Menlo,Monaco,&quot;Courier New&quot;,monospace; font-size:12px; font-style:normal; font-variant-caps:normal; font-weight:normal; letter-spacing:normal; text-transform:none; white-space:pre; word-spacing:0px; text-decoration-line:none; text-decoration-style:solid; text-decoration-color:currentcolor">
+<br>
+</div>
+<div><span class="x_font" style="font-family:Menlo,Monaco,Courier New,monospace"><span class="x_colour" style="color:rgb(0,0,0)"><span style="white-space:pre"><span class="x_size" style="font-size:12px">and in application start
+</span></span><span style="white-space:pre"><span class="x_size" style="font-size:12px">defun I'm using:</span></span></span></span><br>
+</div>
+<div><br>
+</div>
+<div><span style="color:rgb(0,0,0)">(</span><span style="color:rgb(175,0,219)">pushnew</span><br>
+</div>
+</div>
+<div style="text-align:start; text-indent:0px; background-color:rgb(255,255,255); line-height:18px">
+<div style="color:rgb(0,0,0); font-family:Menlo,Monaco,&quot;Courier New&quot;,monospace; font-size:12px; font-style:normal; font-variant-caps:normal; font-weight:normal; letter-spacing:normal; text-transform:none; white-space:pre; word-spacing:0px; text-decoration-line:none; text-decoration-style:solid; text-decoration-color:currentcolor">
+<span style="color:rgb(0,0,0)">(</span><span style="color:rgb(175,0,219)">make-pathname</span><span style="color:rgb(0,0,0)">
+</span><span style="color:rgb(0,0,255)">:directory</span><br>
+</div>
+<div style="color:rgb(0,0,0); font-family:Menlo,Monaco,&quot;Courier New&quot;,monospace; font-size:12px; font-style:normal; font-variant-caps:normal; font-weight:normal; letter-spacing:normal; text-transform:none; white-space:pre; word-spacing:0px; text-decoration-line:none; text-decoration-style:solid; text-decoration-color:currentcolor">
+<span style="color:rgb(0,0,0)">(</span><span style="color:rgb(175,0,219)">append</span><span style="color:rgb(0,0,0)"> (</span><span style="color:rgb(175,0,219)">butlast</span><span style="color:rgb(0,0,0)"> (</span><span style="color:rgb(175,0,219)">pathname-directory</span><span style="color:rgb(0,0,0)">
+ (lw:lisp-image-name)))</span><br>
+</div>
+<div style="color:rgb(0,0,0); font-family:Menlo,Monaco,&quot;Courier New&quot;,monospace; font-size:12px; font-style:normal; font-variant-caps:normal; font-weight:normal; letter-spacing:normal; text-transform:none; white-space:pre; word-spacing:0px; text-decoration-line:none; text-decoration-style:solid; text-decoration-color:currentcolor">
+<span style="color:rgb(0,0,0)">'(</span><span style="color:rgb(163,21,21)">&quot;Resources&quot;</span><span style="color:rgb(0,0,0)">
+</span><span style="color:rgb(163,21,21)">&quot;libs&quot;</span><span style="color:rgb(0,0,0)">)))</span><br>
+</div>
+<div style="color:rgb(0,0,0); font-family:Menlo,Monaco,&quot;Courier New&quot;,monospace; font-size:12px; font-style:normal; font-variant-caps:normal; font-weight:normal; letter-spacing:normal; text-transform:none; white-space:pre; word-spacing:0px; text-decoration-line:none; text-decoration-style:solid; text-decoration-color:currentcolor">
+<span style="color:rgb(0,0,0)">cffi:*foreign-library-directories* </span><span style="color:rgb(0,0,255)">:test</span><span style="color:rgb(0,0,0)">
+</span><span style="color:rgb(0,0,255)">#'equal</span><span style="color:rgb(0,0,0)">)</span><br>
+</div>
+<div style="color:rgb(0,0,0); font-family:Menlo,Monaco,&quot;Courier New&quot;,monospace; font-size:12px; font-style:normal; font-variant-caps:normal; font-weight:normal; letter-spacing:normal; text-transform:none; white-space:pre; word-spacing:0px; text-decoration-line:none; text-decoration-style:solid; text-decoration-color:currentcolor">
+<span style="color:rgb(0,0,0)">(cffi:use-foreign-library freetype2::freetype2)</span><br>
+</div>
+<div style="color:rgb(0,0,0); font-family:Menlo,Monaco,&quot;Courier New&quot;,monospace; font-size:12px; font-style:normal; font-variant-caps:normal; font-weight:normal; letter-spacing:normal; text-transform:none; white-space:pre; word-spacing:0px; text-decoration-line:none; text-decoration-style:solid; text-decoration-color:currentcolor">
+<br>
+</div>
+<div><span class="x_font" style="font-family:Menlo,Monaco,Courier New,monospace"><span class="x_colour" style="color:rgb(0,0,0)"><span style="white-space:pre"><span class="x_size" style="font-size:12px">Which appears to be reloading it, although I reliably
+ get a handful of&nbsp;different loading errors. (some of them below) The path in these errors IS the correct path to the library file though...</span></span></span></span><br>
+</div>
+<div><br>
+</div>
+<div><span class="x_font" style="font-family:Menlo,Monaco,Courier New,monospace"><span class="x_colour" style="color:rgb(0,0,0)"><span style="white-space:pre"><span class="x_size" style="font-size:12px">-Steve</span></span></span></span><br>
+</div>
+<div><br>
+</div>
+<div><span style="font-variant-ligatures:no-common-ligatures">sgithens load-foreign-library FREETYPE2 /Users/sgithens/code/boxer-sunrise2/data/<a href="http://boxersunrise.app/Contents/Resources/libs/libfreetype.6.dylib">boxersunrise.app/Contents/Resources/libs/libfreetype.6.dylib</a><span class="x_qt-x_Apple-converted-space">&nbsp;</span></span><br>
+</div>
+</div>
+<p style="margin-top:0px; margin-right:0px; margin-bottom:0px; margin-left:0px; font-style:normal; font-variant-caps:normal; font-weight:normal; font-stretch:normal; font-size:11px; line-height:normal; font-family:Menlo; color:rgb(0,0,0); min-height:13px">
+<br>
+</p>
+<p style="margin-top:0px; margin-right:0px; margin-bottom:0px; margin-left:0px; font-style:normal; font-variant-caps:normal; font-weight:normal; font-stretch:normal; font-size:11px; line-height:normal; font-family:Menlo; color:rgb(0,0,0)">
+<span style="font-variant-ligatures:no-common-ligatures">Error: Segmentation violation(11) [code 0] at 1006BF128</span><br>
+</p>
+<p style="margin-top:0px; margin-right:0px; margin-bottom:0px; margin-left:0px; font-style:normal; font-variant-caps:normal; font-weight:normal; font-stretch:normal; font-size:11px; line-height:normal; font-family:Menlo; color:rgb(0,0,0)">
+<span style="font-variant-ligatures:no-common-ligatures"><span class="x_qt-x_Apple-converted-space">&nbsp; &nbsp; &nbsp; &nbsp;
+</span>Foreign code offset #x38 from symbol &quot;FT_Stream_New&quot;</span><br>
+</p>
+<p style="margin-top:0px; margin-right:0px; margin-bottom:0px; margin-left:0px; font-style:normal; font-variant-caps:normal; font-weight:normal; font-stretch:normal; font-size:11px; line-height:normal; font-family:Menlo; color:rgb(0,0,0)">
+<span style="font-variant-ligatures:no-common-ligatures"><span class="x_qt-x_Apple-converted-space">&nbsp; &nbsp; &nbsp; &nbsp;
+</span>module &quot;/Users/sgithens/code/boxer-sunrise2/data/<a href="http://boxersunrise.app/Contents/Resources/libs/libfreetype.6.dylib">boxersunrise.app/Contents/Resources/libs/libfreetype.6.dylib</a>&quot; [ #x1006B8000 ]</span><br>
+</p>
+<p style="margin-top:0px; margin-right:0px; margin-bottom:0px; margin-left:0px; font-style:normal; font-variant-caps:normal; font-weight:normal; font-stretch:normal; font-size:11px; line-height:normal; font-family:Menlo; color:rgb(0,0,0)">
+<span style="font-variant-ligatures:no-common-ligatures">rax<span class="x_qt-x_Apple-converted-space">&nbsp; &nbsp; &nbsp; &nbsp;
+</span>1EC00 ; rbx<span class="x_qt-x_Apple-converted-space">&nbsp; &nbsp; </span>108164810 ; rcx 600000008600 ; rdx 70000101FB58</span><br>
+</p>
+<p style="margin-top:0px; margin-right:0px; margin-bottom:0px; margin-left:0px; font-style:normal; font-variant-caps:normal; font-weight:normal; font-stretch:normal; font-size:11px; line-height:normal; font-family:Menlo; color:rgb(0,0,0)">
+<span style="font-variant-ligatures:no-common-ligatures">rsp 70000101FAE0 ; rbp 70000101FB10 ; rdi<span class="x_qt-x_Apple-converted-space">&nbsp; &nbsp;
+</span>1080F5570 ; rsi <span class="x_qt-x_Apple-converted-space">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; </span>
+50</span><br>
+</p>
+<p style="margin-top:0px; margin-right:0px; margin-bottom:0px; margin-left:0px; font-style:normal; font-variant-caps:normal; font-weight:normal; font-stretch:normal; font-size:11px; line-height:normal; font-family:Menlo; color:rgb(0,0,0)">
+<span style="font-variant-ligatures:no-common-ligatures">r8 <span class="x_qt-x_Apple-converted-space">
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; </span>1 ; r9<span class="x_qt-x_Apple-converted-space">&nbsp; &nbsp; </span>40A03B6D3B ; r10
+<span class="x_qt-x_Apple-converted-space">&nbsp; </span>4040070C6B ; r11<span class="x_qt-x_Apple-converted-space">&nbsp; &nbsp;
+</span>1006C00A0</span><br>
+</p>
+<p style="margin-top:0px; margin-right:0px; margin-bottom:0px; margin-left:0px; font-style:normal; font-variant-caps:normal; font-weight:normal; font-stretch:normal; font-size:11px; line-height:normal; font-family:Menlo; color:rgb(0,0,0)">
+<span style="font-variant-ligatures:no-common-ligatures">r12 70000101FBB0 ; r13 600000008680 ; r14 70000101FB58 ; r15<span class="x_qt-x_Apple-converted-space">&nbsp; &nbsp;
+</span>1080F5570</span><br>
+</p>
+<p style="margin-top:0px; margin-right:0px; margin-bottom:0px; margin-left:0px; font-style:normal; font-variant-caps:normal; font-weight:normal; font-stretch:normal; font-size:11px; line-height:normal; font-family:Menlo; color:rgb(0,0,0)">
+<span style="font-variant-ligatures:no-common-ligatures"><span class="x_qt-x_Apple-converted-space">&nbsp;
+</span>1 (abort) Quit process.</span><br>
+</p>
+<div><br>
+</div>
+<div><span style="font-variant-ligatures:no-common-ligatures">or </span><br>
+</div>
+<div><br>
+</div>
+<div><span style="font-variant-ligatures:no-common-ligatures">sgithens load-foreign-library FREETYPE2 /Users/sgithens/code/boxer-sunrise2/data/<a href="http://boxersunrise.app/Contents/Resources/libs/libfreetype.6.dylib">boxersunrise.app/Contents/Resources/libs/libfreetype.6.dylib</a><span class="x_qt-x_Apple-converted-space">&nbsp;</span></span><br>
+</div>
+<p style="margin-top:0px; margin-right:0px; margin-bottom:0px; margin-left:0px; font-style:normal; font-variant-caps:normal; font-weight:normal; font-stretch:normal; font-size:11px; line-height:normal; font-family:Menlo; color:rgb(0,0,0); min-height:13px">
+<br>
+</p>
+<p style="margin-top:0px; margin-right:0px; margin-bottom:0px; margin-left:0px; font-style:normal; font-variant-caps:normal; font-weight:normal; font-stretch:normal; font-size:11px; line-height:normal; font-family:Menlo; color:rgb(0,0,0)">
+<span style="font-variant-ligatures:no-common-ligatures">Error: FreeType error: INVALID-LIBRARY-HANDLE</span><br>
+</p>
+<p style="margin-top:0px; margin-right:0px; margin-bottom:0px; margin-left:0px; font-style:normal; font-variant-caps:normal; font-weight:normal; font-stretch:normal; font-size:11px; line-height:normal; font-family:Menlo; color:rgb(0,0,0)">
+<span style="font-variant-ligatures:no-common-ligatures"><span class="x_qt-x_Apple-converted-space">&nbsp;
+</span>1 (abort) Quit process.</span><br>
+</p>
+<div style="text-align:start; text-indent:0px; background-color:rgb(255,255,255); line-height:18px">
+<div style="color:rgb(0,0,0); font-family:Menlo,Monaco,&quot;Courier New&quot;,monospace; font-size:12px; font-style:normal; font-variant-caps:normal; font-weight:normal; letter-spacing:normal; text-transform:none; white-space:pre; word-spacing:0px; text-decoration-line:none; text-decoration-style:solid; text-decoration-color:currentcolor">
+<br>
+</div>
+<div style="color:rgb(0,0,0); font-family:Menlo,Monaco,&quot;Courier New&quot;,monospace; font-size:12px; font-style:normal; font-variant-caps:normal; font-weight:normal; letter-spacing:normal; text-transform:none; white-space:pre; word-spacing:0px; text-decoration-line:none; text-decoration-style:solid; text-decoration-color:currentcolor">
+<br>
+</div>
+</div>
+<div><br>
+</div>
+<div>On Fri, Dec 4, 2020, at 2:11 PM, Arnold Noronha wrote:<br>
+</div>
+<blockquote type="cite" id="x_qt-x_qt" style="">
+<div><br>
+</div>
+<div>On Fri, Dec 04, 2020 at 01:02:50PM -0800, Steven Githens wrote:<br>
+</div>
+<div>&gt; Hi all,<br>
+</div>
+<div>&gt;<br>
+</div>
+<div>&gt; This is a convoluted question, but to start, I'm wondering if folks have successfully used the lisp works delivery mechanism incorporating libraries that use the CFFI module (not the builtin ffi module that is part of lispworks).<br>
+</div>
+<div><br>
+</div>
+<div>Since CFFI uses FLI under the hood you should still be able to use FLI<br>
+</div>
+<div>functions.<br>
+</div>
+<div><br>
+</div>
+<div>I used fli:disconnect-module just before delivery. (I am using my own<br>
+</div>
+<div>library though, so not 100% sure it's easy to do this from an external<br>
+</div>
+<div>library loaded with CFFI). Then use fli:get-embedded-module in your<br>
+</div>
+<div>app, and fli:install-embedded-module in your init function in the<br>
+</div>
+<div>delivered app.<br>
+</div>
+<div><br>
+</div>
+<div>--Arnold<br>
+</div>
+<div><br>
+</div>
+</blockquote>
+<div><br>
+</div>
+</div>
+</blockquote>
+<div><br>
+</div>
+</div>
+</body>
+</html>
+
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Building deliverables using CFFI libraries</h1><html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=Windows-1252">
+</head>
+<body>
+<div>
+<div>
+<div style="direction: ltr;">Well... I don’t love the implementation of cl-freetype2/src/ffi/ft2-lib.lisp.
+<span id="ms-outlook-ios-cursor"></span></div>
+</div>
+<div><br>
+</div>
+<div class="ms-outlook-ios-signature">
+<div><br>
+</div>
+<div style="direction: ltr;">--</div>
+<div><br>
+</div>
+<div style="direction: ltr;">Colin J.E. Lupton</div>
+<div style="direction: ltr;"><i>CEO, Founder, Principal Quantum Metamachinist</i></div>
+<div style="direction: ltr;"><b>Black Brane Systems, Inc.</b></div>
+<div style="direction: ltr;">https://blackbrane.com/</div>
+<div style="direction: ltr;">
+<hr>
+</div>
+<div style="direction: ltr;">phone: +1 (833) 227-2630 x700</div>
+<div style="direction: ltr;">fax: +1 (833) 227-2630</div>
+<div style="direction: ltr;">email: colin@blackbrane.com</div>
+<div style="direction: ltr;">
+<hr>
+</div>
+<div style="direction: ltr;">Sent from <a href="https://aka.ms/qtex0l">Outlook</a> for iOS</div>
+</div>
+</div>
+<hr style="display:inline-block;width:98%" tabindex="-1">
+<div id="divRplyFwdMsg" dir="ltr"><font face="Calibri, sans-serif" style="font-size:11pt" color="#000000"><b>From:</b> owner-lisp-hug@lispworks.com &lt;owner-lisp-hug@lispworks.com&gt; on behalf of Colin J.E. Lupton &lt;colin@blackbrane.com&gt;<br>
+<b>Sent:</b> Saturday, December 5, 2020 12:22:17 AM<br>
+<b>To:</b> Steven Githens &lt;steve@githens.org&gt;; lisp-hug@lispworks.com &lt;lisp-hug@lispworks.com&gt;<br>
+<b>Subject:</b> Re: Building deliverables using CFFI libraries</font>
+<div>&nbsp;</div>
+</div>
+<div>
+<div>
+<div>
+<div style="direction:ltr">It was no trouble. To be honest, that was off the top of my head, other then double-checking section references.</div>
+<div><br>
+</div>
+<div style="direction:ltr">I figured the 32 vs 64-bit issue was unlikely or impossible on any recent Mac, it was only there for the just-in-case.</div>
+<div><br>
+</div>
+<div style="direction:ltr">In-memory delivery is a great feature. But that’s really interesting that it works delivered in memory, but not reloaded.</div>
+<div><br>
+</div>
+<div style="direction:ltr">That last part isn’t unusual. Memory architectures are typically hierarchical and cached, and Lisp images operate under the closed-world assumption, so the effect is even more pronounced as a result. Unloading the module isn’t the
+ actual action of wiping the addressed range of blocks, it’s tagging it for collection at the next run of the garbage collector.</div>
+<div><br>
+</div>
+<div style="direction:ltr">Anything else left from the list?</div>
+<div><br>
+</div>
+<div style="direction:ltr">I’ll check the transcript for any insights, as well.<span id="x_ms-outlook-ios-cursor"></span></div>
+</div>
+<div><br>
+</div>
+<div class="x_ms-outlook-ios-signature">
+<div><br>
+</div>
+<div style="direction:ltr">--</div>
+<div><br>
+</div>
+<div style="direction:ltr">Colin J.E. Lupton</div>
+<div style="direction:ltr"><i>CEO, Founder, Principal Quantum Metamachinist</i></div>
+<div style="direction:ltr"><b>Black Brane Systems, Inc.</b></div>
+<div style="direction:ltr">https://blackbrane.com/</div>
+<div style="direction:ltr">
+<hr>
+</div>
+<div style="direction:ltr">phone: +1 (833) 227-2630 x700</div>
+<div style="direction:ltr">fax: +1 (833) 227-2630</div>
+<div style="direction:ltr">email: colin@blackbrane.com</div>
+<div style="direction:ltr">
+<hr>
+</div>
+<div style="direction:ltr">Sent from <a href="https://aka.ms/qtex0l">Outlook</a> for iOS</div>
+</div>
+</div>
+<hr tabindex="-1" style="display:inline-block; width:98%">
+<div id="x_divRplyFwdMsg" dir="ltr"><font face="Calibri, sans-serif" color="#000000" style="font-size:11pt"><b>From:</b> owner-lisp-hug@lispworks.com &lt;owner-lisp-hug@lispworks.com&gt; on behalf of Steven Githens &lt;steve@githens.org&gt;<br>
+<b>Sent:</b> Friday, December 4, 2020 11:00:22 PM<br>
+<b>To:</b> lisp-hug@lispworks.com &lt;lisp-hug@lispworks.com&gt;<br>
+<b>Subject:</b> Re: Building deliverables using CFFI libraries</font>
+<div>&nbsp;</div>
+</div>
+<style type="text/css">
+<!--
+p.x_x_MsoNormal, p.x_x_MsoNoSpacing
+	{margin:0}
+-->
+</style>
+<div>
+<div>Hi Colin,<br>
+</div>
+<div><br>
+</div>
+<div>Thanks for this meticulously crafted set of references.&nbsp; I'm on MacOS Catalina with Lispworks 7.1.2, so everything should be 64-bit since it doesn't support 32-bit apps.&nbsp; I actually went ahead and hacked up cl-freetype2 quick to use embedded-modules since
+ that would be great, but pretty much get the same errors.<br>
+</div>
+<div><br>
+</div>
+<div>I did try out the deliver option &quot;<span style="color:rgb(0,128,0)">:in-memory-delivery t&quot;
+</span>and of course it works fine, so it's definitely some particular issue with loading the lisp image back up.&nbsp;&nbsp;<br>
+</div>
+<div><br>
+</div>
+<div>Also randomly, I just did some small testing in the REPL with unloading the dylib, and got results that surprised me, in that I was still able to use the library after unloading it... I don't think it's being aggressively reloaded, because when I unload
+ it again I get `nil` which would be expected...<br>
+</div>
+<div><br>
+</div>
+<div>I have a transcript of it here:&nbsp; <a href="https://gist.github.com/sgithens/1e6c68bb985e2cc31af0e8fcd19422a6">
+https://gist.github.com/sgithens/1e6c68bb985e2cc31af0e8fcd19422a6</a><br>
+</div>
+<div><br>
+</div>
+<div>~Steve<br>
+</div>
+<div><br>
+</div>
+<div>On Fri, Dec 4, 2020, at 6:14 PM, Colin J.E. Lupton wrote:<br>
+</div>
+<blockquote type="cite" id="x_x_qt" style="">
+<div>
+<div>
+<div style="direction:ltr">I came upon a similar issue, and was able to find the solution in the LispWorks documentation.<br>
+</div>
+<div><br>
+</div>
+<div style="direction:ltr">You can work your way through the following list of solutions from top to bottom:<br>
+</div>
+<div><br>
+</div>
+<div style="direction:ltr">- LW 29.8, external libraries used with 64-bit LispWorks must be 64-bit libraries, with 32-bit LispWorks must be 32-bit libraries<br>
+</div>
+<div style="direction:ltr">- DV 4.4.5, be certain the calls to load the foreign libraries with CFFI, register-module (or the embedded-module interface mentioned below) are made within function bodies and not top-level. This ensures the dynamic library is loaded
+ in full at runtime, when the wrapper function is called, and not during compilation or delivery.<br>
+</div>
+<div style="direction:ltr">- DV 10.6, there are some useful notes here on how the FLI converts between foreign and Lisp objects, and parts of the delivery process that might clobber your FLI; mostly missing templates, occasionally memory errors.<br>
+</div>
+<div style="direction:ltr">- FLI 5.5, how to correctly load and access both C and C++ dynamic libraries; there’s some extra work with C++. Haven’t used FREETYPE2 myself, so not immediately clear on its implementation.<br>
+</div>
+<div style="direction:ltr">- FLI 5.6, covers embedding dynamically-loaded foreign libraries inside the Lisp image, instead of relying separate libraries loaded at runtime. The embedded-module interface handles a lot of extra complexity, if it can be used with
+ CFFI. Maybe try this on a new branch of your source control some other time.<br>
+</div>
+<div><br>
+</div>
+<div style="direction:ltr">That should cover all of the possible cases for the errors you’re getting. If not, see LW 11.4 for a review of memory management in 64-bit LispWorks, or LW 11.3 for 32-bit.<br>
+</div>
+<div><br>
+</div>
+<div style="direction:ltr">If you’re interested in why you’re getting those specific memory error patterns, LW 11.6 has a few notes on reducing image size and garbage collection of foreign-objects that explains most of it. For example, clean-down is called
+ automatically before <span id="x_x_qt-ms-outlook-ios-cursor"></span>delivery, IIRC.<br>
+</div>
+</div>
+<div><br>
+</div>
+<div class="x_x_qt-ms-outlook-ios-signature">
+<div><br>
+</div>
+<div style="direction:ltr">--<br>
+</div>
+<div><br>
+</div>
+<div style="direction:ltr">Colin J.E. Lupton<br>
+</div>
+<div style="direction:ltr"><i>CEO, Founder, Principal Quantum Metamachinist</i><br>
+</div>
+<div style="direction:ltr"><b>Black Brane Systems, Inc.</b><br>
+</div>
+<div style="direction:ltr">https://blackbrane.com/<br>
+</div>
+<div style="direction:ltr">
+<hr>
+<br>
+</div>
+<div style="direction:ltr">phone: +1 (833) 227-2630 x700<br>
+</div>
+<div style="direction:ltr">fax: +1 (833) 227-2630<br>
+</div>
+<div style="direction:ltr">email: colin@blackbrane.com<br>
+</div>
+<div style="direction:ltr">
+<hr>
+<br>
+</div>
+<div style="direction:ltr">Sent from <a href="https://aka.ms/qtex0l">Outlook</a> for iOS<br>
+</div>
+</div>
+</div>
+<div>
+<hr style="display:inline-block; width:98%">
+<br>
+</div>
+<div id="x_x_qt-divRplyFwdMsg" dir="ltr">
+<div><span class="x_x_font" style="font-family:Calibri,sans-serif"><span class="x_x_colour" style="color:rgb(0,0,0)"><b>From:</b> owner-lisp-hug@lispworks.com &lt;owner-lisp-hug@lispworks.com&gt; on behalf of Steven Githens &lt;steve@githens.org&gt;<br>
+<b>Sent:</b> Friday, December 4, 2020 7:48:39 PM<br>
+<b>To:</b> Arnold Noronha &lt;arnold@tdrhq.com&gt;<br>
+<b>Cc:</b> lisp-hug@lispworks.com &lt;lisp-hug@lispworks.com&gt;<br>
+<b>Subject:</b> Re: Building deliverables using CFFI libraries</span></span> </div>
+<div>&nbsp;<br>
+</div>
+</div>
+<div>
+<div>Hi again,<br>
+</div>
+<div>
+<div><br>
+</div>
+<div>Thanks for the responses, it's been helpful to look through all the example code. &nbsp;Also, thanks Arnold for pointing out that CFFI actually does use fli under the covers, it was helpful to clone the CFFI repo and look through how that actually works.<br>
+</div>
+</div>
+<div><br>
+</div>
+<div>I think I'm starting to get close... &nbsp;in my Delivery script I'm using:<br>
+</div>
+<div style="text-align:start; text-indent:0px; background-color:rgb(255,255,255); line-height:18px">
+<div style="color:rgb(0,0,0); font-family:Menlo,Monaco,&quot;Courier New&quot;,monospace; font-size:12px; font-style:normal; font-variant-caps:normal; font-weight:normal; letter-spacing:normal; text-transform:none; white-space:pre; word-spacing:0px; text-decoration-line:none; text-decoration-style:solid; text-decoration-color:currentcolor">
+<br>
+</div>
+<div style="color:rgb(0,0,0); font-family:Menlo,Monaco,&quot;Courier New&quot;,monospace; font-size:12px; font-style:normal; font-variant-caps:normal; font-weight:normal; letter-spacing:normal; text-transform:none; white-space:pre; word-spacing:0px; text-decoration-line:none; text-decoration-style:solid; text-decoration-color:currentcolor">
+<span style="color:rgb(0,0,0)">(cffi:close-foreign-library 'FREETYPE2::FREETYPE2)</span><br>
+</div>
+<div style="color:rgb(0,0,0); font-family:Menlo,Monaco,&quot;Courier New&quot;,monospace; font-size:12px; font-style:normal; font-variant-caps:normal; font-weight:normal; letter-spacing:normal; text-transform:none; white-space:pre; word-spacing:0px; text-decoration-line:none; text-decoration-style:solid; text-decoration-color:currentcolor">
+<br>
+</div>
+<div style="color:rgb(0,0,0); font-family:Menlo,Monaco,&quot;Courier New&quot;,monospace; font-size:12px; font-style:normal; font-variant-caps:normal; font-weight:normal; letter-spacing:normal; text-transform:none; white-space:pre; word-spacing:0px; text-decoration-line:none; text-decoration-style:solid; text-decoration-color:currentcolor">
+<span style="color:rgb(0,0,0)">and I can see that it's returning T.</span><br>
+</div>
+<div style="color:rgb(0,0,0); font-family:Menlo,Monaco,&quot;Courier New&quot;,monospace; font-size:12px; font-style:normal; font-variant-caps:normal; font-weight:normal; letter-spacing:normal; text-transform:none; white-space:pre; word-spacing:0px; text-decoration-line:none; text-decoration-style:solid; text-decoration-color:currentcolor">
+<br>
+</div>
+<div><span class="x_x_font" style="font-family:Menlo,Monaco,Courier New,monospace"><span class="x_x_colour" style="color:rgb(0,0,0)"><span style="white-space:pre"><span class="x_x_size" style="font-size:12px">and in application start
+</span></span><span style="white-space:pre"><span class="x_x_size" style="font-size:12px">defun I'm using:</span></span></span></span><br>
+</div>
+<div><br>
+</div>
+<div><span style="color:rgb(0,0,0)">(</span><span style="color:rgb(175,0,219)">pushnew</span><br>
+</div>
+</div>
+<div style="text-align:start; text-indent:0px; background-color:rgb(255,255,255); line-height:18px">
+<div style="color:rgb(0,0,0); font-family:Menlo,Monaco,&quot;Courier New&quot;,monospace; font-size:12px; font-style:normal; font-variant-caps:normal; font-weight:normal; letter-spacing:normal; text-transform:none; white-space:pre; word-spacing:0px; text-decoration-line:none; text-decoration-style:solid; text-decoration-color:currentcolor">
+<span style="color:rgb(0,0,0)">(</span><span style="color:rgb(175,0,219)">make-pathname</span><span style="color:rgb(0,0,0)">
+</span><span style="color:rgb(0,0,255)">:directory</span><br>
+</div>
+<div style="color:rgb(0,0,0); font-family:Menlo,Monaco,&quot;Courier New&quot;,monospace; font-size:12px; font-style:normal; font-variant-caps:normal; font-weight:normal; letter-spacing:normal; text-transform:none; white-space:pre; word-spacing:0px; text-decoration-line:none; text-decoration-style:solid; text-decoration-color:currentcolor">
+<span style="color:rgb(0,0,0)">(</span><span style="color:rgb(175,0,219)">append</span><span style="color:rgb(0,0,0)"> (</span><span style="color:rgb(175,0,219)">butlast</span><span style="color:rgb(0,0,0)"> (</span><span style="color:rgb(175,0,219)">pathname-directory</span><span style="color:rgb(0,0,0)">
+ (lw:lisp-image-name)))</span><br>
+</div>
+<div style="color:rgb(0,0,0); font-family:Menlo,Monaco,&quot;Courier New&quot;,monospace; font-size:12px; font-style:normal; font-variant-caps:normal; font-weight:normal; letter-spacing:normal; text-transform:none; white-space:pre; word-spacing:0px; text-decoration-line:none; text-decoration-style:solid; text-decoration-color:currentcolor">
+<span style="color:rgb(0,0,0)">'(</span><span style="color:rgb(163,21,21)">&quot;Resources&quot;</span><span style="color:rgb(0,0,0)">
+</span><span style="color:rgb(163,21,21)">&quot;libs&quot;</span><span style="color:rgb(0,0,0)">)))</span><br>
+</div>
+<div style="color:rgb(0,0,0); font-family:Menlo,Monaco,&quot;Courier New&quot;,monospace; font-size:12px; font-style:normal; font-variant-caps:normal; font-weight:normal; letter-spacing:normal; text-transform:none; white-space:pre; word-spacing:0px; text-decoration-line:none; text-decoration-style:solid; text-decoration-color:currentcolor">
+<span style="color:rgb(0,0,0)">cffi:*foreign-library-directories* </span><span style="color:rgb(0,0,255)">:test</span><span style="color:rgb(0,0,0)">
+</span><span style="color:rgb(0,0,255)">#'equal</span><span style="color:rgb(0,0,0)">)</span><br>
+</div>
+<div style="color:rgb(0,0,0); font-family:Menlo,Monaco,&quot;Courier New&quot;,monospace; font-size:12px; font-style:normal; font-variant-caps:normal; font-weight:normal; letter-spacing:normal; text-transform:none; white-space:pre; word-spacing:0px; text-decoration-line:none; text-decoration-style:solid; text-decoration-color:currentcolor">
+<span style="color:rgb(0,0,0)">(cffi:use-foreign-library freetype2::freetype2)</span><br>
+</div>
+<div style="color:rgb(0,0,0); font-family:Menlo,Monaco,&quot;Courier New&quot;,monospace; font-size:12px; font-style:normal; font-variant-caps:normal; font-weight:normal; letter-spacing:normal; text-transform:none; white-space:pre; word-spacing:0px; text-decoration-line:none; text-decoration-style:solid; text-decoration-color:currentcolor">
+<br>
+</div>
+<div><span class="x_x_font" style="font-family:Menlo,Monaco,Courier New,monospace"><span class="x_x_colour" style="color:rgb(0,0,0)"><span style="white-space:pre"><span class="x_x_size" style="font-size:12px">Which appears to be reloading it, although I reliably
+ get a handful of&nbsp;different loading errors. (some of them below) The path in these errors IS the correct path to the library file though...</span></span></span></span><br>
+</div>
+<div><br>
+</div>
+<div><span class="x_x_font" style="font-family:Menlo,Monaco,Courier New,monospace"><span class="x_x_colour" style="color:rgb(0,0,0)"><span style="white-space:pre"><span class="x_x_size" style="font-size:12px">-Steve</span></span></span></span><br>
+</div>
+<div><br>
+</div>
+<div><span style="font-variant-ligatures:no-common-ligatures">sgithens load-foreign-library FREETYPE2 /Users/sgithens/code/boxer-sunrise2/data/<a href="http://boxersunrise.app/Contents/Resources/libs/libfreetype.6.dylib">boxersunrise.app/Contents/Resources/libs/libfreetype.6.dylib</a><span class="x_x_qt-x_Apple-converted-space">&nbsp;</span></span><br>
+</div>
+</div>
+<p style="margin-top:0px; margin-right:0px; margin-bottom:0px; margin-left:0px; font-style:normal; font-variant-caps:normal; font-weight:normal; font-stretch:normal; font-size:11px; line-height:normal; font-family:Menlo; color:rgb(0,0,0); min-height:13px">
+<br>
+</p>
+<p style="margin-top:0px; margin-right:0px; margin-bottom:0px; margin-left:0px; font-style:normal; font-variant-caps:normal; font-weight:normal; font-stretch:normal; font-size:11px; line-height:normal; font-family:Menlo; color:rgb(0,0,0)">
+<span style="font-variant-ligatures:no-common-ligatures">Error: Segmentation violation(11) [code 0] at 1006BF128</span><br>
+</p>
+<p style="margin-top:0px; margin-right:0px; margin-bottom:0px; margin-left:0px; font-style:normal; font-variant-caps:normal; font-weight:normal; font-stretch:normal; font-size:11px; line-height:normal; font-family:Menlo; color:rgb(0,0,0)">
+<span style="font-variant-ligatures:no-common-ligatures"><span class="x_x_qt-x_Apple-converted-space">&nbsp; &nbsp; &nbsp; &nbsp;
+</span>Foreign code offset #x38 from symbol &quot;FT_Stream_New&quot;</span><br>
+</p>
+<p style="margin-top:0px; margin-right:0px; margin-bottom:0px; margin-left:0px; font-style:normal; font-variant-caps:normal; font-weight:normal; font-stretch:normal; font-size:11px; line-height:normal; font-family:Menlo; color:rgb(0,0,0)">
+<span style="font-variant-ligatures:no-common-ligatures"><span class="x_x_qt-x_Apple-converted-space">&nbsp; &nbsp; &nbsp; &nbsp;
+</span>module &quot;/Users/sgithens/code/boxer-sunrise2/data/<a href="http://boxersunrise.app/Contents/Resources/libs/libfreetype.6.dylib">boxersunrise.app/Contents/Resources/libs/libfreetype.6.dylib</a>&quot; [ #x1006B8000 ]</span><br>
+</p>
+<p style="margin-top:0px; margin-right:0px; margin-bottom:0px; margin-left:0px; font-style:normal; font-variant-caps:normal; font-weight:normal; font-stretch:normal; font-size:11px; line-height:normal; font-family:Menlo; color:rgb(0,0,0)">
+<span style="font-variant-ligatures:no-common-ligatures">rax<span class="x_x_qt-x_Apple-converted-space">&nbsp; &nbsp; &nbsp; &nbsp;
+</span>1EC00 ; rbx<span class="x_x_qt-x_Apple-converted-space">&nbsp; &nbsp; </span>108164810 ; rcx 600000008600 ; rdx 70000101FB58</span><br>
+</p>
+<p style="margin-top:0px; margin-right:0px; margin-bottom:0px; margin-left:0px; font-style:normal; font-variant-caps:normal; font-weight:normal; font-stretch:normal; font-size:11px; line-height:normal; font-family:Menlo; color:rgb(0,0,0)">
+<span style="font-variant-ligatures:no-common-ligatures">rsp 70000101FAE0 ; rbp 70000101FB10 ; rdi<span class="x_x_qt-x_Apple-converted-space">&nbsp; &nbsp;
+</span>1080F5570 ; rsi <span class="x_x_qt-x_Apple-converted-space">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; </span>
+50</span><br>
+</p>
+<p style="margin-top:0px; margin-right:0px; margin-bottom:0px; margin-left:0px; font-style:normal; font-variant-caps:normal; font-weight:normal; font-stretch:normal; font-size:11px; line-height:normal; font-family:Menlo; color:rgb(0,0,0)">
+<span style="font-variant-ligatures:no-common-ligatures">r8 <span class="x_x_qt-x_Apple-converted-space">
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; </span>1 ; r9<span class="x_x_qt-x_Apple-converted-space">&nbsp; &nbsp; </span>
+40A03B6D3B ; r10 <span class="x_x_qt-x_Apple-converted-space">&nbsp; </span>4040070C6B ; r11<span class="x_x_qt-x_Apple-converted-space">&nbsp; &nbsp;
+</span>1006C00A0</span><br>
+</p>
+<p style="margin-top:0px; margin-right:0px; margin-bottom:0px; margin-left:0px; font-style:normal; font-variant-caps:normal; font-weight:normal; font-stretch:normal; font-size:11px; line-height:normal; font-family:Menlo; color:rgb(0,0,0)">
+<span style="font-variant-ligatures:no-common-ligatures">r12 70000101FBB0 ; r13 600000008680 ; r14 70000101FB58 ; r15<span class="x_x_qt-x_Apple-converted-space">&nbsp; &nbsp;
+</span>1080F5570</span><br>
+</p>
+<p style="margin-top:0px; margin-right:0px; margin-bottom:0px; margin-left:0px; font-style:normal; font-variant-caps:normal; font-weight:normal; font-stretch:normal; font-size:11px; line-height:normal; font-family:Menlo; color:rgb(0,0,0)">
+<span style="font-variant-ligatures:no-common-ligatures"><span class="x_x_qt-x_Apple-converted-space">&nbsp;
+</span>1 (abort) Quit process.</span><br>
+</p>
+<div><br>
+</div>
+<div><span style="font-variant-ligatures:no-common-ligatures">or </span><br>
+</div>
+<div><br>
+</div>
+<div><span style="font-variant-ligatures:no-common-ligatures">sgithens load-foreign-library FREETYPE2 /Users/sgithens/code/boxer-sunrise2/data/<a href="http://boxersunrise.app/Contents/Resources/libs/libfreetype.6.dylib">boxersunrise.app/Contents/Resources/libs/libfreetype.6.dylib</a><span class="x_x_qt-x_Apple-converted-space">&nbsp;</span></span><br>
+</div>
+<p style="margin-top:0px; margin-right:0px; margin-bottom:0px; margin-left:0px; font-style:normal; font-variant-caps:normal; font-weight:normal; font-stretch:normal; font-size:11px; line-height:normal; font-family:Menlo; color:rgb(0,0,0); min-height:13px">
+<br>
+</p>
+<p style="margin-top:0px; margin-right:0px; margin-bottom:0px; margin-left:0px; font-style:normal; font-variant-caps:normal; font-weight:normal; font-stretch:normal; font-size:11px; line-height:normal; font-family:Menlo; color:rgb(0,0,0)">
+<span style="font-variant-ligatures:no-common-ligatures">Error: FreeType error: INVALID-LIBRARY-HANDLE</span><br>
+</p>
+<p style="margin-top:0px; margin-right:0px; margin-bottom:0px; margin-left:0px; font-style:normal; font-variant-caps:normal; font-weight:normal; font-stretch:normal; font-size:11px; line-height:normal; font-family:Menlo; color:rgb(0,0,0)">
+<span style="font-variant-ligatures:no-common-ligatures"><span class="x_x_qt-x_Apple-converted-space">&nbsp;
+</span>1 (abort) Quit process.</span><br>
+</p>
+<div style="text-align:start; text-indent:0px; background-color:rgb(255,255,255); line-height:18px">
+<div style="color:rgb(0,0,0); font-family:Menlo,Monaco,&quot;Courier New&quot;,monospace; font-size:12px; font-style:normal; font-variant-caps:normal; font-weight:normal; letter-spacing:normal; text-transform:none; white-space:pre; word-spacing:0px; text-decoration-line:none; text-decoration-style:solid; text-decoration-color:currentcolor">
+<br>
+</div>
+<div style="color:rgb(0,0,0); font-family:Menlo,Monaco,&quot;Courier New&quot;,monospace; font-size:12px; font-style:normal; font-variant-caps:normal; font-weight:normal; letter-spacing:normal; text-transform:none; white-space:pre; word-spacing:0px; text-decoration-line:none; text-decoration-style:solid; text-decoration-color:currentcolor">
+<br>
+</div>
+</div>
+<div><br>
+</div>
+<div>On Fri, Dec 4, 2020, at 2:11 PM, Arnold Noronha wrote:<br>
+</div>
+<blockquote type="cite" id="x_x_qt-x_qt" style="">
+<div><br>
+</div>
+<div>On Fri, Dec 04, 2020 at 01:02:50PM -0800, Steven Githens wrote:<br>
+</div>
+<div>&gt; Hi all,<br>
+</div>
+<div>&gt;<br>
+</div>
+<div>&gt; This is a convoluted question, but to start, I'm wondering if folks have successfully used the lisp works delivery mechanism incorporating libraries that use the CFFI module (not the builtin ffi module that is part of lispworks).<br>
+</div>
+<div><br>
+</div>
+<div>Since CFFI uses FLI under the hood you should still be able to use FLI<br>
+</div>
+<div>functions.<br>
+</div>
+<div><br>
+</div>
+<div>I used fli:disconnect-module just before delivery. (I am using my own<br>
+</div>
+<div>library though, so not 100% sure it's easy to do this from an external<br>
+</div>
+<div>library loaded with CFFI). Then use fli:get-embedded-module in your<br>
+</div>
+<div>app, and fli:install-embedded-module in your init function in the<br>
+</div>
+<div>delivered app.<br>
+</div>
+<div><br>
+</div>
+<div>--Arnold<br>
+</div>
+<div><br>
+</div>
+</blockquote>
+<div><br>
+</div>
+</div>
+</blockquote>
+<div><br>
+</div>
+</div>
+</div>
+</body>
+</html>
+
+
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+           </body>
+          </html>

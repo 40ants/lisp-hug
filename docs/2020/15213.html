@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>How to bind the Values-&gtClip command in IDE/Listener</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+           </head>
+           <body>
+            <div class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </div>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>How to bind the Values-&gtClip command in IDE/Listener</h1>
+                <pre>Hi all,
+
+I'm trying to make a convenient binding for the clip command to Object
+Clipboard, available via Values-&gtClip menu command. This command places
+the contents of * into Object Clipboard.
+
+My naive attempt lead to placing the Listener itself into the
+clipboard. Is where another way to do so?
+
+(defcommand "Values Clip" (p)
+     "Acts like menu Values &gt Clip"
+  (declare (ignore p))
+  ;; get the current editor window
+  (when-let (cw (current-window))
+    ;; extract the capi text pane out of it
+    (when (slot-boundp cw 'editor::text-pane)
+      ;; capi text pane could be used to get the top level interface -
+      ;; the Listener window itself
+      (when-let (iface (capi:top-level-interface (slot-value cw 'editor::text-pane)))
+        ;; now try to find the "Values" toplevel menu
+        (when-let (values-menu (find-if (lambda (m)
+                                          (and (slot-boundp m 'capi::title)
+                                               (string= "Values"
+                                                        (slot-value m 'capi::title))))
+                                        (capi:interface-menu-bar-items iface)))
+          (let* ((component (elt (capi:menu-items values-menu) 0))
+                 (item (capi:get-collection-item component 0))
+                 (menu-item (capi:get-collection-item item 2)))
+            (when (capi:menu-object-enabled item)
+              (funcall (capi:callbacks-selection-callback menu-item)
+                       iface))))))))
+
+-- 
+Br,
+/Alexey
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+               </article>
+              </section>
+             </div>
+            </div>
+           </body>
+          </html>

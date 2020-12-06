@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Java interface issues</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+           </head>
+           <body>
+            <div class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </div>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Java interface issues</h1><div dir="ltr"><div>After loading the interface with:</div><div><br></div><div>    (require &quot;java-interface&quot;)</div><div><br></div><div>I invoke the following:</div><div><br></div><div>    (lw-ji:import-java-class-definitions &quot;java.io.File&quot;)</div><div><br></div><div>But then, I get:</div><div><br></div><div>Error: Foreign function LW-JI::GET-SINGLE-JAVA-VM trying to call to unresolved external function &quot;JNI_GetCreatedJavaVMs&quot;.<br>  1 (abort) Return to level 0.<br>  2 Return to top loop level 0.</div><div><br></div><div>What causes that?<br></div><div><br>-- <br><div class="gmail_signature"><div dir="ltr"><div><div dir="ltr"><div>Rommel Martinez</div><div><a href="https://ebzzry.io" target="_blank">https://ebzzry.io</a><br></div></div></div></div></div>
+</div></div>
+
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Java interface issues</h1><html><head><meta http-equiv="Content-Type" content="text/html charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class=""><div class="">You need to initialize the java interface first, by telling LispWorks the location of “libjvm.dll” (.so, .dylib) in JRE/JDK. Consider putting the following scripts in ~/.lispworks:</div><div class=""><br class=""></div><div class=""><div class="">(defparameter *jdk8-library-path*</div><div class="">&nbsp; "/Library/Java/JavaVirtualMachines/jdk1.8.0_162.jdk/Contents/Home/jre/lib/server/libjvm.dylib")</div><div class=""><br class=""></div><div class="">(defun load-java8 (&amp;optional class-paths)</div><div class="">&nbsp; (let ((lispcalls (namestring (lispworks-file "etc/lispcalls.jar"))))</div><div class="">&nbsp; &nbsp; (funcall</div><div class="">&nbsp; &nbsp; &nbsp; (intern "INIT-JAVA-INTERFACE" "LW-JI")</div><div class="">&nbsp; &nbsp; &nbsp; :jvm-library-path *jdk8-library-path*</div><div class="">&nbsp; &nbsp; &nbsp; :java-class-path (if class-paths</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(format nil "~S:~S" lispcalls class-paths)</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;lispcalls))))</div></div><div class=""><br class=""></div><div class="">It also gives you possibility to load third-party JARs. &nbsp;You can even duplicate above scripts to selectively load other JDK versions (but at any time there can only be one in use).</div><div class=""><br class=""></div><div class="">Hope this helps,</div><div class=""><br class=""></div><div class="">Chun</div><br class=""><div><blockquote type="cite" class=""><div class="">Il giorno 06 lug 2018, alle ore 11:44, Rommel MARTINEZ &lt;<a href="mailto:ebzzry@ebzzry.io" class="">ebzzry@ebzzry.io</a>&gt; ha scritto:</div><br class="Apple-interchange-newline"><div class=""><div dir="ltr" class=""><div class="">After loading the interface with:</div><div class=""><br class=""></div><div class="">&nbsp;&nbsp;&nbsp; (require "java-interface")</div><div class=""><br class=""></div><div class="">I invoke the following:</div><div class=""><br class=""></div><div class="">&nbsp;&nbsp;&nbsp; (lw-ji:import-java-class-definitions "java.io.File")</div><div class=""><br class=""></div><div class="">But then, I get:</div><div class=""><br class=""></div><div class="">Error: Foreign function LW-JI::GET-SINGLE-JAVA-VM trying to call to unresolved external function "JNI_GetCreatedJavaVMs".<br class="">&nbsp; 1 (abort) Return to level 0.<br class="">&nbsp; 2 Return to top loop level 0.</div><div class=""><br class=""></div><div class="">What causes that?<br class=""></div><div class=""><br class="">-- <br class=""><div class="gmail_signature"><div dir="ltr" class=""><div class=""><div dir="ltr" class=""><div class="">Rommel Martinez</div><div class=""><a href="https://ebzzry.io/" target="_blank" class="">https://ebzzry.io</a><br class=""></div></div></div></div></div>
+</div></div>
+</div></blockquote></div><br class=""></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Java interface issues</h1><div dir="ltr">Thanks, Chun Tian!<br></div><div class="gmail_extra"><br><div class="gmail_quote">On Fri, Jul 6, 2018 at 7:55 PM, Chun Tian (binghe) <span dir="ltr">&lt;<a href="mailto:binghe.lisp@gmail.com" target="_blank">binghe.lisp@gmail.com</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div style="word-wrap:break-word"><div>You need to initialize the java interface first, by telling LispWorks the location of “libjvm.dll” (.so, .dylib) in JRE/JDK. Consider putting the following scripts in ~/.lispworks:</div><div><br></div><div><div>(defparameter *jdk8-library-path*</div><div>  &quot;/Library/Java/<wbr>JavaVirtualMachines/jdk1.8.0_<wbr>162.jdk/Contents/Home/jre/lib/<wbr>server/libjvm.dylib&quot;)</div><div><br></div><div>(defun load-java8 (&amp;optional class-paths)</div><div>  (let ((lispcalls (namestring (lispworks-file &quot;etc/lispcalls.jar&quot;))))</div><div>    (funcall</div><div>      (intern &quot;INIT-JAVA-INTERFACE&quot; &quot;LW-JI&quot;)</div><div>      :jvm-library-path *jdk8-library-path*</div><div>      :java-class-path (if class-paths</div><div>                           (format nil &quot;~S:~S&quot; lispcalls class-paths)</div><div>                           lispcalls))))</div></div><div><br></div><div>It also gives you possibility to load third-party JARs.  You can even duplicate above scripts to selectively load other JDK versions (but at any time there can only be one in use).</div><div><br></div><div>Hope this helps,</div><div><br></div><div>Chun</div><div><div class="h5"><br><div><blockquote type="cite"><div>Il giorno 06 lug 2018, alle ore 11:44, Rommel MARTINEZ &lt;<a href="mailto:ebzzry@ebzzry.io" target="_blank">ebzzry@ebzzry.io</a>&gt; ha scritto:</div><br class="m_4751686225022699217Apple-interchange-newline"><div><div dir="ltr"><div>After loading the interface with:</div><div><br></div><div>    (require &quot;java-interface&quot;)</div><div><br></div><div>I invoke the following:</div><div><br></div><div>    (lw-ji:import-java-class-<wbr>definitions &quot;java.io.File&quot;)</div><div><br></div><div>But then, I get:</div><div><br></div><div>Error: Foreign function LW-JI::GET-SINGLE-JAVA-VM trying to call to unresolved external function &quot;JNI_GetCreatedJavaVMs&quot;.<br>  1 (abort) Return to level 0.<br>  2 Return to top loop level 0.</div><div><br></div><div>What causes that?<br></div><div><br>-- <br><div class="m_4751686225022699217gmail_signature"><div dir="ltr"><div><div dir="ltr"><div>Rommel Martinez</div><div><a href="https://ebzzry.io/" target="_blank">https://ebzzry.io</a><br></div></div></div></div></div>
+</div></div>
+</div></blockquote></div><br></div></div></div></blockquote></div><br><br clear="all"><br>-- <br><div class="gmail_signature" data-smartmail="gmail_signature"><div dir="ltr"><div><div dir="ltr"><div>Rommel Martinez</div><div><a href="https://ebzzry.io" target="_blank">https://ebzzry.io</a><br></div></div></div></div></div>
+</div>
+
+
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+           </body>
+          </html>

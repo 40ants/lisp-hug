@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>LispWorks Java and MacOS</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+           </head>
+           <body>
+            <div class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </div>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>LispWorks Java and MacOS</h1>
+                <pre>I am running LispWorks 7.1 on MacOS 10.11.6. 
+I am trying to initialize the java interface with (init-java-interface :jvm-library-path t) , but I get an error saying that I need to use the legacy version 6 of Java. Following this message, LispWorks exits. 
+I have Java 8 Update 161 installed.  
+
+What do I need to do?
+- Pass some parameters to init-java-interface to allow for the current Java version to be used?
+- Backtrack to Java 6?
+- Other options?
+
+Thanks
+
+Bruno
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LispWorks Java and MacOS</h1>
+                 <pre>(defparameter *jdk8-library-path*
+  "/Library/Java/JavaVirtualMachines/jdk1.8.0_161.jdk/Contents/Home/jre/lib/server/libjvm.dylib")
+
+(defun load-java8 (&amp;optional class-paths)
+  (let ((lispcalls (namestring (lispworks-file "etc/lispcalls.jar"))))
+    (funcall
+      (intern "INIT-JAVA-INTERFACE" "LW-JI")
+      :jvm-library-path *jdk8-library-path*
+      :java-class-path (if class-paths
+                           (format nil "~S:~S" lispcalls class-paths)
+                           lispcalls))))
+
+&gt Il giorno 22 gen 2018, alle ore 21:01, Bruno Emond &lt;emond.bruno@gmail.com&gt ha scritto:
+&gt 
+&gt I am running LispWorks 7.1 on MacOS 10.11.6.
+&gt I am trying to initialize the java interface with (init-java-interface :jvm-library-path t) , but I get an error saying that I need to use the legacy version 6 of Java. Following this message, LispWorks exits.
+&gt I have Java 8 Update 161 installed.
+&gt 
+&gt What do I need to do?
+&gt - Pass some parameters to init-java-interface to allow for the current Java version to be used?
+&gt - Backtrack to Java 6?
+&gt - Other options?
+&gt 
+&gt Thanks
+&gt 
+&gt Bruno
+&gt 
+&gt 
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LispWorks Java and MacOS</h1>
+                 <pre>After the initial success, I slowed down very quickly. 
+I am not very familiar with Java, so I am facing a steep learning curve. 
+So most of what follows might be a very basic set of questions. 
+
+I want to interface with ActiveMQ. I built a STOMP producer/customer a couple of years ago, and ti was easy, but I need this time to use openwire. I looked at the openwire specs, and would rather use something that already works, such as the Java JMS and org.apache.ActiveMQ. 
+
+I downloaded the last version of the Java SE SDK (9.0.4), and realized that the JMS seems to be part of EE. As far as I can see, EE does not  come with a VM. 
+
+So here is a set of naive questions:
+- After initializing the VM with init-java-interface, are we limited to the classes already defined in the VM (using import-java-class-definitions) ?
+- Is there a way to load jar files in the initialized VM using lisp?
+
+Bruno
+
+ 
+
+&gt On Jan 22, 2018, at 17:18, Bruno Emond &lt;emond.bruno@gmail.com&gt wrote:
+&gt 
+&gt Success!
+&gt Thank you Chun. 
+&gt Bruno
+&gt 
+&gt&gt On Jan 22, 2018, at 16:40, Chun Tian &lt;binghe.lisp@gmail.com&gt wrote:
+&gt&gt 
+&gt&gt (defparameter *jdk8-library-path*
+&gt&gt "/Library/Java/JavaVirtualMachines/jdk1.8.0_161.jdk/Contents/Home/jre/lib/server/libjvm.dylib")
+&gt&gt 
+&gt&gt (defun load-java8 (&amp;optional class-paths)
+&gt&gt (let ((lispcalls (namestring (lispworks-file "etc/lispcalls.jar"))))
+&gt&gt   (funcall
+&gt&gt     (intern "INIT-JAVA-INTERFACE" "LW-JI")
+&gt&gt     :jvm-library-path *jdk8-library-path*
+&gt&gt     :java-class-path (if class-paths
+&gt&gt                          (format nil "~S:~S" lispcalls class-paths)
+&gt&gt                          lispcalls))))
+&gt&gt 
+&gt&gt&gt Il giorno 22 gen 2018, alle ore 21:01, Bruno Emond &lt;emond.bruno@gmail.com&gt ha scritto:
+&gt&gt&gt 
+&gt&gt&gt I am running LispWorks 7.1 on MacOS 10.11.6.
+&gt&gt&gt I am trying to initialize the java interface with (init-java-interface :jvm-library-path t) , but I get an error saying that I need to use the legacy version 6 of Java. Following this message, LispWorks exits.
+&gt&gt&gt I have Java 8 Update 161 installed.
+&gt&gt&gt 
+&gt&gt&gt What do I need to do?
+&gt&gt&gt - Pass some parameters to init-java-interface to allow for the current Java version to be used?
+&gt&gt&gt - Backtrack to Java 6?
+&gt&gt&gt - Other options?
+&gt&gt&gt 
+&gt&gt&gt Thanks
+&gt&gt&gt 
+&gt&gt&gt Bruno
+&gt&gt&gt 
+&gt&gt&gt 
+&gt&gt&gt _______________________________________________
+&gt&gt&gt Lisp Hug - the mailing list for LispWorks users
+&gt&gt&gt lisp-hug@lispworks.com
+&gt&gt&gt http://www.lispworks.com/support/lisp-hug.html
+&gt&gt 
+&gt 
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LispWorks Java and MacOS</h1><div dir="ltr"><div>EE is a big spec implemented by application servers (such as WildFly). If you only want JMS, pick an implementation (such as ActiveMQ) and use it without caring about EE.<br><br></div>I don&#39;t know the LispWorks interface to Java, but I see a :java-class-path parameter: that&#39;s where you can place additional libraries (jar files) to be picked up by the JVM. Expect a bit of pain with the dependencies because nowadays projects use automatic dependency resolution (similar to ASDF + Quicklisp), nobody manually downloads jars anymore, and projects are structured keeping that into account (read: lots of tiny and not so tiny dependencies). <br><div class="gmail_extra"><br><div class="gmail_quote">On 24 January 2018 at 01:56, Bruno Emond <span dir="ltr">&lt;<a href="mailto:emond.bruno@gmail.com" target="_blank">emond.bruno@gmail.com</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">After the initial success, I slowed down very quickly.<br>
+I am not very familiar with Java, so I am facing a steep learning curve.<br>
+So most of what follows might be a very basic set of questions.<br>
+<br>
+I want to interface with ActiveMQ. I built a STOMP producer/customer a couple of years ago, and ti was easy, but I need this time to use openwire. I looked at the openwire specs, and would rather use something that already works, such as the Java JMS and org.apache.ActiveMQ.<br>
+<br>
+I downloaded the last version of the Java SE SDK (9.0.4), and realized that the JMS seems to be part of EE. As far as I can see, EE does not  come with a VM.<br>
+<br>
+So here is a set of naive questions:<br>
+- After initializing the VM with init-java-interface, are we limited to the classes already defined in the VM (using import-java-class-definitions) ?<br>
+- Is there a way to load jar files in the initialized VM using lisp?<br>
+<span class="m_2654455031533354696HOEnZb"><font color="#888888"><br>
+Bruno<br>
+</font></span><div class="m_2654455031533354696HOEnZb"><div class="m_2654455031533354696h5"><br>
+<br>
+<br>
+&gt; On Jan 22, 2018, at 17:18, Bruno Emond &lt;<a href="mailto:emond.bruno@gmail.com" target="_blank">emond.bruno@gmail.com</a>&gt; wrote:<br>
+&gt;<br>
+&gt; Success!<br>
+&gt; Thank you Chun.<br>
+&gt; Bruno<br>
+&gt;<br>
+&gt;&gt; On Jan 22, 2018, at 16:40, Chun Tian &lt;<a href="mailto:binghe.lisp@gmail.com" target="_blank">binghe.lisp@gmail.com</a>&gt; wrote:<br>
+&gt;&gt;<br>
+&gt;&gt; (defparameter *jdk8-library-path*<br>
+&gt;&gt; &quot;/Library/Java/JavaVirtualMach<wbr>ines/jdk1.8.0_161.jdk/<wbr>Contents/Home/jre/lib/server/<wbr>libjvm.dylib&quot;)<br>
+&gt;&gt;<br>
+&gt;&gt; (defun load-java8 (&amp;optional class-paths)<br>
+&gt;&gt; (let ((lispcalls (namestring (lispworks-file &quot;etc/lispcalls.jar&quot;))))<br>
+&gt;&gt;   (funcall<br>
+&gt;&gt;     (intern &quot;INIT-JAVA-INTERFACE&quot; &quot;LW-JI&quot;)<br>
+&gt;&gt;     :jvm-library-path *jdk8-library-path*<br>
+&gt;&gt;     :java-class-path (if class-paths<br>
+&gt;&gt;                          (format nil &quot;~S:~S&quot; lispcalls class-paths)<br>
+&gt;&gt;                          lispcalls))))<br>
+&gt;&gt;<br>
+&gt;&gt;&gt; Il giorno 22 gen 2018, alle ore 21:01, Bruno Emond &lt;<a href="mailto:emond.bruno@gmail.com" target="_blank">emond.bruno@gmail.com</a>&gt; ha scritto:<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; I am running LispWorks 7.1 on MacOS 10.11.6.<br>
+&gt;&gt;&gt; I am trying to initialize the java interface with (init-java-interface :jvm-library-path t) , but I get an error saying that I need to use the legacy version 6 of Java. Following this message, LispWorks exits.<br>
+&gt;&gt;&gt; I have Java 8 Update 161 installed.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; What do I need to do?<br>
+&gt;&gt;&gt; - Pass some parameters to init-java-interface to allow for the current Java version to be used?<br>
+&gt;&gt;&gt; - Backtrack to Java 6?<br>
+&gt;&gt;&gt; - Other options?<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; Thanks<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; Bruno<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; ______________________________<wbr>_________________<br>
+&gt;&gt;&gt; Lisp Hug - the mailing list for LispWorks users<br>
+&gt;&gt;&gt; <a href="mailto:lisp-hug@lispworks.com" target="_blank">lisp-hug@lispworks.com</a><br>
+&gt;&gt;&gt; <a href="http://www.lispworks.com/support/lisp-hug.html" rel="noreferrer" target="_blank">http://www.lispworks.com/suppo<wbr>rt/lisp-hug.html</a><br>
+&gt;&gt;<br>
+&gt;<br>
+<br>
+<br>
+______________________________<wbr>_________________<br>
+Lisp Hug - the mailing list for LispWorks users<br>
+<a href="mailto:lisp-hug@lispworks.com" target="_blank">lisp-hug@lispworks.com</a><br>
+<a href="http://www.lispworks.com/support/lisp-hug.html" rel="noreferrer" target="_blank">http://www.lispworks.com/suppo<wbr>rt/lisp-hug.html</a><br>
+</div></div></blockquote></div><br></div></div>
+
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LispWorks Java and MacOS</h1><div dir="ltr"><div>The -classpath argument to the JVM is a list of directories (of .class files) and/or .jar files and/or wildcard directory entries (e.g. foo/*) containing jar files. The list is separated by a system-dependent character, which is &#39;:&#39; on *nix and &#39;;&#39; on Windows.<br><br></div>I&#39;m not sure if all of that applies to a JVM which is not instantiated through its &quot;java&quot; command, but looking at that (format nil &quot;~S:~S&quot; lispcalls class-paths) in your code I&#39;m pretty sure class-paths can be something like &quot;lib/foo.jar:lib/bar.jar:...&quot;<br><div class="gmail_extra"><br><div class="gmail_quote">On 24 January 2018 at 14:43, Bruno Emond <span dir="ltr">&lt;<a href="mailto:emond.bruno@gmail.com" target="_blank">emond.bruno@gmail.com</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">Thanks Alessio,<br>
+<br>
+As far as I know, and again I am new to the Java lisp integration, the :java-class-path points to &quot;etc/lispcalls.jar”, which is used for Java to Lisp calls.<br>
+<br>
+I do not know if it is possible to point to a directory of jar files for searching classes, and I do not think that the :jin-env-finder parameter is what is needed.<br>
+<span class="m_5642451028828196749HOEnZb"><font color="#888888"><br>
+Bruno<br>
+</font></span><div class="m_5642451028828196749HOEnZb"><div class="m_5642451028828196749h5"><br>
+<br>
+&gt; On Jan 24, 2018, at 04:34, Alessio Stalla &lt;<a href="mailto:alessiostalla@gmail.com" target="_blank">alessiostalla@gmail.com</a>&gt; wrote:<br>
+&gt;<br>
+&gt; EE is a big spec implemented by application servers (such as WildFly). If you only want JMS, pick an implementation (such as ActiveMQ) and use it without caring about EE.<br>
+&gt;<br>
+&gt; I don&#39;t know the LispWorks interface to Java, but I see a :java-class-path parameter: that&#39;s where you can place additional libraries (jar files) to be picked up by the JVM. Expect a bit of pain with the dependencies because nowadays projects use automatic dependency resolution (similar to ASDF + Quicklisp), nobody manually downloads jars anymore, and projects are structured keeping that into account (read: lots of tiny and not so tiny dependencies).<br>
+&gt;<br>
+&gt; On 24 January 2018 at 01:56, Bruno Emond &lt;<a href="mailto:emond.bruno@gmail.com" target="_blank">emond.bruno@gmail.com</a>&gt; wrote:<br>
+&gt; After the initial success, I slowed down very quickly.<br>
+&gt; I am not very familiar with Java, so I am facing a steep learning curve.<br>
+&gt; So most of what follows might be a very basic set of questions.<br>
+&gt;<br>
+&gt; I want to interface with ActiveMQ. I built a STOMP producer/customer a couple of years ago, and ti was easy, but I need this time to use openwire.. I looked at the openwire specs, and would rather use something that already works, such as the Java JMS and org.apache.ActiveMQ.<br>
+&gt;<br>
+&gt; I downloaded the last version of the Java SE SDK (9.0.4), and realized that the JMS seems to be part of EE. As far as I can see, EE does not  come with a VM.<br>
+&gt;<br>
+&gt; So here is a set of naive questions:<br>
+&gt; - After initializing the VM with init-java-interface, are we limited to the classes already defined in the VM (using import-java-class-definitions) ?<br>
+&gt; - Is there a way to load jar files in the initialized VM using lisp?<br>
+&gt;<br>
+&gt; Bruno<br>
+&gt;<br>
+&gt;<br>
+&gt;<br>
+&gt; &gt; On Jan 22, 2018, at 17:18, Bruno Emond &lt;<a href="mailto:emond.bruno@gmail.com" target="_blank">emond.bruno@gmail.com</a>&gt; wrote:<br>
+&gt; &gt;<br>
+&gt; &gt; Success!<br>
+&gt; &gt; Thank you Chun.<br>
+&gt; &gt; Bruno<br>
+&gt; &gt;<br>
+&gt; &gt;&gt; On Jan 22, 2018, at 16:40, Chun Tian &lt;<a href="mailto:binghe.lisp@gmail.com" target="_blank">binghe.lisp@gmail.com</a>&gt; wrote:<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt; (defparameter *jdk8-library-path*<br>
+&gt; &gt;&gt; &quot;/Library/Java/JavaVirtualMach<wbr>ines/jdk1.8.0_161.jdk/<wbr>Contents/Home/jre/lib/server/<wbr>libjvm.dylib&quot;)<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt; (defun load-java8 (&amp;optional class-paths)<br>
+&gt; &gt;&gt; (let ((lispcalls (namestring (lispworks-file &quot;etc/lispcalls.jar&quot;))))<br>
+&gt; &gt;&gt;   (funcall<br>
+&gt; &gt;&gt;     (intern &quot;INIT-JAVA-INTERFACE&quot; &quot;LW-JI&quot;)<br>
+&gt; &gt;&gt;     :jvm-library-path *jdk8-library-path*<br>
+&gt; &gt;&gt;     :java-class-path (if class-paths<br>
+&gt; &gt;&gt;                          (format nil &quot;~S:~S&quot; lispcalls class-paths)<br>
+&gt; &gt;&gt;                          lispcalls))))<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt;&gt; Il giorno 22 gen 2018, alle ore 21:01, Bruno Emond &lt;<a href="mailto:emond.bruno@gmail.com" target="_blank">emond.bruno@gmail.com</a>&gt; ha scritto:<br>
+&gt; &gt;&gt;&gt;<br>
+&gt; &gt;&gt;&gt; I am running LispWorks 7.1 on MacOS 10.11.6.<br>
+&gt; &gt;&gt;&gt; I am trying to initialize the java interface with (init-java-interface :jvm-library-path t) , but I get an error saying that I need to use the legacy version 6 of Java. Following this message, LispWorks exits.<br>
+&gt; &gt;&gt;&gt; I have Java 8 Update 161 installed.<br>
+&gt; &gt;&gt;&gt;<br>
+&gt; &gt;&gt;&gt; What do I need to do?<br>
+&gt; &gt;&gt;&gt; - Pass some parameters to init-java-interface to allow for the current Java version to be used?<br>
+&gt; &gt;&gt;&gt; - Backtrack to Java 6?<br>
+&gt; &gt;&gt;&gt; - Other options?<br>
+&gt; &gt;&gt;&gt;<br>
+&gt; &gt;&gt;&gt; Thanks<br>
+&gt; &gt;&gt;&gt;<br>
+&gt; &gt;&gt;&gt; Bruno<br>
+&gt; &gt;&gt;&gt;<br>
+&gt; &gt;&gt;&gt;<br>
+&gt; &gt;&gt;&gt; ______________________________<wbr>_________________<br>
+&gt; &gt;&gt;&gt; Lisp Hug - the mailing list for LispWorks users<br>
+&gt; &gt;&gt;&gt; <a href="mailto:lisp-hug@lispworks.com" target="_blank">lisp-hug@lispworks.com</a><br>
+&gt; &gt;&gt;&gt; <a href="http://www.lispworks.com/support/lisp-hug.html" rel="noreferrer" target="_blank">http://www.lispworks.com/suppo<wbr>rt/lisp-hug.html</a><br>
+&gt; &gt;&gt;<br>
+&gt; &gt;<br>
+&gt;<br>
+&gt;<br>
+&gt; ______________________________<wbr>_________________<br>
+&gt; Lisp Hug - the mailing list for LispWorks users<br>
+&gt; <a href="mailto:lisp-hug@lispworks.com" target="_blank">lisp-hug@lispworks.com</a><br>
+&gt; <a href="http://www.lispworks.com/support/lisp-hug.html" rel="noreferrer" target="_blank">http://www.lispworks.com/suppo<wbr>rt/lisp-hug.html</a><br>
+&gt;<br>
+<br>
+</div></div></blockquote></div><br></div></div>
+
+
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+           </body>
+          </html>

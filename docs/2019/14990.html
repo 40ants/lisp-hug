@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Adjust + and - reader macros</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+           </head>
+           <body>
+            <div class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </div>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Adjust + and - reader macros</h1>
+                <pre>HI lispworks HUG,
+
+Apologies if this is more of a general Lisp question, but I’m having a hard time Googling for it, and at the moment the project I’ve inherited only runs in lispworks.
+
+The code is full of read time includes such as:
+
+#+lispworks (do-stuff)
+#+win32 (windows stuff)
+#+macosx (mac stuff)
+#-(or win32 macosx) (linux amiga os400 stuff stuff stuff)
+
+For the sake of testing and debugging some stuff I’m wondering how I adjust the items that will show up or not show up from the list of items that are tested for these macros.
+
+For instance if I wanted to add “opengl” from the list of positives, or maybe even remove “lispworks”.  Is there some type of global variable that holds all the environment items for these?
+
+Thanks much,
+Steve
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Adjust + and - reader macros</h1><html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class=""><br class=""><div><br class=""><blockquote type="cite" class=""><div class="">On 1 Sep 2019, at 01:21, Steven Githens &lt;<a href="mailto:steve@githens.org" class="">steve@githens.org</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><div class="">HI lispworks HUG,<br class=""><br class="">Apologies if this is more of a general Lisp question, but I’m having a hard time Googling for it, and at the moment the project I’ve inherited only runs in lispworks.<br class=""></div></div></blockquote><div><br class=""></div>It is indeed a general Common Lisp questions. &nbsp;#+ and #- are dispatching reader macros explained in Chapter 2 of the Hyperspec.</div><div><a href="http://www.lispworks.com/documentation/HyperSpec/Body/02_.htm" class="">http://www.lispworks.com/documentation/HyperSpec/Body/02_.htm</a></div><div><a href="http://www.lispworks.com/documentation/HyperSpec/Body/02_dhq.htm" class="">http://www.lispworks.com/documentation/HyperSpec/Body/02_dhq.htm</a></div><div><a href="http://www.lispworks.com/documentation/HyperSpec/Body/02_dhr.htm" class="">http://www.lispworks.com/documentation/HyperSpec/Body/02_dhr.htm</a></div><div><br class=""></div><div>The expression following the #+ or #- dispatching reader macros are called feature expressions.</div><div><a href="http://www.lispworks.com/documentation/HyperSpec/Body/24_aba.htm" class="">http://www.lispworks.com/documentation/HyperSpec/Body/24_aba.htm</a></div><div><br class=""></div><div>Feature expressions are evaluated by #+ or #- using a special rule, and the contents of the list bound to the *features* variable.</div><div><a href="http://www.lispworks.com/documentation/HyperSpec/Body/v_featur.htm#STfeaturesST" class="">http://www.lispworks.com/documentation/HyperSpec/Body/v_featur.htm#STfeaturesST</a></div><div><br class=""></div><div><br class=""><blockquote type="cite" class=""><div class=""><div class="">The code is full of read time includes such as:<br class=""><br class="">#+lispworks (do-stuff)<br class="">#+win32 (windows stuff)<br class="">#+macosx (mac stuff)<br class="">#-(or win32 macosx) (linux amiga os400 stuff stuff stuff)<br class=""><br class="">For the sake of testing and debugging some stuff I’m wondering how I adjust the items that will show up or not show up from the list of items that are tested for these macros.<br class=""></div></div></blockquote><div><br class=""></div><div>You can mutate the *features* variable, binding it to a new list of symbols.</div><div><br class=""></div><div>However, I wouldn’t advise to remove symbols provided by the implementation.&nbsp;</div><div>I would expect a lot of code to break if you removed :lispworks from the *features* when running on lispworks.</div><div>That said, *features* is normally only used at read-time by #+ and #-, so the code that has already been read (either by load or compile-file), should not break if you mutate *features*.</div><div>However, it is possible that some function explicitely tests at run-time *features*…</div><div><br class=""></div><div><br class=""></div><blockquote type="cite" class=""><div class=""><div class="">For instance if I wanted to add “opengl” from the list of positives, or maybe even remove “lispworks”. &nbsp;Is there some type of global variable that holds all the environment items for these?<br class=""></div></div></blockquote></div><div class=""><br class=""></div><div class="">You wouldn’t add symbols to *features* gratuituously. &nbsp;The code that will test those features will expect that corresponding systems have been loaded and packages exist.</div><div class=""><br class=""></div><div class="">Notably, keywords being global resources, putting them on *features* should follow some global convention. Unfortunately, there’s no registry or such global convention existing.</div><div class="">There’s a list of the de-facto keywords used at <a href="https://cliki.net/features" class="">https://cliki.net/features</a></div><div class="">But this list only collects the symbols put there by implementations. (and it’s incomplete and probably outdated).</div><div class="">A more complete list would include the feature symbols used by the various libraries, with their specific meaning in each case.</div><div class=""><br class=""></div><div class="">For example, ASDF version 3 puts :asdf3 there…</div><div class=""><br class=""></div><div class=""><br class=""></div><div class="">When I add features for my own usage, I use symbols interned in my own packages, so there’s no risk of collision.</div><div class=""><br class=""></div><div class=""><font face="Menlo" class="">(eval-when (:compile-toplevel :load-toplevel :execute)</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp;(pushnew 'com.informatimago.pjb:testing *features*))</font></div><div class=""><font face="Menlo" class=""><br class=""></font></div><div class=""><font face="Menlo" class="">#+com.informatimago.pjb:testing (print ‘(hi! starting tests))</font></div><div class=""><font face="Menlo" class=""><br class=""></font></div><div class=""><font face="Menlo" class=""><br class=""></font></div><div class="">Alternatively, if I have to use a keyword, I would name it with a unique prefix:</div><div class=""><br class=""></div><div class=""><div class=""><font face="Menlo" class="">(eval-when (:compile-toplevel :load-toplevel :execute)</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp;(pushnew :com.informatimago.pjb.testing *features*))</font></div><div class=""><font face="Menlo" class=""><br class=""></font></div><div class=""><font face="Menlo" class="">#+com.informatimago.pjb.testing (print ‘(hi! starting tests))</font></div></div><div class=""><br class=""></div><div class=""><br class=""></div><div class="">Another example, would be patchwork, in which I use features to select compilation-time options, including debugging options. &nbsp;</div><div class="">This should be prominently documented in the build instructions, which is not exactly the case unfornately,</div><div class=""><br class=""></div><div class=""><div class=""><span style="font-family: Menlo;" class="">(setf *features* (set-difference *features*</span></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;'(:debug-application</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;:debug-event</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;:debug-focused-view</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;:debug-graphics</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;:debug-objc</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;:debug-streams</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;:debug-text</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;:debug-trace</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;:debug-views</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;:debug-views-colors</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;:debug-views-instance</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;:debug-wrapper</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;patchwork.builder::no-cocoa</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;patchwork.builder::use-apple-events</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;patchwork.builder::cocoa-midi-player</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;patchwork.builder::use-midishare</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;patchwork.builder::use-cl-midi)))</font></div><div class=""><font face="Menlo" class=""><br class=""></font></div><div class=""><font face="Menlo" class="">;; (pushnew :debug-application &nbsp; &nbsp;*features*)</font></div><div class=""><font face="Menlo" class="">;; (pushnew :debug-event &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;*features*)</font></div><div class=""><font face="Menlo" class="">;; (pushnew :debug-focused-view &nbsp; *features*)</font></div><div class=""><font face="Menlo" class="">;; (pushnew :debug-graphics &nbsp; &nbsp; &nbsp; *features*)</font></div><div class=""><font face="Menlo" class="">;; (pushnew :debug-objc &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; *features*)</font></div><div class=""><font face="Menlo" class="">;; (pushnew :debug-streams &nbsp; &nbsp; &nbsp; &nbsp;*features*)</font></div><div class=""><font face="Menlo" class="">;; (pushnew :debug-text &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; *features*)</font></div><div class=""><font face="Menlo" class="">;; (pushnew :debug-trace &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;*features*)</font></div><div class=""><font face="Menlo" class="">;; (pushnew :debug-views &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;*features*)</font></div><div class=""><font face="Menlo" class="">;; (pushnew :debug-views-colors &nbsp; *features*)</font></div><div class=""><font face="Menlo" class="">;; (pushnew :debug-views-instance *features*)</font></div><div class=""><font face="Menlo" class="">;; (pushnew :debug-wrapper &nbsp; &nbsp; &nbsp; &nbsp;*features*)</font></div><div class=""><font face="Menlo" class=""><br class=""></font></div><div class=""><font face="Menlo" class="">;; (pushnew 'patchwork.builder::no-cocoa &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;*features*)</font></div><div class=""><font face="Menlo" class="">;; (pushnew 'patchwork.builder::use-apple-events &nbsp;*features*)</font></div><div class=""><font face="Menlo" class="">;; (pushnew 'patchwork.builder::cocoa-midi-player *features*)</font></div><div class=""><font face="Menlo" class="">;; (pushnew 'patchwork.builder::use-midishare &nbsp; &nbsp; *features*)</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp;(pushnew 'patchwork.builder::use-cl-midi &nbsp; &nbsp; &nbsp; *features*)</font></div></div><div class=""><br class=""></div><br class=""><div class="">
+<div style="color: rgb(0, 0, 0); letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class=""><div style="color: rgb(0, 0, 0); letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class=""><div style="color: rgb(0, 0, 0); letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class="">--&nbsp;<br class="">__Pascal J. Bourguignon__</div><div style="color: rgb(0, 0, 0); letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class=""><br class=""><br class=""><br class=""></div></div></div>
+</div>
+<br class=""></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Adjust + and - reader macros</h1>
+                 <pre>Keep in mind that, if you want some form of conditional compilation, you don’t need to use #+ or #-. You can also use reader macros with the #. syntax. For example:
+
+#.(when *debug* ‘(print 42))
+
+This allows you to use your own global variables.
+
+However, also keep in mind that in many cases, just evaluating things at runtime is perfectly fine:
+
+(when *debug* (print 42))
+
+I can’t imagine a lot of reasons why you would want to turn something like this into a conditionally compiled form, unless you have highly performance-critical code, or you want to be sure the decision is fixed at compile time and can’t be changed at runtime anymore for some other reason.
+
+Pascal
+
+--
+Pascal Costanza
+
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Adjust + and - reader macros</h1>
+                 <pre>Hi all,
+
+Thanks much for all these helpful responses.  It’s good to see the solution, but also hear the background material around the macro.  My plan isn’t to permanently remove the #+lispworks or related items, but I’m really just trying to get a grapple on this project I’ve taken over, which has been around for quite a while, and with all of these conditionals reminds me quite a lot of an operating system C library with all the architecture conditions!  They go all the back to #+lispm, #+symbolics #+dec3100 and many many others!
+
+Cheers,
+Steve
+
+&gt On Sep 1, 2019, at 11:24 AM, Pascal Costanza &lt;pc@p-cos.net&gt wrote:
+&gt 
+&gt Keep in mind that, if you want some form of conditional compilation, you don’t need to use #+ or #-. You can also use reader macros with the #. syntax. For example:
+&gt 
+&gt #.(when *debug* ‘(print 42))
+&gt 
+&gt This allows you to use your own global variables.
+&gt 
+&gt However, also keep in mind that in many cases, just evaluating things at runtime is perfectly fine:
+&gt 
+&gt (when *debug* (print 42))
+&gt 
+&gt I can’t imagine a lot of reasons why you would want to turn something like this into a conditionally compiled form, unless you have highly performance-critical code, or you want to be sure the decision is fixed at compile time and can’t be changed at runtime anymore for some other reason.
+&gt 
+&gt Pascal
+&gt 
+&gt --
+&gt Pascal Costanza
+&gt 
+&gt 
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+           </body>
+          </html>

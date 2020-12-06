@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Encoding error when trying to quickload library with LispWorks (fails to 
+             detect UTF-8)</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+           </head>
+           <body>
+            <div class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </div>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Encoding error when trying to quickload library with LispWorks (fails to 
+                 detect UTF-8)</h1>
+                <pre>Hi!
+
+#|
+  This is my first post in the mailing list, so first I'd like to introduce
+  myself: I'm Eric, I work as a DevOps engineer and although during my career I
+  have been mostly using Perl, Go and OCaml, just recently I resumed my interest
+  with Common Lisp and finding it really enjoyable so far.
+|#
+
+
+I am writing a project which uses the following library as a dependency:
+
+https://github.com/Shinmera/plump
+
+It works out of the box when using SBCL and CCL, but when trying to use it with
+LispWorks I get the following error(s):
+
+  **++++ Error between functions:
+    Cannot read character U+008C as part of a token because it has constituent
+    trait 'invalid'.
+
+
+I am using LispWorks 7.1.2 on macOS, with the bundled ASDF (3.3.0, which should
+use UTF-8 as default encoding) and an up-to-date Quicklisp client (2019-02-16).
+
+
+This is puzzling to me as compiling the buffer from inside the IDE works fine (I
+have the file encoding set to UTF-8). #'compile-file fails, but specifying the
+encoding solves the issue:
+
+  (compile-file "entities.lisp" :external-format :utf-8)
+
+However, the problems persists when trying to quickload the library, even when
+ASDF is detecting the right encoding:
+
+  (uiop/stream:detect-encoding "entities.lisp")
+  ;=&gt :UTF-8
+
+Adding :encoding :utf-8 when specifying the components on ASDF doesn't have any
+effect either.
+
+I have found so far two ways to work around this:
+
+1) Add -*- coding: utf-8 -*- at the beginning of the file. It feels like a hack
+   and the library author seems to be adamant about merging such patch.
+
+2) Loading https://gitlab.common-lisp.net/asdf/asdf-encodings which for some
+   reason solves all issues and I don't understand why, because if I got it
+   right, its goal is to add support for encodings other than UTF-8.
+
+So I am not happy with the former nor I understand the latter, and it would be
+great if some of you that had a similar issue could shed some light on it or
+offer an alternative solution.
+
+Some additional context here: https://github.com/Shinmera/plump/pull/23
+
+Thanks,
+
+Eric
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Encoding error when trying to quickload library with LispWorks (fails to 
+                  detect UTF-8)</h1>
+                 <pre>Hi Eric,
+
+When you start LispWorks and before you load anything what is the value of lw:*default-character-element-type*?
+
+If not character, try this before loading your system:
+
+(lw:set-default-character-element-type 'character)
+
+
+John DeSoi, Ph.D.
+
+
+&gt On Oct 1, 2019, at 1:01 PM, Eric &lt;eric.lorenzana@protonmail.ch&gt wrote:
+&gt 
+&gt So I am not happy with the former nor I understand the latter, and it would be
+&gt great if some of you that had a similar issue could shed some light on it or
+&gt offer an alternative solution.
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Encoding error when trying to quickload library with LispWorks (fails to 
+                  detect UTF-8)</h1>
+                 <p>
+                  Unable to parse email body. Email id is 15039
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Encoding error when trying to quickload library with LispWorks (fails to 
+                  detect UTF-8)</h1>
+                 <pre>Hi Martin &amp; John,
+
+After doing
+
+  (pushnew :asdf-unicode features)
+
+the library now loads without requiring any additional changes to it. Great!
+
+
+And doing
+
+  (lw:set-default-character-element-type 'character)
+
+also fixed the following issue I encountered while parsing HTML content:
+
+  Error: #\– (of type CHARACTER) is not of type BASE-CHAR.
+
+
+Thanks again,
+
+Eric
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+           </body>
+          </html>

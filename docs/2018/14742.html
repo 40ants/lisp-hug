@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Browser (client) side: bring up google.com search page</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+           </head>
+           <body>
+            <div class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </div>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Browser (client) side: bring up google.com search page</h1>
+                <pre>I am trying to send a GET message to google.com and then receive whatever I
+get back. I think I am getting nothing back. But what I ought to get back
+should be something like what you get when you type "google.com" into the
+Chrome, FireFox, or other browser.
+
+I think I am connecting. google.com is an HTTPS site, not HTTP. I think that
+means I need to specify something with SSL. Maybe I have the GET command
+wrong. Anyway, here is the code:
+
+============ Begin Code =======================
+;;;; Package xcomm
+;;;; 
+;;;; Experiment with LispWorks COMM package
+;;;; 
+
+(in-package xcomm)
+
+
+
+;;; Bring up the google search page?
+
+(defvar *connection* nil)
+
+
+
+(defun request-web-page ()
+  (let ((ln (format nil "GET / HTTP/1.0~%")))
+                         
+    (format t "~s~%" ln)
+    (write-line ln *connection*)
+    (finish-output)))
+
+
+
+
+(defun show-web-page ()
+  (do ((chr (read-char *connection* nil) (read-char *connection* nil)))
+
+      ((null chr))
+
+    (write-char chr)))
+
+
+
+
+
+(defun bring-up-google ()
+  (setf *connection* (open-tcp-stream "google.com" 443
+                                      :direction :io
+                                      :ssl-ctx t))
+  (if (null *connection*)
+      (return-from bring-up-google nil))
+
+  ;; Think it is connecting okay.
+  (request-web-page)
+  (show-web-page)
+  (close *connection*)
+  (setf *connection* nil))
+
+============ End Code =======================
+
+My Listener session looks like:
+
+========== Begin Listener Session ===========
+CL-USER 1 &gt (in-package xcomm)
+#&lt;The XCOMM package, 7/16 internal, 0/16 external&gt
+
+XCOMM 2 &gt (bring-up-google)
+"GET / HTTP/1.0
+
+"
+NIL
+
+XCOMM 5 &gt
+========== End Listener Session ===========
+
+Before the snippet of Listener Session (just above), I have already executed
+the following:
+
+========== Begin Executed before Listener Session ==========
+(require "comm")
+
+(defpackage xcomm
+  (:use common-lisp comm))
+
+========== End Executed before Listener Session ==========
+
+
+I would be very, very happy to learn where I can get the
+enabling-information I lack. Is there a book? A website?
+
+Thank you very much for looking at this. I hope someone can offer direction.
+
+
+Ron Lewis
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Browser (client) side: bring up google.com search page</h1><div dir="ltr">This might (should) work, unless you&#39;re behind a firewall:<div><br></div><div><div>(let ((connection (comm:open-tcp-stream &quot;<a href="http://google.com">google.com</a>&quot; 443</div><div>                                                   :direction :io</div><div>                                                   :ssl-ctx t)))</div><div>                  (write-line &quot;GET / HTTP/1.0&quot; connection)</div><div>                  (write-line &quot;&quot; connection)</div><div>                  (finish-output connection)</div><div>                  (loop for line = (read-line connection nil nil)</div><div>                        while line</div><div>                        do (write-line line)))</div></div><div><br></div><div>Note that finish-output needs a parameter, and that you need a blank line after the http GET command.</div><div><br></div></div><div class="gmail_extra"><br><div class="gmail_quote">On Tue, Mar 13, 2018 at 11:13 PM, Ron Lewis <span dir="ltr">&lt;<a href="mailto:rlewis-4d@indinfer.com" target="_blank">rlewis-4d@indinfer.com</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">I am trying to send a GET message to <a href="http://google.com" rel="noreferrer" target="_blank">google.com</a> and then receive whatever I<br>
+get back. I think I am getting nothing back. But what I ought to get back<br>
+should be something like what you get when you type &quot;<a href="http://google.com" rel="noreferrer" target="_blank">google.com</a>&quot; into the<br>
+Chrome, FireFox, or other browser.<br>
+<br>
+I think I am connecting. <a href="http://google.com" rel="noreferrer" target="_blank">google.com</a> is an HTTPS site, not HTTP. I think that<br>
+means I need to specify something with SSL. Maybe I have the GET command<br>
+wrong. Anyway, here is the code:<br>
+<br>
+============ Begin Code =======================<br>
+;;;; Package xcomm<br>
+;;;;<br>
+;;;; Experiment with LispWorks COMM package<br>
+;;;;<br>
+<br>
+(in-package xcomm)<br>
+<br>
+<br>
+<br>
+;;; Bring up the google search page?<br>
+<br>
+(defvar *connection* nil)<br>
+<br>
+<br>
+<br>
+(defun request-web-page ()<br>
+  (let ((ln (format nil &quot;GET / HTTP/1.0~%&quot;)))<br>
+<br>
+    (format t &quot;~s~%&quot; ln)<br>
+    (write-line ln *connection*)<br>
+    (finish-output)))<br>
+<br>
+<br>
+<br>
+<br>
+(defun show-web-page ()<br>
+  (do ((chr (read-char *connection* nil) (read-char *connection* nil)))<br>
+<br>
+      ((null chr))<br>
+<br>
+    (write-char chr)))<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+(defun bring-up-google ()<br>
+  (setf *connection* (open-tcp-stream &quot;<a href="http://google.com" rel="noreferrer" target="_blank">google.com</a>&quot; 443<br>
+                                      :direction :io<br>
+                                      :ssl-ctx t))<br>
+  (if (null *connection*)<br>
+      (return-from bring-up-google nil))<br>
+<br>
+  ;; Think it is connecting okay.<br>
+  (request-web-page)<br>
+  (show-web-page)<br>
+  (close *connection*)<br>
+  (setf *connection* nil))<br>
+<br>
+============ End Code =======================<br>
+<br>
+My Listener session looks like:<br>
+<br>
+========== Begin Listener Session ===========<br>
+CL-USER 1 &gt; (in-package xcomm)<br>
+#&lt;The XCOMM package, 7/16 internal, 0/16 external&gt;<br>
+<br>
+XCOMM 2 &gt; (bring-up-google)<br>
+&quot;GET / HTTP/1.0<br>
+<br>
+&quot;<br>
+NIL<br>
+<br>
+XCOMM 5 &gt;<br>
+========== End Listener Session ===========<br>
+<br>
+Before the snippet of Listener Session (just above), I have already executed<br>
+the following:<br>
+<br>
+========== Begin Executed before Listener Session ==========<br>
+(require &quot;comm&quot;)<br>
+<br>
+(defpackage xcomm<br>
+  (:use common-lisp comm))<br>
+<br>
+========== End Executed before Listener Session ==========<br>
+<br>
+<br>
+I would be very, very happy to learn where I can get the<br>
+enabling-information I lack. Is there a book? A website?<br>
+<br>
+Thank you very much for looking at this. I hope someone can offer direction..<br>
+<br>
+<br>
+Ron Lewis<br>
+<br>
+______________________________<wbr>_________________<br>
+Lisp Hug - the mailing list for LispWorks users<br>
+<a href="mailto:lisp-hug@lispworks.com">lisp-hug@lispworks.com</a><br>
+<a href="http://www.lispworks.com/support/lisp-hug.html" rel="noreferrer" target="_blank">http://www.lispworks.com/<wbr>support/lisp-hug.html</a><br>
+</blockquote></div><br></div>
+
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Browser (client) side: bring up google.com search page</h1>
+                 <pre>Note also that HTTP favors CRLF as lineending - both for reading and writing.
+
+The newline in Common Lisp (both for reading and writing) depends on the platform and on the cleverness of the Lisp.
+-&gt  LF on Unixoids and CRLF on Windows are the platform defaults.
+
+Servers &amp; clients might be able to deal with reading LF, but they still should be answer with CRLF.
+
+Regards,
+
+Rainer
+
+
+
+&gt Am 13.03.2018 um 23:13 schrieb Ron Lewis &lt;rlewis-4d@indinfer.com&gt:
+&gt 
+&gt I am trying to send a GET message to google.com and then receive whatever I
+&gt get back. I think I am getting nothing back. But what I ought to get back
+&gt should be something like what you get when you type "google.com" into the
+&gt Chrome, FireFox, or other browser.
+&gt 
+&gt I think I am connecting. google.com is an HTTPS site, not HTTP. I think that
+&gt means I need to specify something with SSL. Maybe I have the GET command
+&gt wrong. Anyway, here is the code:
+&gt 
+&gt ============ Begin Code =======================
+&gt ;;;; Package xcomm
+&gt ;;;; 
+&gt ;;;; Experiment with LispWorks COMM package
+&gt ;;;; 
+&gt 
+&gt (in-package xcomm)
+&gt 
+&gt 
+&gt 
+&gt ;;; Bring up the google search page?
+&gt 
+&gt (defvar *connection* nil)
+&gt 
+&gt 
+&gt 
+&gt (defun request-web-page ()
+&gt  (let ((ln (format nil "GET / HTTP/1.0~%")))
+&gt 
+&gt    (format t "~s~%" ln)
+&gt    (write-line ln *connection*)
+&gt    (finish-output)))
+&gt 
+&gt 
+&gt 
+&gt 
+&gt (defun show-web-page ()
+&gt  (do ((chr (read-char *connection* nil) (read-char *connection* nil)))
+&gt 
+&gt      ((null chr))
+&gt 
+&gt    (write-char chr)))
+&gt 
+&gt 
+&gt 
+&gt 
+&gt 
+&gt (defun bring-up-google ()
+&gt  (setf *connection* (open-tcp-stream "google.com" 443
+&gt                                      :direction :io
+&gt                                      :ssl-ctx t))
+&gt  (if (null *connection*)
+&gt      (return-from bring-up-google nil))
+&gt 
+&gt  ;; Think it is connecting okay.
+&gt  (request-web-page)
+&gt  (show-web-page)
+&gt  (close *connection*)
+&gt  (setf *connection* nil))
+&gt 
+&gt ============ End Code =======================
+&gt 
+&gt My Listener session looks like:
+&gt 
+&gt ========== Begin Listener Session ===========
+&gt CL-USER 1 &gt (in-package xcomm)
+&gt #&lt;The XCOMM package, 7/16 internal, 0/16 external&gt
+&gt 
+&gt XCOMM 2 &gt (bring-up-google)
+&gt "GET / HTTP/1.0
+&gt 
+&gt "
+&gt NIL
+&gt 
+&gt XCOMM 5 &gt
+&gt ========== End Listener Session ===========
+&gt 
+&gt Before the snippet of Listener Session (just above), I have already executed
+&gt the following:
+&gt 
+&gt ========== Begin Executed before Listener Session ==========
+&gt (require "comm")
+&gt 
+&gt (defpackage xcomm
+&gt  (:use common-lisp comm))
+&gt 
+&gt ========== End Executed before Listener Session ==========
+&gt 
+&gt 
+&gt I would be very, very happy to learn where I can get the
+&gt enabling-information I lack. Is there a book? A website?
+&gt 
+&gt Thank you very much for looking at this. I hope someone can offer direction.
+&gt 
+&gt 
+&gt Ron Lewis
+&gt 
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Browser (client) side: bring up google.com search page</h1>
+                 <pre>I remeber using curl url --anyauth called by 
+sys:call-system-showing-output to string-stream, then 
+get-output-stream-string from that. Was working ok for my purposes on 
+the Mac.
+
+Pekka
+
+Ron Lewis kirjoitti 14.3.2018 klo 0.13:
+&gt I am trying to send a GET message to google.com and then receive whatever I
+&gt get back. I think I am getting nothing back. But what I ought to get back
+&gt should be something like what you get when you type "google.com" into the
+&gt Chrome, FireFox, or other browser.
+&gt
+&gt I think I am connecting. google.com is an HTTPS site, not HTTP. I think that
+&gt means I need to specify something with SSL. Maybe I have the GET command
+&gt wrong. Anyway, here is the code:
+&gt
+&gt ============ Begin Code =======================
+&gt ;;;; Package xcomm
+&gt ;;;;
+&gt ;;;; Experiment with LispWorks COMM package
+&gt ;;;;
+&gt
+&gt (in-package xcomm)
+&gt
+&gt
+&gt
+&gt ;;; Bring up the google search page?
+&gt
+&gt (defvar *connection* nil)
+&gt
+&gt
+&gt
+&gt (defun request-web-page ()
+&gt    (let ((ln (format nil "GET / HTTP/1.0~%")))
+&gt                           
+&gt      (format t "~s~%" ln)
+&gt      (write-line ln *connection*)
+&gt      (finish-output)))
+&gt
+&gt
+&gt
+&gt
+&gt (defun show-web-page ()
+&gt    (do ((chr (read-char *connection* nil) (read-char *connection* nil)))
+&gt
+&gt        ((null chr))
+&gt
+&gt      (write-char chr)))
+&gt
+&gt
+&gt
+&gt
+&gt
+&gt (defun bring-up-google ()
+&gt    (setf *connection* (open-tcp-stream "google.com" 443
+&gt                                        :direction :io
+&gt                                        :ssl-ctx t))
+&gt    (if (null *connection*)
+&gt        (return-from bring-up-google nil))
+&gt
+&gt    ;; Think it is connecting okay.
+&gt    (request-web-page)
+&gt    (show-web-page)
+&gt    (close *connection*)
+&gt    (setf *connection* nil))
+&gt
+&gt ============ End Code =======================
+&gt
+&gt My Listener session looks like:
+&gt
+&gt ========== Begin Listener Session ===========
+&gt CL-USER 1 &gt (in-package xcomm)
+&gt #&lt;The XCOMM package, 7/16 internal, 0/16 external&gt
+&gt
+&gt XCOMM 2 &gt (bring-up-google)
+&gt "GET / HTTP/1.0
+&gt
+&gt "
+&gt NIL
+&gt
+&gt XCOMM 5 &gt
+&gt ========== End Listener Session ===========
+&gt
+&gt Before the snippet of Listener Session (just above), I have already executed
+&gt the following:
+&gt
+&gt ========== Begin Executed before Listener Session ==========
+&gt (require "comm")
+&gt
+&gt (defpackage xcomm
+&gt    (:use common-lisp comm))
+&gt
+&gt ========== End Executed before Listener Session ==========
+&gt
+&gt
+&gt I would be very, very happy to learn where I can get the
+&gt enabling-information I lack. Is there a book? A website?
+&gt
+&gt Thank you very much for looking at this. I hope someone can offer direction.
+&gt
+&gt
+&gt Ron Lewis
+&gt
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Browser (client) side: bring up google.com search page</h1><html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class="">Also remember to insert a few ASCII Null characters after the CRLF to allow the typewheel and carriage &nbsp;to return to home position; 1-2 are typical at 110 baud, and 6 at 300 baud. We wouldn’t want 80 year old legacy equipment to be unable to continue to use Windows! (Some might ask if there is any other reason to use Windows).<div class=""><br class=""></div><div class="">See lessons 4 and 7 to understand what has to be accomplished in a few tenths of a second:<div class=""><br class=""></div><div class=""><a href="http://www.virhistory.com/navy/manuals/tty/gpp43.671.pdf" class="">http://www.virhistory.com/navy/manuals/tty/gpp43.671.pdf</a></div><div class=""><br class=""></div><div class="">A few on this list might insist that the time it takes to draw windows on a teletype means most have already upgraded to more modern terminal equipment, but the need for a CR with the LF in web protocols belies such claims.</div><div class=""><br class=""><div><br class=""><blockquote type="cite" class=""><div class="">On Mar 15, 2018, at 9:05 PM, Ron Lewis &lt;<a href="mailto:rlewis-4d@indinfer.com" class="">rlewis-4d@indinfer.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><div class="">Rainer,<br class=""><br class="">Yes, I would like this code to run on other platforms besides Windows. So, I<br class="">take to heart your advice to make sure the newlines are CRLF.<br class=""><br class="">Ron Lewis<br class=""><br class="">-----Original Message-----<br class="">From: <a href="mailto:owner-lisp-hug@lispworks.com" class="">owner-lisp-hug@lispworks.com</a> &lt;<a href="mailto:owner-lisp-hug@lispworks.com" class="">owner-lisp-hug@lispworks.com</a>&gt; On Behalf<br class="">Of Rainer Joswig<br class="">Sent: Thursday, March 15, 2018 5:26 AM<br class="">To: Lisp HUG &lt;<a href="mailto:lisp-hug@lispworks.com" class="">lisp-hug@lispworks.com</a>&gt;<br class="">Subject: Re: Browser (client) side: bring up <a href="http://google.com" class="">google.com</a> search page<br class=""><br class="">Note also that HTTP favors CRLF as lineending - both for reading and<br class="">writing.<br class=""><br class="">The newline in Common Lisp (both for reading and writing) depends on the<br class="">platform and on the cleverness of the Lisp.<br class="">-&gt; &nbsp;LF on Unixoids and CRLF on Windows are the platform defaults.<br class=""><br class="">Servers &amp; clients might be able to deal with reading LF, but they still<br class="">should be answer with CRLF.<br class=""><br class="">Regards,<br class=""><br class="">Rainer<br class=""><br class=""><br class=""><br class=""><blockquote type="cite" class="">Am 13.03.2018 um 23:13 schrieb Ron Lewis &lt;<a href="mailto:rlewis-4d@indinfer.com" class="">rlewis-4d@indinfer.com</a>&gt;:<br class=""><br class="">I am trying to send a GET message to <a href="http://google.com" class="">google.com</a> and then receive <br class="">whatever I get back. I think I am getting nothing back. But what I <br class="">ought to get back should be something like what you get when you type <br class="">"<a href="http://google.com" class="">google.com</a>" into the Chrome, FireFox, or other browser.<br class=""><br class="">I think I am connecting. <a href="http://google.com" class="">google.com</a> is an HTTPS site, not HTTP. I <br class="">think that means I need to specify something with SSL. Maybe I have <br class="">the GET command wrong. Anyway, here is the code:<br class=""><br class="">============ Begin Code ======================= ;;;; Package xcomm <br class="">;;;; ;;;; Experiment with LispWorks COMM package ;;;;<br class=""><br class="">(in-package xcomm)<br class=""><br class=""><br class=""><br class="">;;; Bring up the google search page?<br class=""><br class="">(defvar *connection* nil)<br class=""><br class=""><br class=""><br class="">(defun request-web-page ()<br class=""> (let ((ln (format nil "GET / HTTP/1.0~%")))<br class=""><br class=""> &nbsp;&nbsp;(format t "~s~%" ln)<br class=""> &nbsp;&nbsp;(write-line ln *connection*)<br class=""> &nbsp;&nbsp;(finish-output)))<br class=""><br class=""><br class=""><br class=""><br class="">(defun show-web-page ()<br class=""> (do ((chr (read-char *connection* nil) (read-char *connection* nil)))<br class=""><br class=""> &nbsp;&nbsp;&nbsp;&nbsp;((null chr))<br class=""><br class=""> &nbsp;&nbsp;(write-char chr)))<br class=""><br class=""><br class=""><br class=""><br class=""><br class="">(defun bring-up-google ()<br class=""> (setf *connection* (open-tcp-stream "<a href="http://google.com" class="">google.com</a>" 443<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:direction :io<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:ssl-ctx t)) &nbsp;(if (null <br class="">*connection*)<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;(return-from bring-up-google nil))<br class=""><br class=""> ;; Think it is connecting okay.<br class=""> (request-web-page)<br class=""> (show-web-page)<br class=""> (close *connection*)<br class=""> (setf *connection* nil))<br class=""><br class="">============ End Code =======================<br class=""><br class="">My Listener session looks like:<br class=""><br class="">========== Begin Listener Session =========== CL-USER 1 &gt; (in-package <br class="">xcomm) #&lt;The XCOMM package, 7/16 internal, 0/16 external&gt;<br class=""><br class="">XCOMM 2 &gt; (bring-up-google)<br class="">"GET / HTTP/1.0<br class=""><br class="">"<br class="">NIL<br class=""><br class="">XCOMM 5 &gt;<br class="">========== End Listener Session ===========<br class=""><br class="">Before the snippet of Listener Session (just above), I have already <br class="">executed the following:<br class=""><br class="">========== Begin Executed before Listener Session ========== (require <br class="">"comm")<br class=""><br class="">(defpackage xcomm<br class=""> (:use common-lisp comm))<br class=""><br class="">========== End Executed before Listener Session ==========<br class=""><br class=""><br class="">I would be very, very happy to learn where I can get the <br class="">enabling-information I lack. Is there a book? A website?<br class=""><br class="">Thank you very much for looking at this. I hope someone can offer<br class=""></blockquote>direction.<br class=""><blockquote type="cite" class=""><br class=""><br class="">Ron Lewis<br class=""><br class="">_______________________________________________<br class="">Lisp Hug - the mailing list for LispWorks users <a href="mailto:lisp-hug@lispworks.com" class="">lisp-hug@lispworks.com</a> <br class=""><a href="http://www.lispworks.com/support/lisp-hug.html" class="">http://www.lispworks.com/support/lisp-hug.html</a><br class=""></blockquote><br class=""><br class="">_______________________________________________<br class="">Lisp Hug - the mailing list for LispWorks users<br class=""><a href="mailto:lisp-hug@lispworks.com" class="">lisp-hug@lispworks.com</a><br class="">http://www.lispworks.com/support/lisp-hug.html<br class=""><br class="">_______________________________________________<br class="">Lisp Hug - the mailing list for LispWorks users<br class="">lisp-hug@lispworks.com<br class="">http://www.lispworks.com/support/lisp-hug.html<br class=""></div></div></blockquote></div><br class=""></div></div></body></html>
+
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+           </body>
+          </html>

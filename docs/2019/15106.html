@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>pinboard-layout transform problem</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+           </head>
+           <body>
+            <div class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </div>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>pinboard-layout transform problem</h1>
+                <pre>Hello all,
+
+I've encountered the following issue with pinboard layout. I am on LW 7.1.2 Professional for Mac, the OS is Catalina 10.15.1.
+
+Evaluating
+
+(setf pane (capi:contain (make-instance 'capi:pinboard-layout)))
+
+displays an interface with a pinboard layout. Then
+
+(capi:apply-in-pane-process pane
+               (lambda ()
+                 (capi:manipulate-pinboard 
+                  pane
+                  (make-instance 'capi:line-pinboard-object
+                            :start-x 0  :start-y 0
+                            :end-x   50 :end-y   50)
+                  :add-top)))
+
+adds a line segment into it and the segment is displayed immediately. Other elements I add are also immediately displayed.
+
+Now I try to change the graphics port transform to move the origin to the center and to change the direction of the y-axis:
+
+(capi:apply-in-pane-process pane
+     (lambda ()
+       (setf (gp:graphics-port-transform pane) 
+             `(1  0  0 -1 
+                  ,(/ (capi:simple-pane-visible-width pane) 2.0) ,(/ (capi:simple-pane-visible-height pane) 2.0)))))
+
+Now, nothing happens, but after resizing the window slightly I can see that the segment has changed its position accordingly. OK, so this seems that changing the layout transform does not invalidate the layout.
+
+But now, no objects I try to add to the layout get displayed. For example, after evaluating this:
+
+(capi:apply-in-pane-process pane
+               (lambda ()
+                 (capi:manipulate-pinboard 
+                  pane
+                  (make-instance 'capi:line-pinboard-object
+                            :start-x 0  :start-y 0
+                            :end-x   -50 :end-y   -50)
+                  :add-top)))
+
+nothing changes in the window. I have checked that the pinboard objects are there and that after resizing the window they even get displayed. But, in contrast to the behavior before changing the transform, they are not displayed automatically.
+
+Any ideas?
+
+Thanks,
+
+Michal
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: pinboard-layout transform problem</h1>
+                 <pre>I tried your code. (LWM 7.1.2)
+
+For me, the second line appears, but extends the original line, when I re-size the pane.
+
+Adding colour after the transform might help with understanding what is going on.  (I don’t remember how, it’s been a long time since I touched this and I would have to RTFM to figure this out).  Try using an ellipse (or something other than a line) the second time around…
+
+I played with graphics in general some decades ago and I found that transforms always defied my intuition...
+
+pt
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: pinboard-layout transform problem</h1>
+                 <pre>(defun try ()
+  (let (( pane (capi:contain (make-instance 'capi:pinboard-layout))))
+  
+    (capi:apply-in-pane-process pane
+                                (lambda ()
+                                  (capi:manipulate-pinboard 
+                                   pane
+                                   (make-instance 'capi:ellipse
+                                                  :graphics-args '(:foreground :red)
+                                                  :filled t
+                                                  :x 0 :y 0
+                                                  :visible-min-height 50 :visible-min-width 50)
+                                   :add-top)))
+
+    (capi:apply-in-pane-process pane
+                                (lambda ()
+                                  (setf (gp:graphics-port-transform pane) 
+                                        `(1  0  0 -1 
+                                             ,(/ (capi:simple-pane-visible-width pane) 2.0) ,(/ (capi:simple-pane-visible-height pane) 2.0)))))
+
+    (capi:apply-in-pane-process pane
+                                (lambda ()
+                                  (capi:manipulate-pinboard 
+                                   pane
+                                   (make-instance 'capi:line-pinboard-object
+                                                  :start-x 0  :start-y 0
+                                                  :end-x   -50 :end-y   -50)
+                                   :add-top)))))
+
+(try)
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: pinboard-layout transform problem</h1>
+                 <p>
+                  Unable to parse email body. Email id is 15109
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+           </body>
+          </html>

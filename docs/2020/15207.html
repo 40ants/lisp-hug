@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Archive for Lisp real-time speedups</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+           </head>
+           <body>
+            <div class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </div>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Archive for Lisp real-time speedups</h1><div>Does anyone have the emails referred to here?</div><div><br></div><div><a href="https://xach.livejournal.com/199225.html">https://xach.livejournal.com/199225.html</a><br></div><div><br></div><div>Gmane is not available, unfortunately.&nbsp;<caret></caret></div><div><br></div><div id="protonmail_signature_block" class="protonmail_signature_block"><div>___<br>http://stegos.com<br>​Reject surveillance — embrace your freedom!</div></div> 
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Archive for Lisp real-time speedups</h1>
+                 <pre>
+&gt On Apr 23, 2020, at 9:51 AM, Joel Reymont &lt;joel@stegos.com&gt wrote:
+&gt 
+&gt Does anyone have the emails referred to here?
+&gt 
+&gt https://xach.livejournal.com/199225.html
+&gt 
+&gt Gmane is not available, unfortunately. 
+
+
+See below.
+
+Best,
+
+John DeSoi, Ph.D.
+
+
+
+
+
+&gt Begin forwarded message:
+&gt 
+&gt From: David McClain &lt;dbm@refined-audiometrics.com&gt
+&gt Subject: Lisp Realtime Speedups
+&gt Date: November 14, 2008 at 12:55:32 PM CST
+&gt To: Lisp Hug Lispworks &lt;lisp-hug@lispworks.com&gt
+&gt Reply-To: David McClain &lt;dbm@refined-audiometrics.com&gt
+&gt 
+&gt Hi All,
+&gt 
+&gt I have (not surprisingly) had several inquiries about how this speedup was achieved. So I'll answer here for the benefit of everyone.
+&gt 
+&gt First of all, this speedup was measured under LWM 5.1.1 on an iMac running Tiger (10.4.11) and a 2 GHz Intel Core 2 Duo processor with 2 GB RAM. I have also now verified the speedup on systems as old as a PowerPC iMac, which runs about 3x slower, and on newer systems running Leopard. All of them show substantial speedup.
+&gt 
+&gt By far the single most important speedup actually had little to do with the calling conventions and array transfer between Lisp and the external vDSP library. It turns out that that portion of the FFT never did take very much time. We did speed that up by about 2x-3x, but the most important speedup of the 670x, or so, has to do with data organization in memory.
+&gt 
+&gt A truly general purpose signal processor needs to be able to perform complex-valued convolutions for quite a variety of reasons. The most natural approach would be to use COMPLEX single-precision or double-precision values. That turns out to be a real speed killer because type COMPLEX is not a basic type for Lispworks (and probably not for any other Lisp either). A complex value will not be held in registers, and they will not be stored in unboxed arrays. All collections of type complex appear to use boxed elements. That is a huge time eater.
+&gt 
+&gt So, while I have never been much of a fan of the MatLab approach of storing real and imaginary components in separate arrays, that is precise what is needed here. Some external library may be comfortable with a packed (re, im) pairs representation of complex values. That appears to be the case in some of the Intel libraries (PPL, MKL). But it so happens that the native vDSP library on OS/X also wants to see FFT data in segregated form.
+&gt 
+&gt Hence, underneath, instead of using direct COMPLEX representations, arrays of such, and operations on such (e.g., (* c (conjugate c)) to get the power), it is better to keep real and imaginary components in separate vectors and arrays, and to perform the complex arithmetic, when needed, by your self -- use (+ (* r r) (* i i)) to get the power, use (atan i r) instead of (phase c), and so on.
+&gt 
+&gt By making that simple change, we brought our data manipulation time down by a huge factor.
+&gt 
+&gt There is also a tremendous speedup by using Martin's suggestion about :LISP-SIMPLE-1D-ARRAY for passing vectors of unboxed arrays to the outside world. Martin didn't specifically indicate that vectors of floats (single and double precision) would be stored as safely unboxed linear arrays, but they are. You can see that for yourself by using HCL:FIND-OBJECT-SIZE and trying variations of vectors in size and data type. This may be an non-portable expectation, but is quite reasonable to expect any serious language to create simple vectors of floats as unboxed representations. All the more so when you allocate in :STATIC for direct passing to the outside world.
+&gt 
+&gt Another thing that helped the speedup was to forego generality. My old code was willing to take numeric vectors in any form and coerce them to single- or double-precision floats, as requested, before sending to the outside libraries. By restricting the view to require correctly typed values ahead of time, and just being sure to enforce that in your own code, you save a tremendous amount of runtime. The old, more general, way was constructing a C-compatible dynamic FLI array, then copying one element at a time from a general input Lisp vector, coercing to the correct float type, and then storing into the FLI array, and then reversing the whole procedure on return. That kills a huge amount of time.
+&gt 
+&gt By adhering to strictly typed data you can use FLI:REPLACE-FOREIGN-ARRAY to copy entire vectors to and fro. Hence another huge speedup.
+&gt 
+&gt The final speedup came from simple caching of temporary buffers. When I need a scratch buffer of 4K doubles, I allocate one if not already cached, then hold on to it for future possible needs. I put a limit of 4K double complex on the largest buffer I'm willing to cache. Anything larger (much more rare in my code) will be forced to allocate and GC the larger scratch buffers. By far the most common sizes for my stuff are either 1024 or 4096 elements.
+&gt 
+&gt Together with an unboxed representation of complex-valued arrays, these data caching and unboxed techniques save a tremendous amount of data allocation. The result is that my routines, after the first call, see no more page misses at all, and the amount of memory allocated becomes around 10-50 bytes per call. This is a decrease from about 180-400KB per call in the old code.
+&gt 
+&gt Take all of these factors together -- use segregated complex types, use strictly typed arrays and vectors, use :STATIC array allocation, use FLI:REPLACE-FOREIGN-ARRAY, avoid memory allocation and boxing, and avoid page misses -- all of these together produce a speed up over the old code of more than 670x. That is extremely impressive. 
+&gt 
+&gt And so now being able to perform 1024 element complex-valued FFT's at 100 kHz, there is really nothing standing in the way of some serious realtime audio processing with nearly arbitrary FIR filtering and convolutions. That is very very impressive to me, to see Lisp compete head on with hand-crafted C and DSP Assembly. At this point, I have no interest in reverting to such tedious practices when I can avoid it. And using Lisp directly is a prominent possibility and likelihood.
+&gt 
+&gt I didn't set out to compete against C or DSP Assembly code. But to my surprise, the code generated by LWM is very impressive, provided you take some responsibility for sensible fast computing practices. Very nice!
+&gt 
+&gt Dr. David McClain
+&gt Chief Technical Officer
+&gt Refined Audiometrics Laboratory
+&gt 4391 N. Camino Ferreo
+&gt Tucson, AZ  85750
+&gt 
+&gt email: dbm@refined-audiometrics.com
+&gt phone: 1.520.390.3995
+&gt web: http://www.refined-audiometrics.com
+&gt 
+
+
+
+&gt Begin forwarded message:
+&gt 
+&gt From: David McClain &lt;dbm@refined-audiometrics.com&gt
+&gt Subject: Data Alignment...
+&gt Date: November 14, 2008 at 1:11:29 PM CST
+&gt To: Lisp Hug Lispworks &lt;lisp-hug@lispworks.com&gt
+&gt Reply-To: David McClain &lt;dbm@refined-audiometrics.com&gt
+&gt 
+&gt Hi All, 
+&gt 
+&gt Another thing that really speeds up external processing is to be sure that data vectors are aligned on 16-byte, or 32-byte boundaries. The vDSP specs tell you as much. In fact, since Lisp will not guarantee this, and probably cannot produce better than 4- or 8- byte alignment in the static region, I resorted in the C glue code to checking the base address of arrays being passed in for FFT processing. 
+&gt 
+&gt If an incoming array is not already aligned to a 16-byte boundary, I use another cached block of temporary store, allocated to a 16-byte boundary in the C glue-code, and then copy the incoming data to that temporary region before calling the FFT routines, and then copying the results of in-place computations back into the array that was originally passed. Even with all this extra copying the speedup is around 2x over the use of non-aligned data.
+&gt 
+&gt So, on my wish list for future improvements to LW, I would like to see and option to allocate a :static array on a user specified byte-alignment boundary, e.g, 8-, 16-, or 32- bytes. Who knows? down the road it may even be desirable to align on cache-line boundaries, and so possibly 128- or 256-bytes?
+&gt 
+&gt Dr. David McClain
+&gt Chief Technical Officer
+&gt Refined Audiometrics Laboratory
+&gt 4391 N. Camino Ferreo
+&gt Tucson, AZ  85750
+&gt 
+&gt email: dbm@refined-audiometrics.com
+&gt phone: 1.520.390.3995
+&gt web: http://www.refined-audiometrics.com
+&gt 
+&gt 
+
+
+
+&gt Begin forwarded message:
+&gt 
+&gt From: David McClain &lt;dbm@refined-audiometrics.com&gt
+&gt Subject: Finally...
+&gt Date: November 14, 2008 at 1:19:33 PM CST
+&gt To: Lisp Hug Lispworks &lt;lisp-hug@lispworks.com&gt
+&gt Reply-To: David McClain &lt;dbm@refined-audiometrics.com&gt
+&gt 
+&gt ... and along with the user specified byte alignment boundaries issue, there is another little quirk in the current Pentium cache design, that penalizes you when two blocks of memory in concurrent use differ by some multiple of 4K or so. Hence for the fastest possible speedup, you need to be sure that your 16-byte aligned data blocks do not live at addresses that differ by a multiple of 4K.
+&gt 
+&gt (And finally -- for us DSP types, I would like to see a Lisp option for round-to-zero, avoiding denormal operations, and also some saturating arithmetic. And while you are at it, how about a fast native modulo array indexing option too? heh, heh, heh..  Why not? We fully intend to plant Lisp systems down on the embedded PowerPC's inside some of the latest FPGA chips... I'd much rather work in Lisp that in any other alternative language, wouldn't you?)
+&gt 
+&gt Dr. David McClain
+&gt Chief Technical Officer
+&gt Refined Audiometrics Laboratory
+&gt 4391 N. Camino Ferreo
+&gt Tucson, AZ  85750
+&gt 
+&gt email: dbm@refined-audiometrics.com
+&gt phone: 1.520.390.3995
+&gt web: http://www.refined-audiometrics.com
+&gt 
+&gt 
+
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+           </body>
+          </html>

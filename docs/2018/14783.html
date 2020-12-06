@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Question about macro expansion</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+           </head>
+           <body>
+            <div class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </div>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Question about macro expansion</h1>
+                <pre>Suppose that in package my-macros, I have:
+
+(defmacro foo (bar p v)
+  `(defun ,bar ()
+     (if (func ,p)
+       ,v)))
+
+If I expand the macro in my-package-1, e.g.
+
+(foo a 'b 'c)
+
+it becomes
+
+(defun a ()
+  (if (my-macros:func 'b)
+    'c)
+
+But "func" doesn't exist in the my-macros package.  It does exist in my-package-1 (and my-package-2, ...)
+
+Why is a macro assuming the package of a function?  More importantly, can I define a macro once such that when it is expanded in my-package-N it calls the func in my-packageN?  Right now, I'm defining the same macro in each package where it's used so that I can get the behavior I need, but surely there's a better way.
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Question about macro expansion</h1>
+                 <pre>
+&gt On Apr 11, 2018, at 10:33 AM, Bob Felts &lt;wrf3@stablecross.com&gt wrote:
+&gt 
+&gt Suppose that in package my-macros, I have:
+&gt 
+&gt (defmacro foo (bar p v)
+&gt  `(defun ,bar ()
+&gt     (if (func ,p)
+&gt       ,v)))
+&gt 
+&gt If I expand the macro in my-package-1, e.g.
+&gt 
+&gt (foo a 'b 'c)
+&gt 
+&gt it becomes
+&gt 
+&gt (defun a ()
+&gt  (if (my-macros:func 'b)
+&gt    'c)
+&gt 
+&gt But "func" doesn't exist in the my-macros package.  It does exist in my-package-1 (and my-package-2, ...)
+&gt 
+&gt Why is a macro assuming the package of a function?  More importantly, can I define a macro once such that when it is expanded in my-package-N it calls the func in my-packageN?  Right now, I'm defining the same macro in each package where it's used so that I can get the behavior I need, but surely there's a better way.
+
+
+When the reader encounters a hitherto unknown symbol without an explicit package qualifier, it assumes the symbol belongs to the current package. You can tell the reader that FUNC belongs to some other package by either explicitly qualifying the symbol—that is, by writing THE-OTHER-PACKAGE:FUNC— or by importing the symbol FUNC from the other package into package MY-MACROS.
+
+Please note, the reader doesn’t “assume the package of a function”. Functions don’t have packages. Only symbols have packages. Packages contain symbols, and only symbols.
+
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Question about macro expansion</h1>
+                 <pre>Right.  But in this case I'm emitting code to be compiled in multiple packages. At compile time, I want the "func" which is defined in the package in which the macro is expanded.  Not the package in which the macro is defined.
+
+&gt On Apr 11, 2018, at 11:43 AM, mikel evins &lt;mevins@me.com&gt wrote:
+&gt 
+&gt 
+&gt&gt On Apr 11, 2018, at 10:33 AM, Bob Felts &lt;wrf3@stablecross.com&gt wrote:
+&gt&gt 
+&gt&gt Suppose that in package my-macros, I have:
+&gt&gt 
+&gt&gt (defmacro foo (bar p v)
+&gt&gt `(defun ,bar ()
+&gt&gt    (if (func ,p)
+&gt&gt      ,v)))
+&gt&gt 
+&gt&gt If I expand the macro in my-package-1, e.g.
+&gt&gt 
+&gt&gt (foo a 'b 'c)
+&gt&gt 
+&gt&gt it becomes
+&gt&gt 
+&gt&gt (defun a ()
+&gt&gt (if (my-macros:func 'b)
+&gt&gt   'c)
+&gt&gt 
+&gt&gt But "func" doesn't exist in the my-macros package.  It does exist in my-package-1 (and my-package-2, ...)
+&gt&gt 
+&gt&gt Why is a macro assuming the package of a function?  More importantly, can I define a macro once such that when it is expanded in my-package-N it calls the func in my-packageN?  Right now, I'm defining the same macro in each package where it's used so that I can get the behavior I need, but surely there's a better way.
+&gt 
+&gt 
+&gt When the reader encounters a hitherto unknown symbol without an explicit package qualifier, it assumes the symbol belongs to the current package. You can tell the reader that FUNC belongs to some other package by either explicitly qualifying the symbol—that is, by writing THE-OTHER-PACKAGE:FUNC— or by importing the symbol FUNC from the other package into package MY-MACROS.
+&gt 
+&gt Please note, the reader doesn’t “assume the package of a function”. Functions don’t have packages. Only symbols have packages. Packages contain symbols, and only symbols.
+&gt 
+&gt 
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Question about macro expansion</h1>
+                 <pre>
+
+&gt On Apr 11, 2018, at 10:51 AM, Bob Felts &lt;wrf3@stablecross.com&gt wrote:
+&gt 
+&gt Right.  But in this case I'm emitting code to be compiled in multiple packages. At compile time, I want the "func" which is defined in the package in which the macro is expanded.  Not the package in which the macro is defined.
+
+It’s the reader, not the macroexpander, that decides which package you’re referring to. If your macroexpander refers to the symbol FUNC, then the reader looks for it in the package that is the value of CL:*PACKAGE* at the time the macro definition is processed. If you want FUNC to be found in some other package then you must explicitly arrange for it to be looked up in that other package. 
+
+There are various ways to accomplish that. If your requirements can’t be met by explicitly qualifying the symbol, or by suitable choice of in-package or let-binding CL:*PACKAGE*, then you could do something like
+
+(funcall (intern “FUNC” (choose-the-correct-package-for-the-context)
+            ,p))
+
+
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Question about macro expansion</h1>
+                 <pre>Chris, cjv, and mikel:
+
+Madhu provided a suggestion that is a synthesis of your solutions.  I didn't want to provide "func" as a parameter to the macros, because it's the same in every case, and I'd like to save typing.  And, yes, "func" is defined in each file that uses foo.
+
+Madhu's suggestion was to define foo as follows:
+
+  (defmacro foo (bar p v &amp;optional (func (intern "FUNC" *package*)))
+    ...
+    (if (,func ...
+
+
+Thanks, everyone.
+
+And, yes, I'm not happy with a design that needs this, but I'm still trying to shape things.
+
+&gt On Apr 11, 2018, at 12:35 PM, Christopher Riesbeck &lt;c-riesbeck@northwestern.edu&gt wrote:
+&gt 
+&gt 
+&gt On 4/11/2018 10:51 AM, Bob Felts wrote:
+&gt&gt Right.  But in this case I'm emitting code to be compiled in multiple packages. At compile time, I want the "func" which is defined in the package in which the macro is expanded.  Not the package in which the macro is defined.
+&gt&gt 
+&gt&gt&gt&gt On Apr 11, 2018, at 10:33 AM, Bob Felts &lt;wrf3@stablecross.com&gt wrote:
+&gt&gt&gt&gt 
+&gt&gt&gt&gt Suppose that in package my-macros, I have:
+&gt&gt&gt&gt 
+&gt&gt&gt&gt (defmacro foo (bar p v)
+&gt&gt&gt&gt `(defun ,bar ()
+&gt&gt&gt&gt    (if (func ,p)
+&gt&gt&gt&gt      ,v)))
+&gt 
+&gt The difficulty of doing this is a sign the design doesn't really make sense. Anyone using FOO has to know that they must define a function FUNC in their package. There's no sign of that in the call, and no way to use a different name, if they already have a FUNC (perhaps from a library) that does something else.
+&gt 
+&gt Had you made FUNC a parameter of the macro, e.g., (foo func ...), then the macro would be more flexible and you wouldn't have this problem.
+&gt 
+&gt 
+&gt -- 
+&gt ................................................
+&gt Christopher Riesbeck
+&gt Associate Professor, Electrical Engineering and Computer Science
+&gt McCormick School of Engineering
+&gt Northwestern University
+&gt 
+&gt 2145 Sheridan Rd., Evanston, IL 60208
+&gt 
+&gt Home page: http://www.cs.northwestern.edu/~riesbeck/
+&gt Calendar: http://www.cs.northwestern.edu/~riesbeck/calendar.html
+&gt 
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Question about macro expansion</h1>
+                 <pre>&amp;aux is also an option for that hack.&nbsp; &amp;optional allows users to specify 
+a name. &amp;aux doesn't&nbsp; change the API of the macro. I personally would go 
+for &amp;optional because I think func should be a parameter.
+
+On 4/11/2018 11:57 AM, Bob Felts wrote:
+&gt Chris, cjv, and mikel:
+&gt
+&gt Madhu provided a suggestion that is a synthesis of your solutions.  I didn't want to provide "func" as a parameter to the macros, because it's the same in every case, and I'd like to save typing.  And, yes, "func" is defined in each file that uses foo.
+&gt
+&gt Madhu's suggestion was to define foo as follows:
+&gt
+&gt    (defmacro foo (bar p v &amp;optional (func (intern "FUNC" *package*)))
+&gt      ...
+&gt      (if (,func ...
+&gt
+&gt
+&gt Thanks, everyone.
+&gt
+&gt And, yes, I'm not happy with a design that needs this, but I'm still trying to shape things.
+&gt
+&gt&gt On Apr 11, 2018, at 12:35 PM, Christopher Riesbeck &lt;c-riesbeck@northwestern.edu&gt wrote:
+&gt&gt
+&gt&gt
+&gt&gt On 4/11/2018 10:51 AM, Bob Felts wrote:
+&gt&gt&gt Right.  But in this case I'm emitting code to be compiled in multiple packages. At compile time, I want the "func" which is defined in the package in which the macro is expanded.  Not the package in which the macro is defined.
+&gt&gt&gt
+&gt&gt&gt&gt&gt On Apr 11, 2018, at 10:33 AM, Bob Felts &lt;wrf3@stablecross.com&gt wrote:
+&gt&gt&gt&gt&gt
+&gt&gt&gt&gt&gt Suppose that in package my-macros, I have:
+&gt&gt&gt&gt&gt
+&gt&gt&gt&gt&gt (defmacro foo (bar p v)
+&gt&gt&gt&gt&gt `(defun ,bar ()
+&gt&gt&gt&gt&gt     (if (func ,p)
+&gt&gt&gt&gt&gt       ,v)))
+&gt&gt The difficulty of doing this is a sign the design doesn't really make sense. Anyone using FOO has to know that they must define a function FUNC in their package. There's no sign of that in the call, and no way to use a different name, if they already have a FUNC (perhaps from a library) that does something else.
+&gt&gt
+&gt&gt Had you made FUNC a parameter of the macro, e.g., (foo func ...), then the macro would be more flexible and you wouldn't have this problem.
+&gt&gt
+&gt&gt
+&gt&gt -- 
+&gt&gt ................................................
+&gt&gt Christopher Riesbeck
+&gt&gt Associate Professor, Electrical Engineering and Computer Science
+&gt&gt McCormick School of Engineering
+&gt&gt Northwestern University
+&gt&gt
+&gt&gt 2145 Sheridan Rd., Evanston, IL 60208
+&gt&gt
+&gt&gt Home page: http://www.cs.northwestern.edu/~riesbeck/
+&gt&gt Calendar: http://www.cs.northwestern.edu/~riesbeck/calendar.html
+&gt&gt
+&gt
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt https://urldefense.proofpoint.com/v2/url?u=http-3A__www.lispworks.com_support_lisp-2Dhug.html&amp;d=DwIDAg&amp;c=yHlS04HhBraes5BQ9ueu5zKhE7rtNXt_d012z2PA6ws&amp;r=rYww9Ur1WoBi28j2XhN4rwFLo31INs66FdFiX_Ro7pI&amp;m=tmzqa4ZqNiaMr39HHYTs3Eax-arnp6nD75rfAyHpJg8&amp;s=bsJHPDIhDjO8tx2DUmLpvDsZ1hQBPTO3FzxbcHEOWZs&amp;e=
+
+-- 
+.................................................
+Christopher Riesbeck
+Associate Professor, Electrical Engineering and Computer Science
+McCormick School of Engineering
+Northwestern University
+
+2145 Sheridan Rd., Evanston, IL 60208
+
+Home page: http://www.cs.northwestern.edu/~riesbeck/
+Calendar: http://www.cs.northwestern.edu/~riesbeck/calendar.html
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Question about macro expansion</h1><!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/xhtml; charset=utf-8">
+</head>
+<body>
+<div style="font-family:sans-serif"><div style="white-space:normal">
+<p dir="auto">Yes, it would help if you were to explain why you want the macro to get a <em>different</em> function in every package where it is used, instead of importing the <code style="background-color:#F7F7F7; border-radius:3px; margin:0; padding:0 0.4em" bgcolor="#F7F7F7">func</code> symbol into every package where you use your macro.</p>
+
+<p dir="auto">It seems odd that a function would fill the same role, but in a different way, in different packages.</p>
+
+<p dir="auto">Indeed, it seems likely to me that what you are doing here would better be done with method dispatch -- making <code style="background-color:#F7F7F7; border-radius:3px; margin:0; padding:0 0.4em" bgcolor="#F7F7F7">func</code> a generic function, instead of a name that just happens always to bound to The Right Thing.</p>
+
+<p dir="auto">Note that I'm being very intentional about saying "a name that <em>just happens</em> to be bound to the right thing." Symbols with the same name in different package don't really share an identity the same way that a generic function does, so this seems esthetically unappealing.</p>
+
+<p dir="auto">On 11 Apr 2018, at 11:57, Bob Felts wrote:</p>
+
+</div>
+<div style="white-space:normal"><blockquote style="border-left:2px solid #777; color:#777; margin:0 0 5px; padding-left:5px"><p dir="auto">Chris, cjv, and mikel:<br>
+<br>
+Madhu provided a suggestion that is a synthesis of your solutions.  I didn't want to provide "func" as a parameter to the macros, because it's the same in every case, and I'd like to save typing.  And, yes, "func" is defined in each file that uses foo.<br>
+<br>
+Madhu's suggestion was to define foo as follows:<br>
+<br>
+  (defmacro foo (bar p v &amp;optional (func (intern "FUNC" *package*)))<br>
+    ...<br>
+    (if (,func ...<br>
+<br>
+<br>
+Thanks, everyone.<br>
+<br>
+And, yes, I'm not happy with a design that needs this, but I'm still trying to shape things.<br>
+</p>
+<blockquote style="border-left:2px solid #777; color:#999; margin:0 0 5px; padding-left:5px; border-left-color:#999"><p dir="auto">On Apr 11, 2018, at 12:35 PM, Christopher Riesbeck &lt;c-riesbeck@northwestern.edu&gt; wrote:<br>
+<br>
+<br>
+On 4/11/2018 10:51 AM, Bob Felts wrote:</p>
+<blockquote style="border-left:2px solid #777; color:#BBB; margin:0 0 5px; padding-left:5px; border-left-color:#BBB"><p dir="auto">Right.  But in this case I'm emitting code to be compiled in multiple packages. At compile time, I want the "func" which is defined in the package in which the macro is expanded.  Not the package in which the macro is defined.<br>
+</p>
+<blockquote style="border-left:2px solid #777; color:#BBB; margin:0 0 5px; padding-left:5px; border-left-color:#BBB"><blockquote style="border-left:2px solid #777; color:#BBB; margin:0 0 5px; padding-left:5px; border-left-color:#BBB"><p dir="auto">On Apr 11, 2018, at 10:33 AM, Bob Felts &lt;wrf3@stablecross.com&gt; wrote:<br>
+<br>
+Suppose that in package my-macros, I have:<br>
+<br>
+(defmacro foo (bar p v)<br>
+`(defun ,bar ()<br>
+   (if (func ,p)<br>
+     ,v)))</p>
+</blockquote></blockquote></blockquote><p dir="auto">The difficulty of doing this is a sign the design doesn't really make sense. Anyone using FOO has to know that they must define a function FUNC in their package. There's no sign of that in the call, and no way to use a different name, if they already have a FUNC (perhaps from a library) that does something else.<br>
+<br>
+Had you made FUNC a parameter of the macro, e.g., (foo func ...), then the macro would be more flexible and you wouldn't have this problem.<br>
+<br>
+<br>
+-- <br>
+................................................<br>
+Christopher Riesbeck<br>
+Associate Professor, Electrical Engineering and Computer Science<br>
+McCormick School of Engineering<br>
+Northwestern University<br>
+<br>
+2145 Sheridan Rd., Evanston, IL 60208<br>
+<br>
+Home page: <a href="http://www.cs.northwestern.edu/~riesbeck/" style="color:#999">http://www.cs.northwestern.edu/~riesbeck/</a><br>
+Calendar: <a href="http://www.cs.northwestern.edu/~riesbeck/calendar.html" style="color:#999">http://www.cs.northwestern.edu/~riesbeck/calendar.html</a><br>
+</p>
+</blockquote><p dir="auto">_______________________________________________<br>
+Lisp Hug - the mailing list for LispWorks users<br>
+lisp-hug@lispworks.com<br>
+<a href="http://www.lispworks.com/support/lisp-hug.html" style="color:#777">http://www.lispworks.com/support/lisp-hug.html</a></p>
+</blockquote></div>
+<div style="white-space:normal">
+
+<p dir="auto">Robert P. Goldman<br>
+Research Fellow<br>
+Smart Information Flow Technologies (d/b/a SIFT, LLC)</p>
+
+<p dir="auto">319 N. First Ave., Suite 400<br>
+Minneapolis, MN 55401</p>
+
+<p dir="auto">Voice:    (612) 326-3934<br>
+Email:    <a href="mailto:rpgoldman@SIFT.net" style="color:#3983C4">rpgoldman@SIFT.net</a></p>
+</div>
+</div>
+</body>
+</html>
+
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Question about macro expansion</h1><html><head><meta http-equiv="Content-Type" content="text/html; charset=us-ascii"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class="">I'm using macros to both generate data structures at compile time and to generate functions that use those data structures. &nbsp;There can be any number of independent "major" data structures -- one in each package -- and one "minor" data structure which is used in conjunction with one major data structure. &nbsp;All of these data structures have the same name. &nbsp;At the bottom, there is one function that takes a major data structure, the minor data structure, and some other input and does something with it. &nbsp;The "function" was just a poor man's way to get to the major data structure in each package.<div class=""><br class=""></div><div class="">All of this worked when the macros were defined in the packages that use them. &nbsp;But that lead to duplicate macros. &nbsp;Put the macros in their own package and they start expanding differently. &nbsp;They aren't like C's text based macros. &nbsp;Now that I really grasp this, given Madhu's suggestion, I can use intern, find-package and &amp;aux to cajole the macros to expand to the places where things are.<br class=""><div><br class=""></div><div>Thanks, everyone.</div><div><br class=""><blockquote type="cite" class=""><div class="">On Apr 11, 2018, at 1:56 PM, Robert Goldman &lt;<a href="mailto:rpgoldman@sift.net" class="">rpgoldman@sift.net</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class="">
+
+
+<meta http-equiv="Content-Type" content="text/xhtml; charset=utf-8" class="">
+
+<div class="">
+<div style="font-family:sans-serif" class=""><div style="white-space:normal" class=""><p dir="auto" class="">Yes, it would help if you were to explain why you want the macro to get a <em class="">different</em> function in every package where it is used, instead of importing the <code style="background-color:#F7F7F7; border-radius:3px; margin:0; padding:0 0.4em" bgcolor="#F7F7F7" class="">func</code> symbol into every package where you use your macro.</p><p dir="auto" class="">It seems odd that a function would fill the same role, but in a different way, in different packages.</p><p dir="auto" class="">Indeed, it seems likely to me that what you are doing here would better be done with method dispatch -- making <code style="background-color:#F7F7F7; border-radius:3px; margin:0; padding:0 0.4em" bgcolor="#F7F7F7" class="">func</code> a generic function, instead of a name that just happens always to bound to The Right Thing.</p><p dir="auto" class="">Note that I'm being very intentional about saying "a name that <em class="">just happens</em> to be bound to the right thing." Symbols with the same name in different package don't really share an identity the same way that a generic function does, so this seems esthetically unappealing.</p><p dir="auto" class="">On 11 Apr 2018, at 11:57, Bob Felts wrote:</p>
+
+</div>
+<div style="white-space:normal" class=""><blockquote style="border-left:2px solid #777; color:#777; margin:0 0 5px; padding-left:5px" class=""><p dir="auto" class="">Chris, cjv, and mikel:<br class="">
+<br class="">
+Madhu provided a suggestion that is a synthesis of your solutions.  I didn't want to provide "func" as a parameter to the macros, because it's the same in every case, and I'd like to save typing.  And, yes, "func" is defined in each file that uses foo.<br class="">
+<br class="">
+Madhu's suggestion was to define foo as follows:<br class="">
+<br class="">
+  (defmacro foo (bar p v &amp;optional (func (intern "FUNC" *package*)))<br class="">
+    ...<br class="">
+    (if (,func ...<br class="">
+<br class="">
+<br class="">
+Thanks, everyone.<br class="">
+<br class="">
+And, yes, I'm not happy with a design that needs this, but I'm still trying to shape things.<br class="">
+</p>
+<blockquote style="border-left:2px solid #777; color:#999; margin:0 0 5px; padding-left:5px; border-left-color:#999" class=""><p dir="auto" class="">On Apr 11, 2018, at 12:35 PM, Christopher Riesbeck &lt;<a href="mailto:c-riesbeck@northwestern.edu" class="">c-riesbeck@northwestern.edu</a>&gt; wrote:<br class="">
+<br class="">
+<br class="">
+On 4/11/2018 10:51 AM, Bob Felts wrote:</p>
+<blockquote style="border-left:2px solid #777; color:#BBB; margin:0 0 5px; padding-left:5px; border-left-color:#BBB" class=""><p dir="auto" class="">Right.  But in this case I'm emitting code to be compiled in multiple packages. At compile time, I want the "func" which is defined in the package in which the macro is expanded.  Not the package in which the macro is defined.<br class="">
+</p>
+<blockquote style="border-left:2px solid #777; color:#BBB; margin:0 0 5px; padding-left:5px; border-left-color:#BBB" class=""><blockquote style="border-left:2px solid #777; color:#BBB; margin:0 0 5px; padding-left:5px; border-left-color:#BBB" class=""><p dir="auto" class="">On Apr 11, 2018, at 10:33 AM, Bob Felts &lt;<a href="mailto:wrf3@stablecross.com" class="">wrf3@stablecross.com</a>&gt; wrote:<br class="">
+<br class="">
+Suppose that in package my-macros, I have:<br class="">
+<br class="">
+(defmacro foo (bar p v)<br class="">
+`(defun ,bar ()<br class="">
+   (if (func ,p)<br class="">
+     ,v)))</p>
+</blockquote></blockquote></blockquote><p dir="auto" class="">The difficulty of doing this is a sign the design doesn't really make sense. Anyone using FOO has to know that they must define a function FUNC in their package. There's no sign of that in the call, and no way to use a different name, if they already have a FUNC (perhaps from a library) that does something else.<br class="">
+<br class="">
+Had you made FUNC a parameter of the macro, e.g., (foo func ...), then the macro would be more flexible and you wouldn't have this problem.<br class="">
+<br class="">
+<br class="">
+-- <br class="">
+.................................................<br class="">
+Christopher Riesbeck<br class="">
+Associate Professor, Electrical Engineering and Computer Science<br class="">
+McCormick School of Engineering<br class="">
+Northwestern University<br class="">
+<br class="">
+2145 Sheridan Rd., Evanston, IL 60208<br class="">
+<br class="">
+Home page: <a href="http://www.cs.northwestern.edu/~riesbeck/" style="color:#999" class="">http://www.cs.northwestern.edu/~riesbeck/</a><br class="">
+Calendar: <a href="http://www.cs.northwestern.edu/~riesbeck/calendar.html" style="color:#999" class="">http://www.cs.northwestern.edu/~riesbeck/calendar.html</a><br class="">
+</p>
+</blockquote><p dir="auto" class="">_______________________________________________<br class="">
+Lisp Hug - the mailing list for LispWorks users<br class="">
+<a href="mailto:lisp-hug@lispworks.com" class="">lisp-hug@lispworks.com</a><br class="">
+<a href="http://www.lispworks.com/support/lisp-hug.html" style="color:#777" class="">http://www.lispworks.com/support/lisp-hug.html</a></p>
+</blockquote></div>
+<div style="white-space:normal" class=""><p dir="auto" class="">Robert P. Goldman<br class="">
+Research Fellow<br class="">
+Smart Information Flow Technologies (d/b/a SIFT, LLC)</p><p dir="auto" class="">319 N. First Ave., Suite 400<br class="">
+Minneapolis, MN 55401</p><p dir="auto" class="">Voice:    (612) 326-3934<br class="">
+Email:    <a href="mailto:rpgoldman@SIFT.net" style="color:#3983C4" class="">rpgoldman@SIFT.net</a></p>
+</div>
+</div>
+</div>
+
+</div></blockquote></div><br class=""></div></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Question about macro expansion</h1><!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/xhtml; charset=utf-8">
+</head>
+<body>
+<div style="font-family:sans-serif"><div style="white-space:normal"><p dir="auto">That works, but as I said, I think you would be happier if you had a single generic function instead of making a different function for each one of these data structures.</p>
+<p dir="auto">cheers,<br>
+r</p>
+<br><p dir="auto">On 11 Apr 2018, at 14:11, Bob Felts wrote:</p>
+</div>
+<blockquote style="border-left:2px solid #777; color:#777; margin:0 0 5px; padding-left:5px"><div id="2CD68996-95D9-4E1D-81ED-8101A3ADF17D"><div style="word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class="">I'm using macros to both generate data structures at compile time and to generate functions that use those data structures. &nbsp;There can be any number of independent "major" data structures -- one in each package -- and one "minor" data structure which is used in conjunction with one major data structure. &nbsp;All of these data structures have the same name. &nbsp;At the bottom, there is one function that takes a major data structure, the minor data structure, and some other input and does something with it. &nbsp;The "function" was just a poor man's way to get to the major data structure in each package.<div class=""><br class=""></div><div class="">All of this worked when the macros were defined in the packages that use them. &nbsp;But that lead to duplicate macros. &nbsp;Put the macros in their own package and they start expanding differently. &nbsp;They aren't like C's text based macros. &nbsp;Now that I really grasp this, given Madhu's suggestion, I can use intern, find-package and &amp;aux to cajole the macros to expand to the places where things are.<br class=""><div><br class=""></div><div>Thanks, everyone.</div><div><br class=""><blockquote type="cite" class=""><div class="">On Apr 11, 2018, at 1:56 PM, Robert Goldman &lt;<a href="mailto:rpgoldman@sift.net" class="">rpgoldman@sift.net</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class="">
+
+
+<meta http-equiv="Content-Type" content="text/xhtml; charset=utf-8" class="">
+
+<div class="">
+<div style="font-family:sans-serif" class=""><div style="white-space:normal" class=""><p dir="auto" class="">Yes, it would help if you were to explain why you want the macro to get a <em class="">different</em> function in every package where it is used, instead of importing the <code style="background-color:#F7F7F7; border-radius:3px; margin:0; padding:0 0.4em" bgcolor="#F7F7F7" class="">func</code> symbol into every package where you use your macro.</p><p dir="auto" class="">It seems odd that a function would fill the same role, but in a different way, in different packages.</p><p dir="auto" class="">Indeed, it seems likely to me that what you are doing here would better be done with method dispatch -- making <code style="background-color:#F7F7F7; border-radius:3px; margin:0; padding:0 0.4em" bgcolor="#F7F7F7" class="">func</code> a generic function, instead of a name that just happens always to bound to The Right Thing.</p><p dir="auto" class="">Note that I'm being very intentional about saying "a name that <em class="">just happens</em> to be bound to the right thing." Symbols with the same name in different package don't really share an identity the same way that a generic function does, so this seems esthetically unappealing.</p><p dir="auto" class="">On 11 Apr 2018, at 11:57, Bob Felts wrote:</p>
+
+</div>
+<div style="white-space:normal" class=""><blockquote style="border-left:2px solid #777; color:#777; margin:0 0 5px; padding-left:5px" class=""><p dir="auto" class="">Chris, cjv, and mikel:<br class="">
+<br class="">
+Madhu provided a suggestion that is a synthesis of your solutions.  I didn't want to provide "func" as a parameter to the macros, because it's the same in every case, and I'd like to save typing.  And, yes, "func" is defined in each file that uses foo.<br class="">
+<br class="">
+Madhu's suggestion was to define foo as follows:<br class="">
+<br class="">
+  (defmacro foo (bar p v &amp;optional (func (intern "FUNC" *package*)))<br class="">
+    ...<br class="">
+    (if (,func ...<br class="">
+<br class="">
+<br class="">
+Thanks, everyone.<br class="">
+<br class="">
+And, yes, I'm not happy with a design that needs this, but I'm still trying to shape things.<br class="">
+</p>
+<blockquote style="border-left:2px solid #777; color:#999; margin:0 0 5px; padding-left:5px; border-left-color:#999" class=""><p dir="auto" class="">On Apr 11, 2018, at 12:35 PM, Christopher Riesbeck &lt;<a href="mailto:c-riesbeck@northwestern.edu" class="">c-riesbeck@northwestern.edu</a>&gt; wrote:<br class="">
+<br class="">
+<br class="">
+On 4/11/2018 10:51 AM, Bob Felts wrote:</p>
+<blockquote style="border-left:2px solid #777; color:#BBB; margin:0 0 5px; padding-left:5px; border-left-color:#BBB" class=""><p dir="auto" class="">Right.  But in this case I'm emitting code to be compiled in multiple packages. At compile time, I want the "func" which is defined in the package in which the macro is expanded.  Not the package in which the macro is defined.<br class="">
+</p>
+<blockquote style="border-left:2px solid #777; color:#BBB; margin:0 0 5px; padding-left:5px; border-left-color:#BBB" class=""><blockquote style="border-left:2px solid #777; color:#BBB; margin:0 0 5px; padding-left:5px; border-left-color:#BBB" class=""><p dir="auto" class="">On Apr 11, 2018, at 10:33 AM, Bob Felts &lt;<a href="mailto:wrf3@stablecross.com" class="">wrf3@stablecross.com</a>&gt; wrote:<br class="">
+<br class="">
+Suppose that in package my-macros, I have:<br class="">
+<br class="">
+(defmacro foo (bar p v)<br class="">
+`(defun ,bar ()<br class="">
+   (if (func ,p)<br class="">
+     ,v)))</p>
+</blockquote></blockquote></blockquote><p dir="auto" class="">The difficulty of doing this is a sign the design doesn't really make sense. Anyone using FOO has to know that they must define a function FUNC in their package. There's no sign of that in the call, and no way to use a different name, if they already have a FUNC (perhaps from a library) that does something else.<br class="">
+<br class="">
+Had you made FUNC a parameter of the macro, e.g., (foo func ...), then the macro would be more flexible and you wouldn't have this problem.<br class="">
+<br class="">
+<br class="">
+-- <br class="">
+................................................<br class="">
+Christopher Riesbeck<br class="">
+Associate Professor, Electrical Engineering and Computer Science<br class="">
+McCormick School of Engineering<br class="">
+Northwestern University<br class="">
+<br class="">
+2145 Sheridan Rd., Evanston, IL 60208<br class="">
+<br class="">
+Home page: <a href="http://www.cs.northwestern.edu/~riesbeck/" style="color:#999" class="">http://www.cs.northwestern.edu/~riesbeck/</a><br class="">
+Calendar: <a href="http://www.cs.northwestern.edu/~riesbeck/calendar.html" style="color:#999" class="">http://www.cs.northwestern.edu/~riesbeck/calendar.html</a><br class="">
+</p>
+</blockquote><p dir="auto" class="">_______________________________________________<br class="">
+Lisp Hug - the mailing list for LispWorks users<br class="">
+<a href="mailto:lisp-hug@lispworks.com" class="">lisp-hug@lispworks.com</a><br class="">
+<a href="http://www.lispworks.com/support/lisp-hug.html" style="color:#777" class="">http://www.lispworks.com/support/lisp-hug.html</a></p>
+</blockquote></div>
+<div style="white-space:normal" class=""><p dir="auto" class="">Robert P. Goldman<br class="">
+Research Fellow<br class="">
+Smart Information Flow Technologies (d/b/a SIFT, LLC)</p><p dir="auto" class="">319 N. First Ave., Suite 400<br class="">
+Minneapolis, MN 55401</p><p dir="auto" class="">Voice:    (612) 326-3934<br class="">
+Email:    <a href="mailto:rpgoldman@SIFT.net" style="color:#3983C4" class="">rpgoldman@SIFT.net</a></p>
+</div>
+</div>
+</div>
+
+</div></blockquote></div><br class=""></div></div></div></blockquote>
+<div style="white-space:normal"><blockquote style="border-left:2px solid #777; color:#777; margin:0 0 5px; padding-left:5px">
+</blockquote><br><br><p dir="auto">Robert P. Goldman<br>
+Research Fellow<br>
+Smart Information Flow Technologies (d/b/a SIFT, LLC)</p>
+<p dir="auto">319 N. First Ave., Suite 400<br>
+Minneapolis, MN 55401</p>
+<p dir="auto">Voice:	(612) 326-3934<br>
+Email:    rpgoldman@SIFT.net</p>
+</div>
+</div>
+</body>
+</html>
+
+
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+           </body>
+          </html>

@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Curious error...</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+           </head>
+           <body>
+            <div class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </div>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Curious error...</h1>
+                <pre>Must be something I just don’t see…
+
+Attempting to set a local variable from another thread seems to fail, but if the variable is global it works…
+
+This version works properly:
+
+(let (x)
+  (defun tst ()
+    (let ((sem (mp:make-semaphore :count 0)))
+      (setf x nil)
+      (mp:funcall-async (lambda ()
+                          (unwind-protect
+                              (setf x (bfly:!? "eval@Malachite.local"
+                                               `(hash-scanner::grand-hash "~/projects/Lispworks/tools/FileSync/")))
+                            (mp:semaphore-release sem))))
+      (mp:semaphore-acquire sem :count 1) 
+      (assert x)
+      x)))
+
+(tst) =&gt #S(DIR-NODE :KEY "AB1D177EB7748A88990A8F97BFCA71FD3C83ED77D4014805598D561117F2767D2559744FBA20184E33FBBFAD27D2BF37EF77EA094A7974530AF1689B03E33B89" :NAME "~/projects/Lispworks/tools/FileSync/" :FTREE NIL :DTREE NIL)
+
+
+And this version, with the x as a local, fails - every time:
+
+(defun tst ()
+  (let ((x nil)
+        (sem (mp:make-semaphore :count 0)))
+    (mp:funcall-async (lambda ()
+                        (unwind-protect
+                            (setf x (bfly:!? "eval@Malachite.local"
+                                             `(hash-scanner::grand-hash "~/projects/Lispworks/tools/FileSync/")))
+                          (mp:semaphore-release sem))))
+    (mp:semaphore-acquire sem :count 1) 
+    (assert x)
+    x))
+
+(tst) =&gt 
+
+Error: The assertion X inside HASH-SCANNER::TST failed.
+  1 (continue) Retry assertion.
+  2 (abort) Return to level 0.
+  3 Return to top loop level 0.
+
+Type :b for backtrace or :c &lt;option number&gt to proceed.
+Type :bug-form "&lt;subject&gt" for a bug report template or :? for other options.
+
+I don’t get it. The access to the semaphore appears to work properly in both cases, but access to the x variable fails when it is a frame local instead of a global.
+
+Eh? What am I not seeing?
+
+- DM
+
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Curious error...</h1>
+                 <pre>… never mind that I might be doing something complicated… This one fails too!
+
+(defun tst ()
+  (let (x
+        (sem (mp:make-semaphore :count 0)))
+    (mp:funcall-async (lambda ()
+                        (unwind-protect
+                            (setf x 15)
+                          (mp:semaphore-release sem))))
+    (mp:semaphore-acquire sem :count 1)
+    (assert x)
+    x))
+
+ (tst) =&gt
+
+Error: The assertion X inside HASH-SCANNER::TST failed.
+  1 (continue) Retry assertion.
+  2 (abort) Return to level 0.
+  3 Return to top loop level 0.
+
+Type :b for backtrace or :c &lt;option number&gt to proceed.
+Type :bug-form "&lt;subject&gt" for a bug report template or :? for other options.
+
+- DM
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Curious error...</h1>
+                 <pre>uh oh… I think I see what is going on here… Special Bindings !! Yikes! You really gotta watch out for unexpected side effects when global special bindings are around… It still seems like a bug that the local rebinding is ignored by another thread. Eh?
+
+- DM
+
+&gt On Oct 4, 2017, at 22:30, David McClain &lt;dbm@refined-audiometrics.com&gt wrote:
+&gt 
+&gt … I tracked down that I had been using a defvar named X in earlier parts of the Lisp session. When I rename the local to something never before seen, like xzyyz instead of x, then the local binding version works as expected. That seems like a bug to me…
+&gt 
+&gt - DM
+&gt 
+&gt 
+&gt&gt On Oct 4, 2017, at 22:22, David McClain &lt;dbm@refined-audiometrics.com&gt wrote:
+&gt&gt 
+&gt&gt … never mind that I might be doing something complicated… This one fails too!
+&gt&gt 
+&gt&gt (defun tst ()
+&gt&gt (let (x
+&gt&gt       (sem (mp:make-semaphore :count 0)))
+&gt&gt   (mp:funcall-async (lambda ()
+&gt&gt                       (unwind-protect
+&gt&gt                           (setf x 15)
+&gt&gt                         (mp:semaphore-release sem))))
+&gt&gt   (mp:semaphore-acquire sem :count 1)
+&gt&gt   (assert x)
+&gt&gt   x))
+&gt&gt 
+&gt&gt (tst) =&gt
+&gt&gt 
+&gt&gt Error: The assertion X inside HASH-SCANNER::TST failed.
+&gt&gt 1 (continue) Retry assertion.
+&gt&gt 2 (abort) Return to level 0.
+&gt&gt 3 Return to top loop level 0.
+&gt&gt 
+&gt&gt Type :b for backtrace or :c &lt;option number&gt to proceed.
+&gt&gt Type :bug-form "&lt;subject&gt" for a bug report template or :? for other options.
+&gt&gt 
+&gt&gt - DM
+&gt&gt 
+&gt 
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Curious error...</h1>
+                 <pre>… I tracked down that I had been using a defvar named X in earlier parts of the Lisp session. When I rename the local to something never before seen, like xzyyz instead of x, then the local binding version works as expected. That seems like a bug to me…
+
+- DM
+
+
+&gt On Oct 4, 2017, at 22:22, David McClain &lt;dbm@refined-audiometrics.com&gt wrote:
+&gt 
+&gt … never mind that I might be doing something complicated… This one fails too!
+&gt 
+&gt (defun tst ()
+&gt  (let (x
+&gt        (sem (mp:make-semaphore :count 0)))
+&gt    (mp:funcall-async (lambda ()
+&gt                        (unwind-protect
+&gt                            (setf x 15)
+&gt                          (mp:semaphore-release sem))))
+&gt    (mp:semaphore-acquire sem :count 1)
+&gt    (assert x)
+&gt    x))
+&gt 
+&gt (tst) =&gt
+&gt 
+&gt Error: The assertion X inside HASH-SCANNER::TST failed.
+&gt  1 (continue) Retry assertion.
+&gt  2 (abort) Return to level 0.
+&gt  3 Return to top loop level 0.
+&gt 
+&gt Type :b for backtrace or :c &lt;option number&gt to proceed.
+&gt Type :bug-form "&lt;subject&gt" for a bug report template or :? for other options.
+&gt 
+&gt - DM
+&gt 
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Curious error...</h1><html><head><meta http-equiv="Content-Type" content="text/html charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class=""><br class=""><div class=""><div style="color: rgb(0, 0, 0); letter-spacing: normal; orphans: auto; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; widows: auto; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class=""><div style="color: rgb(0, 0, 0); letter-spacing: normal; orphans: auto; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; widows: auto; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class=""><br class=""></div></div>
+
+</div>
+<br class=""><div><blockquote type="cite" class=""><div class="">On 5 Oct 2017, at 07:33, David McClain &lt;<a href="mailto:dbm@refined-audiometrics.com" class="">dbm@refined-audiometrics.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><div class="">uh oh… I think I see what is going on here… Special Bindings !! Yikes! You really gotta watch out for unexpected side effects when global special bindings are around… It still seems like a bug that the local rebinding is ignored by another thread. Eh?</div></div></blockquote><br class=""></div><div>This is why all the global special variables must be named with stars! *X* not X.</div><div><br class=""></div><div><br class=""></div><div>--&nbsp;<br class="">__Pascal J. Bourguignon__<br class=""></div></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Curious error...</h1><html><head><meta http-equiv="Content-Type" content="text/html charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">Surely you jest… I always thought that was just an earmuff convention, not a requirement!<div class=""><br class=""></div><div class="">This simply cannot be correct….</div><div class=""><br class=""></div><div class=""><div class="">(defun tst ()</div><div class="">&nbsp; (let ((xxx 15))</div><div class="">&nbsp; &nbsp; (mp:funcall-async #'(lambda ()</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (print (list xxx))))</div><div class="">&nbsp; &nbsp; ))</div></div><div class=""><br class=""></div><div class="">(tst) -&gt; (15)</div><div class=""><br class=""></div><div class="">(defvar xxx 32)</div><div class=""><br class=""></div><div class="">(tst) -&gt; 15</div><div class=""><br class=""></div><div class="">Now recompile the tst function and try again…</div><div class=""><br class=""></div><div class="">(tst) -&gt; (32) &nbsp;!!?</div><div class=""><br class=""></div><div class="">(unintern ‘xxx)</div><div class=""><br class=""></div><div class="">now recompile again</div><div class=""><br class=""></div><div class="">(tst) -&gt; (15)</div><div class=""><br class=""></div><div class="">(defvar xxx 32)</div><div class=""><br class=""></div><div class="">(tst) -&gt; 15</div><div class=""><br class=""></div><div class="">recompile…</div><div class=""><br class=""></div><div class="">(tst) -&gt; (32)</div><div class=""><br class=""></div><div class=""><br class=""></div><div class=""><br class=""></div><div class=""><br class=""></div><div class=""><br class=""></div><div class=""><br class=""></div><div class=""><br class=""></div><div class=""><br class=""></div><div class=""><br class=""><div><blockquote type="cite" class=""><div class="">On Oct 4, 2017, at 23:54, Pascal Bourguignon &lt;<a href="mailto:pjb@informatimago.com" class="">pjb@informatimago.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><meta http-equiv="Content-Type" content="text/html charset=utf-8" class=""><div style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class=""><br class=""><div class=""><div style="letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class=""><div style="letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class=""><br class=""></div></div>
+
+</div>
+<br class=""><div class=""><blockquote type="cite" class=""><div class="">On 5 Oct 2017, at 07:33, David McClain &lt;<a href="mailto:dbm@refined-audiometrics.com" class="">dbm@refined-audiometrics.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><div class="">uh oh… I think I see what is going on here… Special Bindings !! Yikes! You really gotta watch out for unexpected side effects when global special bindings are around… It still seems like a bug that the local rebinding is ignored by another thread. Eh?</div></div></blockquote><br class=""></div><div class="">This is why all the global special variables must be named with stars! *X* not X.</div><div class=""><br class=""></div><div class=""><br class=""></div><div class="">--&nbsp;<br class="">__Pascal J. Bourguignon__<br class=""></div></div></div></blockquote></div><br class=""></div></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Curious error...</h1><html><head><meta http-equiv="Content-Type" content="text/html charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">… so what happened to our closure?&nbsp;<div class=""><br class=""></div><div class="">If you unintentionally use a local binding that happens to be a synonym of some already defined global symbol, then you are in for a world of hurt. And if you have correct running code and then later selectively recompile sections of your code after having made some additional unrelated declarations later on in your session then your code will stop working with bizarre and unexpected behaviors….<div class=""><br class=""></div><div class="">Surely, this cannot be correct… Why is the compiler refusing to use the closure lookup, and resorting to the nearest global declaration in lieu of all local rebindings?</div><div class=""><br class=""></div><div class="">- DM</div><div class=""><br class=""></div><div class=""><br class=""><div><blockquote type="cite" class=""><div class="">On Oct 4, 2017, at 23:59, David McClain &lt;<a href="mailto:dbm@refined-audiometrics.com" class="">dbm@refined-audiometrics.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><meta http-equiv="Content-Type" content="text/html charset=utf-8" class=""><div style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">Surely you jest… I always thought that was just an earmuff convention, not a requirement!<div class=""><br class=""></div><div class="">This simply cannot be correct….</div><div class=""><br class=""></div><div class=""><div class="">(defun tst ()</div><div class="">&nbsp; (let ((xxx 15))</div><div class="">&nbsp; &nbsp; (mp:funcall-async #'(lambda ()</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (print (list xxx))))</div><div class="">&nbsp; &nbsp; ))</div></div><div class=""><br class=""></div><div class="">(tst) -&gt; (15)</div><div class=""><br class=""></div><div class="">(defvar xxx 32)</div><div class=""><br class=""></div><div class="">(tst) -&gt; 15</div><div class=""><br class=""></div><div class="">Now recompile the tst function and try again…</div><div class=""><br class=""></div><div class="">(tst) -&gt; (32) &nbsp;!!?</div><div class=""><br class=""></div><div class="">(unintern ‘xxx)</div><div class=""><br class=""></div><div class="">now recompile again</div><div class=""><br class=""></div><div class="">(tst) -&gt; (15)</div><div class=""><br class=""></div><div class="">(defvar xxx 32)</div><div class=""><br class=""></div><div class="">(tst) -&gt; 15</div><div class=""><br class=""></div><div class="">recompile…</div><div class=""><br class=""></div><div class="">(tst) -&gt; (32)</div><div class=""><br class=""></div><div class=""><br class=""></div><div class=""><br class=""></div><div class=""><br class=""></div><div class=""><br class=""></div><div class=""><br class=""></div><div class=""><br class=""></div><div class=""><br class=""></div><div class=""><br class=""><div class=""><blockquote type="cite" class=""><div class="">On Oct 4, 2017, at 23:54, Pascal Bourguignon &lt;<a href="mailto:pjb@informatimago.com" class="">pjb@informatimago.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><meta http-equiv="Content-Type" content="text/html charset=utf-8" class=""><div style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class=""><br class=""><div class=""><div style="letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class=""><div style="letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class=""><br class=""></div></div>
+
+</div>
+<br class=""><div class=""><blockquote type="cite" class=""><div class="">On 5 Oct 2017, at 07:33, David McClain &lt;<a href="mailto:dbm@refined-audiometrics.com" class="">dbm@refined-audiometrics.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><div class="">uh oh… I think I see what is going on here… Special Bindings !! Yikes! You really gotta watch out for unexpected side effects when global special bindings are around… It still seems like a bug that the local rebinding is ignored by another thread. Eh?</div></div></blockquote><br class=""></div><div class="">This is why all the global special variables must be named with stars! *X* not X.</div><div class=""><br class=""></div><div class=""><br class=""></div><div class="">--&nbsp;<br class="">__Pascal J. Bourguignon__<br class=""></div></div></div></blockquote></div><br class=""></div></div></div></blockquote></div><br class=""></div></div></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Curious error...</h1><html><head><meta http-equiv="Content-Type" content="text/html charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">I am simply stunned by this discovery… I have been using Common Lisp for nearly 30 years, and I never realized this peculiar behavior. The Lisp Hyperspec has many examples of local rebindings of globally declared bindings, encouraging this by example.<div class=""><br class=""></div><div class="">Pascal is correct, at least as far as LW goes. Is this really the specified behavior of Common Lisp? Have I been spoiled by having used Scheme, OCaml, SML? If you follow Pascal’s advise then you will minimize problems along the way. But I am astonished that this is the accepted behavior for Common Lisp.</div><div class=""><br class=""></div><div class="">- DM</div><div class=""><br class=""></div><div class=""><br class=""><div><blockquote type="cite" class=""><div class="">On Oct 5, 2017, at 00:04, David McClain &lt;<a href="mailto:dbm@refined-audiometrics.com" class="">dbm@refined-audiometrics.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><meta http-equiv="Content-Type" content="text/html charset=utf-8" class=""><div style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">… so what happened to our closure?&nbsp;<div class=""><br class=""></div><div class="">If you unintentionally use a local binding that happens to be a synonym of some already defined global symbol, then you are in for a world of hurt. And if you have correct running code and then later selectively recompile sections of your code after having made some additional unrelated declarations later on in your session then your code will stop working with bizarre and unexpected behaviors….<div class=""><br class=""></div><div class="">Surely, this cannot be correct… Why is the compiler refusing to use the closure lookup, and resorting to the nearest global declaration in lieu of all local rebindings?</div><div class=""><br class=""></div><div class="">- DM</div><div class=""><br class=""></div><div class=""><br class=""><div class=""><blockquote type="cite" class=""><div class="">On Oct 4, 2017, at 23:59, David McClain &lt;<a href="mailto:dbm@refined-audiometrics.com" class="">dbm@refined-audiometrics.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><meta http-equiv="Content-Type" content="text/html charset=utf-8" class=""><div style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">Surely you jest… I always thought that was just an earmuff convention, not a requirement!<div class=""><br class=""></div><div class="">This simply cannot be correct….</div><div class=""><br class=""></div><div class=""><div class="">(defun tst ()</div><div class="">&nbsp; (let ((xxx 15))</div><div class="">&nbsp; &nbsp; (mp:funcall-async #'(lambda ()</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (print (list xxx))))</div><div class="">&nbsp; &nbsp; ))</div></div><div class=""><br class=""></div><div class="">(tst) -&gt; (15)</div><div class=""><br class=""></div><div class="">(defvar xxx 32)</div><div class=""><br class=""></div><div class="">(tst) -&gt; 15</div><div class=""><br class=""></div><div class="">Now recompile the tst function and try again…</div><div class=""><br class=""></div><div class="">(tst) -&gt; (32) &nbsp;!!?</div><div class=""><br class=""></div><div class="">(unintern ‘xxx)</div><div class=""><br class=""></div><div class="">now recompile again</div><div class=""><br class=""></div><div class="">(tst) -&gt; (15)</div><div class=""><br class=""></div><div class="">(defvar xxx 32)</div><div class=""><br class=""></div><div class="">(tst) -&gt; 15</div><div class=""><br class=""></div><div class="">recompile…</div><div class=""><br class=""></div><div class="">(tst) -&gt; (32)</div><div class=""><br class=""></div><div class=""><br class=""></div><div class=""><br class=""></div><div class=""><br class=""></div><div class=""><br class=""></div><div class=""><br class=""></div><div class=""><br class=""></div><div class=""><br class=""></div><div class=""><br class=""><div class=""><blockquote type="cite" class=""><div class="">On Oct 4, 2017, at 23:54, Pascal Bourguignon &lt;<a href="mailto:pjb@informatimago.com" class="">pjb@informatimago.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><meta http-equiv="Content-Type" content="text/html charset=utf-8" class=""><div style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class=""><br class=""><div class=""><div style="letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class=""><div style="letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class=""><br class=""></div></div>
+
+</div>
+<br class=""><div class=""><blockquote type="cite" class=""><div class="">On 5 Oct 2017, at 07:33, David McClain &lt;<a href="mailto:dbm@refined-audiometrics.com" class="">dbm@refined-audiometrics.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><div class="">uh oh… I think I see what is going on here… Special Bindings !! Yikes! You really gotta watch out for unexpected side effects when global special bindings are around… It still seems like a bug that the local rebinding is ignored by another thread. Eh?</div></div></blockquote><br class=""></div><div class="">This is why all the global special variables must be named with stars! *X* not X.</div><div class=""><br class=""></div><div class=""><br class=""></div><div class="">--&nbsp;<br class="">__Pascal J. Bourguignon__<br class=""></div></div></div></blockquote></div><br class=""></div></div></div></blockquote></div><br class=""></div></div></div></div></blockquote></div><br class=""></div></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Curious error...</h1><html><head><meta http-equiv="Content-Type" content="text/html charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class=""><br class=""><div><blockquote type="cite" class=""><div class="">On 5 Oct 2017, at 08:59, David McClain &lt;<a href="mailto:dbm@refined-audiometrics.com" class="">dbm@refined-audiometrics.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><meta http-equiv="Content-Type" content="text/html charset=utf-8" class=""><div style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">Surely you jest… I always thought that was just an earmuff convention, not a requirement!<div class=""><br class=""></div><div class="">This simply cannot be correct….</div><div class=""><br class=""></div><div class=""><div class="">(defun tst ()</div><div class="">&nbsp; (let ((xxx 15))</div><div class="">&nbsp; &nbsp; (mp:funcall-async #'(lambda ()</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (print (list xxx))))</div><div class="">&nbsp; &nbsp; ))</div></div><div class=""><br class=""></div><div class="">(tst) -&gt; (15)</div><div class=""><br class=""></div><div class="">(defvar xxx 32)</div><div class=""><br class=""></div><div class="">(tst) -&gt; 15</div><div class=""><br class=""></div><div class="">Now recompile the tst function and try again…</div><div class=""><br class=""></div><div class="">(tst) -&gt; (32) &nbsp;!!?</div><div class=""><br class=""></div><div class="">(unintern ‘xxx)</div><div class=""><br class=""></div><div class="">now recompile again</div><div class=""><br class=""></div><div class="">(tst) -&gt; (15)</div><div class=""><br class=""></div><div class="">(defvar xxx 32)</div><div class=""><br class=""></div><div class="">(tst) -&gt; 15</div><div class=""><br class=""></div><div class="">recompile…</div><div class=""><br class=""></div><div class="">(tst) -&gt; (32)</div></div></div></blockquote><div><br class=""></div><div><br class=""></div><div class="" style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;"><div class=""><div class=""><div class=""><div class="" style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;"><div class="">This is why all the global special variables must be named with stars! *X* not X.</div></div></div></div></div></div><div><br class=""></div><div><div><font face="Menlo" class=""><br class=""></font></div><div><font face="Menlo" class="">(defun tst ()</font></div><div><font face="Menlo" class="">&nbsp; (let ((xxx 15))</font></div><div><font face="Menlo" class="">&nbsp; &nbsp; (bt:join-thread (bt:make-thread (lambda ()</font></div><div><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (declare (special *xxx*))</font></div><div><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (print (list xxx (when (boundp '*xxx*) *xxx*))))))))</font></div><div><font face="Menlo" class=""><br class=""></font></div><div><font face="Menlo" class="">(tst) ; --&gt; (15 nil)</font></div><div><font face="Menlo" class=""><br class=""></font></div><div><font face="Menlo" class="">(defvar *xxx* 32)</font></div><div><font face="Menlo" class=""><br class=""></font></div><div><font face="Menlo" class="">(tst) ; --&gt; (15 32)</font></div><div><font face="Menlo" class=""><br class=""></font></div><div><font face="Menlo" class="">;; Now recompile the tst function and try again…</font></div><div><font face="Menlo" class="">(compile 'tst)</font></div><div><font face="Menlo" class=""><br class=""></font></div><div><font face="Menlo" class="">(tst) ; --&gt; (15 32)</font></div><div><font face="Menlo" class=""><br class=""></font></div><div><font face="Menlo" class="">(unintern '*xxx*)</font></div><div><font face="Menlo" class=""><br class=""></font></div><div><font face="Menlo" class="">;; now recompile again</font></div><div><font face="Menlo" class="">(compile 'tst)</font></div><div><font face="Menlo" class=""><br class=""></font></div><div><font face="Menlo" class="">(tst) ; --&gt; (15 32) &nbsp;; recompiling doesn't re-read the source.</font></div><div><font face="Menlo" class=""><br class=""></font></div><div><font face="Menlo" class="">(defun tst ()</font></div><div><font face="Menlo" class="">&nbsp; (let ((xxx 15))</font></div><div><font face="Menlo" class="">&nbsp; &nbsp; (bt:join-thread (bt:make-thread (lambda ()</font></div><div><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (declare (special *xxx*))</font></div><div><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (print (list xxx (when (boundp '*xxx*) *xxx*))))))))</font></div><div><font face="Menlo" class="">(tst) ; --&gt; (15 nil)</font></div><div><font face="Menlo" class=""><br class=""></font></div><div><font face="Menlo" class="">(defvar *xxx* 32)</font></div><div><font face="Menlo" class=""><br class=""></font></div><div><font face="Menlo" class="">(tst) ; --&gt; (15 32)</font></div><div><font face="Menlo" class=""><br class=""></font></div><div><font face="Menlo" class="">;; recompile…</font></div><div><font face="Menlo" class="">(compile 'tst)</font></div><div><font face="Menlo" class=""><br class=""></font></div><div><font face="Menlo" class="">(tst) ; --&gt; (15 32)</font></div><div class=""><font face="Menlo" class=""><br class=""></font></div><div class=""><br class=""></div></div><div><br class=""></div><blockquote type="cite" class=""><div class=""><div style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class=""><div class=""><br class=""><div class=""><blockquote type="cite" class=""><div class="">On Oct 4, 2017, at 23:54, Pascal Bourguignon &lt;<a href="mailto:pjb@informatimago.com" class="">pjb@informatimago.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><meta http-equiv="Content-Type" content="text/html charset=utf-8" class=""><div style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class=""><br class=""><div class=""><div style="letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class=""><div style="letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class=""><br class=""></div></div>
+
+</div>
+<br class=""><div class=""><blockquote type="cite" class=""><div class="">On 5 Oct 2017, at 07:33, David McClain &lt;<a href="mailto:dbm@refined-audiometrics.com" class="">dbm@refined-audiometrics.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><div class="">uh oh… I think I see what is going on here… Special Bindings !! Yikes! You really gotta watch out for unexpected side effects when global special bindings are around… It still seems like a bug that the local rebinding is ignored by another thread. Eh?</div></div></blockquote><br class=""></div><div class="">This is why all the global special variables must be named with stars! *X* not X.</div><div class=""><br class=""></div><div class=""><br class=""></div><div class="">--&nbsp;<br class="">__Pascal J. Bourguignon__<br class=""></div></div></div></blockquote></div><br class=""></div></div></div></blockquote></div><br class=""></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Curious error...</h1>
+                 <pre>There must have been some early historical confusion about just how lexical binding should work. Scheme came on stage and Common Lisp tried to emulate its binding behavior. But I see that under the hood, the early understanding of lexical binding is not the same as we commonly assume today. Even lowly C use the modern understanding of lexical binding - although it cannot understand special bindings by default.
+
+Having written numerous compilers for myself, always with the modern understanding of local lexical binding taking precedence over anything in the global environment, I have led myself to believe that all lexical binding languages work the same way. Apparently not.
+
+It is very interesting, to me, that we have managed to do so much with Common Lisp, and yet its bones are so primitive. I had always taken the earmuff convention as just a convention. And I’m sure I’m not alone. But Pascal really does point out an important aspect of Common Lisp. Beware! It is required.
+
+- DM
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Curious error...</h1><html><head><meta http-equiv="Content-Type" content="text/html charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">.. as an aside… when I recompiled the tst function, I did it in the editor, forcing it to reread the source code.&nbsp;<div class=""><br class=""></div><div class="">I’m still absorbing your comments about recompiling not rereading the source when you use (compile ‘tst).<div class=""><br class=""><div><blockquote type="cite" class=""><div class="">On Oct 5, 2017, at 00:22, Pascal Bourguignon &lt;<a href="mailto:pjb@informatimago.com" class="">pjb@informatimago.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><blockquote type="cite" class="" style="font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; orphans: auto; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; widows: auto; word-spacing: 0px; -webkit-text-size-adjust: auto; -webkit-text-stroke-width: 0px;"><div class=""><br class="Apple-interchange-newline">On 5 Oct 2017, at 08:59, David McClain &lt;<a href="mailto:dbm@refined-audiometrics.com" class="">dbm@refined-audiometrics.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><div class="" style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;">Surely you jest… I always thought that was just an earmuff convention, not a requirement!<div class=""><br class=""></div><div class="">This simply cannot be correct….</div><div class=""><br class=""></div><div class=""><div class="">(defun tst ()</div><div class="">&nbsp; (let ((xxx 15))</div><div class="">&nbsp; &nbsp; (mp:funcall-async #'(lambda ()</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (print (list xxx))))</div><div class="">&nbsp; &nbsp; ))</div></div><div class=""><br class=""></div><div class="">(tst) -&gt; (15)</div><div class=""><br class=""></div><div class="">(defvar xxx 32)</div><div class=""><br class=""></div><div class="">(tst) -&gt; 15</div><div class=""><br class=""></div><div class="">Now recompile the tst function and try again…</div><div class=""><br class=""></div><div class="">(tst) -&gt; (32) &nbsp;!!?</div><div class=""><br class=""></div><div class="">(unintern ‘xxx)</div><div class=""><br class=""></div><div class="">now recompile again</div><div class=""><br class=""></div><div class="">(tst) -&gt; (15)</div><div class=""><br class=""></div><div class="">(defvar xxx 32)</div><div class=""><br class=""></div><div class="">(tst) -&gt; 15</div><div class=""><br class=""></div><div class="">recompile…</div><div class=""><br class=""></div><div class="">(tst) -&gt; (32)</div></div></div></blockquote><div style="font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px;" class=""><br class=""></div><div style="font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px;" class=""><br class=""></div><div class="" style="font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;"><div class=""><div class=""><div class=""><div class="" style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;"><div class="">This is why all the global special variables must be named with stars! *X* not X.</div></div></div></div></div></div><div style="font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px;" class=""><br class=""></div><div style="font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px;" class=""><div class=""><font face="Menlo" class=""><br class=""></font></div><div class=""><font face="Menlo" class="">(defun tst ()</font></div><div class=""><font face="Menlo" class="">&nbsp; (let ((xxx 15))</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; (bt:join-thread (bt:make-thread (lambda ()</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (declare (special *xxx*))</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (print (list xxx (when (boundp '*xxx*) *xxx*))))))))</font></div><div class=""><font face="Menlo" class=""><br class=""></font></div><div class=""><font face="Menlo" class="">(tst) ; --&gt; (15 nil)</font></div><div class=""><font face="Menlo" class=""><br class=""></font></div><div class=""><font face="Menlo" class="">(defvar *xxx* 32)</font></div><div class=""><font face="Menlo" class=""><br class=""></font></div><div class=""><font face="Menlo" class="">(tst) ; --&gt; (15 32)</font></div><div class=""><font face="Menlo" class=""><br class=""></font></div><div class=""><font face="Menlo" class="">;; Now recompile the tst function and try again…</font></div><div class=""><font face="Menlo" class="">(compile 'tst)</font></div><div class=""><font face="Menlo" class=""><br class=""></font></div><div class=""><font face="Menlo" class="">(tst) ; --&gt; (15 32)</font></div><div class=""><font face="Menlo" class=""><br class=""></font></div><div class=""><font face="Menlo" class="">(unintern '*xxx*)</font></div><div class=""><font face="Menlo" class=""><br class=""></font></div><div class=""><font face="Menlo" class="">;; now recompile again</font></div><div class=""><font face="Menlo" class="">(compile 'tst)</font></div><div class=""><font face="Menlo" class=""><br class=""></font></div><div class=""><font face="Menlo" class="">(tst) ; --&gt; (15 32) &nbsp;; recompiling doesn't re-read the source.</font></div><div class=""><font face="Menlo" class=""><br class=""></font></div><div class=""><font face="Menlo" class="">(defun tst ()</font></div><div class=""><font face="Menlo" class="">&nbsp; (let ((xxx 15))</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; (bt:join-thread (bt:make-thread (lambda ()</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (declare (special *xxx*))</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (print (list xxx (when (boundp '*xxx*) *xxx*))))))))</font></div><div class=""><font face="Menlo" class="">(tst) ; --&gt; (15 nil)</font></div><div class=""><font face="Menlo" class=""><br class=""></font></div><div class=""><font face="Menlo" class="">(defvar *xxx* 32)</font></div><div class=""><font face="Menlo" class=""><br class=""></font></div><div class=""><font face="Menlo" class="">(tst) ; --&gt; (15 32)</font></div><div class=""><font face="Menlo" class=""><br class=""></font></div><div class=""><font face="Menlo" class="">;; recompile…</font></div><div class=""><font face="Menlo" class="">(compile 'tst)</font></div><div class=""><font face="Menlo" class=""><br class=""></font></div><div class=""><font face="Menlo" class="">(tst) ; --&gt; (15 32)</font></div><div class=""><font face="Menlo" class=""><br class=""></font></div><div class=""><br class=""></div></div><div style="font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px;" class=""><br class=""></div><blockquote type="cite" class="" style="font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; orphans: auto; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; widows: auto; word-spacing: 0px; -webkit-text-size-adjust: auto; -webkit-text-stroke-width: 0px;"><div class=""><div class="" style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;"><div class=""><br class=""><div class=""><blockquote type="cite" class=""><div class="">On Oct 4, 2017, at 23:54, Pascal Bourguignon &lt;<a href="mailto:pjb@informatimago.com" class="">pjb@informatimago.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><div class="" style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;"><br class=""><div class=""><div class="" style="letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;"><div class="" style="letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;"><br class=""></div></div></div><br class=""><div class=""><blockquote type="cite" class=""><div class="">On 5 Oct 2017, at 07:33, David McClain &lt;<a href="mailto:dbm@refined-audiometrics.com" class="">dbm@refined-audiometrics.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><div class="">uh oh… I think I see what is going on here… Special Bindings !! Yikes! You really gotta watch out for unexpected side effects when global special bindings are around… It still seems like a bug that the local rebinding is ignored by another thread. Eh?</div></div></blockquote><br class=""></div><div class="">This is why all the global special variables must be named with stars! *X* not X.</div><div class=""><br class=""></div><div class=""><br class=""></div><div class="">--&nbsp;<br class="">__Pascal J. Bourguignon__</div></div></div></blockquote></div></div></div></div></blockquote></div></blockquote></div><br class=""></div></div></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Curious error...</h1>
+                 <pre>I always try to avoid using any global vars, when possible. Some people write Lisp like Fortran, but not me.
+
+However, when diddling around in the listener, I frequently do a (setf x (some-computation-result …)) just to hang on to some long winded calculation for inspection and further diddling. This creates an (unintentional) special binding.
+
+I guess I don’t know any way to create global non-special bindings, except to enclose the entire body of code inside some let-bindings. And there is no (declare not-special) available. Hence the leading of thinking to conclude that all local bindings always override any global bindings. But simply not so. A Common Lisp closure is not the same beast as an OCaml closure.
+
+- DM
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Curious error...</h1><html><head><meta http-equiv="Content-Type" content="text/html charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">Hmmm… not sure we are talking about the same thing. Chapter 2.9 talks about COMPILE and COMPILE-FILE, not about bindings.<div class=""><br class=""></div><div class="">The specific problem I am addressing is the failure in multithreaded code to respect the local bindings furnished by a closure. Local bindings do always seem to override global bindings, even when they have the same name, as long as you stay in the resident thread. But constructing a closure with local bindings is not respected by foreign threads executing the code.</div><div class=""><br class=""></div><div class="">So, sans multithreading, Common Lisp would behave the same way as Scheme, SML, OCaml, and any number of other lexically bound languages. The problems arise when asking another thread to perform your closure.</div><div class=""><br class=""></div><div class="">- DM</div><div class=""><br class=""></div><div class=""><br class=""></div><div class=""><br class=""></div><div class=""><br class=""></div><div class=""><br class=""><div><blockquote type="cite" class=""><div class="">On Oct 5, 2017, at 00:42, Dimitri Georganas &lt;<a href="mailto:dg@biodys.com" class="">dg@biodys.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><div dir="ltr" class="">Lisp newbie here, reading On Lisp. Chapter 2.9 seems to explain this behaviour.&nbsp;<div class=""><br class=""></div></div><div class="gmail_extra"><br class=""><div class="gmail_quote">On Thu, Oct 5, 2017 at 8:59 AM, David McClain <span dir="ltr" class="">&lt;<a href="mailto:dbm@refined-audiometrics.com" target="_blank" class="">dbm@refined-audiometrics.com</a>&gt;</span> wrote:<br class=""><blockquote class="gmail_quote" style="margin:0 0 0 ..8ex;border-left:1px #ccc solid;padding-left:1ex"><div style="word-wrap:break-word" class="">Surely you jest… I always thought that was just an earmuff convention, not a requirement!<div class=""><br class=""></div><div class="">This simply cannot be correct….</div><div class=""><br class=""></div><div class=""><div class="">(defun tst ()</div><div class="">&nbsp; (let ((xxx 15))</div><div class="">&nbsp; &nbsp; (mp:funcall-async #'(lambda ()</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (print (list xxx))))</div><div class="">&nbsp; &nbsp; ))</div></div><div class=""><br class=""></div><div class="">(tst) -&gt; (15)</div><div class=""><br class=""></div><div class="">(defvar xxx 32)</div><div class=""><br class=""></div><div class="">(tst) -&gt; 15</div><div class=""><br class=""></div><div class="">Now recompile the tst function and try again…</div><div class=""><br class=""></div><div class="">(tst) -&gt; (32) &nbsp;!!?</div><div class=""><br class=""></div><div class="">(unintern ‘xxx)</div><div class=""><br class=""></div><div class="">now recompile again</div><div class=""><br class=""></div><div class="">(tst) -&gt; (15)</div><div class=""><br class=""></div><div class="">(defvar xxx 32)</div><div class=""><br class=""></div><div class="">(tst) -&gt; 15</div><div class=""><br class=""></div><div class="">recompile…</div><div class=""><br class=""></div><div class="">(tst) -&gt; (32)</div><div class=""><br class=""></div><div class=""><br class=""></div><div class=""><br class=""></div><div class=""><br class=""></div><div class=""><br class=""></div><div class=""><br class=""></div><div class=""><br class=""></div><div class=""><br class=""></div><div class=""><br class=""><div class=""><blockquote type="cite" class=""><div class="">On Oct 4, 2017, at 23:54, Pascal Bourguignon &lt;<a href="mailto:pjb@informatimago.com" target="_blank" class="">pjb@informatimago.com</a>&gt; wrote:</div><br class="m_3563812030685477050Apple-interchange-newline"><div class=""><div style="word-wrap:break-word" class=""><br class=""><div class=""><div style="letter-spacing:normal;text-align:start;text-indent:0px;text-transform:none;white-space:normal;word-spacing:0px;word-wrap:break-word" class=""><div style="letter-spacing:normal;text-align:start;text-indent:0px;text-transform:none;white-space:normal;word-spacing:0px;word-wrap:break-word" class=""><br class=""></div></div>
+
+</div>
+<br class=""><div class=""><blockquote type="cite" class=""><div class="">On 5 Oct 2017, at 07:33, David McClain &lt;<a href="mailto:dbm@refined-audiometrics.com" target="_blank" class="">dbm@refined-audiometrics.com</a>&gt; wrote:</div><br class="m_3563812030685477050Apple-interchange-newline"><div class=""><div class="">uh oh… I think I see what is going on here… Special Bindings !! Yikes! You really gotta watch out for unexpected side effects when global special bindings are around… It still seems like a bug that the local rebinding is ignored by another thread. Eh?</div></div></blockquote><br class=""></div><div class="">This is why all the global special variables must be named with stars! *X* not X.</div><div class=""><br class=""></div><span class="HOEnZb"><font color="#888888" class=""><div class=""><br class=""></div><div class="">--&nbsp;<br class="">__Pascal J. Bourguignon__<br class=""></div></font></span></div></div></blockquote></div><br class=""></div></div></blockquote></div><br class=""></div>
+</div></blockquote></div><br class=""></div></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Curious error...</h1>
+                 <pre>The problem seems to entwined with the nature of special bindings. I had always thought that compiled code really compiled in lexical closure accesses when nearest lexical bindings are local. If you really want special binding behavior you either have to access a global special binding, or else use a (declare (special xx)) in the closure.
+
+But there must be a runtime variation to allow for the possibility of special binding behavior. And that runtime switches back to some default setup when another thread is spawned on your closure. Apparently the runtime switching happens just ahead of actually accessing a closure local binding.
+
+Given the need for (declare (special ..)) I am surprised that the compiler doesn’t just short circuit the non-special binding accesses and references.
+
+- DM
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Curious error...</h1>
+                 <pre>
+* David McClain Wrote on Thu, 5 Oct 2017 00:30:22 -0700:
+
+&gt There must have been some early historical confusion about just how
+&gt lexical binding should work. Scheme came on stage and Common Lisp
+&gt tried to emulate its binding behavior. But I see that under the hood,
+&gt the early understanding of lexical binding is not the same as we
+&gt commonly assume today. Even lowly C use the modern understanding of
+&gt lexical binding - although it cannot understand special bindings by
+&gt default.
+&gt
+&gt Having written numerous compilers for myself, always with the modern
+&gt understanding of local lexical binding taking precedence over anything
+&gt in the global environment, I have led myself to believe that all
+&gt lexical binding languages work the same way. Apparently not.
+&gt
+&gt It is very interesting, to me, that we have managed to do so much with
+&gt Common Lisp, and yet its bones are so primitive. I had always taken
+&gt the earmuff convention as just a convention. And I’m sure I’m not
+&gt alone. But Pascal really does point out an important aspect of Common
+&gt Lisp. Beware! It is required.
+
+Note Lispworks supports the earmuff convention, even warning you when a
+earmuffed variable is bound lexically
+
+* (compile nil (lambda () (let ((*foo* 10)) (expt *foo* 2))))
+;;;*** Warning in 12: *FOO* bound lexically.
+
+
+Lispworks also does not autodeclare variables as special when you use
+setq, say in the REPL, (I believe you will disagree with my position
+that it should).  Had you used (setq xxx) instead of (defvar xxx) in the
+repl, then xxx would not have been globally special in lispworks. (My
+position is that it should).
+
+When you explicitly use a defvar or defparameter, the consequences are
+well defined in the spec, and the game is over, it can never become a
+lexical again. CL behaviour has been documented and consistent and
+useful.   The examples in the spec however are buggy.
+
+[I believed this trap you fell into is one of the first things that one
+ learns when encountering CL, and after falling once, then one learns to
+ use the behaviour to ones advantage.  I also notice an early
+ ideological grounding in Scheme tends to close the mind to exploiting
+ CL's behaviour in one's code.]
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Curious error...</h1>
+                 <pre>I guess I must now operate in a new aspect domain, cross-cutting my former view of Lisp. I think I know what you mean about Scheme biasing the use of the language, and I have intentionally avoided dynamic bindings except in a few rare instances. But that comes more from my early exposure to writing Pascal and C compilers, than any exposure to Scheme. (I actually began in earnest in Forth. So I have traveled far…)
+
+Now I must think about how I could use this more creatively than before.
+
+- DM
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Curious error...</h1><html><head><meta http-equiv="Content-Type" content="text/html charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class=""><br class=""><div class=""><div style="color: rgb(0, 0, 0); letter-spacing: normal; orphans: auto; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; widows: auto; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class=""><div style="color: rgb(0, 0, 0); letter-spacing: normal; orphans: auto; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; widows: auto; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class=""><br class=""></div></div>
+
+</div>
+<br class=""><div><blockquote type="cite" class=""><div class="">On 5 Oct 2017, at 09:33, David McClain &lt;<a href="mailto:dbm@refined-audiometrics.com" class="">dbm@refined-audiometrics.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><meta http-equiv="Content-Type" content="text/html charset=utf-8" class=""><div style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">.. as an aside… when I recompiled the tst function, I did it in the editor, forcing it to reread the source code.&nbsp;<div class=""><br class=""></div><div class="">I’m still absorbing your comments about recompiling not rereading the source when you use (compile ‘tst).</div></div></div></blockquote><br class=""></div><div><br class=""></div><div>The meaning is that what is declared SPECIAL is the symbol naming the variable.</div><div>DEFVAR and DEFPARAMETER mark the name of the variable SPECIAL globally.</div><div>You can also do the same with a DECLAIM or PROCLAIM form.</div><div>There is no way to remove the global declaration, that is the SPECIAL mark put on symbol.</div><div><br class=""></div><div>On the other hand, the local declaration SPECIAL is processed by the compiler (or interpreter), and doesn’t mark the symbol itself.</div><div><br class=""></div><div>So indeed COMPILE only re-process the source of the function. It doesn’t read it again, so the symbols are directly referenced, and the only transition possible here is from non-SPECIAL to SPECIAL.</div><div>UNINTERN has no effect there (it only makes it more difficult for external code to access to the symbols in the source form).</div><div><br class=""></div><div>On the other hand COMPILE-FILE will read a text file and intern all the symbols. So if you uninterned a symbol, you will get a newly interned symbol, which is different, and virgin, without a SPECIAL mark if you don’t declare it thus in the source.</div><div><br class=""></div><div><br class=""></div><div><br class=""></div><div>See also:</div><div><a href="https://groups.google.com/forum/#!msg/comp.lang.lisp/4VyopdWcFI4/1sDQU-3H8VgJ" class="">https://groups.google.com/forum/#!msg/comp.lang.lisp/4VyopdWcFI4/1sDQU-3H8VgJ</a></div><div><br class=""></div><div>--&nbsp;<br class="">__Pascal J. Bourguignon__<br class=""></div></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Curious error...</h1>
+                 <pre>
+
+&gt On 5 Oct 2017, at 09:41, David McClain &lt;dbm@refined-audiometrics.com&gt wrote:
+&gt 
+&gt I always try to avoid using any global vars, when possible. Some people write Lisp like Fortran, but not me.
+&gt 
+&gt However, when diddling around in the listener, I frequently do a (setf x (some-computation-result …)) just to hang on to some long winded calculation for inspection and further diddling. This creates an (unintentional) special binding.
+&gt 
+&gt I guess I don’t know any way to create global non-special bindings, except to enclose the entire body of code inside some let-bindings. And there is no (declare not-special) available. Hence the leading of thinking to conclude that all local bindings always override any global bindings. But simply not so. A Common Lisp closure is not the same beast as an OCaml closure.
+
+
+
+symbol-macros are global lexical, so you can use them to implement global lexical variables. There are libraries with such a defglobal or deflex macro.
+
+-- 
+__Pascal J. Bourguignon__
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Curious error...</h1><html><head><meta http-equiv="Content-Type" content="text/html charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class=""><br class="">
+<br class=""><div><blockquote type="cite" class=""><div class="">On 5 Oct 2017, at 09:49, David McClain &lt;<a href="mailto:dbm@refined-audiometrics.com" class="">dbm@refined-audiometrics.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><meta http-equiv="Content-Type" content="text/html charset=utf-8" class=""><div style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">Hmmm… not sure we are talking about the same thing. Chapter 2.9 talks about COMPILE and COMPILE-FILE, not about bindings.<div class=""><br class=""></div><div class="">The specific problem I am addressing is the failure in multithreaded code to respect the local bindings furnished by a closure. Local bindings do always seem to override global bindings, even when they have the same name, as long as you stay in the resident thread. But constructing a closure with local bindings is not respected by foreign threads executing the code.</div><div class=""><br class=""></div><div class="">So, sans multithreading, Common Lisp would behave the same way as Scheme, SML, OCaml, and any number of other lexically bound languages. The problems arise when asking another thread to perform your closure.</div></div></div></blockquote><br class=""></div><div><br class=""></div>The problem is unrelated to threads. It’s a problem of closure: you cannot enclose dynamic bindings, only lexical bindings can be enclosed in a closure.<div class=""><font face="Menlo" class=""><br class=""></font></div><div class=""><div class=""><font face="Menlo" class="">(defun test-local ()</font></div><div class=""><font face="Menlo" class="">&nbsp; (let ((x 42))</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; (declare (special x))</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; (let ((f &nbsp;(lambda () (when (boundp 'x) x))))</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; (values f (funcall f)))))</font></div><div class=""><font face="Menlo" class=""><br class=""></font></div><div class=""><font face="Menlo" class=""><br class=""></font></div><div class=""><font face="Menlo" class="">(defvar *x*)</font></div><div class=""><font face="Menlo" class="">(defun test-global ()</font></div><div class=""><font face="Menlo" class="">&nbsp; (let ((*x* 33))</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; (let ((f &nbsp;(lambda () (when (boundp '*x*) *x*))))</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; (values f (funcall f)))))</font></div><div class=""><font face="Menlo" class=""><br class=""></font></div><div class=""><font face="Menlo" class="">(multiple-value-bind (f v) (test-local)</font></div><div class=""><font face="Menlo" class="">&nbsp; (values (funcall f) v))</font></div><div class=""><font face="Menlo" class="">--&gt; nil</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; 42</font></div><div class=""><font face="Menlo" class=""><br class=""></font></div><div class=""><font face="Menlo" class="">(multiple-value-bind (f v) (test-global)</font></div><div class=""><font face="Menlo" class="">&nbsp; (values (funcall f) v))</font></div><div class=""><font face="Menlo" class="">--&gt; nil</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; 33</font></div><div class=""><br class=""></div><div class="">--&nbsp;<br class="">__Pascal J. Bourguignon__<br class=""><br class=""></div></div></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Curious error...</h1>
+                 <pre>Yes, after altering my vantage point, I can see that it isn’t a problem of closures. I can see that the compiler is searching the global environment for special bindings before committing to closure reference.
+
+By way of inspection of symbols, there seems no way to discern specialness. No flags mark these symbols as special, at least as reported in an inspector. So here is my helper:
+
+(defmacro test-special (sym)
+  (let ((gf (gensym)))
+    `(let ((,gf (let ((,sym :lexical))
+                  (lambda ()
+                    ,sym))))
+       (let ((,sym :dynamic))
+         (funcall ,gf)))))
+
+(test-special x) =&gt :lexical
+
+(defvar x 15)
+
+(test-special x) =&gt :dynamic
+
+This reminds me a bit of the variable capture problem in Scheme. Thankfully, with an earmuff convention it isn’t nearly as big a problem as Scheme has with variable capture.
+
+- DM
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Curious error...</h1><html><head><meta http-equiv="Content-Type" content="text/html; charset=us-ascii"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class="">In Lispworks, there's #'system:declared-special-p, which may be what you want:<div class=""><br class=""></div><div class=""><div class="">CL-USER 13 &gt; (system:declared-special-p '*read-eval*)</div><div class="">T</div><div class=""><br class=""></div><div><br class=""><blockquote type="cite" class=""><div class="">On 5 Oct 2017, at 12:22 , David McClain &lt;<a href="mailto:dbm@refined-audiometrics.com" class="">dbm@refined-audiometrics.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><span style="font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; float: none; display: inline !important;" class="">By way of inspection of symbols, there seems no way to discern specialness. No flags mark these symbols as special, at least as reported in an inspector. So here is my helper:</span></div></blockquote></div><br class=""></div></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Curious error...</h1><div dir="ltr"><div><div><div>Hi, <br></div>There is also LW&#39;s</div><div> <br>(hcl:variable-information &#39;*read-eval*)<br>:SPECIAL<br>NIL<br>NIL<br><br></div>Br<br></div>/Alexey<br></div><div class="gmail_extra"><br><div class="gmail_quote">On Thu, Oct 5, 2017 at 12:43 PM, Raymond Wiker <span dir="ltr">&lt;<a href="mailto:rwiker@gmail.com" target="_blank">rwiker@gmail.com</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div style="word-wrap:break-word;line-break:after-white-space">In Lispworks, there&#39;s #&#39;system:declared-special-p, which may be what you want:<div><br></div><div><div>CL-USER 13 &gt; (system:declared-special-p &#39;*read-eval*)</div><div>T</div><span class=""><div><br></div><div><br><blockquote type="cite"><div>On 5 Oct 2017, at 12:22 , David McClain &lt;<a href="mailto:dbm@refined-audiometrics.com" target="_blank">dbm@refined-audiometrics.com</a>&gt; wrote:</div><br class="m_1588130858560063105Apple-interchange-newline"><div><span style="font-family:Helvetica;font-size:12px;font-style:normal;font-variant-caps:normal;font-weight:normal;letter-spacing:normal;text-align:start;text-indent:0px;text-transform:none;white-space:normal;word-spacing:0px;float:none;display:inline!important">By way of inspection of symbols, there seems no way to discern specialness. No flags mark these symbols as special, at least as reported in an inspector. So here is my helper:</span></div></blockquote></div><br></span></div></div></blockquote></div><br></div>
+
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Curious error...</h1><html><head><meta http-equiv="Content-Type" content="text/html charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">Thanks for those additional hints and tools.&nbsp;<div class=""><br class=""></div><div class="">I guess the most alarming thing to me is that I have relied too long on thinking that I was performing intensional programming, where I thought that syntax dictates semantics. That simply isn’t true unless you abide strictly by the earmuff convention. To do otherwise invites the possibility of nondeterminism due to inadvertent name collisions at the REPL listener.<div class=""><br class=""></div><div class="">In a single thread, my ignorance was masked by making sometimes dynamic bindings locally, when I didn’t realize I was doing so. The code worked the way I expected within the lexical frame. However, any other functions that might have relied on the value of that global binding might have received a surprise, depending on when they looked.</div><div class=""><br class=""></div><div class="">The multithreaded environment finally opened my eyes, where each thread has its own dynamic binding environment. I gather that is because these dynamic bindings are held in stack frames, and threads each have their own stack.</div><div class=""><br class=""></div><div class="">The situation almost makes me want to define DLET and LLET macros so that I can return to intensional programming.</div><div class=""><br class=""></div><div class="">- DM</div><div class=""><br class=""><div><blockquote type="cite" class=""><div class="">On Oct 5, 2017, at 03:51, Alexey Veretennikov &lt;<a href="mailto:txm.fourier@gmail.com" class="">txm.fourier@gmail.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><div dir="ltr" class=""><div class=""><div class=""><div class="">Hi, <br class=""></div>There is also LW's</div><div class=""> <br class="">(hcl:variable-information '*read-eval*)<br class="">:SPECIAL<br class="">NIL<br class="">NIL<br class=""><br class=""></div>Br<br class=""></div>/Alexey<br class=""></div><div class="gmail_extra"><br class=""><div class="gmail_quote">On Thu, Oct 5, 2017 at 12:43 PM, Raymond Wiker <span dir="ltr" class="">&lt;<a href="mailto:rwiker@gmail.com" target="_blank" class="">rwiker@gmail.com</a>&gt;</span> wrote:<br class=""><blockquote class="gmail_quote" style="margin:0 0 0 ..8ex;border-left:1px #ccc solid;padding-left:1ex"><div style="word-wrap:break-word;line-break:after-white-space" class="">In Lispworks, there's #'system:declared-special-p, which may be what you want:<div class=""><br class=""></div><div class=""><div class="">CL-USER 13 &gt; (system:declared-special-p '*read-eval*)</div><div class="">T</div><span class=""><div class=""><br class=""></div><div class=""><br class=""><blockquote type="cite" class=""><div class="">On 5 Oct 2017, at 12:22 , David McClain &lt;<a href="mailto:dbm@refined-audiometrics.com" target="_blank" class="">dbm@refined-audiometrics.com</a>&gt; wrote:</div><br class="m_1588130858560063105Apple-interchange-newline"><div class=""><span style="font-family:Helvetica;font-size:12px;font-style:normal;font-variant-caps:normal;font-weight:normal;letter-spacing:normal;text-align:start;text-indent:0px;text-transform:none;white-space:normal;word-spacing:0px;float:none;display:inline!important" class="">By way of inspection of symbols, there seems no way to discern specialness. No flags mark these symbols as special, at least as reported in an inspector. So here is my helper:</span></div></blockquote></div><br class=""></span></div></div></blockquote></div><br class=""></div>
+</div></blockquote></div><br class=""></div></div></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Curious error...</h1><html><head><meta http-equiv="Content-Type" content="text/html charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">As a happy conclusion to this episode, I checked my cache of 30 years of work in Lisp, and found that I have been pretty good at adhering to the earmuff convention.<div class=""><br class=""></div><div class="">But just as a safety precaution against ad-hoc diddling in the REPL, I invented a safety valve macro:</div><div class=""><br class=""></div><div class=""><div class="">(defun ?specials (syms)</div><div class="">&nbsp; ;; give us a list of symbols</div><div class="">&nbsp; ;; return a list of those which are</div><div class="">&nbsp; ;; declared special as viewed from current package</div><div class="">&nbsp; (loop for sym in syms</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; when (sys:declared-special-p sym)</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; collect sym))</div><div class=""><br class=""></div><div class="">(defmacro error-if-special (&amp;rest syms)</div><div class="">&nbsp; ;; place (user:error-if-special ...syms...) in your code</div><div class="">&nbsp; ;; Compiler will issue an error if any of them are SPECIAL bindings</div><div class="">&nbsp; ;; Most useful with multithreaded code to be sure we don't accidentally</div><div class="">&nbsp; ;; refer to a special binding instead of a lexical binding.</div><div class="">&nbsp; (let ((specs (?specials syms)))</div><div class="">&nbsp; &nbsp; (when specs</div><div class="">&nbsp; &nbsp; &nbsp; (error "Symbols are SPECIAL: ~A" specs))))</div><div class=""><br class=""></div><div class=""><br class=""></div><div class="">The ?SPECIALS is useful from the keyboard if you want to check anticipated use of symbols. But the ERROR-IF-SPECIAL macro is good to plant permanently in the source of multithreaded exploits. A typical use scenario is the following example:</div><div class=""><br class=""></div><div class="">…</div><div class=""><div class="">&nbsp; (let* ((sem &nbsp; &nbsp;(mp:make-semaphore :count 0))</div><div class="">...</div><div class="">&nbsp; &nbsp; (multiple-value-bind (short-list rest-list)</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; (nsplit-list nshort fns)</div><div class=""><font color="#9a244f" class="">&nbsp; &nbsp; &nbsp; (user:error-if-special fn sem)</font></div><div class="">&nbsp; &nbsp; &nbsp; (map nil (lambda (fn)</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(mp:funcall-async (lambda ()</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(unwind-protect</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(funcall <font color="#9a244f" class="">fn</font>)</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(mp:semaphore-release <font color="#9a244f" class="">sem</font>)))</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;))</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;rest-list)</div></div><div class="">…</div><div class=""><br class=""></div><div class="">Here, the lambda being sent to funcall-async internally refers to values belonging to bindings named fn and sem. Both of these were intended to be seen as lexical bindings in this body of code. But if some inadvertent keyboard diddling causes one or both to be specially bound (you can’t ever know what will happen in the future), and if this body of code is subsequently recompiled from its source, the macro error-if-special will abort the recompilation with an error.&nbsp;</div><div class=""><br class=""></div><div class="">My guess, about the asymmetry in the DECLARE clauses - i.e., declare special, without a corresponding declare lexical, arose from history, and too much old code would break unless we just automatically compiled references to extant special bindings in precedence over lexical bindings. I, personally, don’t much like dealing with accidents waiting to happen, but what can you do?</div><div class=""><br class=""></div><div class="">- DM</div><div class=""><br class=""></div><div><blockquote type="cite" class=""><div class="">On Oct 5, 2017, at 04:19, David McClain &lt;<a href="mailto:dbm@refined-audiometrics.com" class="">dbm@refined-audiometrics.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><meta http-equiv="Content-Type" content="text/html charset=utf-8" class=""><div style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">Thanks for those additional hints and tools.&nbsp;<div class=""><br class=""></div><div class="">I guess the most alarming thing to me is that I have relied too long on thinking that I was performing intensional programming, where I thought that syntax dictates semantics. That simply isn’t true unless you abide strictly by the earmuff convention. To do otherwise invites the possibility of nondeterminism due to inadvertent name collisions at the REPL listener.<div class=""><br class=""></div><div class="">In a single thread, my ignorance was masked by making sometimes dynamic bindings locally, when I didn’t realize I was doing so. The code worked the way I expected within the lexical frame. However, any other functions that might have relied on the value of that global binding might have received a surprise, depending on when they looked.</div><div class=""><br class=""></div><div class="">The multithreaded environment finally opened my eyes, where each thread has its own dynamic binding environment. I gather that is because these dynamic bindings are held in stack frames, and threads each have their own stack.</div><div class=""><br class=""></div><div class="">The situation almost makes me want to define DLET and LLET macros so that I can return to intensional programming.</div><div class=""><br class=""></div><div class="">- DM</div><div class=""><br class=""><div class=""><blockquote type="cite" class=""><div class="">On Oct 5, 2017, at 03:51, Alexey Veretennikov &lt;<a href="mailto:txm.fourier@gmail.com" class="">txm.fourier@gmail.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><div dir="ltr" class=""><div class=""><div class=""><div class="">Hi, <br class=""></div>There is also LW's</div><div class=""> <br class="">(hcl:variable-information '*read-eval*)<br class="">:SPECIAL<br class="">NIL<br class="">NIL<br class=""><br class=""></div>Br<br class=""></div>/Alexey<br class=""></div><div class="gmail_extra"><br class=""><div class="gmail_quote">On Thu, Oct 5, 2017 at 12:43 PM, Raymond Wiker <span dir="ltr" class="">&lt;<a href="mailto:rwiker@gmail.com" target="_blank" class="">rwiker@gmail.com</a>&gt;</span> wrote:<br class=""><blockquote class="gmail_quote" style="margin:0 0 0 ..8ex;border-left:1px #ccc solid;padding-left:1ex"><div style="word-wrap:break-word;line-break:after-white-space" class="">In Lispworks, there's #'system:declared-special-p, which may be what you want:<div class=""><br class=""></div><div class=""><div class="">CL-USER 13 &gt; (system:declared-special-p '*read-eval*)</div><div class="">T</div><span class=""><div class=""><br class=""></div><div class=""><br class=""><blockquote type="cite" class=""><div class="">On 5 Oct 2017, at 12:22 , David McClain &lt;<a href="mailto:dbm@refined-audiometrics.com" target="_blank" class="">dbm@refined-audiometrics.com</a>&gt; wrote:</div><br class="m_1588130858560063105Apple-interchange-newline"><div class=""><span style="font-family:Helvetica;font-size:12px;font-style:normal;font-variant-caps:normal;font-weight:normal;letter-spacing:normal;text-align:start;text-indent:0px;text-transform:none;white-space:normal;word-spacing:0px;float:none;display:inline!important" class="">By way of inspection of symbols, there seems no way to discern specialness. No flags mark these symbols as special, at least as reported in an inspector. So here is my helper:</span></div></blockquote></div><br class=""></span></div></div></blockquote></div><br class=""></div>
+</div></blockquote></div><br class=""></div></div></div></div></blockquote></div><br class=""></div></body></html>
+
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+           </body>
+          </html>

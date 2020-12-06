@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Editing in multi-column-list-panel, and custom button styles</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+           </head>
+           <body>
+            <div class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </div>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Editing in multi-column-list-panel, and custom button styles</h1>
+                <pre>I'm building an app using the CAPI. I intend to deliver it first on the Mac, but later in Windows, so I prefer to avoid platform-specific solution (though I'll use them if I really must).
+
+Multi-column-list-panel is mostly very convenient for presenting the main document contents, which are tabular in nature. I haven't been able to find straightforward ways to do a couple of things, though.
+
+Specifically:
+
+- Is there an API I can use to ask the multi-column-list-panel to allow editing in-place in response to a user's click? Obviously, I could do something like posing a dialog or a transient view with a text-input-pane in the action handler, but I would strongly prefer a UI in which the text displayed in the clicked row and column simply becomes editable in-place. I haven't yet found an example of how this might be accomplished. I I need to write my own version of mutli-column-list-panel, so be it, but it seems like something folks would want to do, so perhaps I'm simply overlooking something.
+
+- Is there an API I can use to conditionally change the font and colors of the multi-column-list-panel's text and background on a per-item basis? I'd like to distinguish a certain property of some items in this way. 
+
+- In the past, I figured out how to control the button style of push-buttons, so that I could use, for example, the small square style for certain buttons in Cocoa, but I can't find examples of how to do this, and I'd like to avoid all the rummaging and experimentation I did before to accomplish it, if possible. (I know, that violates my own principle of keeping things cross-platform, but, as I said, I'll use platform-specific methods when I think I need to.)
+
+As a last resort, I know I can always just instantiate Coca classes directly to achieve these effects, but, again, I'd like to use cross-platform methods as much as I can.
+
+Any help gratefully received.
+
+--me
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Editing in multi-column-list-panel, and custom button styles</h1>
+                 <pre>
+
+&gt On Sep 6, 2019, at 5:00 PM, mikel evins &lt;mevins@me.com&gt wrote:
+&gt 
+&gt As a last resort, I know I can always just instantiate Coca classes directly to achieve these effects, but, again, I'd like to use cross-platform methods as much as I can.
+
+I found it useful to grab the internal representation of the CAPI object to implement unsupported features. Of course, this is not something you'll get any support on if it breaks and you'll have to do separate Mac/Windows implementations. You can inspect the interface to figure out what you need. I think the NSTable is something like:
+
+(cc-lib::representation-main-view (capi-internals:representation multi-column-list-panel))
+
+
+
+John DeSoi, Ph.D.
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Editing in multi-column-list-panel, and custom button styles</h1>
+                 <pre>Yep, I may have done it this way when tweaking buttons in the past. I was hoping there might be supported APIs that I just haven't found, but I'll do it this way if it turns out to be the best way forward.
+
+Thanks!
+
+&gt On Sep 7, 2019, at 9:04 AM, John DeSoi &lt;desoi@pgedit.com&gt wrote:
+&gt 
+&gt 
+&gt 
+&gt&gt On Sep 6, 2019, at 5:00 PM, mikel evins &lt;mevins@me.com&gt wrote:
+&gt&gt 
+&gt&gt As a last resort, I know I can always just instantiate Coca classes directly to achieve these effects, but, again, I'd like to use cross-platform methods as much as I can.
+&gt 
+&gt I found it useful to grab the internal representation of the CAPI object to implement unsupported features. Of course, this is not something you'll get any support on if it breaks and you'll have to do separate Mac/Windows implementations. You can inspect the interface to figure out what you need. I think the NSTable is something like:
+&gt 
+&gt (cc-lib::representation-main-view (capi-internals:representation multi-column-list-panel))
+&gt 
+&gt 
+&gt 
+&gt John DeSoi, Ph.D.
+&gt 
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Editing in multi-column-list-panel, and custom button styles</h1>
+                 <pre>I wanted to mention that your suggestion works fine in Lispwiorks 7.1.1 on macOS 10.14.6.
+
+I would still prefer to use a platform-agnostic way to get the button and list view styles I want, but failing such a solution, this approach seems to work. Thanks for the suggestion.
+
+By the way, the API you proposed does indeed get a reference to the underlying NSObject, and then it's a simple matter of finding the right Objective-C methods and constants to use.
+
+&gt On Sep 7, 2019, at 9:04 AM, John DeSoi &lt;desoi@pgedit.com&gt wrote:
+&gt 
+&gt 
+&gt 
+&gt&gt On Sep 6, 2019, at 5:00 PM, mikel evins &lt;mevins@me.com&gt wrote:
+&gt&gt 
+&gt&gt As a last resort, I know I can always just instantiate Coca classes directly to achieve these effects, but, again, I'd like to use cross-platform methods as much as I can.
+&gt 
+&gt I found it useful to grab the internal representation of the CAPI object to implement unsupported features. Of course, this is not something you'll get any support on if it breaks and you'll have to do separate Mac/Windows implementations. You can inspect the interface to figure out what you need. I think the NSTable is something like:
+&gt 
+&gt (cc-lib::representation-main-view (capi-internals:representation multi-column-list-panel))
+&gt 
+&gt 
+&gt 
+&gt John DeSoi, Ph.D.
+&gt 
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+           </body>
+          </html>

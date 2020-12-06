@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Adding/removing buttons at runtime</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+           </head>
+           <body>
+            <div class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </div>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Adding/removing buttons at runtime</h1>
+                <pre>My aim is have my time clock app handle people who work in multiple departments. Currently, with single departments only, an employee either double-clicks his/her name in a LIST-PANEL or clicks on the name and then on a button (appropriately labeled “Clock Joe In” or “Clock Joe Out”) to clock in or out.
+
+For the vast majority of employees, who are single-department, I want to keep it that simple. For multi-department employees the simplest thing I can think of is to replace the single CLOCK IN/OUT button with a button for each of the departments they could be clocking into.
+
+I was hoping there would be a simpler way than this stripped-down code (on Mac OS, by the way):
+
+(defparameter *in* t)
+
+(defun click-clock-button (interface)
+  (setf *in* (not *in*))
+  (setf (capi:item-text (clock interface))
+        (if *in* "You're in!" "You're out!"))
+  (setf (capi:pane-layout interface)
+        (make-instance 'capi:column-layout
+                       :description
+                       (append
+                        (list (clock interface))
+                        (when (not *in*)
+                          (list
+                           (make-instance 'capi:push-button :text "Grocery")
+                           (make-instance 'capi:push-button :text "Produce")))))))
+
+(capi:define-interface clock-interface ()
+  ()
+  (:panes
+   (clock capi:push-button
+          :accessor clock
+          :text "Clock In/Out"
+          :visible-min-width '(character 20)
+          :selection-callback 'click-clock-button
+          :callback-type :interface))
+  (:layouts
+   (main-layout capi:column-layout '(clock ) :gap 10 :adjust :center))
+  (:default-initargs :title "Button Test"))
+
+(capi:display (make-instance 'clock-interface))
+
+I tried including a BUTTONS pane (whether a COLUMN-LAYOUT or PUSH-BUTTON-PANEL) in the CLOCK-INTERFACE and simply SETFing the ITEMS or DESCRIPTION of that pane. I can see from (BUTTONS interface) that it works, but then, even trying an assortment of SETFing, INVALIDATE-RECTing, etc., I couldn’t get the result to show up in the CLOCK-INTERFACE window.
+
+So this simplified code succeeds, but the CLICK-CLOCK-BUTTON callback would have to include the entire PANE-LAYOUT for the window. The actual layout is not terribly complicated, but this seems like a clumsy solution.
+
+ALTERNATIVES
+I expect someone will offer a completely different approach, like opening a dialog window or having a pop-up menu to select the department, but I want to preserve two-click simplicity for the single-department people and not tax the dexterity of people who may be clumsy with computers. I’m open to alternative design ideas, but I’d still like to see a solution to the problem as I’m posing it.
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Adding/removing buttons at runtime</h1>
+                 <pre>Hi Laughing Water,
+
+I'm not sure what you tried, but the following works for me:
+
+(defparameter *in* t)
+
+(defun click-clock-button (interface)
+  (setf *in* (not *in*))
+  (setf (capi:item-text (clock interface))
+        (if *in* "You're in!" "You're out!"))
+  (setf (capi:layout-description (buttons interface))
+        (when (not *in*)
+          (list
+           (make-instance 'capi:push-button :text "Grocery")
+           (make-instance 'capi:push-button :text "Produce")))))
+
+(capi:define-interface clock-interface ()
+  ()
+  (:panes
+   (clock capi:push-button
+          :accessor clock
+          :text "Clock In/Out"
+          :visible-min-width '(character 20)
+          :selection-callback 'click-clock-button
+          :callback-type :interface))
+  (:layouts
+   (buttons capi:column-layout
+            '()
+            :accessor buttons)
+   (main-layout capi:column-layout '(clock buttons) :gap 10 :adjust :center))
+  (:default-initargs :title "Button Test" :layout 'main-layout))
+
+(capi:display (make-instance 'clock-interface))
+
+-- 
+Martin Simmons
+LispWorks Ltd
+http://www.lispworks.com/
+
+
+&gt&gt&gt&gt&gt On Sat, 12 Aug 2017 17:10:55 -0600, Laughing Water said:
+&gt 
+&gt My aim is have my time clock app handle people who work in multiple departments. Currently, with single departments only, an employee either double-clicks his/her name in a LIST-PANEL or clicks on the name and then on a button (appropriately labeled “Clock Joe In” or “Clock Joe Out”) to clock in or out.
+&gt 
+&gt For the vast majority of employees, who are single-department, I want to keep it that simple. For multi-department employees the simplest thing I can think of is to replace the single CLOCK IN/OUT button with a button for each of the departments they could be clocking into.
+&gt 
+&gt I was hoping there would be a simpler way than this stripped-down code (on Mac OS, by the way):
+&gt 
+&gt (defparameter *in* t)
+&gt 
+&gt (defun click-clock-button (interface)
+&gt   (setf *in* (not *in*))
+&gt   (setf (capi:item-text (clock interface))
+&gt         (if *in* "You're in!" "You're out!"))
+&gt   (setf (capi:pane-layout interface)
+&gt         (make-instance 'capi:column-layout
+&gt                        :description
+&gt                        (append
+&gt                         (list (clock interface))
+&gt                         (when (not *in*)
+&gt                           (list
+&gt                            (make-instance 'capi:push-button :text "Grocery")
+&gt                            (make-instance 'capi:push-button :text "Produce")))))))
+&gt 
+&gt (capi:define-interface clock-interface ()
+&gt   ()
+&gt   (:panes
+&gt    (clock capi:push-button
+&gt           :accessor clock
+&gt           :text "Clock In/Out"
+&gt           :visible-min-width '(character 20)
+&gt           :selection-callback 'click-clock-button
+&gt           :callback-type :interface))
+&gt   (:layouts
+&gt    (main-layout capi:column-layout '(clock ) :gap 10 :adjust :center))
+&gt   (:default-initargs :title "Button Test"))
+&gt 
+&gt (capi:display (make-instance 'clock-interface))
+&gt 
+&gt I tried including a BUTTONS pane (whether a COLUMN-LAYOUT or PUSH-BUTTON-PANEL) in the CLOCK-INTERFACE and simply SETFing the ITEMS or DESCRIPTION of that pane. I can see from (BUTTONS interface) that it works, but then, even trying an assortment of SETFing, INVALIDATE-RECTing, etc., I couldn’t get the result to show up in the CLOCK-INTERFACE window.
+&gt 
+&gt So this simplified code succeeds, but the CLICK-CLOCK-BUTTON callback would have to include the entire PANE-LAYOUT for the window. The actual layout is not terribly complicated, but this seems like a clumsy solution.
+&gt 
+&gt ALTERNATIVES
+&gt I expect someone will offer a completely different approach, like opening a dialog window or having a pop-up menu to select the department, but I want to preserve two-click simplicity for the single-department people and not tax the dexterity of people who may be clumsy with computers. I’m open to alternative design ideas, but I’d still like to see a solution to the problem as I’m posing it.
+&gt 
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+&gt 
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Adding/removing buttons at runtime</h1>
+                 <pre>Thanks, Martin, that looks like exactly what I needed.
+
+Is there a general rule for what triggers a redraw of a GUI item? Is it documented in the CAPI manual?
+
+Regarding the surrounding discussion of an IDE, which is totally about making things easier for the programmer, to me this is an example of something that could be much more immediately straightforward and accessible but isn’t.
+
+While saying this, I have to add that I can only be humble when it comes to my expertise as a programmer. So forgive me if I’ve overlooked something obvious or have simply made less effort than LispWorks demands.
+
+I’ll also try to add to that IDE discussion if I can offer anything by way of solutions.
+
+LW
+
+&gt On Aug 15, 2017, at 7:52 AM, Martin Simmons &lt;martin@lispworks.com&gt wrote:
+&gt 
+&gt Hi Laughing Water,
+&gt 
+&gt I'm not sure what you tried, but the following works for me:
+&gt 
+&gt (defparameter *in* t)
+&gt 
+&gt (defun click-clock-button (interface)
+&gt  (setf *in* (not *in*))
+&gt  (setf (capi:item-text (clock interface))
+&gt        (if *in* "You're in!" "You're out!"))
+&gt  (setf (capi:layout-description (buttons interface))
+&gt        (when (not *in*)
+&gt          (list
+&gt           (make-instance 'capi:push-button :text "Grocery")
+&gt           (make-instance 'capi:push-button :text "Produce")))))
+&gt 
+&gt (capi:define-interface clock-interface ()
+&gt  ()
+&gt  (:panes
+&gt   (clock capi:push-button
+&gt          :accessor clock
+&gt          :text "Clock In/Out"
+&gt          :visible-min-width '(character 20)
+&gt          :selection-callback 'click-clock-button
+&gt          :callback-type :interface))
+&gt  (:layouts
+&gt   (buttons capi:column-layout
+&gt            '()
+&gt            :accessor buttons)
+&gt   (main-layout capi:column-layout '(clock buttons) :gap 10 :adjust :center))
+&gt  (:default-initargs :title "Button Test" :layout 'main-layout))
+&gt 
+&gt (capi:display (make-instance 'clock-interface))
+&gt 
+&gt -- 
+&gt Martin Simmons
+&gt LispWorks Ltd
+&gt http://www.lispworks.com/
+&gt 
+&gt 
+&gt&gt&gt&gt&gt&gt On Sat, 12 Aug 2017 17:10:55 -0600, Laughing Water said:
+&gt&gt 
+&gt&gt My aim is have my time clock app handle people who work in multiple departments. Currently, with single departments only, an employee either double-clicks his/her name in a LIST-PANEL or clicks on the name and then on a button (appropriately labeled “Clock Joe In” or “Clock Joe Out”) to clock in or out.
+&gt&gt 
+&gt&gt For the vast majority of employees, who are single-department, I want to keep it that simple. For multi-department employees the simplest thing I can think of is to replace the single CLOCK IN/OUT button with a button for each of the departments they could be clocking into.
+&gt&gt 
+&gt&gt I was hoping there would be a simpler way than this stripped-down code (on Mac OS, by the way):
+&gt&gt 
+&gt&gt (defparameter *in* t)
+&gt&gt 
+&gt&gt (defun click-clock-button (interface)
+&gt&gt  (setf *in* (not *in*))
+&gt&gt  (setf (capi:item-text (clock interface))
+&gt&gt        (if *in* "You're in!" "You're out!"))
+&gt&gt  (setf (capi:pane-layout interface)
+&gt&gt        (make-instance 'capi:column-layout
+&gt&gt                       :description
+&gt&gt                       (append
+&gt&gt                        (list (clock interface))
+&gt&gt                        (when (not *in*)
+&gt&gt                          (list
+&gt&gt                           (make-instance 'capi:push-button :text "Grocery")
+&gt&gt                           (make-instance 'capi:push-button :text "Produce")))))))
+&gt&gt 
+&gt&gt (capi:define-interface clock-interface ()
+&gt&gt  ()
+&gt&gt  (:panes
+&gt&gt   (clock capi:push-button
+&gt&gt          :accessor clock
+&gt&gt          :text "Clock In/Out"
+&gt&gt          :visible-min-width '(character 20)
+&gt&gt          :selection-callback 'click-clock-button
+&gt&gt          :callback-type :interface))
+&gt&gt  (:layouts
+&gt&gt   (main-layout capi:column-layout '(clock ) :gap 10 :adjust :center))
+&gt&gt  (:default-initargs :title "Button Test"))
+&gt&gt 
+&gt&gt (capi:display (make-instance 'clock-interface))
+&gt&gt 
+&gt&gt I tried including a BUTTONS pane (whether a COLUMN-LAYOUT or PUSH-BUTTON-PANEL) in the CLOCK-INTERFACE and simply SETFing the ITEMS or DESCRIPTION of that pane. I can see from (BUTTONS interface) that it works, but then, even trying an assortment of SETFing, INVALIDATE-RECTing, etc., I couldn’t get the result to show up in the CLOCK-INTERFACE window.
+&gt&gt 
+&gt&gt So this simplified code succeeds, but the CLICK-CLOCK-BUTTON callback would have to include the entire PANE-LAYOUT for the window. The actual layout is not terribly complicated, but this seems like a clumsy solution.
+&gt&gt 
+&gt&gt ALTERNATIVES
+&gt&gt I expect someone will offer a completely different approach, like opening a dialog window or having a pop-up menu to select the department, but I want to preserve two-click simplicity for the single-department people and not tax the dexterity of people who may be clumsy with computers. I’m open to alternative design ideas, but I’d still like to see a solution to the problem as I’m posing it.
+&gt&gt 
+&gt&gt _______________________________________________
+&gt&gt Lisp Hug - the mailing list for LispWorks users
+&gt&gt lisp-hug@lispworks.com
+&gt&gt http://www.lispworks.com/support/lisp-hug.html
+&gt&gt 
+&gt 
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+&gt 
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Adding/removing buttons at runtime</h1>
+                 <pre>All CAPI setter functions should trigger a redraw automatically (see
+http://www.lispworks.com/documentation/lw70/CAPI-M/html/capi-m-28.htm).
+
+I'm not sure what you tried that didn't work, but maybe you forgot to add the
+buttons layout to the main layout?
+
+-- 
+Martin Simmons
+LispWorks Ltd
+http://www.lispworks.com/
+
+
+&gt&gt&gt&gt&gt On Tue, 15 Aug 2017 12:34:44 -0600, Laughing Water said:
+&gt 
+&gt Thanks, Martin, that looks like exactly what I needed.
+&gt 
+&gt Is there a general rule for what triggers a redraw of a GUI item? Is it documented in the CAPI manual?
+&gt 
+&gt Regarding the surrounding discussion of an IDE, which is totally about making things easier for the programmer, to me this is an example of something that could be much more immediately straightforward and accessible but isn’t.
+&gt 
+&gt While saying this, I have to add that I can only be humble when it comes to my expertise as a programmer. So forgive me if I’ve overlooked something obvious or have simply made less effort than LispWorks demands.
+&gt 
+&gt I’ll also try to add to that IDE discussion if I can offer anything by way of solutions.
+&gt 
+&gt LW
+&gt 
+&gt &gt On Aug 15, 2017, at 7:52 AM, Martin Simmons &lt;martin@lispworks.com&gt wrote:
+&gt &gt 
+&gt &gt Hi Laughing Water,
+&gt &gt 
+&gt &gt I'm not sure what you tried, but the following works for me:
+&gt &gt 
+&gt &gt (defparameter *in* t)
+&gt &gt 
+&gt &gt (defun click-clock-button (interface)
+&gt &gt  (setf *in* (not *in*))
+&gt &gt  (setf (capi:item-text (clock interface))
+&gt &gt        (if *in* "You're in!" "You're out!"))
+&gt &gt  (setf (capi:layout-description (buttons interface))
+&gt &gt        (when (not *in*)
+&gt &gt          (list
+&gt &gt           (make-instance 'capi:push-button :text "Grocery")
+&gt &gt           (make-instance 'capi:push-button :text "Produce")))))
+&gt &gt 
+&gt &gt (capi:define-interface clock-interface ()
+&gt &gt  ()
+&gt &gt  (:panes
+&gt &gt   (clock capi:push-button
+&gt &gt          :accessor clock
+&gt &gt          :text "Clock In/Out"
+&gt &gt          :visible-min-width '(character 20)
+&gt &gt          :selection-callback 'click-clock-button
+&gt &gt          :callback-type :interface))
+&gt &gt  (:layouts
+&gt &gt   (buttons capi:column-layout
+&gt &gt            '()
+&gt &gt            :accessor buttons)
+&gt &gt   (main-layout capi:column-layout '(clock buttons) :gap 10 :adjust :center))
+&gt &gt  (:default-initargs :title "Button Test" :layout 'main-layout))
+&gt &gt 
+&gt &gt (capi:display (make-instance 'clock-interface))
+&gt &gt 
+&gt &gt -- 
+&gt &gt Martin Simmons
+&gt &gt LispWorks Ltd
+&gt &gt http://www.lispworks.com/
+&gt &gt 
+&gt &gt 
+&gt &gt&gt&gt&gt&gt&gt On Sat, 12 Aug 2017 17:10:55 -0600, Laughing Water said:
+&gt &gt&gt 
+&gt &gt&gt My aim is have my time clock app handle people who work in multiple departments. Currently, with single departments only, an employee either double-clicks his/her name in a LIST-PANEL or clicks on the name and then on a button (appropriately labeled “Clock Joe In” or “Clock Joe Out”) to clock in or out.
+&gt &gt&gt 
+&gt &gt&gt For the vast majority of employees, who are single-department, I want to keep it that simple. For multi-department employees the simplest thing I can think of is to replace the single CLOCK IN/OUT button with a button for each of the departments they could be clocking into.
+&gt &gt&gt 
+&gt &gt&gt I was hoping there would be a simpler way than this stripped-down code (on Mac OS, by the way):
+&gt &gt&gt 
+&gt &gt&gt (defparameter *in* t)
+&gt &gt&gt 
+&gt &gt&gt (defun click-clock-button (interface)
+&gt &gt&gt  (setf *in* (not *in*))
+&gt &gt&gt  (setf (capi:item-text (clock interface))
+&gt &gt&gt        (if *in* "You're in!" "You're out!"))
+&gt &gt&gt  (setf (capi:pane-layout interface)
+&gt &gt&gt        (make-instance 'capi:column-layout
+&gt &gt&gt                       :description
+&gt &gt&gt                       (append
+&gt &gt&gt                        (list (clock interface))
+&gt &gt&gt                        (when (not *in*)
+&gt &gt&gt                          (list
+&gt &gt&gt                           (make-instance 'capi:push-button :text "Grocery")
+&gt &gt&gt                           (make-instance 'capi:push-button :text "Produce")))))))
+&gt &gt&gt 
+&gt &gt&gt (capi:define-interface clock-interface ()
+&gt &gt&gt  ()
+&gt &gt&gt  (:panes
+&gt &gt&gt   (clock capi:push-button
+&gt &gt&gt          :accessor clock
+&gt &gt&gt          :text "Clock In/Out"
+&gt &gt&gt          :visible-min-width '(character 20)
+&gt &gt&gt          :selection-callback 'click-clock-button
+&gt &gt&gt          :callback-type :interface))
+&gt &gt&gt  (:layouts
+&gt &gt&gt   (main-layout capi:column-layout '(clock ) :gap 10 :adjust :center))
+&gt &gt&gt  (:default-initargs :title "Button Test"))
+&gt &gt&gt 
+&gt &gt&gt (capi:display (make-instance 'clock-interface))
+&gt &gt&gt 
+&gt &gt&gt I tried including a BUTTONS pane (whether a COLUMN-LAYOUT or PUSH-BUTTON-PANEL) in the CLOCK-INTERFACE and simply SETFing the ITEMS or DESCRIPTION of that pane. I can see from (BUTTONS interface) that it works, but then, even trying an assortment of SETFing, INVALIDATE-RECTing, etc., I couldn’t get the result to show up in the CLOCK-INTERFACE window.
+&gt &gt&gt 
+&gt &gt&gt So this simplified code succeeds, but the CLICK-CLOCK-BUTTON callback would have to include the entire PANE-LAYOUT for the window. The actual layout is not terribly complicated, but this seems like a clumsy solution.
+&gt &gt&gt 
+&gt &gt&gt ALTERNATIVES
+&gt &gt&gt I expect someone will offer a completely different approach, like opening a dialog window or having a pop-up menu to select the department, but I want to preserve two-click simplicity for the single-department people and not tax the dexterity of people who may be clumsy with computers. I’m open to alternative design ideas, but I’d still like to see a solution to the problem as I’m posing it.
+&gt &gt&gt 
+&gt &gt&gt _______________________________________________
+&gt &gt&gt Lisp Hug - the mailing list for LispWorks users
+&gt &gt&gt lisp-hug@lispworks.com
+&gt &gt&gt http://www.lispworks.com/support/lisp-hug.html
+&gt &gt&gt 
+&gt &gt 
+&gt &gt _______________________________________________
+&gt &gt Lisp Hug - the mailing list for LispWorks users
+&gt &gt lisp-hug@lispworks.com
+&gt &gt http://www.lispworks.com/support/lisp-hug.html
+&gt &gt 
+&gt 
+&gt 
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+           </body>
+          </html>

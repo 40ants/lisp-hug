@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>unicode support</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+           </head>
+           <body>
+            <div class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </div>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>unicode support</h1>
+                <pre>It seems that Lispworks doesn't handle a subset of unicode properly,
+please let me know if I am mistaken:
+
+CL-USER 15 &gt (map 'string #'(lambda (c) (print c)) "a⍳c")
+
+#\a
+#\�
+#\U+008D
+#\�
+#\c
+"a⍳c"
+
+CL-USER 24 : 1 &gt (string 'a⍳c)
+Error: Cannot read character U+008D as part of a token because it has
+constituent trait 'invalid'.
+[...]
+
+CL-USER 25 &gt (string 'aλc)
+"AλC"
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: unicode support</h1>
+                 <pre>Hi,
+
+Try
+(map 'lw:simple-bmp-string #'(lambda (c) (print c)) "a⍳c")
+or
+(map 'lw:bmp-string #'(lambda (c) (print c)) "a⍳c")
+
+Read further here: http://www.lispworks.com/documentation/lw71/LW/html/lw-195.htm#pgfId-885921
+
+Jerome Ibanes &lt;jibanes@gmail.com&gt writes:
+
+&gt It seems that Lispworks doesn't handle a subset of unicode properly,
+&gt please let me know if I am mistaken:
+&gt
+&gt CL-USER 15 &gt (map 'string #'(lambda (c) (print c)) "a⍳c")
+&gt
+&gt #\a
+&gt #\�
+&gt #\U+008D
+&gt #\�
+&gt #\c
+&gt "a⍳c"
+&gt
+&gt CL-USER 24 : 1 &gt (string 'a⍳c)
+&gt Error: Cannot read character U+008D as part of a token because it has
+&gt constituent trait 'invalid'.
+&gt [...]
+&gt
+&gt CL-USER 25 &gt (string 'aλc)
+&gt "AλC"
+&gt
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+
+-- 
+Br,
+/Alexey
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: unicode support</h1>
+                 <pre>While this:
+(map 'lw:simple-bmp-string #'(lambda (c) (print c)) "a⍳c")
+or even
+(string 'a⍳c)
+works well in the lispworks graphical environment, I can't get it to
+operate correctly on the console (meaning, for instance a save-image
+lw-console running in an xterm) or lispworks REPL xterm prompt.
+
+Would you know how to get this to run in a lw-console identically from
+the lispworks graphical environment? (assuming one created with the
+instructions from
+http://www.lispworks.com/documentation/lw70/LW/html/lw-91.htm section
+"13.3.5 Saving a non-GUI image with multiprocessing enabled")
+
+On Thu, Jan 18, 2018 at 8:59 AM, Alexey Veretennikov
+&lt;txm.fourier@gmail.com&gt wrote:
+&gt Hi,
+&gt
+&gt Try
+&gt (map 'lw:simple-bmp-string #'(lambda (c) (print c)) "a⍳c")
+&gt or
+&gt (map 'lw:bmp-string #'(lambda (c) (print c)) "a⍳c")
+&gt
+&gt Read further here: http://www.lispworks.com/documentation/lw71/LW/html/lw-195.htm#pgfId-885921
+&gt
+&gt Jerome Ibanes &lt;jibanes@gmail.com&gt writes:
+&gt
+&gt&gt It seems that Lispworks doesn't handle a subset of unicode properly,
+&gt&gt please let me know if I am mistaken:
+&gt&gt
+&gt&gt CL-USER 15 &gt (map 'string #'(lambda (c) (print c)) "a⍳c")
+&gt&gt
+&gt&gt #\a
+&gt&gt #\�
+&gt&gt #\U+008D
+&gt&gt #\�
+&gt&gt #\c
+&gt&gt "a⍳c"
+&gt&gt
+&gt&gt CL-USER 24 : 1 &gt (string 'a⍳c)
+&gt&gt Error: Cannot read character U+008D as part of a token because it has
+&gt&gt constituent trait 'invalid'.
+&gt&gt [...]
+&gt&gt
+&gt&gt CL-USER 25 &gt (string 'aλc)
+&gt&gt "AλC"
+&gt&gt
+&gt&gt _______________________________________________
+&gt&gt Lisp Hug - the mailing list for LispWorks users
+&gt&gt lisp-hug@lispworks.com
+&gt&gt http://www.lispworks.com/support/lisp-hug.html
+&gt
+&gt --
+&gt Br,
+&gt /Alexey
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: unicode support</h1><html><head><meta http-equiv="Content-Type" content="text/html charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">Hi Jerome,<div class=""><br class=""></div><div class="">Here is a thread from last year that should &nbsp;answer your question. I'm sending the whole discussion because I believe there interesting bits, not just the last message.</div><div class=""><br class=""></div><div class="">Now, I wished I could point to the list archives, but unfortunately I can't find them.&nbsp;<b class="">Message to Lispworks: how do we get access to the list archives ? Gmane is gone, and the most recent message on Narkive is 3 years old.</b></div><div class=""><br class=""></div><div class=""><br class=""></div><div class="">Cam</div><div class=""><br class=""></div><div class=""><br class=""></div><div class="">---</div><div class=""><div class="">Begin forwarded message:</div><br class="Apple-interchange-newline"><div style="margin: 0px;" class=""><span style="font-family: -webkit-system-font, 'Helvetica Neue', Helvetica, sans-serif;" class=""><b class="">From:&nbsp;</b></span><span style="font-family: -webkit-system-font, 'Helvetica Neue', Helvetica, sans-serif;" class="">Sven Emtell &lt;<a href="mailto:sven.emtell@doremir.com" class="">sven.emtell@doremir.com</a>&gt;<br class=""></span></div><div style="margin: 0px;" class=""><span style="font-family: -webkit-system-font, 'Helvetica Neue', Helvetica, sans-serif;" class=""><b class="">Subject:&nbsp;</b></span><span style="font-family: -webkit-system-font, 'Helvetica Neue', Helvetica, sans-serif;" class=""><b class="">Re: *standard-output* element type</b><br class=""></span></div><div style="margin: 0px;" class=""><span style="font-family: -webkit-system-font, 'Helvetica Neue', Helvetica, sans-serif;" class=""><b class="">Date:&nbsp;</b></span><span style="font-family: -webkit-system-font, 'Helvetica Neue', Helvetica, sans-serif;" class="">27 March 2017 at 10:40:46 GMT+2<br class=""></span></div><div style="margin: 0px;" class=""><span style="font-family: -webkit-system-font, 'Helvetica Neue', Helvetica, sans-serif;" class=""><b class="">To:&nbsp;</b></span><span style="font-family: -webkit-system-font, 'Helvetica Neue', Helvetica, sans-serif;" class=""><a href="mailto:lisp-hug@lispworks.com" class="">lisp-hug@lispworks.com</a><br class=""></span></div><div style="margin: 0px;" class=""><span style="font-family: -webkit-system-font, 'Helvetica Neue', Helvetica, sans-serif;" class=""><b class="">Cc:&nbsp;</b></span><span style="font-family: -webkit-system-font, 'Helvetica Neue', Helvetica, sans-serif;" class="">Pascal Bourguignon &lt;<a href="mailto:pjb@informatimago.com" class="">pjb@informatimago.com</a>&gt;, Burton Samograd &lt;<a href="mailto:busfactor1@gmail.com" class="">busfactor1@gmail.com</a>&gt;<br class=""></span></div><div style="margin: 0px;" class=""><span style="font-family: -webkit-system-font, 'Helvetica Neue', Helvetica, sans-serif;" class=""><b class="">Reply-To:&nbsp;</b></span><span style="font-family: -webkit-system-font, 'Helvetica Neue', Helvetica, sans-serif;" class="">Sven Emtell &lt;<a href="mailto:sven.emtell@doremir.com" class="">sven.emtell@doremir.com</a>&gt;<br class=""></span></div><br class=""><div class=""><div class="" style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;"><div class="">I just realized that I never followed up on this…</div><div class=""><br class=""></div><div class="">Martin at LispWorks gave some inside information:</div><div class="">---</div><div class="">When running in a delivered app, *standard-output* is connected to the<br class="">terminal stream via *background-output*. &nbsp;The problem is that the terminal<br class="">stream only supports Latin-1.<br class=""><br class="">The simplest workaround is to log the debug info to a file (opened with<br class="">:external-format :utf-8 :element-type :default). &nbsp;If you want to view the file<br class="">while the app is still running then you will need to call force-output to<br class="">flush the buffer to disk.</div><div class="">---</div><div class=""><br class=""></div><div class=""><div class="">In the end, I chose to write debug info using a macro like this:</div></div><div class=""><br class=""></div><div class="">;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;<br class="">;;<br class="">;; &nbsp;write-to-stdout<br class="">;;<br class="">;; &nbsp;Write to standard output and replace every character with char-code &gt; 255 with #\@<br class="">;;<br class="">;; &nbsp;NOTE:<br class="">;; &nbsp;This function can be used for logging to the terminal stream in Linux, which only accepts Latin-1&nbsp;<br class="">;;<br class=""><br class="">(defmacro write-to-stdout (control-string &amp;rest args)<br class="">&nbsp; `(format t "~a" (coerce (loop for char across (format nil ,control-string ,@args)<br class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; collect (if (&gt; (char-code char) 255)<br class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; #\@<br class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; char)) 'string)))<br class=""><br class=""></div><div class=""><br class=""></div><div class="">Thanks Burton and Pascal for your help!</div><div class="">Best,</div><div class="">Sven</div><br class=""><div class=""><br class="Apple-interchange-newline"></div><br class=""><div class=""><blockquote type="cite" class=""><div class="">11 feb. 2017 kl. 00:03 skrev Sven Emtell &lt;<a href="mailto:sven.emtell@doremir.com" class="">sven.emtell@doremir.com</a>&gt;:</div><br class="Apple-interchange-newline"><div class=""><div class="" style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;">Thanks,<div class="">I’ll look more into this after the weekend...</div><div class=""><div class=""><br class="Apple-interchange-newline"></div><br class=""><div class=""><blockquote type="cite" class=""><div class="">10 feb. 2017 kl. 23:04 skrev Pascal Bourguignon &lt;<a href="mailto:pjb@informatimago.com" class="">pjb@informatimago.com</a>&gt;:</div><br class="Apple-interchange-newline"><div class=""><div class="" style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;"><br class=""><div class=""><blockquote type="cite" class=""><div class="">On 10 Feb 2017, at 22:44, Sven Emtell &lt;<a href="mailto:sven.emtell@doremir.com" class="">sven.emtell@doremir.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><div class="">My mistake - it’s getting late here in Sweden ;-)<br class="">It was the other way around…<br class=""><br class="">LispWorks GUI on Mac OS X:<br class="">(stream-element-type *standard-output*) =&gt; CHARACTER<br class=""><br class="">Delivered with LispWorks for Linux (32-bit) and running in terminal on Linux:<br class="">(stream-element-type *standard-output*) =&gt; BASE-CHAR<br class=""></div></div></blockquote><div class=""><br class=""></div>Ok, so my advice, when dealing with terminals, would be to test that, and restrict yourself to base-char when it cannot deal with all characters:</div><div class=""><br class=""></div><div class=""><br class=""></div><div class="">;; (beware of substituted typographical double quotes)</div><div class="">(let ((itemizer (if (subtypep ‘character (stream-element-type *standard-output*))</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;“•”</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;“*”)))</div><div class="">&nbsp; &nbsp;(dolist (item items)</div><div class="">&nbsp; &nbsp; &nbsp; (format t “~A ~A~%” itemizer item)))</div><div class=""><br class=""></div><div class=""><br class=""></div><div class="">And then, test whether export LC_ALL=sw_SW.UTF-8 makes your program use ‘character as element-type on the terminal. &nbsp;If not, then you will have to explicitely change the stream-element-type (if possible in LispWorks), by testing the environment variable yourself.</div><div class=""><br class=""></div><div class=""><br class=""></div><div class="">Unfortunately, I don’t have LispWork code, I can only show you ccl example:</div><div class=""><br class=""></div><div class=""><div class=""><br class=""></div><div class="">(defun locale-terminal-encoding ()</div><div class="">&nbsp; "Returns the terminal encoding specified by the locale(7)."</div><div class="">&nbsp; #+(and ccl windows-target)</div><div class="">&nbsp; :iso-8859-1</div><div class="">&nbsp; ;; ccl doesn't support :windows-1252.</div><div class="">&nbsp; ;; (intern (format nil "WINDOWS-~A" (#_GetACP)) "KEYWORD")</div><div class="">&nbsp; #-(and ccl windows-target)</div><div class="">&nbsp; (dolist (var '("LC_ALL" "LC_CTYPE" "LANG")</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;:iso-8859-1) ; some random default…</div><div class="">&nbsp; &nbsp; (let* ((val (getenv var))</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(dot (position #\. val))</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(at &nbsp;(position #\@ val :start (or dot (length val)))))</div><div class="">&nbsp; &nbsp; &nbsp; (when (and dot (&lt; dot (1- (length val))))</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; (return (intern (let ((name (string-upcase (subseq val (1+ dot)</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(or at (length val))))))</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (if (and (prefixp "ISO" name) (not (prefixp "ISO-" name)))</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (concatenate 'string "ISO-" (subseq name 3))</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; name))</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; "KEYWORD"))))))</div><div class=""><br class=""></div><div class=""><br class=""></div><div class="">(defun set-terminal-encoding (encoding)</div><div class="">&nbsp; #-(and ccl (not swank)) (declare (ignore encoding))</div><div class="">&nbsp; #+(and ccl (not swank))</div><div class="">&nbsp; (mapc (lambda (stream)</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (setf (ccl::stream-external-format stream)</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (ccl:make-external-format :domain nil</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; :character-encoding encoding</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; :line-termination</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (if (boolean-enval "LSE_TELNET" nil)</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; :windows</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (or</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;#+unix :unix</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;#+windows :windows</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;#-(or unix windows) :unix)))))</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; (list (two-way-stream-input-stream &nbsp;*terminal-io*)</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (two-way-stream-output-stream *terminal-io*)))</div><div class="">&nbsp; (values))</div><div class=""><br class=""></div></div><div class=""><br class=""></div><div class="">with:</div><div class="">&nbsp; &nbsp;(set-terminal-encoding (locale-terminal-encoding))</div><div class="">called in the main.</div><div class=""><br class=""></div><div class=""><br class=""></div><div class="">One thing we can learn from this example, is that we’re actually talking about the terminal, and that the actual CL stream is *TERMINAL-IO*; *standard-input* and *standard-output* may be indirect streams redirected to *TERMINAL-IO*. &nbsp;So you may have to actually modify *TERMINAL-IO*.</div><div class=""><br class=""></div><div class=""><br class=""><blockquote type="cite" class=""><div class=""><div class="">10 feb. 2017 kl. 22:37 skrev Pascal Bourguignon &lt;<a href="mailto:pjb@informatimago.com" class="">pjb@informatimago.com</a>&gt;:<br class=""><blockquote type="cite" class=""><br class=""><br class=""><blockquote type="cite" class="">On 10 Feb 2017, at 22:26, Burton Samograd &lt;<a href="mailto:busfactor1@gmail.com" class="">busfactor1@gmail.com</a>&gt; wrote:<br class=""><br class="">Try (set-default-character-element-type 'character) at the top of your program.<br class=""><br class="">Sent from my iPhone<br class=""><br class=""><blockquote type="cite" class="">On Feb 10, 2017, at 2:11 PM, Sven Emtell &lt;<a href="mailto:sven.emtell@doremir.com" class="">sven.emtell@doremir.com</a>&gt; wrote:<br class=""><br class="">Hello,<br class="">I have a piece of server code where I make some debug printouts using (format t ...) containing characters with cl:char-code &gt; 256.<br class="">When I run it in LispWorks GUI on Mac OS X it outputs the characters nicely in the Listener,<br class="">but when I deliver the code using LispWorks for Linux (32-bit) and then run it in a Linux terminal it says:<br class=""><br class="">Call to SIGerror #\U+2022 (of type CHARACTER) is not of type BASE-CHAR. while writing to error log, error not logged<br class=""><br class="">I can see why when checking the element-type of *standard-output* on the two platforms.<br class=""><br class="">LispWorks GUI on Mac OS X:<br class="">(stream-element-type *standard-output*) =&gt; BASE-CHAR<br class=""><br class="">Delivered with LispWorks for Linux (32-bit) and running in terminal on Linux:<br class="">(stream-element-type *standard-output*) =&gt; CHARACTER<br class=""></blockquote></blockquote><br class="">That’s suspicious, given that (subtypep ‘bash-char ‘character) must hold.<br class="">(I would expect a GUI to be able to display more characters than a terminal).<br class="">Furthermore, it’s not consistent with the error above.<br class=""><br class=""><br class="">Are you lying to us?<br class=""><br class=""><br class=""><br class=""><blockquote type="cite" class=""><blockquote type="cite" class="">Is it possible to change the element type of *standard-output*?<br class="">Any other suggestions?<br class=""></blockquote></blockquote><br class="">I would first check how the LC_ALL environment variable is set in both environment.<br class="">(check also the other LC_* environment variables if LC_ALL is not set).<br class=""><br class="">Of course, normally LC_ALL should be set in function of the capabilities of your terminal.<br class=""><br class="">Perhaps you should check (stream-element-type *standard-output*) before sending to the terminal characters that it won’t be able to render?<br class="">I mean, if it gives a meaningfully different result for an ASCII terminal than for a GUI?<br class=""></blockquote></div></div></blockquote></div></div></div></blockquote></div></div></div></div></blockquote></div></div></div></div><div class=""><br class=""></div></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: unicode support</h1><html><head><meta http-equiv="Content-Type" content="text/html charset=us-ascii"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class=""><br class=""><div><blockquote type="cite" class=""><div class="">On 18 Jan 2018, at 15:55, Jerome Ibanes &lt;<a href="mailto:jibanes@gmail.com" class="">jibanes@gmail.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><span style="font-family: Menlo-Regular; font-size: 11px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; float: none; display: inline !important;" class="">It seems that Lispworks doesn't handle a subset of unicode properly,</span><br style="font-family: Menlo-Regular; font-size: 11px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px;" class=""><span style="font-family: Menlo-Regular; font-size: 11px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; float: none; display: inline !important;" class="">please let me know if I am mistaken:</span></div></blockquote></div><br class=""><div class="">[I staeted writing this before the other replies but then forgot about it: it may now be obsolete &nbsp;(and/or wrong), sorry.]</div><div class=""><br class=""></div><div class="">I think you are. &nbsp;I think what you've managed to do is to create a string which has in it a sequence of characters that, when interpreted by a terminal or something else that expects things in UTF-8, looks as if it is the string you think it should be. &nbsp;But it's not. &nbsp;I think that something like</div><div class=""><br class=""></div><div class=""><span class="Apple-tab-span" style="white-space:pre">	</span>(map 'list #'char-code &lt;your string&gt;)</div><div class=""><br class=""></div><div class="">will show you that.</div><div class=""><br class=""></div><div class="">If you, for instance, do this:</div><div class=""><br class=""></div><div class=""><span class="Apple-tab-span" style="white-space:pre">	</span>(set-default-character-element-type 'bmp-char) ;character is also fine but strings will be fatter</div><div class=""><span class="Apple-tab-span" style="white-space:pre">	</span>(coerce '(#\a #\u+03b9 #\c) 'string)</div><div class=""><br class=""></div><div class="">You'll get a string which actually contains the unicode characters you expect.</div><div class=""><br class=""></div><div class="">You will then have enormous nightmare dealing with this on terminals of course, which I have no idea how to deal with.</div></body></html>
+
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+           </body>
+          </html>

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Useful macro for the Java foreign interface</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+           </head>
+           <body>
+            <div class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </div>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Useful macro for the Java foreign interface</h1><html><head><meta http-equiv="Content-Type" content="text/html charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class=""><div class="">I meant to send the macro below some time ago, after I started to use the java foreign interface.&nbsp;</div><div class="">The java-callers is just a helper function.&nbsp;</div><div class="">I have found the macro quite useful to avoid redundancies in the code and collects java class methods.&nbsp;</div><div class="">See the 2 examples below.</div><div class="">See below:&nbsp;</div><div class=""><br class=""></div><div class=""><br class=""></div><font face="Monaco" class="">(require "java-interface")<br class=""></font><span style="font-family: Monaco;" class="">(use-package :lw-ji)</span><div class=""><font face="Monaco" class="">#-JVM (progn&nbsp;<br class="">&nbsp; &nbsp; &nbsp; &nbsp; (init-java-interface :jvm-library-path *jdk-9.0.4.jdk* :java-class-path *java-class-paths*)<br class="">&nbsp; &nbsp; &nbsp; &nbsp; (push :JVM *features*))<br class=""></font><div class=""><font face="Monaco" class=""><br class=""></font></div><div class=""><font face="Monaco" class="">(defmethod java-callers ((java-callers list))<br class="">&nbsp; (mapcar #'(lambda (caller-spec)&nbsp;<br class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (if (stringp caller-spec)<br class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (list (intern (string-upcase caller-spec)) caller-spec)<br class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; caller-spec))<br class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; java-callers))<br class=""><br class=""><br class="">(defmacro java-interface (class-definitions constructor callers)<br class="">&nbsp; (let ((constructor-symbol (intern (string-upcase constructor)))<br class="">&nbsp; &nbsp; &nbsp; &nbsp; (java-callers (java-callers callers)))<br class="">&nbsp; &nbsp; `(progn (import-java-class-definitions ,class-definitions)<br class="">&nbsp; &nbsp; &nbsp; &nbsp;(when ,constructor&nbsp;<br class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(define-java-constructor ,constructor-symbol ,class-definitions))<br class="">&nbsp; &nbsp; &nbsp; &nbsp;(when ',callers<br class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(define-java-callers ,class-definitions<br class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;,@java-callers)))))</font></div><div class=""><font face="Monaco" class=""><br class=""></font></div><div class=""><font face="Monaco" class=""><br class=""></font></div><div class=""><font face="Monaco" class="">;; some examples.&nbsp;</font></div><div class=""><font face="Monaco" class="">;; Assuming&nbsp;init-java-interface has been called with the various&nbsp;paths to java sources.&nbsp;</font></div><div class=""><font face="Monaco" class=""><br class=""></font></div><div class=""><font face="Monaco" class="">;; A&nbsp;class with a constructor&nbsp;and methods. &nbsp;</font></div><div class=""><font face="Monaco" class="">(java-interface "org.apache.activemq.ActiveMQConnectionFactory"<br class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; "ActiveMQConnectionFactory"<br class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ("getClientID"<br class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;"setClientID"<br class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;))</font></div><div class=""><font face="Monaco" class=""><br class=""></font></div><div class=""><div class=""><font face="Monaco" class="">;; A&nbsp;change to the method name&nbsp;“close” so that it does not conflict with an existing lisp function. &nbsp;</font></div></div><div class=""><font face="Monaco" class="">(java-interface "javax.jms.Connection"<br class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; nil<br class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ("start"<br class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;"stop"<br class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;"createSession"<br class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(closeconnection "close")))<br class=""><br class=""><br class=""></font></div></div></body></html>
+
+               </article>
+              </section>
+             </div>
+            </div>
+           </body>
+          </html>

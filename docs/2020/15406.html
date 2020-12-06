@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>FLI: pointer to lisp object in FLI callback</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+           </head>
+           <body>
+            <div class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </div>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>FLI: pointer to lisp object in FLI callback</h1><div dir="ltr"><div>Hi all,</div><div><br></div><div>I&#39;m trying to use FLI for some C library which uses callbacks.</div><div>I create foreign-callable and transfer it to C function. However the C API supports sending opaque pointers as an argument to callback function. I want to supply some of my Lisp objects as this opaque pointer, so my Lisp foreign callable, being called from C code, will receive a Lisp object as an argument.<br></div><div>How to specify this argument ?</div><div><br></div><div>BR,</div><div>/Alexey<br></div></div>
+
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: FLI: pointer to lisp object in FLI callback</h1><div dir="ltr">That won&#39;t be generally possible, because you&#39;d need to coerce the object into a pointer value or some such.<div><br></div><div>The approach I&#39;ve seen most often (and used myself) is to keep a hash-table of id=&gt;CL objects. Generate a unique ID and give thas as the opaque pointer.</div><div>Then in your callback:<br><br>(let ((my-object (gethash (fli:pointer-address opaque-ptr) *objects-list*)))<br>  ;; Do stuff with your object<br>  )<br><br>.. Where *objects-list* is this hash table, and opaque-ptr is the argument to the callback</div></div><br><div class="gmail_quote"><div dir="ltr" class="gmail_attr">On Mon, Nov 2, 2020 at 2:31 PM Alexey Veretennikov &lt;<a href="mailto:txm.fourier@gmail.com">txm.fourier@gmail.com</a>&gt; wrote:<br></div><blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex"><div dir="ltr"><div>Hi all,</div><div><br></div><div>I&#39;m trying to use FLI for some C library which uses callbacks.</div><div>I create foreign-callable and transfer it to C function. However the C API supports sending opaque pointers as an argument to callback function. I want to supply some of my Lisp objects as this opaque pointer, so my Lisp foreign callable, being called from C code, will receive a Lisp object as an argument.<br></div><div>How to specify this argument ?</div><div><br></div><div>BR,</div><div>/Alexey<br></div></div>
+</blockquote></div><br clear="all"><div><br></div>-- <br><div dir="ltr" class="gmail_signature"><div dir="ltr"><div><div dir="ltr">Wilfredo Velázquez-Rodríguez<br></div></div></div></div>
+
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1></h1>
+                 <p>
+                  Unable to parse email body. Email id is 15408
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: FLI: pointer to lisp object in FLI callback</h1><div dir="ltr"><div>Thanks,</div><div><br></div><div>Apparently all solutions require some sort of the global variable. However during my evening experiments I was able to get the solution which does not require explicit creation of the global variable, but using allocation in the particular GC generation.</div><div>Here is the code for the call of the foreign function supplying Lisp callback. I create the object (Lisp struct) in long-living GC generation (2), take the address to it, allocate memory to hold the address and supply pointer to the foreign function(note the code is for 32bit LW):<br></div><div><br></div>      ;; create the object in &quot;static&quot; memory. generation 2 supposed to be safe from GC move<br>      (allocation-in-gen-num 2<br>        (let* ((helper (make-visitor-helper))<br>               (helper-addr (sys:object-address helper))) ; get the object address<br>          ;; allocate dynamic memory for address and copy it here<br>          (fli:with-integer-bytes (p len) helper-addr<br>            ;; call the foreign function &#39;visitchildren&#39; supplying our callback &#39;visitor&#39;<br>            (visitchildren visitor<br><div>                           p))))</div><div><br></div><div>In my Lisp callable function I do the reverse: dereference the pointer to get the integer value (address in the generation 2) and then get the object by using this address:</div><div><br></div><div>  ;; check if the data supplied is not a null pointer<br>  (unless (fli:null-pointer-p client-data)<br>    ;; dereference the opaque pointer to integer and get the value<br>    (when-let* ((addr (fli:dereference client-data :type &#39;(:unsigned :int)))<br>                ;; get the lisp object from address<br>                (obj (sys:pointer-from-address addr)))<br>      ;; works!<br>      (format t &quot;filename: ~a~%&quot; (visitor-helper-filename obj))))</div><div><br></div><div>BR</div><div>/Alexey<br></div><div><br></div><div><br></div></div><br><div class="gmail_quote"><div dir="ltr" class="gmail_attr">On Mon, Nov 2, 2020 at 8:36 PM HZ- &lt;<a href="mailto:964411818@qq.com">964411818@qq.com</a>&gt; wrote:<br></div><blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex">You may use the third library which called &quot;CFFI&quot; ,or refer to the book &lt;common lisp recipes &gt; for help.<div><br></div><div><br></div><div style="font-size:12px;font-family:Arial Narrow;padding:2px 0px">------------------ 原始邮件 ------------------</div><div style="font-size:12px;background:rgb(239,239,239) none repeat scroll 0% 0%;padding:8px"><div><b>发件人:</b> &quot;Alexey Veretennikov&quot;&lt;<a href="mailto:txm.fourier@gmail.com" target="_blank">txm.fourier@gmail.com</a>&gt;; </div><div><b>发送时间:</b> 2020年11月3日(星期二) 凌晨3:28</div><div><b>收件人:</b> &quot;Lispworks HUG&quot;&lt;<a href="mailto:lisp-hug@lispworks.com" target="_blank">lisp-hug@lispworks.com</a>&gt;; </div><div><b>主题:</b> FLI: pointer to lisp object in FLI callback</div></div><div><br></div><div dir="ltr"><div>Hi all,</div><div><br></div><div>I&#39;m trying to use FLI for some C library which uses callbacks.</div><div>I create foreign-callable and transfer it to C function. However the C API supports sending opaque pointers as an argument to callback function. I want to supply some of my Lisp objects as this opaque pointer, so my Lisp foreign callable, being called from C code, will receive a Lisp object as an argument.<br></div><div>How to specify this argument ?</div><div><br></div><div>BR,</div><div>/Alexey<br></div></div>
+
+</blockquote></div>
+
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: FLI: pointer to lisp object in FLI callback</h1>
+                 <pre>That approach will work most of the time but it is not robust because you
+can't 100% guarantee that the GC will not move the object.  Also, the layout
+of bytes from fli:with-integer-bytes in unspecified so pairing it with
+fli:dereference is not supported.  Finally, wrapping allocation-in-gen-num
+around the whole form means that many other objects will be allocated in
+generation 2.
+
+Does the callback happen inside visitchildren?  If so, then the simplest
+solution is to bind a special variable around the call and use that inside the
+callback:
+
+(defvar *current-visitor-helper*)
+
+(let ((*current-visitor-helper* helper))
+  (visitchildren visitor nil))
+
+Then use *current-visitor-helper* in the callback.
+
+-- 
+Martin Simmons
+LispWorks Ltd
+http://www.lispworks.com/
+
+
+
+&gt&gt&gt&gt&gt On Mon, 2 Nov 2020 23:02:00 +0100, Alexey Veretennikov said:
+&gt 
+&gt Thanks,
+&gt 
+&gt Apparently all solutions require some sort of the global variable. However
+&gt during my evening experiments I was able to get the solution which does not
+&gt require explicit creation of the global variable, but using allocation in
+&gt the particular GC generation.
+&gt Here is the code for the call of the foreign function supplying Lisp
+&gt callback. I create the object (Lisp struct) in long-living GC generation
+&gt (2), take the address to it, allocate memory to hold the address and supply
+&gt pointer to the foreign function(note the code is for 32bit LW):
+&gt 
+&gt       ;; create the object in "static" memory. generation 2 supposed to be
+&gt safe from GC move
+&gt       (allocation-in-gen-num 2
+&gt         (let* ((helper (make-visitor-helper))
+&gt                (helper-addr (sys:object-address helper))) ; get the object
+&gt address
+&gt           ;; allocate dynamic memory for address and copy it here
+&gt           (fli:with-integer-bytes (p len) helper-addr
+&gt             ;; call the foreign function 'visitchildren' supplying our
+&gt callback 'visitor'
+&gt             (visitchildren visitor
+&gt                            p))))
+&gt 
+&gt In my Lisp callable function I do the reverse: dereference the pointer to
+&gt get the integer value (address in the generation 2) and then get the object
+&gt by using this address:
+&gt 
+&gt   ;; check if the data supplied is not a null pointer
+&gt   (unless (fli:null-pointer-p client-data)
+&gt     ;; dereference the opaque pointer to integer and get the value
+&gt     (when-let* ((addr (fli:dereference client-data :type '(:unsigned :int)))
+&gt                 ;; get the lisp object from address
+&gt                 (obj (sys:pointer-from-address addr)))
+&gt       ;; works!
+&gt       (format t "filename: ~a~%" (visitor-helper-filename obj))))
+&gt 
+&gt BR
+&gt /Alexey
+&gt 
+&gt 
+&gt 
+&gt On Mon, Nov 2, 2020 at 8:36 PM HZ- &lt;964411818@qq.com&gt wrote:
+&gt 
+&gt &gt You may use the third library which called "CFFI" ,or refer to the book
+&gt &gt &lt;common lisp recipes &gt for help.
+&gt &gt
+&gt &gt
+&gt &gt ------------------ 原始邮件 ------------------
+&gt &gt *发件人:* "Alexey Veretennikov"&lt;txm.fourier@gmail.com&gt;
+&gt &gt *发送时间:* 2020年11月3日(星期二) 凌晨3:28
+&gt &gt *收件人:* "Lispworks HUG"&lt;lisp-hug@lispworks.com&gt;
+&gt &gt *主题:* FLI: pointer to lisp object in FLI callback
+&gt &gt
+&gt &gt Hi all,
+&gt &gt
+&gt &gt I'm trying to use FLI for some C library which uses callbacks.
+&gt &gt I create foreign-callable and transfer it to C function. However the C API
+&gt &gt supports sending opaque pointers as an argument to callback function. I
+&gt &gt want to supply some of my Lisp objects as this opaque pointer, so my Lisp
+&gt &gt foreign callable, being called from C code, will receive a Lisp object as
+&gt &gt an argument.
+&gt &gt How to specify this argument ?
+&gt &gt
+&gt &gt BR,
+&gt &gt /Alexey
+&gt &gt
+&gt 
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: FLI: pointer to lisp object in FLI callback</h1><div dir="ltr"><div>Thanks Martin,</div><div><br></div><div>This is much simpler and works.</div><div><br></div><div>Br,</div><div>/Alexey<br></div></div><br><div class="gmail_quote"><div dir="ltr" class="gmail_attr">On Tue, Nov 3, 2020 at 11:35 AM Martin Simmons &lt;<a href="mailto:martin@lispworks.com">martin@lispworks.com</a>&gt; wrote:<br></div><blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex">That approach will work most of the time but it is not robust because you<br>
+can&#39;t 100% guarantee that the GC will not move the object.  Also, the layout<br>
+of bytes from fli:with-integer-bytes in unspecified so pairing it with<br>
+fli:dereference is not supported.  Finally, wrapping allocation-in-gen-num<br>
+around the whole form means that many other objects will be allocated in<br>
+generation 2.<br>
+<br>
+Does the callback happen inside visitchildren?  If so, then the simplest<br>
+solution is to bind a special variable around the call and use that inside the<br>
+callback:<br>
+<br>
+(defvar *current-visitor-helper*)<br>
+<br>
+(let ((*current-visitor-helper* helper))<br>
+  (visitchildren visitor nil))<br>
+<br>
+Then use *current-visitor-helper* in the callback.<br>
+<br>
+-- <br>
+Martin Simmons<br>
+LispWorks Ltd<br>
+<a href="http://www.lispworks.com/" rel="noreferrer" target="_blank">http://www.lispworks.com/</a><br>
+<br>
+<br>
+<br>
+&gt;&gt;&gt;&gt;&gt; On Mon, 2 Nov 2020 23:02:00 +0100, Alexey Veretennikov said:<br>
+&gt; <br>
+&gt; Thanks,<br>
+&gt; <br>
+&gt; Apparently all solutions require some sort of the global variable. However<br>
+&gt; during my evening experiments I was able to get the solution which does not<br>
+&gt; require explicit creation of the global variable, but using allocation in<br>
+&gt; the particular GC generation.<br>
+&gt; Here is the code for the call of the foreign function supplying Lisp<br>
+&gt; callback. I create the object (Lisp struct) in long-living GC generation<br>
+&gt; (2), take the address to it, allocate memory to hold the address and supply<br>
+&gt; pointer to the foreign function(note the code is for 32bit LW):<br>
+&gt; <br>
+&gt;       ;; create the object in &quot;static&quot; memory. generation 2 supposed to be<br>
+&gt; safe from GC move<br>
+&gt;       (allocation-in-gen-num 2<br>
+&gt;         (let* ((helper (make-visitor-helper))<br>
+&gt;                (helper-addr (sys:object-address helper))) ; get the object<br>
+&gt; address<br>
+&gt;           ;; allocate dynamic memory for address and copy it here<br>
+&gt;           (fli:with-integer-bytes (p len) helper-addr<br>
+&gt;             ;; call the foreign function &#39;visitchildren&#39; supplying our<br>
+&gt; callback &#39;visitor&#39;<br>
+&gt;             (visitchildren visitor<br>
+&gt;                            p))))<br>
+&gt; <br>
+&gt; In my Lisp callable function I do the reverse: dereference the pointer to<br>
+&gt; get the integer value (address in the generation 2) and then get the object<br>
+&gt; by using this address:<br>
+&gt; <br>
+&gt;   ;; check if the data supplied is not a null pointer<br>
+&gt;   (unless (fli:null-pointer-p client-data)<br>
+&gt;     ;; dereference the opaque pointer to integer and get the value<br>
+&gt;     (when-let* ((addr (fli:dereference client-data :type &#39;(:unsigned :int)))<br>
+&gt;                 ;; get the lisp object from address<br>
+&gt;                 (obj (sys:pointer-from-address addr)))<br>
+&gt;       ;; works!<br>
+&gt;       (format t &quot;filename: ~a~%&quot; (visitor-helper-filename obj))))<br>
+&gt; <br>
+&gt; BR<br>
+&gt; /Alexey<br>
+&gt; <br>
+&gt; <br>
+&gt; <br>
+&gt; On Mon, Nov 2, 2020 at 8:36 PM HZ- &lt;<a href="mailto:964411818@qq.com" target="_blank">964411818@qq.com</a>&gt; wrote:<br>
+&gt; <br>
+&gt; &gt; You may use the third library which called &quot;CFFI&quot; ,or refer to the book<br>
+&gt; &gt; &lt;common lisp recipes &gt; for help.<br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt; ------------------ 原始邮件 ------------------<br>
+&gt; &gt; *发件人:* &quot;Alexey Veretennikov&quot;&lt;<a href="mailto:txm.fourier@gmail.com" target="_blank">txm.fourier@gmail.com</a>&gt;;<br>
+&gt; &gt; *发送时间:* 2020年11月3日(星期二) 凌晨3:28<br>
+&gt; &gt; *收件人:* &quot;Lispworks HUG&quot;&lt;<a href="mailto:lisp-hug@lispworks.com" target="_blank">lisp-hug@lispworks.com</a>&gt;;<br>
+&gt; &gt; *主题:* FLI: pointer to lisp object in FLI callback<br>
+&gt; &gt;<br>
+&gt; &gt; Hi all,<br>
+&gt; &gt;<br>
+&gt; &gt; I&#39;m trying to use FLI for some C library which uses callbacks..<br>
+&gt; &gt; I create foreign-callable and transfer it to C function. However the C API<br>
+&gt; &gt; supports sending opaque pointers as an argument to callback function. I<br>
+&gt; &gt; want to supply some of my Lisp objects as this opaque pointer, so my Lisp<br>
+&gt; &gt; foreign callable, being called from C code, will receive a Lisp object as<br>
+&gt; &gt; an argument.<br>
+&gt; &gt; How to specify this argument ?<br>
+&gt; &gt;<br>
+&gt; &gt; BR,<br>
+&gt; &gt; /Alexey<br>
+&gt; &gt;<br>
+&gt; <br>
+<br>
+_______________________________________________<br>
+Lisp Hug - the mailing list for LispWorks users<br>
+<a href="mailto:lisp-hug@lispworks.com" target="_blank">lisp-hug@lispworks.com</a><br>
+<a href="http://www.lispworks.com/support/lisp-hug.html" rel="noreferrer" target="_blank">http://www.lispworks.com/support/lisp-hug.html</a><br>
+</blockquote></div>
+
+
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+           </body>
+          </html>

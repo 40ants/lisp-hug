@@ -1,0 +1,1651 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Error on macro execution when compiling for the first time</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+           </head>
+           <body>
+            <div class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </div>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Error on macro execution when compiling for the first time</h1>
+                <pre>See the code below. 
+
+I wrote a macro to define a class, and another one to make a simple call to create an instance of the class (make-instance-macro-call). 
+The defclass-object combines both. 
+
+As a means to test my code, I often write test functions that execute only if I want to test the code or not (see parameter *test-code*).
+
+If I load the code, then compile there is no error. 
+
+The first time I compile the code, I get the following error:
+
+The call (#&lt;Function 1 subfunction of (SUBFUNCTION # #) 413003DAFC&gt) does not match definition (#&lt;Function 1 subfunction of (SUBFUNCTION # #) 413003DAFC&gt &amp;REST INITARGS).
+
+When aborting, and recompiling, the error is gone. 
+
+The error occurs within the test code block. 
+
+I am just wondering. Is there a way to avoid this error when the code gets compiled for the first time?
+
+Bruno
+
+;;;;;;;
+(defmacro make-instance-macro-call (class-name)
+  `(defmacro ,class-name (&amp;rest initargs) 
+     (append (list 'make-instance '',class-name) initargs)))
+
+(defmacro defclass-object (class-name)
+  `(progn
+     (defclass ,class-name () ())
+     (make-instance-macro-call ,class-name)))
+
+(defclass-object my-class)
+(my-class) ;; this creates an instance of my-class. No issue when compiling for the fist time. 
+
+(defparameter *test-code* t)
+
+(when *test-code*
+  (defclass-object my-test-class)
+  (my-test-class) ;; This generates an error the first time it is compiled, then it is fine on subsequent compilation. 
+ 
+
+#|
+First time compiling.
+The call (#&lt;Function 1 subfunction of (SUBFUNCTION # #) 413003DAFC&gt) does not match definition (#&lt;Function 1 subfunction of (SUBFUNCTION # #) 413003DAFC&gt &amp;REST INITARGS).
+Then fine. 
+|#
+;;;;;;;;;
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Error on macro execution when compiling for the first time</h1><html><head><meta http-equiv="Content-Type" content="text/html; charset=us-ascii"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class="">Minor problem: The code is missing a closing parentheses.<div class=""><br class=""></div><div class="">See:&nbsp;<a href="http://www.lispworks.com/documentation/HyperSpec/Body/03_bca.htm" class="">http://www.lispworks.com/documentation/HyperSpec/Body/03_bca.htm</a>&nbsp;Processing of Top Level Forms<br class=""><div class=""><br class=""></div><div class="">about top-level-ness: defmacro definitions at top-level will be recognized by the compiler and will be made available in the compile-time environment.<br class=""><div class=""><br class=""></div><div class="">See WHEN: WHEN is at the top-level, but it's subforms are not. Thus the enclosed DEFCLASS-OBJECT form is also not at top-level.</div><div class="">Thus the compiler will expand the macro form, but will not recognize that the generated code has definitions and will not make them available during compilation.</div><div class=""><br class=""></div><div class="">The earlier&nbsp;(defclass-object my-class) is at top-level: it gets expanded and the the generated code is recognized as top-level forms.<br class=""><div><br class=""><blockquote type="cite" class=""><div class="">Am 07.05.2020 um 17:13 schrieb Bruno Emond &lt;<a href="mailto:emond.bruno@gmail.com" class="">emond.bruno@gmail.com</a>&gt;:</div><br class="Apple-interchange-newline"><div class=""><div class="">See the code below. <br class=""><br class="">I wrote a macro to define a class, and another one to make a simple call to create an instance of the class (make-instance-macro-call). <br class="">The defclass-object combines both. <br class=""><br class="">As a means to test my code, I often write test functions that execute only if I want to test the code or not (see parameter *test-code*).<br class=""><br class="">If I load the code, then compile there is no error. <br class=""><br class="">The first time I compile the code, I get the following error:<br class=""><br class="">The call (#&lt;Function 1 subfunction of (SUBFUNCTION # #) 413003DAFC&gt;) does not match definition (#&lt;Function 1 subfunction of (SUBFUNCTION # #) 413003DAFC&gt; &amp;REST INITARGS).<br class=""><br class="">When aborting, and recompiling, the error is gone. <br class=""><br class="">The error occurs within the test code block. <br class=""><br class="">I am just wondering. Is there a way to avoid this error when the code gets compiled for the first time?<br class=""><br class="">Bruno<br class=""><br class="">;;;;;;;<br class="">(defmacro make-instance-macro-call (class-name)<br class=""> &nbsp;`(defmacro ,class-name (&amp;rest initargs) <br class=""> &nbsp;&nbsp;&nbsp;&nbsp;(append (list 'make-instance '',class-name) initargs)))<br class=""><br class="">(defmacro defclass-object (class-name)<br class=""> &nbsp;`(progn<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;(defclass ,class-name () ())<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;(make-instance-macro-call ,class-name)))<br class=""><br class="">(defclass-object my-class)<br class="">(my-class) ;; this creates an instance of my-class. No issue when compiling for the fist time. <br class=""><br class="">(defparameter *test-code* t)<br class=""><br class="">(when *test-code*<br class=""> &nbsp;(defclass-object my-test-class)<br class=""> &nbsp;(my-test-class) ;; This generates an error the first time it is compiled, then it is fine on subsequent compilation. <br class=""><br class=""><br class="">#|<br class="">First time compiling.<br class="">The call (#&lt;Function 1 subfunction of (SUBFUNCTION # #) 413003DAFC&gt;) does not match definition (#&lt;Function 1 subfunction of (SUBFUNCTION # #) 413003DAFC&gt; &amp;REST INITARGS).<br class="">Then fine. <br class="">|#<br class="">;;;;;;;;;<br class=""><br class="">_______________________________________________<br class="">Lisp Hug - the mailing list for LispWorks users<br class=""><a href="mailto:lisp-hug@lispworks.com" class="">lisp-hug@lispworks.com</a><br class="">http://www.lispworks.com/support/lisp-hug.html<br class=""></div></div></blockquote></div><br class=""></div></div></div></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Error on macro execution when compiling for the first time</h1><html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class=""><br class=""><div><br class=""><blockquote type="cite" class=""><div class="">On 7 May 2020, at 17:13, Bruno Emond &lt;<a href="mailto:emond.bruno@gmail.com" class="">emond.bruno@gmail.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><div class="">See the code below. <br class=""><br class="">I wrote a macro to define a class, and another one to make a simple call to create an instance of the class (make-instance-macro-call). <br class="">The defclass-object combines both. <br class=""><br class="">As a means to test my code, I often write test functions that execute only if I want to test the code or not (see parameter *test-code*).<br class=""><br class="">If I load the code, then compile there is no error. <br class=""><br class="">The first time I compile the code, I get the following error:<br class=""><br class="">The call (#&lt;Function 1 subfunction of (SUBFUNCTION # #) 413003DAFC&gt;) does not match definition (#&lt;Function 1 subfunction of (SUBFUNCTION # #) 413003DAFC&gt; &amp;REST INITARGS).<br class=""><br class="">When aborting, and recompiling, the error is gone. <br class=""><br class="">The error occurs within the test code block. <br class=""><br class="">I am just wondering. Is there a way to avoid this error when the code gets compiled for the first time?<br class=""><br class="">Bruno<br class=""><br class="">;;;;;;;<br class="">(defmacro make-instance-macro-call (class-name)<br class=""> &nbsp;`(defmacro ,class-name (&amp;rest initargs) <br class=""> &nbsp;&nbsp;&nbsp;&nbsp;(append (list 'make-instance '',class-name) initargs)))<br class=""><br class="">(defmacro defclass-object (class-name)<br class=""> &nbsp;`(progn<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;(defclass ,class-name () ())<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;(make-instance-macro-call ,class-name)))<br class=""><br class="">(defclass-object my-class)<br class="">(my-class) ;; this creates an instance of my-class. No issue when compiling for the fist time. <br class=""><br class="">(defparameter *test-code* t)<br class=""><br class="">(when *test-code*<br class=""> &nbsp;(defclass-object my-test-class)<br class=""> &nbsp;(my-test-class) ;; This generates an error the first time it is compiled, then it is fine on subsequent compilation. <br class=""></div></div></blockquote><br class=""></div><div><br class=""></div><div>Yes.&nbsp;</div><div><br class=""></div><div>The problem comes from the fact that the form that define my-test-class is the same form that calls it. &nbsp;Therefore the compiler cannot generate my-test-class and compile it, before it has to compile the call to my-test-class.</div><div><br class=""></div><div><br class=""></div><div>There are several ways to avoir the problem.</div><div><br class=""></div><div>The sanest would be to put test code in a test source file, and to have two and system definitions, one for the main code, and another for the test code. &nbsp;</div><div><br class=""></div><div>Then you wouldn’t have to test for *test-code*, testing the program would only involve loading the test and system (which would load the program system, and then run the test).</div><div><br class=""></div><div>This would let you write the test as TWO separate top-level forms:</div><div><br class=""></div><div>(defclass-object my-test-class)</div><div>(my-test-class)</div><div><br class=""></div><div>And then the compiler would have a chance to compile the first top-level form, thus expanding the defclass-object macro, and compiling the my-test-class macro.</div><div><br class=""></div><div><br class=""></div><div><br class=""></div><div>Another solution would be to realise that my-test-class doesn’t need to be a macro (from the informations you gave us). &nbsp;Therefore you should expand to a defun form instead. &nbsp;Then the compiler can generate the code to call the unknown function providing only a warning. &nbsp;You can avoid this warning by declaring that my-test-class is a function with:</div><div><br class=""></div><div>(declaim (ftype (function ()) my-test-class))</div><div><blockquote type="cite" class=""></blockquote>(when *test-code*<br class=""><blockquote type="cite" class=""></blockquote>&nbsp;(defclass-object my-test-class)<br class="">&nbsp;(my-test-class))</div><div><br class=""></div><div><br class=""></div><div>Finally, there’s a brutal way to do it, which is to defer the question to run-time:</div><div><br class=""></div><div><div>(when *test-code*</div><div>&nbsp;(defclass-object my-test-class)</div><div>&nbsp;(eval '(my-test-class)))</div><div><br class=""></div><div>But this is really not a good way to do it; the use of EVAL can bring all kinds of difficulties in itself, and it’s really not justified here, since there are better solutions seen above.</div></div><div><br class=""></div><div><br class=""></div><div><br class=""></div><div>The lesson is that when you use macro to define things, you should give them chance to be compiled and executed before the forms that use the results of those macros.</div><div><br class=""></div><div>Often, this is done simply by putting the macros (and the functions they use) in a separate source file, that can thus be compiled and loaded before you compile the rest of the program. &nbsp;The two top-level forms (defclass-object my-test-class) and (my-test-class) can be in separate files.</div><div class=""><br class=""></div><div class="">Also, in some cases, the solution to this kind of problems may involve eval-when, but not here, and you would still have to split the two top-level forms even with eval-when.</div><div><br class=""></div><br class=""><div class="">
+<div style="color: rgb(0, 0, 0); letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class=""><div style="color: rgb(0, 0, 0); letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class=""><div style="color: rgb(0, 0, 0); letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class="">--&nbsp;<br class="">__Pascal J. Bourguignon__</div><div style="color: rgb(0, 0, 0); letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class=""><br class=""><br class=""><br class=""></div></div></div>
+</div>
+<br class=""></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Error on macro execution when compiling for the first time</h1><html><head><meta http-equiv="Content-Type" content="text/html; charset=us-ascii"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class="">Rainer,&nbsp;<div class=""><br class=""><div class="">Oups, yes the closing parenthesis got removed by error what I added a comment to the code in the email.&nbsp;</div><div class=""><br class=""></div><div class="">Thank you for the reference to the documentation.&nbsp;</div><div class=""><br class=""></div><div class="">Bruno</div><div class=""><br class=""><div><br class=""><blockquote type="cite" class=""><div class="">On May 7, 2020, at 11:36, Rainer Joswig &lt;<a href="mailto:joswig@lisp.de" class="">joswig@lisp.de</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><meta http-equiv="Content-Type" content="text/html; charset=us-ascii" class=""><div style="word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class="">Minor problem: The code is missing a closing parentheses.<div class=""><br class=""></div><div class="">See:&nbsp;<a href="http://www.lispworks.com/documentation/HyperSpec/Body/03_bca.htm" class="">http://www.lispworks.com/documentation/HyperSpec/Body/03_bca.htm</a>&nbsp;Processing of Top Level Forms<br class=""><div class=""><br class=""></div><div class="">about top-level-ness: defmacro definitions at top-level will be recognized by the compiler and will be made available in the compile-time environment.<br class=""><div class=""><br class=""></div><div class="">See WHEN: WHEN is at the top-level, but it's subforms are not. Thus the enclosed DEFCLASS-OBJECT form is also not at top-level.</div><div class="">Thus the compiler will expand the macro form, but will not recognize that the generated code has definitions and will not make them available during compilation.</div><div class=""><br class=""></div><div class="">The earlier&nbsp;(defclass-object my-class) is at top-level: it gets expanded and the the generated code is recognized as top-level forms.<br class=""><div class=""><br class=""><blockquote type="cite" class=""><div class="">Am 07.05.2020 um 17:13 schrieb Bruno Emond &lt;<a href="mailto:emond.bruno@gmail.com" class="">emond.bruno@gmail.com</a>&gt;:</div><br class="Apple-interchange-newline"><div class=""><div class="">See the code below. <br class=""><br class="">I wrote a macro to define a class, and another one to make a simple call to create an instance of the class (make-instance-macro-call). <br class="">The defclass-object combines both. <br class=""><br class="">As a means to test my code, I often write test functions that execute only if I want to test the code or not (see parameter *test-code*).<br class=""><br class="">If I load the code, then compile there is no error. <br class=""><br class="">The first time I compile the code, I get the following error:<br class=""><br class="">The call (#&lt;Function 1 subfunction of (SUBFUNCTION # #) 413003DAFC&gt;) does not match definition (#&lt;Function 1 subfunction of (SUBFUNCTION # #) 413003DAFC&gt; &amp;REST INITARGS).<br class=""><br class="">When aborting, and recompiling, the error is gone. <br class=""><br class="">The error occurs within the test code block. <br class=""><br class="">I am just wondering. Is there a way to avoid this error when the code gets compiled for the first time?<br class=""><br class="">Bruno<br class=""><br class="">;;;;;;;<br class="">(defmacro make-instance-macro-call (class-name)<br class=""> &nbsp;`(defmacro ,class-name (&amp;rest initargs) <br class=""> &nbsp;&nbsp;&nbsp;&nbsp;(append (list 'make-instance '',class-name) initargs)))<br class=""><br class="">(defmacro defclass-object (class-name)<br class=""> &nbsp;`(progn<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;(defclass ,class-name () ())<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;(make-instance-macro-call ,class-name)))<br class=""><br class="">(defclass-object my-class)<br class="">(my-class) ;; this creates an instance of my-class. No issue when compiling for the fist time. <br class=""><br class="">(defparameter *test-code* t)<br class=""><br class="">(when *test-code*<br class=""> &nbsp;(defclass-object my-test-class)<br class=""> &nbsp;(my-test-class) ;; This generates an error the first time it is compiled, then it is fine on subsequent compilation. <br class=""><br class=""><br class="">#|<br class="">First time compiling.<br class="">The call (#&lt;Function 1 subfunction of (SUBFUNCTION # #) 413003DAFC&gt;) does not match definition (#&lt;Function 1 subfunction of (SUBFUNCTION # #) 413003DAFC&gt; &amp;REST INITARGS).<br class="">Then fine. <br class="">|#<br class="">;;;;;;;;;<br class=""><br class="">_______________________________________________<br class="">Lisp Hug - the mailing list for LispWorks users<br class=""><a href="mailto:lisp-hug@lispworks.com" class="">lisp-hug@lispworks.com</a><br class=""><a href="http://www.lispworks.com/support/lisp-hug.html" class="">http://www.lispworks.com/support/lisp-hug.html</a><br class=""></div></div></blockquote></div><br class=""></div></div></div></div></div></blockquote></div><br class=""></div></div></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Error on macro execution when compiling for the first time</h1><html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class="">Thank you Pascal for your solution options.&nbsp;<div class=""><br class=""></div><div class="">I understand the problem to be rooted with the compilation of macros when they are not at the top-level.&nbsp;</div><div class=""><br class=""></div><div class="">From the three options you suggested, I think the separate file for tests is the one I prefer as it also follows common software testing practice.&nbsp;</div><div class=""><br class=""></div><div class="">However, I liked to have the testing code near by, so that in addition to support the actual code testing, I find that it also helps to document function when inspecting the code.</div><div class="">What I usually do is to have the *test-code* parameter at the top of the file and write multiple (when *test-code* …) blocks under each function. Well, almost each function...&nbsp;</div><div class="">It makes the test code easy available during development and code inspection (no need to go back and forth between files).&nbsp;</div><div class="">Anyway, it has limitations.&nbsp;</div><div class=""><br class=""></div><div class="">Thank you for your quick response.&nbsp;</div><div class=""><br class=""></div><div class="">Bruno<br class=""><div><br class=""><blockquote type="cite" class=""><div class="">On May 7, 2020, at 11:47, Pascal Bourguignon &lt;<a href="mailto:pjb@informatimago.com" class="">pjb@informatimago.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><br class="Apple-interchange-newline"><br class=""><blockquote type="cite" class=""><div class="">On 7 May 2020, at 17:13, Bruno Emond &lt;<a href="mailto:emond.bruno@gmail.com" class="">emond.bruno@gmail.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><div class="">See the code below.<span class="Apple-converted-space">&nbsp;</span><br class=""><br class="">I wrote a macro to define a class, and another one to make a simple call to create an instance of the class (make-instance-macro-call).<span class="Apple-converted-space">&nbsp;</span><br class="">The defclass-object combines both.<span class="Apple-converted-space">&nbsp;</span><br class=""><br class="">As a means to test my code, I often write test functions that execute only if I want to test the code or not (see parameter *test-code*).<br class=""><br class="">If I load the code, then compile there is no error.<span class="Apple-converted-space">&nbsp;</span><br class=""><br class="">The first time I compile the code, I get the following error:<br class=""><br class="">The call (#&lt;Function 1 subfunction of (SUBFUNCTION # #) 413003DAFC&gt;) does not match definition (#&lt;Function 1 subfunction of (SUBFUNCTION # #) 413003DAFC&gt; &amp;REST INITARGS).<br class=""><br class="">When aborting, and recompiling, the error is gone.<span class="Apple-converted-space">&nbsp;</span><br class=""><br class="">The error occurs within the test code block.<span class="Apple-converted-space">&nbsp;</span><br class=""><br class="">I am just wondering. Is there a way to avoid this error when the code gets compiled for the first time?<br class=""><br class="">Bruno<br class=""><br class="">;;;;;;;<br class="">(defmacro make-instance-macro-call (class-name)<br class="">&nbsp;`(defmacro ,class-name (&amp;rest initargs)<span class="Apple-converted-space">&nbsp;</span><br class="">&nbsp;&nbsp;&nbsp;&nbsp;(append (list 'make-instance '',class-name) initargs)))<br class=""><br class="">(defmacro defclass-object (class-name)<br class="">&nbsp;`(progn<br class="">&nbsp;&nbsp;&nbsp;&nbsp;(defclass ,class-name () ())<br class="">&nbsp;&nbsp;&nbsp;&nbsp;(make-instance-macro-call ,class-name)))<br class=""><br class="">(defclass-object my-class)<br class="">(my-class) ;; this creates an instance of my-class. No issue when compiling for the fist time.<span class="Apple-converted-space">&nbsp;</span><br class=""><br class="">(defparameter *test-code* t)<br class=""><br class="">(when *test-code*<br class="">&nbsp;(defclass-object my-test-class)<br class="">&nbsp;(my-test-class) ;; This generates an error the first time it is compiled, then it is fine on subsequent compilation.<span class="Apple-converted-space">&nbsp;</span><br class=""></div></div></blockquote><br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class="">Yes.&nbsp;</div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class="">The problem comes from the fact that the form that define my-test-class is the same form that calls it. &nbsp;Therefore the compiler cannot generate my-test-class and compile it, before it has to compile the call to my-test-class.</div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class="">There are several ways to avoir the problem.</div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class="">The sanest would be to put test code in a test source file, and to have two and system definitions, one for the main code, and another for the test code. &nbsp;</div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class="">Then you wouldn’t have to test for *test-code*, testing the program would only involve loading the test and system (which would load the program system, and then run the test).</div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class="">This would let you write the test as TWO separate top-level forms:</div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class="">(defclass-object my-test-class)</div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class="">(my-test-class)</div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class="">And then the compiler would have a chance to compile the first top-level form, thus expanding the defclass-object macro, and compiling the my-test-class macro.</div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class="">Another solution would be to realise that my-test-class doesn’t need to be a macro (from the informations you gave us). &nbsp;Therefore you should expand to a defun form instead. &nbsp;Then the compiler can generate the code to call the unknown function providing only a warning. &nbsp;You can avoid this warning by declaring that my-test-class is a function with:</div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class="">(declaim (ftype (function ()) my-test-class))</div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><blockquote type="cite" class=""></blockquote>(when *test-code*<br class=""><blockquote type="cite" class=""></blockquote>&nbsp;(defclass-object my-test-class)<br class="">&nbsp;(my-test-class))</div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class="">Finally, there’s a brutal way to do it, which is to defer the question to run-time:</div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><div class="">(when *test-code*</div><div class="">&nbsp;(defclass-object my-test-class)</div><div class="">&nbsp;(eval '(my-test-class)))</div><div class=""><br class=""></div><div class="">But this is really not a good way to do it; the use of EVAL can bring all kinds of difficulties in itself, and it’s really not justified here, since there are better solutions seen above.</div></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class="">The lesson is that when you use macro to define things, you should give them chance to be compiled and executed before the forms that use the results of those macros.</div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class="">Often, this is done simply by putting the macros (and the functions they use) in a separate source file, that can thus be compiled and loaded before you compile the rest of the program. &nbsp;The two top-level forms (defclass-object my-test-class) and (my-test-class) can be in separate files.</div><div class="" style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;"><br class=""></div><div class="" style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;">Also, in some cases, the solution to this kind of problems may involve eval-when, but not here, and you would still have to split the two top-level forms even with eval-when.</div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><br class=""></div><br class="" style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;"><div class="" style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;"><div class="" style="letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;"><div class="" style="letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;"><div class="" style="letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;">--&nbsp;<br class="">__Pascal J. Bourguignon__</div></div></div></div></div></blockquote></div><br class=""></div></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Error on macro execution when compiling for the first time</h1><html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class=""><div class="">Pascal and Rainer,&nbsp;</div><div class=""><br class=""></div><div class="">There are probably many lisp unit testing out there, in particular LISP-UNIT available through QuickLisp, but I did not search a lot.&nbsp;</div><div class=""><br class=""></div><div class="">I wrote a simple, and minimalist unit testing set of functions to deal with the problem I had.&nbsp;</div><div class="">I used the opportunity to familiarize myself with conditions.&nbsp;</div><div class="">It works when the code is compiled for the first time, and it allows me to keep the tests with the code (or move it to another file), and I do not need to use special predicates for testing.&nbsp;</div><div class=""><br class=""></div><div class="">Anyhow, just sharing it.&nbsp;</div><div class="">Maybe there are ways to make it even smaller :-)</div><div class=""><br class=""></div><div class="">Bruno</div><div class=""><br class=""></div><div class=""><div class="">;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;</div><div class="">;;; unit testing</div><div class="">(defparameter *unit-tests* nil)</div><div class="">(defparameter *unit-test-position* 0)</div><div class=""><br class=""></div><div class="">(define-condition test (simple-condition)</div><div class="">&nbsp; ((position :initarg :position :initform 0 :accessor test-position)))</div><div class="">(define-condition test-failure (test) ())</div><div class="">(define-condition test-success (test) ())</div><div class=""><br class=""></div><div class="">(defmethod trace-test ((condition test-failure))</div><div class="">&nbsp; (format t ";;; FAILURE -&gt; Test ~S.~%" (test-position condition)))</div><div class="">(defmethod trace-test ((condition test-success))</div><div class="">&nbsp; (format t ";;; Success -&gt; Test ~S.~%" (test-position condition)))</div><div class=""><br class=""></div><div class="">(defun clear-unit-tests ()</div><div class="">&nbsp; (setf *unit-tests* nil))</div><div class=""><br class=""></div><div class="">(defstruct unit-test name code)</div><div class=""><br class=""></div><div class="">(defmacro defunit-test (name &amp;body body)</div><div class="">&nbsp; `(if (member ,name *unit-tests* :key #'unit-test-name)</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp;(error "Unit test ~S is already defined." ,name)</div><div class="">&nbsp; &nbsp; &nbsp;(push (make-unit-test :name ,name :code ',body) *unit-tests*)))</div><div class=""><br class=""></div><div class="">(defun make-function (body)</div><div class="">&nbsp; (eval `#'(lambda () ,@body)))</div><div class=""><br class=""></div><div class="">(defmethod run-unit-test ((unit-test unit-test))</div><div class="">&nbsp; (let ((*unit-test-position* 0))</div><div class="">&nbsp; &nbsp; (handler-bind ((test-failure #'trace-test)</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(test-success #'trace-test))</div><div class="">&nbsp; &nbsp; &nbsp; (funcall (make-function (unit-test-code unit-test))))))</div><div class=""><br class=""></div><div class="">(defun test (expression)</div><div class="">&nbsp; (if expression&nbsp;</div><div class="">&nbsp; &nbsp; &nbsp; (signal (make-instance 'test-success :position (incf *unit-test-position*)))</div><div class="">&nbsp; &nbsp; (signal (make-instance 'test-failure :position (incf *unit-test-position*))))</div><div class="">&nbsp; expression)</div><div class=""><br class=""></div><div class="">(defmethod run-unit-tests ()</div><div class="">&nbsp; (format t "~%;;;;;; UNIT TESTS RESULTS.~%" )</div><div class="">&nbsp; (dolist (unit-test (reverse *unit-tests*) t)</div><div class="">&nbsp; &nbsp; (format t "~%;;;;;; ~S.~%" (unit-test-name unit-test))</div><div class="">&nbsp; &nbsp; (run-unit-test unit-test)))</div><div class="">&nbsp;</div><div class="">;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;</div><div class="">(clear-unit-tests)</div><div class=""><br class=""></div><div class="">(defmacro make-instance-macro-call (class-name)</div><div class="">&nbsp; `(defmacro ,class-name (&amp;rest initargs)&nbsp;</div><div class="">&nbsp; &nbsp; &nbsp;(append (list 'make-instance '',class-name) initargs)))</div><div class=""><br class=""></div><div class="">(defmacro defclass-object (class-name)</div><div class="">&nbsp; `(progn</div><div class="">&nbsp; &nbsp; &nbsp;(defclass ,class-name () ())</div><div class="">&nbsp; &nbsp; &nbsp;(make-instance-macro-call ,class-name)))</div><div class=""><br class=""></div><div class="">(defunit-test 'my-unit-test</div><div class="">&nbsp; (defclass-object my-test-class)</div><div class="">&nbsp; (my-test-class)</div><div class="">&nbsp; (test (equal 2 3))</div><div class="">&nbsp; (test (equal 3 3)))</div><div class=""><br class=""></div><div class="">(defunit-test 'my-second-unit-test</div><div class="">&nbsp; (test (&gt; 10 9)))</div><div class=""><br class=""></div><div class="">(run-unit-tests)</div></div><div class=""><br class=""></div><div class=""><br class=""></div><div class=""><div class=""><div class="">;;;;;; UNIT TESTS RESULTS.</div><div class=""><br class=""></div><div class="">;;;;;; MY-UNIT-TEST.</div><div class="">;;; FAILURE -&gt; Test 1.</div><div class="">;;; Success -&gt; Test 2.</div><div class=""><br class=""></div><div class="">;;;;;; MY-SECOND-UNIT-TEST.</div><div class="">;;; Success -&gt; Test 1.</div></div></div><div><br class=""><blockquote type="cite" class=""><div class="">On May 7, 2020, at 14:18, Bruno Emond &lt;<a href="mailto:emond.bruno@gmail.com" class="">emond.bruno@gmail.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><meta http-equiv="Content-Type" content="text/html; charset=utf-8" class=""><div style="word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class="">Thank you Pascal for your solution options.&nbsp;<div class=""><br class=""></div><div class="">I understand the problem to be rooted with the compilation of macros when they are not at the top-level.&nbsp;</div><div class=""><br class=""></div><div class="">From the three options you suggested, I think the separate file for tests is the one I prefer as it also follows common software testing practice.&nbsp;</div><div class=""><br class=""></div><div class="">However, I liked to have the testing code near by, so that in addition to support the actual code testing, I find that it also helps to document function when inspecting the code.</div><div class="">What I usually do is to have the *test-code* parameter at the top of the file and write multiple (when *test-code* …) blocks under each function. Well, almost each function...&nbsp;</div><div class="">It makes the test code easy available during development and code inspection (no need to go back and forth between files).&nbsp;</div><div class="">Anyway, it has limitations.&nbsp;</div><div class=""><br class=""></div><div class="">Thank you for your quick response.&nbsp;</div><div class=""><br class=""></div><div class="">Bruno<br class=""><div class=""><br class=""><blockquote type="cite" class=""><div class="">On May 7, 2020, at 11:47, Pascal Bourguignon &lt;<a href="mailto:pjb@informatimago.com" class="">pjb@informatimago.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><br class="Apple-interchange-newline"><br class=""><blockquote type="cite" class=""><div class="">On 7 May 2020, at 17:13, Bruno Emond &lt;<a href="mailto:emond.bruno@gmail.com" class="">emond.bruno@gmail.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><div class="">See the code below.<span class="Apple-converted-space">&nbsp;</span><br class=""><br class="">I wrote a macro to define a class, and another one to make a simple call to create an instance of the class (make-instance-macro-call).<span class="Apple-converted-space">&nbsp;</span><br class="">The defclass-object combines both.<span class="Apple-converted-space">&nbsp;</span><br class=""><br class="">As a means to test my code, I often write test functions that execute only if I want to test the code or not (see parameter *test-code*).<br class=""><br class="">If I load the code, then compile there is no error.<span class="Apple-converted-space">&nbsp;</span><br class=""><br class="">The first time I compile the code, I get the following error:<br class=""><br class="">The call (#&lt;Function 1 subfunction of (SUBFUNCTION # #) 413003DAFC&gt;) does not match definition (#&lt;Function 1 subfunction of (SUBFUNCTION # #) 413003DAFC&gt; &amp;REST INITARGS).<br class=""><br class="">When aborting, and recompiling, the error is gone.<span class="Apple-converted-space">&nbsp;</span><br class=""><br class="">The error occurs within the test code block.<span class="Apple-converted-space">&nbsp;</span><br class=""><br class="">I am just wondering. Is there a way to avoid this error when the code gets compiled for the first time?<br class=""><br class="">Bruno<br class=""><br class="">;;;;;;;<br class="">(defmacro make-instance-macro-call (class-name)<br class="">&nbsp;`(defmacro ,class-name (&amp;rest initargs)<span class="Apple-converted-space">&nbsp;</span><br class="">&nbsp;&nbsp;&nbsp;&nbsp;(append (list 'make-instance '',class-name) initargs)))<br class=""><br class="">(defmacro defclass-object (class-name)<br class="">&nbsp;`(progn<br class="">&nbsp;&nbsp;&nbsp;&nbsp;(defclass ,class-name () ())<br class="">&nbsp;&nbsp;&nbsp;&nbsp;(make-instance-macro-call ,class-name)))<br class=""><br class="">(defclass-object my-class)<br class="">(my-class) ;; this creates an instance of my-class. No issue when compiling for the fist time.<span class="Apple-converted-space">&nbsp;</span><br class=""><br class="">(defparameter *test-code* t)<br class=""><br class="">(when *test-code*<br class="">&nbsp;(defclass-object my-test-class)<br class="">&nbsp;(my-test-class) ;; This generates an error the first time it is compiled, then it is fine on subsequent compilation.<span class="Apple-converted-space">&nbsp;</span><br class=""></div></div></blockquote><br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class="">Yes.&nbsp;</div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class="">The problem comes from the fact that the form that define my-test-class is the same form that calls it. &nbsp;Therefore the compiler cannot generate my-test-class and compile it, before it has to compile the call to my-test-class.</div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class="">There are several ways to avoir the problem.</div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class="">The sanest would be to put test code in a test source file, and to have two and system definitions, one for the main code, and another for the test code. &nbsp;</div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class="">Then you wouldn’t have to test for *test-code*, testing the program would only involve loading the test and system (which would load the program system, and then run the test).</div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class="">This would let you write the test as TWO separate top-level forms:</div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class="">(defclass-object my-test-class)</div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class="">(my-test-class)</div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class="">And then the compiler would have a chance to compile the first top-level form, thus expanding the defclass-object macro, and compiling the my-test-class macro.</div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class="">Another solution would be to realise that my-test-class doesn’t need to be a macro (from the informations you gave us). &nbsp;Therefore you should expand to a defun form instead. &nbsp;Then the compiler can generate the code to call the unknown function providing only a warning. &nbsp;You can avoid this warning by declaring that my-test-class is a function with:</div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class="">(declaim (ftype (function ()) my-test-class))</div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><blockquote type="cite" class=""></blockquote>(when *test-code*<br class=""><blockquote type="cite" class=""></blockquote>&nbsp;(defclass-object my-test-class)<br class="">&nbsp;(my-test-class))</div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class="">Finally, there’s a brutal way to do it, which is to defer the question to run-time:</div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><div class="">(when *test-code*</div><div class="">&nbsp;(defclass-object my-test-class)</div><div class="">&nbsp;(eval '(my-test-class)))</div><div class=""><br class=""></div><div class="">But this is really not a good way to do it; the use of EVAL can bring all kinds of difficulties in itself, and it’s really not justified here, since there are better solutions seen above.</div></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class="">The lesson is that when you use macro to define things, you should give them chance to be compiled and executed before the forms that use the results of those macros.</div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><br class=""></div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class="">Often, this is done simply by putting the macros (and the functions they use) in a separate source file, that can thus be compiled and loaded before you compile the rest of the program. &nbsp;The two top-level forms (defclass-object my-test-class) and (my-test-class) can be in separate files.</div><div class="" style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;"><br class=""></div><div class="" style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;">Also, in some cases, the solution to this kind of problems may involve eval-when, but not here, and you would still have to split the two top-level forms even with eval-when.</div><div style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class=""><br class=""></div><br class="" style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;"><div class="" style="caret-color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;"><div class="" style="letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;"><div class="" style="letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;"><div class="" style="letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;">--&nbsp;<br class="">__Pascal J. Bourguignon__</div></div></div></div></div></blockquote></div><br class=""></div></div></div></blockquote></div><br class=""></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Error on macro execution when compiling for the first time</h1><html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  </head>
+  <body>
+    <p>Somewhat offtopic: There are many, many testing frameworks
+      available: LISP-UNIT, 1AM, 2AM, FiveAM, Prove, Rove, CLUnit,
+      Parachute, LIFT, the list goes on. Some people consider that list
+      to be way too long, possibly since it's trivial to write a test
+      framework in Lisp.</p>
+    <p>See <a class="moz-txt-link-freetext" href="https://cliki.net/Test%20Framework">https://cliki.net/Test%20Framework</a> for an example list.<br>
+    </p>
+    <div class="moz-cite-prefix">On 08.05.2020 21:09, Bruno Emond wrote:<br>
+    </div>
+    <blockquote type="cite"
+      cite="mid:1D839DFA-6963-4224-A5D4-83A2D964E921@gmail.com">
+      <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+      <div class="">Pascal and Rainer, </div>
+      <div class=""><br class="">
+      </div>
+      <div class="">There are probably many lisp unit testing out there,
+        in particular LISP-UNIT available through QuickLisp, but I did
+        not search a lot. </div>
+      <div class=""><br class="">
+      </div>
+      <div class="">I wrote a simple, and minimalist unit testing set of
+        functions to deal with the problem I had. </div>
+      <div class="">I used the opportunity to familiarize myself with
+        conditions. </div>
+      <div class="">It works when the code is compiled for the first
+        time, and it allows me to keep the tests with the code (or move
+        it to another file), and I do not need to use special predicates
+        for testing. </div>
+      <div class=""><br class="">
+      </div>
+      <div class="">Anyhow, just sharing it. </div>
+      <div class="">Maybe there are ways to make it even smaller :-)</div>
+      <div class=""><br class="">
+      </div>
+      <div class="">Bruno</div>
+      <div class=""><br class="">
+      </div>
+      <div class="">
+        <div class="">;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;</div>
+        <div class="">;;; unit testing</div>
+        <div class="">(defparameter *unit-tests* nil)</div>
+        <div class="">(defparameter *unit-test-position* 0)</div>
+        <div class=""><br class="">
+        </div>
+        <div class="">(define-condition test (simple-condition)</div>
+        <div class="">  ((position :initarg :position :initform 0
+          :accessor test-position)))</div>
+        <div class="">(define-condition test-failure (test) ())</div>
+        <div class="">(define-condition test-success (test) ())</div>
+        <div class=""><br class="">
+        </div>
+        <div class="">(defmethod trace-test ((condition test-failure))</div>
+        <div class="">  (format t ";;; FAILURE -&gt; Test ~S.~%"
+          (test-position condition)))</div>
+        <div class="">(defmethod trace-test ((condition test-success))</div>
+        <div class="">  (format t ";;; Success -&gt; Test ~S.~%"
+          (test-position condition)))</div>
+        <div class=""><br class="">
+        </div>
+        <div class="">(defun clear-unit-tests ()</div>
+        <div class="">  (setf *unit-tests* nil))</div>
+        <div class=""><br class="">
+        </div>
+        <div class="">(defstruct unit-test name code)</div>
+        <div class=""><br class="">
+        </div>
+        <div class="">(defmacro defunit-test (name &amp;body body)</div>
+        <div class="">  `(if (member ,name *unit-tests* :key
+          #'unit-test-name)</div>
+        <div class="">       (error "Unit test ~S is already defined."
+          ,name)</div>
+        <div class="">     (push (make-unit-test :name ,name :code
+          ',body) *unit-tests*)))</div>
+        <div class=""><br class="">
+        </div>
+        <div class="">(defun make-function (body)</div>
+        <div class="">  (eval `#'(lambda () ,@body)))</div>
+        <div class=""><br class="">
+        </div>
+        <div class="">(defmethod run-unit-test ((unit-test unit-test))</div>
+        <div class="">  (let ((*unit-test-position* 0))</div>
+        <div class="">    (handler-bind ((test-failure #'trace-test)</div>
+        <div class="">                   (test-success #'trace-test))</div>
+        <div class="">      (funcall (make-function (unit-test-code
+          unit-test))))))</div>
+        <div class=""><br class="">
+        </div>
+        <div class="">(defun test (expression)</div>
+        <div class="">  (if expression </div>
+        <div class="">      (signal (make-instance 'test-success
+          :position (incf *unit-test-position*)))</div>
+        <div class="">    (signal (make-instance 'test-failure :position
+          (incf *unit-test-position*))))</div>
+        <div class="">  expression)</div>
+        <div class=""><br class="">
+        </div>
+        <div class="">(defmethod run-unit-tests ()</div>
+        <div class="">  (format t "~%;;;;;; UNIT TESTS RESULTS.~%" )</div>
+        <div class="">  (dolist (unit-test (reverse *unit-tests*) t)</div>
+        <div class="">    (format t "~%;;;;;; ~S.~%" (unit-test-name
+          unit-test))</div>
+        <div class="">    (run-unit-test unit-test)))</div>
+        <div class=""> </div>
+        <div class="">;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;</div>
+        <div class="">(clear-unit-tests)</div>
+        <div class=""><br class="">
+        </div>
+        <div class="">(defmacro make-instance-macro-call (class-name)</div>
+        <div class="">  `(defmacro ,class-name (&amp;rest initargs) </div>
+        <div class="">     (append (list 'make-instance '',class-name)
+          initargs)))</div>
+        <div class=""><br class="">
+        </div>
+        <div class="">(defmacro defclass-object (class-name)</div>
+        <div class="">  `(progn</div>
+        <div class="">     (defclass ,class-name () ())</div>
+        <div class="">     (make-instance-macro-call ,class-name)))</div>
+        <div class=""><br class="">
+        </div>
+        <div class="">(defunit-test 'my-unit-test</div>
+        <div class="">  (defclass-object my-test-class)</div>
+        <div class="">  (my-test-class)</div>
+        <div class="">  (test (equal 2 3))</div>
+        <div class="">  (test (equal 3 3)))</div>
+        <div class=""><br class="">
+        </div>
+        <div class="">(defunit-test 'my-second-unit-test</div>
+        <div class="">  (test (&gt; 10 9)))</div>
+        <div class=""><br class="">
+        </div>
+        <div class="">(run-unit-tests)</div>
+      </div>
+      <div class=""><br class="">
+      </div>
+      <div class=""><br class="">
+      </div>
+      <div class="">
+        <div class="">
+          <div class="">;;;;;; UNIT TESTS RESULTS.</div>
+          <div class=""><br class="">
+          </div>
+          <div class="">;;;;;; MY-UNIT-TEST.</div>
+          <div class="">;;; FAILURE -&gt; Test 1.</div>
+          <div class="">;;; Success -&gt; Test 2.</div>
+          <div class=""><br class="">
+          </div>
+          <div class="">;;;;;; MY-SECOND-UNIT-TEST.</div>
+          <div class="">;;; Success -&gt; Test 1.</div>
+        </div>
+      </div>
+      <div><br class="">
+        <blockquote type="cite" class="">
+          <div class="">On May 7, 2020, at 14:18, Bruno Emond &lt;<a
+              href="mailto:emond.bruno@gmail.com" class=""
+              moz-do-not-send="true">emond.bruno@gmail.com</a>&gt;
+            wrote:</div>
+          <br class="Apple-interchange-newline">
+          <div class="">
+            <meta http-equiv="Content-Type" content="text/html;
+              charset=UTF-8" class="">
+            <div style="word-wrap: break-word; -webkit-nbsp-mode: space;
+              line-break: after-white-space;" class="">Thank you Pascal
+              for your solution options. 
+              <div class=""><br class="">
+              </div>
+              <div class="">I understand the problem to be rooted with
+                the compilation of macros when they are not at the
+                top-level. </div>
+              <div class=""><br class="">
+              </div>
+              <div class="">From the three options you suggested, I
+                think the separate file for tests is the one I prefer as
+                it also follows common software testing practice. </div>
+              <div class=""><br class="">
+              </div>
+              <div class="">However, I liked to have the testing code
+                near by, so that in addition to support the actual code
+                testing, I find that it also helps to document function
+                when inspecting the code.</div>
+              <div class="">What I usually do is to have the *test-code*
+                parameter at the top of the file and write multiple
+                (when *test-code* …) blocks under each function. Well,
+                almost each function... </div>
+              <div class="">It makes the test code easy available during
+                development and code inspection (no need to go back and
+                forth between files). </div>
+              <div class="">Anyway, it has limitations. </div>
+              <div class=""><br class="">
+              </div>
+              <div class="">Thank you for your quick response. </div>
+              <div class=""><br class="">
+              </div>
+              <div class="">Bruno<br class="">
+                <div class=""><br class="">
+                  <blockquote type="cite" class="">
+                    <div class="">On May 7, 2020, at 11:47, Pascal
+                      Bourguignon &lt;<a
+                        href="mailto:pjb@informatimago.com" class=""
+                        moz-do-not-send="true">pjb@informatimago.com</a>&gt;
+                      wrote:</div>
+                    <br class="Apple-interchange-newline">
+                    <div class="">
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class=""><br
+                          class="Apple-interchange-newline">
+                        <br class="">
+                        <blockquote type="cite" class="">
+                          <div class="">On 7 May 2020, at 17:13, Bruno
+                            Emond &lt;<a
+                              href="mailto:emond.bruno@gmail.com"
+                              class="" moz-do-not-send="true">emond.bruno@gmail.com</a>&gt;
+                            wrote:</div>
+                          <br class="Apple-interchange-newline">
+                          <div class="">
+                            <div class="">See the code below.<span
+                                class="Apple-converted-space"> </span><br
+                                class="">
+                              <br class="">
+                              I wrote a macro to define a class, and
+                              another one to make a simple call to
+                              create an instance of the class
+                              (make-instance-macro-call).<span
+                                class="Apple-converted-space"> </span><br
+                                class="">
+                              The defclass-object combines both.<span
+                                class="Apple-converted-space"> </span><br
+                                class="">
+                              <br class="">
+                              As a means to test my code, I often write
+                              test functions that execute only if I want
+                              to test the code or not (see parameter
+                              *test-code*).<br class="">
+                              <br class="">
+                              If I load the code, then compile there is
+                              no error.<span
+                                class="Apple-converted-space"> </span><br
+                                class="">
+                              <br class="">
+                              The first time I compile the code, I get
+                              the following error:<br class="">
+                              <br class="">
+                              The call (#&lt;Function 1 subfunction of
+                              (SUBFUNCTION # #) 413003DAFC&gt;) does not
+                              match definition (#&lt;Function 1
+                              subfunction of (SUBFUNCTION # #)
+                              413003DAFC&gt; &amp;REST INITARGS).<br
+                                class="">
+                              <br class="">
+                              When aborting, and recompiling, the error
+                              is gone.<span
+                                class="Apple-converted-space"> </span><br
+                                class="">
+                              <br class="">
+                              The error occurs within the test code
+                              block.<span class="Apple-converted-space"> </span><br
+                                class="">
+                              <br class="">
+                              I am just wondering. Is there a way to
+                              avoid this error when the code gets
+                              compiled for the first time?<br class="">
+                              <br class="">
+                              Bruno<br class="">
+                              <br class="">
+                              ;;;;;;;<br class="">
+                              (defmacro make-instance-macro-call
+                              (class-name)<br class="">
+                               `(defmacro ,class-name (&amp;rest
+                              initargs)<span
+                                class="Apple-converted-space"> </span><br
+                                class="">
+                                  (append (list 'make-instance
+                              '',class-name) initargs)))<br class="">
+                              <br class="">
+                              (defmacro defclass-object (class-name)<br
+                                class="">
+                               `(progn<br class="">
+                                  (defclass ,class-name () ())<br
+                                class="">
+                                  (make-instance-macro-call
+                              ,class-name)))<br class="">
+                              <br class="">
+                              (defclass-object my-class)<br class="">
+                              (my-class) ;; this creates an instance of
+                              my-class. No issue when compiling for the
+                              fist time.<span
+                                class="Apple-converted-space"> </span><br
+                                class="">
+                              <br class="">
+                              (defparameter *test-code* t)<br class="">
+                              <br class="">
+                              (when *test-code*<br class="">
+                               (defclass-object my-test-class)<br
+                                class="">
+                               (my-test-class) ;; This generates an
+                              error the first time it is compiled, then
+                              it is fine on subsequent compilation.<span
+                                class="Apple-converted-space"> </span><br
+                                class="">
+                            </div>
+                          </div>
+                        </blockquote>
+                        <br class="">
+                      </div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class=""><br
+                          class="">
+                      </div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class="">Yes. </div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class=""><br
+                          class="">
+                      </div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class="">The
+                        problem comes from the fact that the form that
+                        define my-test-class is the same form that calls
+                        it.  Therefore the compiler cannot generate
+                        my-test-class and compile it, before it has to
+                        compile the call to my-test-class.</div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class=""><br
+                          class="">
+                      </div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class=""><br
+                          class="">
+                      </div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class="">There are
+                        several ways to avoir the problem.</div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class=""><br
+                          class="">
+                      </div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class="">The sanest
+                        would be to put test code in a test source file,
+                        and to have two and system definitions, one for
+                        the main code, and another for the test code.  </div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class=""><br
+                          class="">
+                      </div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class="">Then you
+                        wouldn’t have to test for *test-code*, testing
+                        the program would only involve loading the test
+                        and system (which would load the program system,
+                        and then run the test).</div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class=""><br
+                          class="">
+                      </div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class="">This would
+                        let you write the test as TWO separate top-level
+                        forms:</div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class=""><br
+                          class="">
+                      </div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class="">(defclass-object
+                        my-test-class)</div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class="">(my-test-class)</div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class=""><br
+                          class="">
+                      </div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class="">And then
+                        the compiler would have a chance to compile the
+                        first top-level form, thus expanding the
+                        defclass-object macro, and compiling the
+                        my-test-class macro.</div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class=""><br
+                          class="">
+                      </div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class=""><br
+                          class="">
+                      </div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class=""><br
+                          class="">
+                      </div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class="">Another
+                        solution would be to realise that my-test-class
+                        doesn’t need to be a macro (from the
+                        informations you gave us).  Therefore you should
+                        expand to a defun form instead.  Then the
+                        compiler can generate the code to call the
+                        unknown function providing only a warning.  You
+                        can avoid this warning by declaring that
+                        my-test-class is a function with:</div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class=""><br
+                          class="">
+                      </div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class="">(declaim
+                        (ftype (function ()) my-test-class))</div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class="">(when
+                        *test-code*<br class="">
+                         (defclass-object my-test-class)<br class="">
+                         (my-test-class))</div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class=""><br
+                          class="">
+                      </div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class=""><br
+                          class="">
+                      </div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class="">Finally,
+                        there’s a brutal way to do it, which is to defer
+                        the question to run-time:</div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class=""><br
+                          class="">
+                      </div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class="">
+                        <div class="">(when *test-code*</div>
+                        <div class=""> (defclass-object my-test-class)</div>
+                        <div class=""> (eval '(my-test-class)))</div>
+                        <div class=""><br class="">
+                        </div>
+                        <div class="">But this is really not a good way
+                          to do it; the use of EVAL can bring all kinds
+                          of difficulties in itself, and it’s really not
+                          justified here, since there are better
+                          solutions seen above.</div>
+                      </div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class=""><br
+                          class="">
+                      </div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class=""><br
+                          class="">
+                      </div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class=""><br
+                          class="">
+                      </div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class="">The lesson
+                        is that when you use macro to define things, you
+                        should give them chance to be compiled and
+                        executed before the forms that use the results
+                        of those macros.</div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class=""><br
+                          class="">
+                      </div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class="">Often,
+                        this is done simply by putting the macros (and
+                        the functions they use) in a separate source
+                        file, that can thus be compiled and loaded
+                        before you compile the rest of the program.  The
+                        two top-level forms (defclass-object
+                        my-test-class) and (my-test-class) can be in
+                        separate files.</div>
+                      <div class="" style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;"><br class="">
+                      </div>
+                      <div class="" style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;">Also, in some
+                        cases, the solution to this kind of problems may
+                        involve eval-when, but not here, and you would
+                        still have to split the two top-level forms even
+                        with eval-when.</div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class=""><br
+                          class="">
+                      </div>
+                      <br class="" style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;">
+                      <div class="" style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;">
+                        <div class="" style="letter-spacing: normal;
+                          text-align: start; text-indent: 0px;
+                          text-transform: none; white-space: normal;
+                          word-spacing: 0px; -webkit-text-stroke-width:
+                          0px; word-wrap: break-word; -webkit-nbsp-mode:
+                          space; line-break: after-white-space;">
+                          <div class="" style="letter-spacing: normal;
+                            text-align: start; text-indent: 0px;
+                            text-transform: none; white-space: normal;
+                            word-spacing: 0px;
+                            -webkit-text-stroke-width: 0px; word-wrap:
+                            break-word; -webkit-nbsp-mode: space;
+                            line-break: after-white-space;">
+                            <div class="" style="letter-spacing: normal;
+                              text-align: start; text-indent: 0px;
+                              text-transform: none; white-space: normal;
+                              word-spacing: 0px;
+                              -webkit-text-stroke-width: 0px; word-wrap:
+                              break-word; -webkit-nbsp-mode: space;
+                              line-break: after-white-space;">-- <br
+                                class="">
+                              __Pascal J. Bourguignon__</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </blockquote>
+                </div>
+                <br class="">
+              </div>
+            </div>
+          </div>
+        </blockquote>
+      </div>
+      <br class="">
+    </blockquote>
+  </body>
+</html>
+
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Error on macro execution when compiling for the first time</h1><html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class="">Michal,&nbsp;<div class="">Thanks for the link.&nbsp;</div><div class="">Definitely not off topic.&nbsp;</div><div class="">I agree with your assessment that there is probably no need for yet another testing framework.&nbsp;</div><div class="">Bruno</div><div class=""><div><br class=""><blockquote type="cite" class=""><div class="">On May 8, 2020, at 15:16, Michał phoe Herda &lt;<a href="mailto:phoe@disroot.org" class="">phoe@disroot.org</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class="">
+  
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" class="">
+  
+  <div class=""><p class="">Somewhat offtopic: There are many, many testing frameworks
+      available: LISP-UNIT, 1AM, 2AM, FiveAM, Prove, Rove, CLUnit,
+      Parachute, LIFT, the list goes on. Some people consider that list
+      to be way too long, possibly since it's trivial to write a test
+      framework in Lisp.</p><p class="">See <a class="moz-txt-link-freetext" href="https://cliki.net/Test%20Framework">https://cliki.net/Test%20Framework</a> for an example list.<br class="">
+    </p>
+    <div class="moz-cite-prefix">On 08.05.2020 21:09, Bruno Emond wrote:<br class="">
+    </div>
+    <blockquote type="cite" cite="mid:1D839DFA-6963-4224-A5D4-83A2D964E921@gmail.com" class="">
+      <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" class="">
+      <div class="">Pascal and Rainer,&nbsp;</div>
+      <div class=""><br class="">
+      </div>
+      <div class="">There are probably many lisp unit testing out there,
+        in particular LISP-UNIT available through QuickLisp, but I did
+        not search a lot.&nbsp;</div>
+      <div class=""><br class="">
+      </div>
+      <div class="">I wrote a simple, and minimalist unit testing set of
+        functions to deal with the problem I had.&nbsp;</div>
+      <div class="">I used the opportunity to familiarize myself with
+        conditions.&nbsp;</div>
+      <div class="">It works when the code is compiled for the first
+        time, and it allows me to keep the tests with the code (or move
+        it to another file), and I do not need to use special predicates
+        for testing.&nbsp;</div>
+      <div class=""><br class="">
+      </div>
+      <div class="">Anyhow, just sharing it.&nbsp;</div>
+      <div class="">Maybe there are ways to make it even smaller :-)</div>
+      <div class=""><br class="">
+      </div>
+      <div class="">Bruno</div>
+      <div class=""><br class="">
+      </div>
+      <div class="">
+        <div class="">;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;</div>
+        <div class="">;;; unit testing</div>
+        <div class="">(defparameter *unit-tests* nil)</div>
+        <div class="">(defparameter *unit-test-position* 0)</div>
+        <div class=""><br class="">
+        </div>
+        <div class="">(define-condition test (simple-condition)</div>
+        <div class="">&nbsp; ((position :initarg :position :initform 0
+          :accessor test-position)))</div>
+        <div class="">(define-condition test-failure (test) ())</div>
+        <div class="">(define-condition test-success (test) ())</div>
+        <div class=""><br class="">
+        </div>
+        <div class="">(defmethod trace-test ((condition test-failure))</div>
+        <div class="">&nbsp; (format t ";;; FAILURE -&gt; Test ~S.~%"
+          (test-position condition)))</div>
+        <div class="">(defmethod trace-test ((condition test-success))</div>
+        <div class="">&nbsp; (format t ";;; Success -&gt; Test ~S.~%"
+          (test-position condition)))</div>
+        <div class=""><br class="">
+        </div>
+        <div class="">(defun clear-unit-tests ()</div>
+        <div class="">&nbsp; (setf *unit-tests* nil))</div>
+        <div class=""><br class="">
+        </div>
+        <div class="">(defstruct unit-test name code)</div>
+        <div class=""><br class="">
+        </div>
+        <div class="">(defmacro defunit-test (name &amp;body body)</div>
+        <div class="">&nbsp; `(if (member ,name *unit-tests* :key
+          #'unit-test-name)</div>
+        <div class="">&nbsp; &nbsp; &nbsp; &nbsp;(error "Unit test ~S is already defined."
+          ,name)</div>
+        <div class="">&nbsp; &nbsp; &nbsp;(push (make-unit-test :name ,name :code
+          ',body) *unit-tests*)))</div>
+        <div class=""><br class="">
+        </div>
+        <div class="">(defun make-function (body)</div>
+        <div class="">&nbsp; (eval `#'(lambda () ,@body)))</div>
+        <div class=""><br class="">
+        </div>
+        <div class="">(defmethod run-unit-test ((unit-test unit-test))</div>
+        <div class="">&nbsp; (let ((*unit-test-position* 0))</div>
+        <div class="">&nbsp; &nbsp; (handler-bind ((test-failure #'trace-test)</div>
+        <div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(test-success #'trace-test))</div>
+        <div class="">&nbsp; &nbsp; &nbsp; (funcall (make-function (unit-test-code
+          unit-test))))))</div>
+        <div class=""><br class="">
+        </div>
+        <div class="">(defun test (expression)</div>
+        <div class="">&nbsp; (if expression&nbsp;</div>
+        <div class="">&nbsp; &nbsp; &nbsp; (signal (make-instance 'test-success
+          :position (incf *unit-test-position*)))</div>
+        <div class="">&nbsp; &nbsp; (signal (make-instance 'test-failure :position
+          (incf *unit-test-position*))))</div>
+        <div class="">&nbsp; expression)</div>
+        <div class=""><br class="">
+        </div>
+        <div class="">(defmethod run-unit-tests ()</div>
+        <div class="">&nbsp; (format t "~%;;;;;; UNIT TESTS RESULTS.~%" )</div>
+        <div class="">&nbsp; (dolist (unit-test (reverse *unit-tests*) t)</div>
+        <div class="">&nbsp; &nbsp; (format t "~%;;;;;; ~S.~%" (unit-test-name
+          unit-test))</div>
+        <div class="">&nbsp; &nbsp; (run-unit-test unit-test)))</div>
+        <div class="">&nbsp;</div>
+        <div class="">;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;</div>
+        <div class="">(clear-unit-tests)</div>
+        <div class=""><br class="">
+        </div>
+        <div class="">(defmacro make-instance-macro-call (class-name)</div>
+        <div class="">&nbsp; `(defmacro ,class-name (&amp;rest initargs)&nbsp;</div>
+        <div class="">&nbsp; &nbsp; &nbsp;(append (list 'make-instance '',class-name)
+          initargs)))</div>
+        <div class=""><br class="">
+        </div>
+        <div class="">(defmacro defclass-object (class-name)</div>
+        <div class="">&nbsp; `(progn</div>
+        <div class="">&nbsp; &nbsp; &nbsp;(defclass ,class-name () ())</div>
+        <div class="">&nbsp; &nbsp; &nbsp;(make-instance-macro-call ,class-name)))</div>
+        <div class=""><br class="">
+        </div>
+        <div class="">(defunit-test 'my-unit-test</div>
+        <div class="">&nbsp; (defclass-object my-test-class)</div>
+        <div class="">&nbsp; (my-test-class)</div>
+        <div class="">&nbsp; (test (equal 2 3))</div>
+        <div class="">&nbsp; (test (equal 3 3)))</div>
+        <div class=""><br class="">
+        </div>
+        <div class="">(defunit-test 'my-second-unit-test</div>
+        <div class="">&nbsp; (test (&gt; 10 9)))</div>
+        <div class=""><br class="">
+        </div>
+        <div class="">(run-unit-tests)</div>
+      </div>
+      <div class=""><br class="">
+      </div>
+      <div class=""><br class="">
+      </div>
+      <div class="">
+        <div class="">
+          <div class="">;;;;;; UNIT TESTS RESULTS.</div>
+          <div class=""><br class="">
+          </div>
+          <div class="">;;;;;; MY-UNIT-TEST.</div>
+          <div class="">;;; FAILURE -&gt; Test 1.</div>
+          <div class="">;;; Success -&gt; Test 2.</div>
+          <div class=""><br class="">
+          </div>
+          <div class="">;;;;;; MY-SECOND-UNIT-TEST.</div>
+          <div class="">;;; Success -&gt; Test 1.</div>
+        </div>
+      </div>
+      <div class=""><br class="">
+        <blockquote type="cite" class="">
+          <div class="">On May 7, 2020, at 14:18, Bruno Emond &lt;<a href="mailto:emond.bruno@gmail.com" class="" moz-do-not-send="true">emond.bruno@gmail.com</a>&gt;
+            wrote:</div>
+          <br class="Apple-interchange-newline">
+          <div class="">
+            <meta http-equiv="Content-Type" content="text/html;
+              charset=UTF-8" class="">
+            <div style="word-wrap: break-word; -webkit-nbsp-mode: space;
+              line-break: after-white-space;" class="">Thank you Pascal
+              for your solution options.&nbsp;
+              <div class=""><br class="">
+              </div>
+              <div class="">I understand the problem to be rooted with
+                the compilation of macros when they are not at the
+                top-level.&nbsp;</div>
+              <div class=""><br class="">
+              </div>
+              <div class="">From the three options you suggested, I
+                think the separate file for tests is the one I prefer as
+                it also follows common software testing practice.&nbsp;</div>
+              <div class=""><br class="">
+              </div>
+              <div class="">However, I liked to have the testing code
+                near by, so that in addition to support the actual code
+                testing, I find that it also helps to document function
+                when inspecting the code.</div>
+              <div class="">What I usually do is to have the *test-code*
+                parameter at the top of the file and write multiple
+                (when *test-code* …) blocks under each function. Well,
+                almost each function...&nbsp;</div>
+              <div class="">It makes the test code easy available during
+                development and code inspection (no need to go back and
+                forth between files).&nbsp;</div>
+              <div class="">Anyway, it has limitations.&nbsp;</div>
+              <div class=""><br class="">
+              </div>
+              <div class="">Thank you for your quick response.&nbsp;</div>
+              <div class=""><br class="">
+              </div>
+              <div class="">Bruno<br class="">
+                <div class=""><br class="">
+                  <blockquote type="cite" class="">
+                    <div class="">On May 7, 2020, at 11:47, Pascal
+                      Bourguignon &lt;<a href="mailto:pjb@informatimago.com" class="" moz-do-not-send="true">pjb@informatimago.com</a>&gt;
+                      wrote:</div>
+                    <br class="Apple-interchange-newline">
+                    <div class="">
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class=""><br class="Apple-interchange-newline">
+                        <br class="">
+                        <blockquote type="cite" class="">
+                          <div class="">On 7 May 2020, at 17:13, Bruno
+                            Emond &lt;<a href="mailto:emond.bruno@gmail.com" class="" moz-do-not-send="true">emond.bruno@gmail.com</a>&gt;
+                            wrote:</div>
+                          <br class="Apple-interchange-newline">
+                          <div class="">
+                            <div class="">See the code below.<span class="Apple-converted-space">&nbsp;</span><br class="">
+                              <br class="">
+                              I wrote a macro to define a class, and
+                              another one to make a simple call to
+                              create an instance of the class
+                              (make-instance-macro-call).<span class="Apple-converted-space">&nbsp;</span><br class="">
+                              The defclass-object combines both.<span class="Apple-converted-space">&nbsp;</span><br class="">
+                              <br class="">
+                              As a means to test my code, I often write
+                              test functions that execute only if I want
+                              to test the code or not (see parameter
+                              *test-code*).<br class="">
+                              <br class="">
+                              If I load the code, then compile there is
+                              no error.<span class="Apple-converted-space">&nbsp;</span><br class="">
+                              <br class="">
+                              The first time I compile the code, I get
+                              the following error:<br class="">
+                              <br class="">
+                              The call (#&lt;Function 1 subfunction of
+                              (SUBFUNCTION # #) 413003DAFC&gt;) does not
+                              match definition (#&lt;Function 1
+                              subfunction of (SUBFUNCTION # #)
+                              413003DAFC&gt; &amp;REST INITARGS).<br class="">
+                              <br class="">
+                              When aborting, and recompiling, the error
+                              is gone.<span class="Apple-converted-space">&nbsp;</span><br class="">
+                              <br class="">
+                              The error occurs within the test code
+                              block.<span class="Apple-converted-space">&nbsp;</span><br class="">
+                              <br class="">
+                              I am just wondering. Is there a way to
+                              avoid this error when the code gets
+                              compiled for the first time?<br class="">
+                              <br class="">
+                              Bruno<br class="">
+                              <br class="">
+                              ;;;;;;;<br class="">
+                              (defmacro make-instance-macro-call
+                              (class-name)<br class="">
+                              &nbsp;`(defmacro ,class-name (&amp;rest
+                              initargs)<span class="Apple-converted-space">&nbsp;</span><br class="">
+                              &nbsp;&nbsp;&nbsp;&nbsp;(append (list 'make-instance
+                              '',class-name) initargs)))<br class="">
+                              <br class="">
+                              (defmacro defclass-object (class-name)<br class="">
+                              &nbsp;`(progn<br class="">
+                              &nbsp;&nbsp;&nbsp;&nbsp;(defclass ,class-name () ())<br class="">
+                              &nbsp;&nbsp;&nbsp;&nbsp;(make-instance-macro-call
+                              ,class-name)))<br class="">
+                              <br class="">
+                              (defclass-object my-class)<br class="">
+                              (my-class) ;; this creates an instance of
+                              my-class. No issue when compiling for the
+                              fist time.<span class="Apple-converted-space">&nbsp;</span><br class="">
+                              <br class="">
+                              (defparameter *test-code* t)<br class="">
+                              <br class="">
+                              (when *test-code*<br class="">
+                              &nbsp;(defclass-object my-test-class)<br class="">
+                              &nbsp;(my-test-class) ;; This generates an
+                              error the first time it is compiled, then
+                              it is fine on subsequent compilation.<span class="Apple-converted-space">&nbsp;</span><br class="">
+                            </div>
+                          </div>
+                        </blockquote>
+                        <br class="">
+                      </div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class=""><br class="">
+                      </div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class="">Yes.&nbsp;</div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class=""><br class="">
+                      </div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class="">The
+                        problem comes from the fact that the form that
+                        define my-test-class is the same form that calls
+                        it. &nbsp;Therefore the compiler cannot generate
+                        my-test-class and compile it, before it has to
+                        compile the call to my-test-class.</div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class=""><br class="">
+                      </div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class=""><br class="">
+                      </div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class="">There are
+                        several ways to avoir the problem.</div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class=""><br class="">
+                      </div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class="">The sanest
+                        would be to put test code in a test source file,
+                        and to have two and system definitions, one for
+                        the main code, and another for the test code. &nbsp;</div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class=""><br class="">
+                      </div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class="">Then you
+                        wouldn’t have to test for *test-code*, testing
+                        the program would only involve loading the test
+                        and system (which would load the program system,
+                        and then run the test).</div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class=""><br class="">
+                      </div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class="">This would
+                        let you write the test as TWO separate top-level
+                        forms:</div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class=""><br class="">
+                      </div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class="">(defclass-object
+                        my-test-class)</div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class="">(my-test-class)</div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class=""><br class="">
+                      </div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class="">And then
+                        the compiler would have a chance to compile the
+                        first top-level form, thus expanding the
+                        defclass-object macro, and compiling the
+                        my-test-class macro.</div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class=""><br class="">
+                      </div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class=""><br class="">
+                      </div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class=""><br class="">
+                      </div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class="">Another
+                        solution would be to realise that my-test-class
+                        doesn’t need to be a macro (from the
+                        informations you gave us). &nbsp;Therefore you should
+                        expand to a defun form instead. &nbsp;Then the
+                        compiler can generate the code to call the
+                        unknown function providing only a warning. &nbsp;You
+                        can avoid this warning by declaring that
+                        my-test-class is a function with:</div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class=""><br class="">
+                      </div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class="">(declaim
+                        (ftype (function ()) my-test-class))</div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class="">(when
+                        *test-code*<br class="">
+                        &nbsp;(defclass-object my-test-class)<br class="">
+                        &nbsp;(my-test-class))</div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class=""><br class="">
+                      </div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class=""><br class="">
+                      </div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class="">Finally,
+                        there’s a brutal way to do it, which is to defer
+                        the question to run-time:</div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class=""><br class="">
+                      </div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class="">
+                        <div class="">(when *test-code*</div>
+                        <div class="">&nbsp;(defclass-object my-test-class)</div>
+                        <div class="">&nbsp;(eval '(my-test-class)))</div>
+                        <div class=""><br class="">
+                        </div>
+                        <div class="">But this is really not a good way
+                          to do it; the use of EVAL can bring all kinds
+                          of difficulties in itself, and it’s really not
+                          justified here, since there are better
+                          solutions seen above.</div>
+                      </div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class=""><br class="">
+                      </div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class=""><br class="">
+                      </div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class=""><br class="">
+                      </div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class="">The lesson
+                        is that when you use macro to define things, you
+                        should give them chance to be compiled and
+                        executed before the forms that use the results
+                        of those macros.</div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class=""><br class="">
+                      </div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class="">Often,
+                        this is done simply by putting the macros (and
+                        the functions they use) in a separate source
+                        file, that can thus be compiled and loaded
+                        before you compile the rest of the program. &nbsp;The
+                        two top-level forms (defclass-object
+                        my-test-class) and (my-test-class) can be in
+                        separate files.</div>
+                      <div class="" style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;"><br class="">
+                      </div>
+                      <div class="" style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;">Also, in some
+                        cases, the solution to this kind of problems may
+                        involve eval-when, but not here, and you would
+                        still have to split the two top-level forms even
+                        with eval-when.</div>
+                      <div style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;" class=""><br class="">
+                      </div>
+                      <br class="" style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;">
+                      <div class="" style="caret-color: rgb(0, 0, 0);
+                        font-family: Helvetica; font-size: 12px;
+                        font-style: normal; font-variant-caps: normal;
+                        font-weight: normal; letter-spacing: normal;
+                        text-align: start; text-indent: 0px;
+                        text-transform: none; white-space: normal;
+                        word-spacing: 0px; -webkit-text-stroke-width:
+                        0px; text-decoration: none;">
+                        <div class="" style="letter-spacing: normal;
+                          text-align: start; text-indent: 0px;
+                          text-transform: none; white-space: normal;
+                          word-spacing: 0px; -webkit-text-stroke-width:
+                          0px; word-wrap: break-word; -webkit-nbsp-mode:
+                          space; line-break: after-white-space;">
+                          <div class="" style="letter-spacing: normal;
+                            text-align: start; text-indent: 0px;
+                            text-transform: none; white-space: normal;
+                            word-spacing: 0px;
+                            -webkit-text-stroke-width: 0px; word-wrap:
+                            break-word; -webkit-nbsp-mode: space;
+                            line-break: after-white-space;">
+                            <div class="" style="letter-spacing: normal;
+                              text-align: start; text-indent: 0px;
+                              text-transform: none; white-space: normal;
+                              word-spacing: 0px;
+                              -webkit-text-stroke-width: 0px; word-wrap:
+                              break-word; -webkit-nbsp-mode: space;
+                              line-break: after-white-space;">--&nbsp;<br class="">
+                              __Pascal J. Bourguignon__</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </blockquote>
+                </div>
+                <br class="">
+              </div>
+            </div>
+          </div>
+        </blockquote>
+      </div>
+      <br class="">
+    </blockquote>
+  </div>
+
+</div></blockquote></div><br class=""></div></body></html>
+
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+           </body>
+          </html>

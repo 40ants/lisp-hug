@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Dynamic Closures?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+           </head>
+           <body>
+            <div class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </div>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Dynamic Closures?</h1>
+                <pre>I have been experimenting with continuation closures (aka callbacks) in an Actors-based environment. Actors are objects that can only run on one thread at a time, and it doesn’t matter which thread. But they preserve single-thread semantics even in the face of SMP. 
+
+Blocking activities are the bane of threading and Actors, but you can’t always know when a function call will block, nor if it is actually blocking or just taking a long time to complete. Regardless, it is possible for an Actor to construct a callback closure and pass along as a reply-to argument. When activated, it sends a special message back to the Actor to have itself run its own continuation - to preserve single thread semantics. But a simple lexical closure is missing some things...
+
+By using an expansion of the =BIND protocol from P. Graham, you can define extensions of closures that I call “Dynamic Closures”, so that when the closure is executed, it restores most of the dynamic environment that was in place when the closure was created. This is needed for HANDLER-BIND, CATCH, and many others. It does not restore active dynamic bindings unless you also use extended forms =LET and =LET*. And UNWIND-PROTECT remains problematic. (We need a DYNAMIC-WIND, which has its own problems. You can’t regenerate an irreversible past…)
+
+But when I constructed =LET and =LET* it became immediately apparent that Delimited Continuations (if they exist) will have problems there too. It seems that, in general, the only safe Continuations would have to capture the entire stack in order to capture all the dynamic bindings also in effect at the time of creation. I am not overtly using Delimited Continuations, although you could do that with something like CL-CONT. I personally think that =BIND conveys a more Lisp centric display of what is happening, as constrasted with the hidden syntactic and semantic effects of ASYNC/AWAIT style.
+
+So I did a search for “Dynamic Closures” in Lisp to see if anyone else had gone down this rabbit hole. I found a page by Paul Khuong talking about “Common Cold” as applied to SBCL and making serializable closures for web programming. But no libraries come up in searches.
+
+Anyone else gone there?
+
+- David McClain
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Dynamic Closures?</h1>
+                 <pre>Somewhat unrelated: there's an article by Kent Pitman that describes the
+issues that happen between UNWIND-PROTECT and continuations, and you
+might want to read it if you haven't yet -
+http://www.nhplace.com/kent/PFAQ/unwind-protect-vs-continuations-original.html
+
+~phoe
+
+On 25.10.2020 17:56, dbm@refined-audiometrics.com wrote:
+&gt I have been experimenting with continuation closures (aka callbacks) in an Actors-based environment. Actors are objects that can only run on one thread at a time, and it doesn’t matter which thread. But they preserve single-thread semantics even in the face of SMP. 
+&gt
+&gt Blocking activities are the bane of threading and Actors, but you can’t always know when a function call will block, nor if it is actually blocking or just taking a long time to complete. Regardless, it is possible for an Actor to construct a callback closure and pass along as a reply-to argument. When activated, it sends a special message back to the Actor to have itself run its own continuation - to preserve single thread semantics. But a simple lexical closure is missing some things...
+&gt
+&gt By using an expansion of the =BIND protocol from P. Graham, you can define extensions of closures that I call “Dynamic Closures”, so that when the closure is executed, it restores most of the dynamic environment that was in place when the closure was created. This is needed for HANDLER-BIND, CATCH, and many others. It does not restore active dynamic bindings unless you also use extended forms =LET and =LET*. And UNWIND-PROTECT remains problematic. (We need a DYNAMIC-WIND, which has its own problems. You can’t regenerate an irreversible past…)
+&gt
+&gt But when I constructed =LET and =LET* it became immediately apparent that Delimited Continuations (if they exist) will have problems there too. It seems that, in general, the only safe Continuations would have to capture the entire stack in order to capture all the dynamic bindings also in effect at the time of creation. I am not overtly using Delimited Continuations, although you could do that with something like CL-CONT. I personally think that =BIND conveys a more Lisp centric display of what is happening, as constrasted with the hidden syntactic and semantic effects of ASYNC/AWAIT style.
+&gt
+&gt So I did a search for “Dynamic Closures” in Lisp to see if anyone else had gone down this rabbit hole. I found a page by Paul Khuong talking about “Common Cold” as applied to SBCL and making serializable closures for web programming. But no libraries come up in searches.
+&gt
+&gt Anyone else gone there?
+&gt
+&gt - David McClain
+&gt
+&gt
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Dynamic Closures?</h1>
+                 <pre>Yes! … Exactly right!
+
+(BTW… I just discovered and bought your new book, TCLCS. Excellent! It has already helped, and I’m not a newbie…)
+
+&gt On Oct 25, 2020, at 10:05 AM, Michał phoe Herda &lt;phoe@disroot.org&gt wrote:
+&gt 
+&gt Somewhat unrelated: there's an article by Kent Pitman that describes the
+&gt issues that happen between UNWIND-PROTECT and continuations, and you
+&gt might want to read it if you haven't yet -
+&gt http://www.nhplace.com/kent/PFAQ/unwind-protect-vs-continuations-original.html
+&gt 
+&gt ~phoe
+&gt 
+&gt On 25.10.2020 17:56, dbm@refined-audiometrics.com wrote:
+&gt&gt I have been experimenting with continuation closures (aka callbacks) in an Actors-based environment. Actors are objects that can only run on one thread at a time, and it doesn’t matter which thread. But they preserve single-thread semantics even in the face of SMP. 
+&gt&gt 
+&gt&gt Blocking activities are the bane of threading and Actors, but you can’t always know when a function call will block, nor if it is actually blocking or just taking a long time to complete. Regardless, it is possible for an Actor to construct a callback closure and pass along as a reply-to argument. When activated, it sends a special message back to the Actor to have itself run its own continuation - to preserve single thread semantics. But a simple lexical closure is missing some things...
+&gt&gt 
+&gt&gt By using an expansion of the =BIND protocol from P. Graham, you can define extensions of closures that I call “Dynamic Closures”, so that when the closure is executed, it restores most of the dynamic environment that was in place when the closure was created. This is needed for HANDLER-BIND, CATCH, and many others. It does not restore active dynamic bindings unless you also use extended forms =LET and =LET*. And UNWIND-PROTECT remains problematic. (We need a DYNAMIC-WIND, which has its own problems. You can’t regenerate an irreversible past…)
+&gt&gt 
+&gt&gt But when I constructed =LET and =LET* it became immediately apparent that Delimited Continuations (if they exist) will have problems there too. It seems that, in general, the only safe Continuations would have to capture the entire stack in order to capture all the dynamic bindings also in effect at the time of creation. I am not overtly using Delimited Continuations, although you could do that with something like CL-CONT. I personally think that =BIND conveys a more Lisp centric display of what is happening, as constrasted with the hidden syntactic and semantic effects of ASYNC/AWAIT style.
+&gt&gt 
+&gt&gt So I did a search for “Dynamic Closures” in Lisp to see if anyone else had gone down this rabbit hole. I found a page by Paul Khuong talking about “Common Cold” as applied to SBCL and making serializable closures for web programming. But no libraries come up in searches.
+&gt&gt 
+&gt&gt Anyone else gone there?
+&gt&gt 
+&gt&gt - David McClain
+&gt&gt 
+&gt&gt 
+&gt&gt _______________________________________________
+&gt&gt Lisp Hug - the mailing list for LispWorks users
+&gt&gt lisp-hug@lispworks.com
+&gt&gt http://www.lispworks.com/support/lisp-hug.html
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Dynamic Closures?</h1><html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class="">There is support for dynamic closures in Contextl. See the github page at&nbsp;<a href="https://github.com/pcostanza/contextl" class="">https://github.com/pcostanza/contextl</a><div class=""><br class=""></div><div class="">Support for dynamic closures is implemented in cx-dynamic-environment.lisp and dynamic variables are implemented in cx-dynamic-variables.lisp. (They have like special variables, but need an extra level of indirection to work with features that capture the dynamic environment.)</div><div class=""><br class=""></div><div class="">Sorry for the lack of documentation, but the test cases in&nbsp;<a href="https://github.com/pcostanza/contextl/blob/master/test/dynamic-wind.lisp" class="">https://github.com/pcostanza/contextl/blob/master/test/dynamic-wind.lisp</a>&nbsp;and&nbsp;<a href="https://github.com/pcostanza/contextl/blob/master/test/dynenv.lisp" class="">https://github.com/pcostanza/contextl/blob/master/test/dynenv.lisp</a>&nbsp;should give you an idea what you can do with this.</div><div class=""><br class=""></div><div class="">If you are only interested in dynamic closures and don’t want to buy into all of ContextL, there is even a system definition just for that in dynamic-wind.asd</div><div class=""><br class=""></div><div class=""><br class=""></div><div class="">Pascal<br class=""><div><br class=""><blockquote type="cite" class=""><div class="">On 25 Oct 2020, at 17:56, <a href="mailto:dbm@refined-audiometrics.com" class="">dbm@refined-audiometrics.com</a> wrote:</div><br class="Apple-interchange-newline"><div class=""><div class="">I have been experimenting with continuation closures (aka callbacks) in an Actors-based environment. Actors are objects that can only run on one thread at a time, and it doesn’t matter which thread. But they preserve single-thread semantics even in the face of SMP. <br class=""><br class="">Blocking activities are the bane of threading and Actors, but you can’t always know when a function call will block, nor if it is actually blocking or just taking a long time to complete. Regardless, it is possible for an Actor to construct a callback closure and pass along as a reply-to argument. When activated, it sends a special message back to the Actor to have itself run its own continuation - to preserve single thread semantics. But a simple lexical closure is missing some things...<br class=""><br class="">By using an expansion of the =BIND protocol from P. Graham, you can define extensions of closures that I call “Dynamic Closures”, so that when the closure is executed, it restores most of the dynamic environment that was in place when the closure was created. This is needed for HANDLER-BIND, CATCH, and many others. It does not restore active dynamic bindings unless you also use extended forms =LET and =LET*. And UNWIND-PROTECT remains problematic. (We need a DYNAMIC-WIND, which has its own problems. You can’t regenerate an irreversible past…)<br class=""><br class="">But when I constructed =LET and =LET* it became immediately apparent that Delimited Continuations (if they exist) will have problems there too. It seems that, in general, the only safe Continuations would have to capture the entire stack in order to capture all the dynamic bindings also in effect at the time of creation. I am not overtly using Delimited Continuations, although you could do that with something like CL-CONT. I personally think that =BIND conveys a more Lisp centric display of what is happening, as constrasted with the hidden syntactic and semantic effects of ASYNC/AWAIT style.<br class=""><br class="">So I did a search for “Dynamic Closures” in Lisp to see if anyone else had gone down this rabbit hole. I found a page by Paul Khuong talking about “Common Cold” as applied to SBCL and making serializable closures for web programming. But no libraries come up in searches.<br class=""><br class="">Anyone else gone there?<br class=""><br class="">- David McClain<br class=""><br class=""><br class="">_______________________________________________<br class="">Lisp Hug - the mailing list for LispWorks users<br class=""><a href="mailto:lisp-hug@lispworks.com" class="">lisp-hug@lispworks.com</a><br class="">http://www.lispworks.com/support/lisp-hug.html<br class=""></div></div></blockquote></div><br class=""><div class="">
+--<br class="">Pascal Costanza<br class=""><br class="">
+
+</div>
+
+<br class=""></div></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Dynamic Closures?</h1><html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class="">Indeed! DYNAMIC-WIND is really quite powerful, and far more expressive than what I had been doing.&nbsp;<div class=""><br class=""></div><div class="">The real advantage over my own method (which was really almost the same as yours), is the internal PROCEED macro, which allows me to pinpoint the location where the continuation closure should take over from the original code. That flexibility is really amazingly powerful.<div class=""><br class=""></div><div class="">- DM<br class=""><div><br class=""><blockquote type="cite" class=""><div class="">On Nov 13, 2020, at 6:12 AM, Pascal Costanza &lt;<a href="mailto:pc@p-cos.net" class="">pc@p-cos.net</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><meta http-equiv="Content-Type" content="text/html; charset=utf-8" class=""><div style="word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class="">There is support for dynamic closures in Contextl. See the github page at&nbsp;<a href="https://github.com/pcostanza/contextl" class="">https://github.com/pcostanza/contextl</a><div class=""><br class=""></div><div class="">Support for dynamic closures is implemented in cx-dynamic-environment.lisp and dynamic variables are implemented in cx-dynamic-variables.lisp. (They have like special variables, but need an extra level of indirection to work with features that capture the dynamic environment.)</div><div class=""><br class=""></div><div class="">Sorry for the lack of documentation, but the test cases in&nbsp;<a href="https://github.com/pcostanza/contextl/blob/master/test/dynamic-wind.lisp" class="">https://github.com/pcostanza/contextl/blob/master/test/dynamic-wind.lisp</a>&nbsp;and&nbsp;<a href="https://github.com/pcostanza/contextl/blob/master/test/dynenv.lisp" class="">https://github.com/pcostanza/contextl/blob/master/test/dynenv.lisp</a>&nbsp;should give you an idea what you can do with this.</div><div class=""><br class=""></div><div class="">If you are only interested in dynamic closures and don’t want to buy into all of ContextL, there is even a system definition just for that in dynamic-wind.asd</div><div class=""><br class=""></div><div class=""><br class=""></div><div class="">Pascal<br class=""><div class=""><br class=""><blockquote type="cite" class=""><div class="">On 25 Oct 2020, at 17:56, <a href="mailto:dbm@refined-audiometrics.com" class="">dbm@refined-audiometrics.com</a> wrote:</div><br class="Apple-interchange-newline"><div class=""><div class="">I have been experimenting with continuation closures (aka callbacks) in an Actors-based environment. Actors are objects that can only run on one thread at a time, and it doesn’t matter which thread. But they preserve single-thread semantics even in the face of SMP. <br class=""><br class="">Blocking activities are the bane of threading and Actors, but you can’t always know when a function call will block, nor if it is actually blocking or just taking a long time to complete. Regardless, it is possible for an Actor to construct a callback closure and pass along as a reply-to argument. When activated, it sends a special message back to the Actor to have itself run its own continuation - to preserve single thread semantics. But a simple lexical closure is missing some things...<br class=""><br class="">By using an expansion of the =BIND protocol from P. Graham, you can define extensions of closures that I call “Dynamic Closures”, so that when the closure is executed, it restores most of the dynamic environment that was in place when the closure was created. This is needed for HANDLER-BIND, CATCH, and many others. It does not restore active dynamic bindings unless you also use extended forms =LET and =LET*. And UNWIND-PROTECT remains problematic. (We need a DYNAMIC-WIND, which has its own problems. You can’t regenerate an irreversible past…)<br class=""><br class="">But when I constructed =LET and =LET* it became immediately apparent that Delimited Continuations (if they exist) will have problems there too. It seems that, in general, the only safe Continuations would have to capture the entire stack in order to capture all the dynamic bindings also in effect at the time of creation. I am not overtly using Delimited Continuations, although you could do that with something like CL-CONT. I personally think that =BIND conveys a more Lisp centric display of what is happening, as constrasted with the hidden syntactic and semantic effects of ASYNC/AWAIT style.<br class=""><br class="">So I did a search for “Dynamic Closures” in Lisp to see if anyone else had gone down this rabbit hole. I found a page by Paul Khuong talking about “Common Cold” as applied to SBCL and making serializable closures for web programming. But no libraries come up in searches.<br class=""><br class="">Anyone else gone there?<br class=""><br class="">- David McClain<br class=""><br class=""><br class="">_______________________________________________<br class="">Lisp Hug - the mailing list for LispWorks users<br class=""><a href="mailto:lisp-hug@lispworks.com" class="">lisp-hug@lispworks.com</a><br class=""><a href="http://www.lispworks.com/support/lisp-hug.html" class="">http://www.lispworks.com/support/lisp-hug.html</a><br class=""></div></div></blockquote></div><br class=""><div class="">
+--<br class="">Pascal Costanza<br class=""><br class="">
+
+</div>
+
+<br class=""></div></div></div></blockquote></div><br class=""></div></div></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Dynamic Closures?</h1><html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class="">… I would state that DYNAMIC-WIND plus PROCEED encompasses most (all?) of what delimited continuations offer. And the syntax is quite natural.<div class=""><br class=""></div><div class="">Example - notice how the PROCEED occupies the location of a pending operand. On a restart, that will pick up the conitnuation closure and evaluate it, instead of the original code which follows the PROCEED. The DYNAMIC-WIND allows me to re-instantiate dynamic bindings that were important in the first pass.</div><div class=""><br class=""></div><div class=""><div class=""><font face="Monaco" class=""><span style="font-style: normal;" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ;; Intercept restartable queries to send back a response</span></font></div><div class=""><font face="Monaco" class=""><span style="font-style: normal;" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ;; from the following message, reflecting any errors back to</span></font></div><div class=""><font face="Monaco" class=""><span style="font-style: normal;" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ;; the caller.</span></font></div><div class=""><font face="Monaco" class=""><span style="font-style: normal;" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (let ((original-ask-message (whole-message)))</span></font></div><div class=""><font face="Monaco" class=""><span style="font-style: normal;" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (um:<font color="#00ff00" class="">dynamic-wind</font></span></font></div><div class=""><font face="Monaco" class=""><span style="font-style: normal;" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (let ((*whole-message* original-ask-message)</span></font></div><div class=""><font face="Monaco" class=""><span style="font-style: normal;" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (*in-ask* &nbsp; &nbsp; &nbsp; &nbsp;t))</span></font></div><div class=""><font face="Monaco" class=""><span style="font-style: normal;" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (handler-case</span></font></div><div class=""><font face="Monaco" class=""><span style="font-style: normal;" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (send reply-to</span></font></div><div class=""><font face="Monaco" class=""><span style="font-style: normal;" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (with-captured-ans-or-exn</span></font></div><div class=""><font face="Monaco" class=""><span style="font-style: normal;" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (um:<font color="#00ff00" class="">proceed</font></span></font></div><div class=""><font face="Monaco" class=""><span style="font-style: normal;" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(apply #'self-call sub-msg))))</span></font></div><div class=""><font face="Monaco" class=""><span style="font-style: normal;" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp;</span></font></div><div class=""><font face="Monaco" class=""><span style="font-style: normal;" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (no-immediate-answer ())</span></font></div><div class=""><font face="Monaco" class=""><span style="font-style: normal;" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ))))</span></font></div><div class=""><br class=""></div><div><br class=""><blockquote type="cite" class=""><div class="">On Nov 15, 2020, at 1:07 AM, <a href="mailto:dbm@refined-audiometrics.com" class="">dbm@refined-audiometrics.com</a> wrote:</div><br class="Apple-interchange-newline"><div class=""><meta http-equiv="Content-Type" content="text/html; charset=utf-8" class=""><div style="word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class="">Indeed! DYNAMIC-WIND is really quite powerful, and far more expressive than what I had been doing.&nbsp;<div class=""><br class=""></div><div class="">The real advantage over my own method (which was really almost the same as yours), is the internal PROCEED macro, which allows me to pinpoint the location where the continuation closure should take over from the original code. That flexibility is really amazingly powerful.<div class=""><br class=""></div><div class="">- DM<br class=""><div class=""><br class=""><blockquote type="cite" class=""><div class="">On Nov 13, 2020, at 6:12 AM, Pascal Costanza &lt;<a href="mailto:pc@p-cos.net" class="">pc@p-cos.net</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><meta http-equiv="Content-Type" content="text/html; charset=utf-8" class=""><div style="word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class="">There is support for dynamic closures in Contextl. See the github page at&nbsp;<a href="https://github.com/pcostanza/contextl" class="">https://github.com/pcostanza/contextl</a><div class=""><br class=""></div><div class="">Support for dynamic closures is implemented in cx-dynamic-environment.lisp and dynamic variables are implemented in cx-dynamic-variables.lisp. (They have like special variables, but need an extra level of indirection to work with features that capture the dynamic environment.)</div><div class=""><br class=""></div><div class="">Sorry for the lack of documentation, but the test cases in&nbsp;<a href="https://github.com/pcostanza/contextl/blob/master/test/dynamic-wind.lisp" class="">https://github.com/pcostanza/contextl/blob/master/test/dynamic-wind.lisp</a>&nbsp;and&nbsp;<a href="https://github.com/pcostanza/contextl/blob/master/test/dynenv.lisp" class="">https://github.com/pcostanza/contextl/blob/master/test/dynenv.lisp</a>&nbsp;should give you an idea what you can do with this.</div><div class=""><br class=""></div><div class="">If you are only interested in dynamic closures and don’t want to buy into all of ContextL, there is even a system definition just for that in dynamic-wind.asd</div><div class=""><br class=""></div><div class=""><br class=""></div><div class="">Pascal<br class=""><div class=""><br class=""><blockquote type="cite" class=""><div class="">On 25 Oct 2020, at 17:56, <a href="mailto:dbm@refined-audiometrics.com" class="">dbm@refined-audiometrics.com</a> wrote:</div><br class="Apple-interchange-newline"><div class=""><div class="">I have been experimenting with continuation closures (aka callbacks) in an Actors-based environment. Actors are objects that can only run on one thread at a time, and it doesn’t matter which thread. But they preserve single-thread semantics even in the face of SMP. <br class=""><br class="">Blocking activities are the bane of threading and Actors, but you can’t always know when a function call will block, nor if it is actually blocking or just taking a long time to complete. Regardless, it is possible for an Actor to construct a callback closure and pass along as a reply-to argument. When activated, it sends a special message back to the Actor to have itself run its own continuation - to preserve single thread semantics. But a simple lexical closure is missing some things...<br class=""><br class="">By using an expansion of the =BIND protocol from P. Graham, you can define extensions of closures that I call “Dynamic Closures”, so that when the closure is executed, it restores most of the dynamic environment that was in place when the closure was created. This is needed for HANDLER-BIND, CATCH, and many others. It does not restore active dynamic bindings unless you also use extended forms =LET and =LET*. And UNWIND-PROTECT remains problematic. (We need a DYNAMIC-WIND, which has its own problems. You can’t regenerate an irreversible past…)<br class=""><br class="">But when I constructed =LET and =LET* it became immediately apparent that Delimited Continuations (if they exist) will have problems there too. It seems that, in general, the only safe Continuations would have to capture the entire stack in order to capture all the dynamic bindings also in effect at the time of creation. I am not overtly using Delimited Continuations, although you could do that with something like CL-CONT. I personally think that =BIND conveys a more Lisp centric display of what is happening, as constrasted with the hidden syntactic and semantic effects of ASYNC/AWAIT style.<br class=""><br class="">So I did a search for “Dynamic Closures” in Lisp to see if anyone else had gone down this rabbit hole. I found a page by Paul Khuong talking about “Common Cold” as applied to SBCL and making serializable closures for web programming. But no libraries come up in searches.<br class=""><br class="">Anyone else gone there?<br class=""><br class="">- David McClain<br class=""><br class=""><br class="">_______________________________________________<br class="">Lisp Hug - the mailing list for LispWorks users<br class=""><a href="mailto:lisp-hug@lispworks.com" class="">lisp-hug@lispworks.com</a><br class=""><a href="http://www.lispworks.com/support/lisp-hug.html" class="">http://www.lispworks.com/support/lisp-hug.html</a><br class=""></div></div></blockquote></div><br class=""><div class="">
+--<br class="">Pascal Costanza<br class=""><br class="">
+
+</div>
+
+<br class=""></div></div></div></blockquote></div><br class=""></div></div></div></div></blockquote></div><br class=""></div></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Dynamic Closures?</h1><div dir="ltr"><div>Hi Pascal,</div><div><br></div><div>I am sure you have it somewhere, but could you repeat here a simple explanation of what DYNAMIC-WIND and PROCEED do?</div><div><br></div><div>Thanks</div><div><br></div><div>Marco</div><div><br></div></div><br><div class="gmail_quote"><div dir="ltr" class="gmail_attr">On Sun, Nov 15, 2020 at 9:24 AM David McClain &lt;<a href="mailto:dbm@refined-audiometrics.com">dbm@refined-audiometrics.com</a>&gt; wrote:<br></div><blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex"><div style="overflow-wrap: break-word;">… I would state that DYNAMIC-WIND plus PROCEED encompasses most (all?) of what delimited continuations offer. And the syntax is quite natural.<div><br></div><div>Example - notice how the PROCEED occupies the location of a pending operand. On a restart, that will pick up the conitnuation closure and evaluate it, instead of the original code which follows the PROCEED. The DYNAMIC-WIND allows me to re-instantiate dynamic bindings that were important in the first pass.</div><div><br></div><div><div><font face="Monaco"><span style="font-style:normal">          ;; Intercept restartable queries to send back a response</span></font></div><div><font face="Monaco"><span style="font-style:normal">          ;; from the following message, reflecting any errors back to</span></font></div><div><font face="Monaco"><span style="font-style:normal">          ;; the caller.</span></font></div><div><font face="Monaco"><span style="font-style:normal">          (let ((original-ask-message (whole-message)))</span></font></div><div><font face="Monaco"><span style="font-style:normal">            (um:<font color="#00ff00">dynamic-wind</font></span></font></div><div><font face="Monaco"><span style="font-style:normal">              (let ((*whole-message* original-ask-message)</span></font></div><div><font face="Monaco"><span style="font-style:normal">                    (*in-ask*        t))</span></font></div><div><font face="Monaco"><span style="font-style:normal">                (handler-case</span></font></div><div><font face="Monaco"><span style="font-style:normal">                    (send reply-to</span></font></div><div><font face="Monaco"><span style="font-style:normal">                          (with-captured-ans-or-exn</span></font></div><div><font face="Monaco"><span style="font-style:normal">                            (um:<font color="#00ff00">proceed</font></span></font></div><div><font face="Monaco"><span style="font-style:normal">                             (apply #&#39;self-call sub-msg))))</span></font></div><div><font face="Monaco"><span style="font-style:normal">                  </span></font></div><div><font face="Monaco"><span style="font-style:normal">                  (no-immediate-answer ())</span></font></div><div><font face="Monaco"><span style="font-style:normal">                  ))))</span></font></div><div><br></div><div><br><blockquote type="cite"><div>On Nov 15, 2020, at 1:07 AM, <a href="mailto:dbm@refined-audiometrics.com" target="_blank">dbm@refined-audiometrics.com</a> wrote:</div><br><div><div style="overflow-wrap: break-word;">Indeed! DYNAMIC-WIND is really quite powerful, and far more expressive than what I had been doing. <div><br></div><div>The real advantage over my own method (which was really almost the same as yours), is the internal PROCEED macro, which allows me to pinpoint the location where the continuation closure should take over from the original code. That flexibility is really amazingly powerful.<div><br></div><div>- DM<br><div><br><blockquote type="cite"><div>On Nov 13, 2020, at 6:12 AM, Pascal Costanza &lt;<a href="mailto:pc@p-cos.net" target="_blank">pc@p-cos.net</a>&gt; wrote:</div><br><div><div style="overflow-wrap: break-word;">There is support for dynamic closures in Contextl. See the github page at <a href="https://github.com/pcostanza/contextl" target="_blank">https://github.com/pcostanza/contextl</a><div><br></div><div>Support for dynamic closures is implemented in cx-dynamic-environment.lisp and dynamic variables are implemented in cx-dynamic-variables.lisp. (They have like special variables, but need an extra level of indirection to work with features that capture the dynamic environment.)</div><div><br></div><div>Sorry for the lack of documentation, but the test cases in <a href="https://github.com/pcostanza/contextl/blob/master/test/dynamic-wind.lisp" target="_blank">https://github.com/pcostanza/contextl/blob/master/test/dynamic-wind.lisp</a> and <a href="https://github.com/pcostanza/contextl/blob/master/test/dynenv.lisp" target="_blank">https://github.com/pcostanza/contextl/blob/master/test/dynenv.lisp</a> should give you an idea what you can do with this.</div><div><br></div><div>If you are only interested in dynamic closures and don’t want to buy into all of ContextL, there is even a system definition just for that in dynamic-wind.asd</div><div><br></div><div><br></div><div>Pascal<br><div><br><blockquote type="cite"><div>On 25 Oct 2020, at 17:56, <a href="mailto:dbm@refined-audiometrics.com" target="_blank">dbm@refined-audiometrics.com</a> wrote:</div><br><div><div>I have been experimenting with continuation closures (aka callbacks) in an Actors-based environment. Actors are objects that can only run on one thread at a time, and it doesn’t matter which thread. But they preserve single-thread semantics even in the face of SMP. <br><br>Blocking activities are the bane of threading and Actors, but you can’t always know when a function call will block, nor if it is actually blocking or just taking a long time to complete. Regardless, it is possible for an Actor to construct a callback closure and pass along as a reply-to argument. When activated, it sends a special message back to the Actor to have itself run its own continuation - to preserve single thread semantics. But a simple lexical closure is missing some things...<br><br>By using an expansion of the =BIND protocol from P. Graham, you can define extensions of closures that I call “Dynamic Closures”, so that when the closure is executed, it restores most of the dynamic environment that was in place when the closure was created. This is needed for HANDLER-BIND, CATCH, and many others. It does not restore active dynamic bindings unless you also use extended forms =LET and =LET*. And UNWIND-PROTECT remains problematic. (We need a DYNAMIC-WIND, which has its own problems. You can’t regenerate an irreversible past…)<br><br>But when I constructed =LET and =LET* it became immediately apparent that Delimited Continuations (if they exist) will have problems there too. It seems that, in general, the only safe Continuations would have to capture the entire stack in order to capture all the dynamic bindings also in effect at the time of creation. I am not overtly using Delimited Continuations, although you could do that with something like CL-CONT. I personally think that =BIND conveys a more Lisp centric display of what is happening, as constrasted with the hidden syntactic and semantic effects of ASYNC/AWAIT style.<br><br>So I did a search for “Dynamic Closures” in Lisp to see if anyone else had gone down this rabbit hole. I found a page by Paul Khuong talking about “Common Cold” as applied to SBCL and making serializable closures for web programming. But no libraries come up in searches.<br><br>Anyone else gone there?<br><br>- David McClain<br><br><br>_______________________________________________<br>Lisp Hug - the mailing list for LispWorks users<br><a href="mailto:lisp-hug@lispworks.com" target="_blank">lisp-hug@lispworks.com</a><br><a href="http://www.lispworks.com/support/lisp-hug.html" target="_blank">http://www.lispworks.com/support/lisp-hug.html</a><br></div></div></blockquote></div><br><div>
+--<br>Pascal Costanza<br><br>
+
+</div>
+
+<br></div></div></div></blockquote></div><br></div></div></div></div></blockquote></div><br></div></div></blockquote></div><br clear="all"><br>-- <br><div dir="ltr" class="gmail_signature"><div dir="ltr"><div><div dir="ltr"><span style="color:rgb(0,0,0);font-family:Helvetica;font-size:14px;font-style:normal;font-weight:normal;letter-spacing:normal;text-align:start;text-indent:0px;text-transform:none;white-space:normal;word-spacing:0px;text-decoration:none;display:inline;float:none">Marco Antoniotti, Associate Professor</span><span style="color:rgb(0,0,0);font-family:Helvetica;font-size:14px;font-style:normal;font-weight:normal;letter-spacing:normal;text-align:start;text-indent:0px;text-transform:none;white-space:pre;word-spacing:0px;text-decoration:none">        	</span><span style="color:rgb(0,0,0);font-family:Helvetica;font-size:14px;font-style:normal;font-weight:normal;letter-spacing:normal;text-align:start;text-indent:0px;text-transform:none;white-space:pre;word-spacing:0px;text-decoration:none">	</span><span style="color:rgb(0,0,0);font-family:Helvetica;font-size:14px;font-style:normal;font-weight:normal;letter-spacing:normal;text-align:start;text-indent:0px;text-transform:none;white-space:normal;word-spacing:0px;text-decoration:none;display:inline;float:none">tel.</span><span style="color:rgb(0,0,0);font-family:Helvetica;font-size:14px;font-style:normal;font-weight:normal;letter-spacing:normal;text-align:start;text-indent:0px;text-transform:none;word-spacing:0px;text-decoration:none;display:inline;float:none;white-space:pre"> </span><span style="color:rgb(0,0,0);font-family:Helvetica;font-size:14px;font-style:normal;font-weight:normal;letter-spacing:normal;text-align:start;text-indent:0px;text-transform:none;white-space:normal;word-spacing:0px;text-decoration:none;display:inline;float:none">+39 - 02 64 48 79 01</span><br style="color:rgb(0,0,0);font-family:Helvetica;font-size:14px;font-style:normal;font-weight:normal;letter-spacing:normal;text-align:start;text-indent:0px;text-transform:none;white-space:normal;word-spacing:0px;text-decoration:none"><span style="color:rgb(0,0,0);font-family:Helvetica;font-size:14px;font-style:normal;font-weight:normal;letter-spacing:normal;text-align:start;text-indent:0px;text-transform:none;white-space:normal;word-spacing:0px;text-decoration:none;display:inline;float:none">DISCo, Università Milano Bicocca U14 2043</span><span style="color:rgb(0,0,0);font-family:Helvetica;font-size:14px;font-style:normal;font-weight:normal;letter-spacing:normal;text-align:start;text-indent:0px;text-transform:none;white-space:pre;word-spacing:0px;text-decoration:none">	</span><span style="color:rgb(0,0,0);font-family:Helvetica;font-size:14px;font-style:normal;font-weight:normal;letter-spacing:normal;text-align:start;text-indent:0px;text-transform:none;white-space:pre;word-spacing:0px;text-decoration:none">	</span><span style="color:rgb(0,0,0);font-family:Helvetica;font-size:14px;font-style:normal;font-weight:normal;letter-spacing:normal;text-align:start;text-indent:0px;text-transform:none;white-space:pre;word-spacing:0px;text-decoration:none"></span><a href="http://bimib.disco.unimib.it/" style="font-family:Helvetica;font-size:14px;font-style:normal;font-weight:normal;letter-spacing:normal;text-align:start;text-indent:0px;text-transform:none;white-space:normal;word-spacing:0px" target="_blank">http://bimib.disco.unimib.it</a><br style="color:rgb(0,0,0);font-family:Helvetica;font-size:14px;font-style:normal;font-weight:normal;letter-spacing:normal;text-align:start;text-indent:0px;text-transform:none;white-space:normal;word-spacing:0px;text-decoration:none"><span style="color:rgb(0,0,0);font-family:Helvetica;font-size:14px;font-style:normal;font-weight:normal;letter-spacing:normal;text-align:start;text-indent:0px;text-transform:none;white-space:normal;word-spacing:0px;text-decoration:none;display:inline;float:none">Viale Sarca 336</span><br style="color:rgb(0,0,0);font-family:Helvetica;font-size:14px;font-style:normal;font-weight:normal;letter-spacing:normal;text-align:start;text-indent:0px;text-transform:none;white-space:normal;word-spacing:0px;text-decoration:none"><span style="color:rgb(0,0,0);font-family:Helvetica;font-size:14px;font-style:normal;font-weight:normal;letter-spacing:normal;text-align:start;text-indent:0px;text-transform:none;white-space:normal;word-spacing:0px;text-decoration:none;display:inline;float:none">I-20126 Milan (MI) ITALY</span><br></div></div></div></div>
+
+
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: Dynamic Closures?</h1><html><head><meta http-equiv="content-type" content="text/html; charset=utf-8"></head><body dir="auto">Hi Marco,<div><br></div><div>Unfortunately, it has been a while since I wrote this code, so I would need to immerse myself again in my code for a bit to figure out myself what I was trying to achieve. Maybe David is in a better position to explain this right now. :)</div><div><br></div><div>Pascal<br><br><div dir="ltr">Sent from my iPad</div><div dir="ltr"><br><blockquote type="cite">On 15 Nov 2020, at 10:57, Marco Antoniotti &lt;marco.antoniotti@unimib.it&gt; wrote:<br><br></blockquote></div><blockquote type="cite"><div dir="ltr">﻿<div dir="ltr"><div>Hi Pascal,</div><div><br></div><div>I am sure you have it somewhere, but could you repeat here a simple explanation of what DYNAMIC-WIND and PROCEED do?</div><div><br></div><div>Thanks</div><div><br></div><div>Marco</div><div><br></div></div><br><div class="gmail_quote"><div dir="ltr" class="gmail_attr">On Sun, Nov 15, 2020 at 9:24 AM David McClain &lt;<a href="mailto:dbm@refined-audiometrics.com">dbm@refined-audiometrics.com</a>&gt; wrote:<br></div><blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex"><div style="overflow-wrap: break-word;">… I would state that DYNAMIC-WIND plus PROCEED encompasses most (all?) of what delimited continuations offer. And the syntax is quite natural.<div><br></div><div>Example - notice how the PROCEED occupies the location of a pending operand. On a restart, that will pick up the conitnuation closure and evaluate it, instead of the original code which follows the PROCEED. The DYNAMIC-WIND allows me to re-instantiate dynamic bindings that were important in the first pass.</div><div><br></div><div><div><font face="Monaco"><span style="font-style:normal">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ;; Intercept restartable queries to send back a response</span></font></div><div><font face="Monaco"><span style="font-style:normal">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ;; from the following message, reflecting any errors back to</span></font></div><div><font face="Monaco"><span style="font-style:normal">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ;; the caller.</span></font></div><div><font face="Monaco"><span style="font-style:normal">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (let ((original-ask-message (whole-message)))</span></font></div><div><font face="Monaco"><span style="font-style:normal">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (um:<font color="#00ff00">dynamic-wind</font></span></font></div><div><font face="Monaco"><span style="font-style:normal">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (let ((*whole-message* original-ask-message)</span></font></div><div><font face="Monaco"><span style="font-style:normal">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (*in-ask* &nbsp; &nbsp; &nbsp; &nbsp;t))</span></font></div><div><font face="Monaco"><span style="font-style:normal">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (handler-case</span></font></div><div><font face="Monaco"><span style="font-style:normal">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (send reply-to</span></font></div><div><font face="Monaco"><span style="font-style:normal">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (with-captured-ans-or-exn</span></font></div><div><font face="Monaco"><span style="font-style:normal">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (um:<font color="#00ff00">proceed</font></span></font></div><div><font face="Monaco"><span style="font-style:normal">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(apply #'self-call sub-msg))))</span></font></div><div><font face="Monaco"><span style="font-style:normal">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp;</span></font></div><div><font face="Monaco"><span style="font-style:normal">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (no-immediate-answer ())</span></font></div><div><font face="Monaco"><span style="font-style:normal">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ))))</span></font></div><div><br></div><div><br><blockquote type="cite"><div>On Nov 15, 2020, at 1:07 AM, <a href="mailto:dbm@refined-audiometrics.com" target="_blank">dbm@refined-audiometrics.com</a> wrote:</div><br><div><div style="overflow-wrap: break-word;">Indeed! DYNAMIC-WIND is really quite powerful, and far more expressive than what I had been doing.&nbsp;<div><br></div><div>The real advantage over my own method (which was really almost the same as yours), is the internal PROCEED macro, which allows me to pinpoint the location where the continuation closure should take over from the original code. That flexibility is really amazingly powerful.<div><br></div><div>- DM<br><div><br><blockquote type="cite"><div>On Nov 13, 2020, at 6:12 AM, Pascal Costanza &lt;<a href="mailto:pc@p-cos.net" target="_blank">pc@p-cos.net</a>&gt; wrote:</div><br><div><div style="overflow-wrap: break-word;">There is support for dynamic closures in Contextl. See the github page at&nbsp;<a href="https://github..com/pcostanza/contextl" target="_blank">https://github.com/pcostanza/contextl</a><div><br></div><div>Support for dynamic closures is implemented in cx-dynamic-environment.lisp and dynamic variables are implemented in cx-dynamic-variables.lisp. (They have like special variables, but need an extra level of indirection to work with features that capture the dynamic environment.)</div><div><br></div><div>Sorry for the lack of documentation, but the test cases in&nbsp;<a href="https://github.com/pcostanza/contextl/blob/master/test/dynamic-wind.lisp" target="_blank">https://github.com/pcostanza/contextl/blob/master/test/dynamic-wind.lisp</a>&nbsp;and&nbsp;<a href="https://github.com/pcostanza/contextl/blob/master/test/dynenv.lisp" target="_blank">https://github.com/pcostanza/contextl/blob/master/test/dynenv.lisp</a>&nbsp;should give you an idea what you can do with this.</div><div><br></div><div>If you are only interested in dynamic closures and don’t want to buy into all of ContextL, there is even a system definition just for that in dynamic-wind.asd</div><div><br></div><div><br></div><div>Pascal<br><div><br><blockquote type="cite"><div>On 25 Oct 2020, at 17:56, <a href="mailto:dbm@refined-audiometrics.com" target="_blank">dbm@refined-audiometrics.com</a> wrote:</div><br><div><div>I have been experimenting with continuation closures (aka callbacks) in an Actors-based environment. Actors are objects that can only run on one thread at a time, and it doesn’t matter which thread. But they preserve single-thread semantics even in the face of SMP. <br><br>Blocking activities are the bane of threading and Actors, but you can’t always know when a function call will block, nor if it is actually blocking or just taking a long time to complete. Regardless, it is possible for an Actor to construct a callback closure and pass along as a reply-to argument. When activated, it sends a special message back to the Actor to have itself run its own continuation - to preserve single thread semantics. But a simple lexical closure is missing some things...<br><br>By using an expansion of the =BIND protocol from P. Graham, you can define extensions of closures that I call “Dynamic Closures”, so that when the closure is executed, it restores most of the dynamic environment that was in place when the closure was created. This is needed for HANDLER-BIND, CATCH, and many others. It does not restore active dynamic bindings unless you also use extended forms =LET and =LET*. And UNWIND-PROTECT remains problematic. (We need a DYNAMIC-WIND, which has its own problems. You can’t regenerate an irreversible past…)<br><br>But when I constructed =LET and =LET* it became immediately apparent that Delimited Continuations (if they exist) will have problems there too. It seems that, in general, the only safe Continuations would have to capture the entire stack in order to capture all the dynamic bindings also in effect at the time of creation. I am not overtly using Delimited Continuations, although you could do that with something like CL-CONT. I personally think that =BIND conveys a more Lisp centric display of what is happening, as constrasted with the hidden syntactic and semantic effects of ASYNC/AWAIT style.<br><br>So I did a search for “Dynamic Closures” in Lisp to see if anyone else had gone down this rabbit hole. I found a page by Paul Khuong talking about “Common Cold” as applied to SBCL and making serializable closures for web programming. But no libraries come up in searches.<br><br>Anyone else gone there?<br><br>- David McClain<br><br><br>_______________________________________________<br>Lisp Hug - the mailing list for LispWorks users<br><a href="mailto:lisp-hug@lispworks.com" target="_blank">lisp-hug@lispworks.com</a><br><a href="http://www.lispworks.com/support/lisp-hug.html" target="_blank">http://www.lispworks.com/support/lisp-hug.html</a><br></div></div></blockquote></div><br><div>
+--<br>Pascal Costanza<br><br>
+
+</div>
+
+<br></div></div></div></blockquote></div><br></div></div></div></div></blockquote></div><br></div></div></blockquote></div><br clear="all"><br>-- <br><div dir="ltr" class="gmail_signature"><div dir="ltr"><div><div dir="ltr"><span style="color:rgb(0,0,0);font-family:Helvetica;font-size:14px;font-style:normal;font-weight:normal;letter-spacing:normal;text-align:start;text-indent:0px;text-transform:none;white-space:normal;word-spacing:0px;text-decoration:none;display:inline;float:none">Marco Antoniotti, Associate Professor</span><span style="color:rgb(0,0,0);font-family:Helvetica;font-size:14px;font-style:normal;font-weight:normal;letter-spacing:normal;text-align:start;text-indent:0px;text-transform:none;white-space:pre;word-spacing:0px;text-decoration:none">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;	</span><span style="color:rgb(0,0,0);font-family:Helvetica;font-size:14px;font-style:normal;font-weight:normal;letter-spacing:normal;text-align:start;text-indent:0px;text-transform:none;white-space:pre;word-spacing:0px;text-decoration:none">	</span><span style="color:rgb(0,0,0);font-family:Helvetica;font-size:14px;font-style:normal;font-weight:normal;letter-spacing:normal;text-align:start;text-indent:0px;text-transform:none;white-space:normal;word-spacing:0px;text-decoration:none;display:inline;float:none">tel.</span><span style="color:rgb(0,0,0);font-family:Helvetica;font-size:14px;font-style:normal;font-weight:normal;letter-spacing:normal;text-align:start;text-indent:0px;text-transform:none;word-spacing:0px;text-decoration:none;display:inline;float:none;white-space:pre">&nbsp;</span><span style="color:rgb(0,0,0);font-family:Helvetica;font-size:14px;font-style:normal;font-weight:normal;letter-spacing:normal;text-align:start;text-indent:0px;text-transform:none;white-space:normal;word-spacing:0px;text-decoration:none;display:inline;float:none">+39 - 02 64 48 79 01</span><br style="color:rgb(0,0,0);font-family:Helvetica;font-size:14px;font-style:normal;font-weight:normal;letter-spacing:normal;text-align:start;text-indent:0px;text-transform:none;white-space:normal;word-spacing:0px;text-decoration:none"><span style="color:rgb(0,0,0);font-family:Helvetica;font-size:14px;font-style:normal;font-weight:normal;letter-spacing:normal;text-align:start;text-indent:0px;text-transform:none;white-space:normal;word-spacing:0px;text-decoration:none;display:inline;float:none">DISCo, Università Milano Bicocca U14 2043</span><span style="color:rgb(0,0,0);font-family:Helvetica;font-size:14px;font-style:normal;font-weight:normal;letter-spacing:normal;text-align:start;text-indent:0px;text-transform:none;white-space:pre;word-spacing:0px;text-decoration:none">	</span><span style="color:rgb(0,0,0);font-family:Helvetica;font-size:14px;font-style:normal;font-weight:normal;letter-spacing:normal;text-align:start;text-indent:0px;text-transform:none;white-space:pre;word-spacing:0px;text-decoration:none">	</span><span style="color:rgb(0,0,0);font-family:Helvetica;font-size:14px;font-style:normal;font-weight:normal;letter-spacing:normal;text-align:start;text-indent:0px;text-transform:none;white-space:pre;word-spacing:0px;text-decoration:none"></span><a href="http://bimib.disco.unimib.it/" style="font-family:Helvetica;font-size:14px;font-style:normal;font-weight:normal;letter-spacing:normal;text-align:start;text-indent:0px;text-transform:none;white-space:normal;word-spacing:0px" target="_blank">http://bimib.disco..unimib.it</a><br style="color:rgb(0,0,0);font-family:Helvetica;font-size:14px;font-style:normal;font-weight:normal;letter-spacing:normal;text-align:start;text-indent:0px;text-transform:none;white-space:normal;word-spacing:0px;text-decoration:none"><span style="color:rgb(0,0,0);font-family:Helvetica;font-size:14px;font-style:normal;font-weight:normal;letter-spacing:normal;text-align:start;text-indent:0px;text-transform:none;white-space:normal;word-spacing:0px;text-decoration:none;display:inline;float:none">Viale Sarca 336</span><br style="color:rgb(0,0,0);font-family:Helvetica;font-size:14px;font-style:normal;font-weight:normal;letter-spacing:normal;text-align:start;text-indent:0px;text-transform:none;white-space:normal;word-spacing:0px;text-decoration:none"><span style="color:rgb(0,0,0);font-family:Helvetica;font-size:14px;font-style:normal;font-weight:normal;letter-spacing:normal;text-align:start;text-indent:0px;text-transform:none;white-space:normal;word-spacing:0px;text-decoration:none;display:inline;float:none">I-20126 Milan (MI) ITALY</span><br></div></div></div></div>
+</div></blockquote></div></body></html>
+
+                 </article>
+                </section>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: Dynamic Closures?</h1>
+                  <pre>DYNAMIC-WIND - maintains a stack of closures. Each one consists of the an FLET on the body enclosed. But there is a MACROLET PROCEED inside the FLET. Wherever PROCEED is used, it becomes replaced by an IF statement. The FLET itself is parameterized by a thunk argument. Initially, the FLET is called with a null thunk. The IF of the PROCEED checks that thunk, and if null, it executes the code contained within the PROCEED macro. Otherwise it calls the thunk.
+
+After some succession of DYNAMIC-WIND groups, you can call CAPTURE-DYNAMIC-ENVIRONMENT to produce a captured continuation state.
+
+Later, you can invoke any function you like within the dynamic context at the time you captured it using CALL-WITH-DYNAMIC-ENVIROMENT, or using macro WITH-DYNAMIC-ENVIRONMENT. These reinstate the dynamic environment that you captured, before calling your function code. It calls the saved DYNAMIC-WIND flet functions in the same order as when they were created, ahead of your capturing of the dynamic context.
+
+Pretty simple, really, but very clever and powerful. To my mind’s eye, I find the syntax considerably easier to grok than most implementations of delimited continuations, even though they accomplish essentially the same thing. I find DYNAMIC-WIND and PROCEED much more in line with Lisp syntax. Even more direct than Scheme’s CALL/CC.
+
+- DM
+
+
+&gt On Nov 15, 2020, at 3:39 AM, Pascal Costanza &lt;pc@p-cos.net&gt wrote:
+&gt 
+&gt Hi Marco,
+&gt 
+&gt Unfortunately, it has been a while since I wrote this code, so I would need to immerse myself again in my code for a bit to figure out myself what I was trying to achieve. Maybe David is in a better position to explain this right now. :)
+&gt 
+&gt Pascal
+&gt 
+&gt Sent from my iPad
+&gt 
+&gt&gt On 15 Nov 2020, at 10:57, Marco Antoniotti &lt;marco.antoniotti@unimib.it&gt wrote:
+&gt&gt 
+&gt&gt ﻿
+&gt&gt Hi Pascal,
+&gt&gt 
+&gt&gt I am sure you have it somewhere, but could you repeat here a simple explanation of what DYNAMIC-WIND and PROCEED do?
+&gt&gt 
+&gt&gt Thanks
+&gt&gt 
+&gt&gt Marco
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                 </article>
+                </section>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: Dynamic Closures?</h1>
+                  <pre>Hmmm. Would you mind writing some sort of an article that describes and
+exemplifies these? I don't think I have encountered any such piece of
+writing before, and it would help me visualize what's going on under the
+hood; I assume it could help other people with understanding this, too.
+
+~phoe
+
+On 15.11.2020 12:01, dbm@refined-audiometrics.com wrote:
+&gt DYNAMIC-WIND - maintains a stack of closures. Each one consists of the an FLET on the body enclosed. But there is a MACROLET PROCEED inside the FLET. Wherever PROCEED is used, it becomes replaced by an IF statement. The FLET itself is parameterized by a thunk argument. Initially, the FLET is called with a null thunk. The IF of the PROCEED checks that thunk, and if null, it executes the code contained within the PROCEED macro. Otherwise it calls the thunk.
+&gt
+&gt After some succession of DYNAMIC-WIND groups, you can call CAPTURE-DYNAMIC-ENVIRONMENT to produce a captured continuation state.
+&gt
+&gt Later, you can invoke any function you like within the dynamic context at the time you captured it using CALL-WITH-DYNAMIC-ENVIROMENT, or using macro WITH-DYNAMIC-ENVIRONMENT. These reinstate the dynamic environment that you captured, before calling your function code. It calls the saved DYNAMIC-WIND flet functions in the same order as when they were created, ahead of your capturing of the dynamic context.
+&gt
+&gt Pretty simple, really, but very clever and powerful. To my mind’s eye, I find the syntax considerably easier to grok than most implementations of delimited continuations, even though they accomplish essentially the same thing. I find DYNAMIC-WIND and PROCEED much more in line with Lisp syntax. Even more direct than Scheme’s CALL/CC.
+&gt
+&gt - DM
+&gt
+&gt
+&gt&gt On Nov 15, 2020, at 3:39 AM, Pascal Costanza &lt;pc@p-cos.net&gt wrote:
+&gt&gt
+&gt&gt Hi Marco,
+&gt&gt
+&gt&gt Unfortunately, it has been a while since I wrote this code, so I would need to immerse myself again in my code for a bit to figure out myself what I was trying to achieve. Maybe David is in a better position to explain this right now. :)
+&gt&gt
+&gt&gt Pascal
+&gt&gt
+&gt&gt Sent from my iPad
+&gt&gt
+&gt&gt&gt On 15 Nov 2020, at 10:57, Marco Antoniotti &lt;marco.antoniotti@unimib.it&gt wrote:
+&gt&gt&gt
+&gt&gt&gt ﻿
+&gt&gt&gt Hi Pascal,
+&gt&gt&gt
+&gt&gt&gt I am sure you have it somewhere, but could you repeat here a simple explanation of what DYNAMIC-WIND and PROCEED do?
+&gt&gt&gt
+&gt&gt&gt Thanks
+&gt&gt&gt
+&gt&gt&gt Marco
+&gt
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                 </article>
+                </section>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: Dynamic Closures?</h1><html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class="">You can see a live example in use in lines 339-369 of&nbsp;<a href="https://github.com/dbmcclain/Lisp-Actors/blob/main/Actors/actors.lisp" class="">https://github.com/dbmcclain/Lisp-Actors/blob/main/Actors/actors.lisp</a><div class=""><br class=""></div><div class="">Then whenever I use an =BIND (a la Paul Graham) it constructs a closure of the body code before calling the code that produces the binding values. Think of =BIND as like MULTIPLE-VALUE-BIND or DESTRUCTURING-BIND. But in my system, I process that body code closure with a function =CONT that calls CAPTURE-DYNAMIC-ENVIRONMENT, then returns a closure that re-instates the dynamic context before calling the continuation closure.</div><div class=""><br class=""></div><div class=""><div class=""><div class=""><font color="#24292e" face="Monaco" class=""><span style="caret-color: rgb(36, 41, 46); white-space: pre;" class="">;; -------------------------------------------</span></font></div><div class=""><font color="#24292e" face="Monaco" class=""><span style="caret-color: rgb(36, 41, 46); white-space: pre;" class="">;; Turn a simple closure into a Continuation</span></font></div><div class=""><font color="#24292e" face="Monaco" class=""><span style="caret-color: rgb(36, 41, 46); white-space: pre;" class=""><br class=""></span></font></div><div class=""><font color="#24292e" face="Monaco" class=""><span style="caret-color: rgb(36, 41, 46); white-space: pre;" class="">(defun =cont (fn)</span></font></div><div class=""><font color="#24292e" face="Monaco" class=""><span style="caret-color: rgb(36, 41, 46); white-space: pre;" class="">&nbsp; (let ((dyn-env (capture-dynamic-environment)))</span></font></div><div class=""><font color="#24292e" face="Monaco" class=""><span style="caret-color: rgb(36, 41, 46); white-space: pre;" class="">&nbsp; &nbsp; (lambda (&amp;rest args)</span></font></div><div class=""><font color="#24292e" face="Monaco" class=""><span style="caret-color: rgb(36, 41, 46); white-space: pre;" class="">&nbsp; &nbsp; &nbsp; (with-dynamic-environment (dyn-env)</span></font></div><div class=""><font color="#24292e" face="Monaco" class=""><span style="caret-color: rgb(36, 41, 46); white-space: pre;" class="">&nbsp; &nbsp; &nbsp; &nbsp; (apply fn args)))))</span></font></div></div><div class=""><br class=""></div><div><br class=""></div><div>But if you like, I can write this up in a more connected format…</div><div><br class=""></div><div>- DM</div><div><br class=""></div><div><br class=""><blockquote type="cite" class=""><div class="">On Nov 15, 2020, at 4:06 AM, Michał phoe Herda &lt;<a href="mailto:phoe@disroot.org" class="">phoe@disroot.org</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><div class="">Hmmm. Would you mind writing some sort of an article that describes and<br class="">exemplifies these? I don't think I have encountered any such piece of<br class="">writing before, and it would help me visualize what's going on under the<br class="">hood; I assume it could help other people with understanding this, too.<br class=""><br class="">~phoe<br class=""><br class="">On 15.11.2020 12:01, <a href="mailto:dbm@refined-audiometrics.com" class="">dbm@refined-audiometrics.com</a> wrote:<br class=""><blockquote type="cite" class="">DYNAMIC-WIND - maintains a stack of closures. Each one consists of the an FLET on the body enclosed. But there is a MACROLET PROCEED inside the FLET. Wherever PROCEED is used, it becomes replaced by an IF statement. The FLET itself is parameterized by a thunk argument. Initially, the FLET is called with a null thunk. The IF of the PROCEED checks that thunk, and if null, it executes the code contained within the PROCEED macro. Otherwise it calls the thunk.<br class=""><br class="">After some succession of DYNAMIC-WIND groups, you can call CAPTURE-DYNAMIC-ENVIRONMENT to produce a captured continuation state.<br class=""><br class="">Later, you can invoke any function you like within the dynamic context at the time you captured it using CALL-WITH-DYNAMIC-ENVIROMENT, or using macro WITH-DYNAMIC-ENVIRONMENT. These reinstate the dynamic environment that you captured, before calling your function code. It calls the saved DYNAMIC-WIND flet functions in the same order as when they were created, ahead of your capturing of the dynamic context.<br class=""><br class="">Pretty simple, really, but very clever and powerful. To my mind’s eye, I find the syntax considerably easier to grok than most implementations of delimited continuations, even though they accomplish essentially the same thing. I find DYNAMIC-WIND and PROCEED much more in line with Lisp syntax. Even more direct than Scheme’s CALL/CC.<br class=""><br class="">- DM<br class=""><br class=""><br class=""><blockquote type="cite" class="">On Nov 15, 2020, at 3:39 AM, Pascal Costanza &lt;<a href="mailto:pc@p-cos.net" class="">pc@p-cos.net</a>&gt; wrote:<br class=""><br class="">Hi Marco,<br class=""><br class="">Unfortunately, it has been a while since I wrote this code, so I would need to immerse myself again in my code for a bit to figure out myself what I was trying to achieve. Maybe David is in a better position to explain this right now. :)<br class=""><br class="">Pascal<br class=""><br class="">Sent from my iPad<br class=""><br class=""><blockquote type="cite" class="">On 15 Nov 2020, at 10:57, Marco Antoniotti &lt;<a href="mailto:marco.antoniotti@unimib.it" class="">marco.antoniotti@unimib.it</a>&gt; wrote:<br class=""><br class="">﻿<br class="">Hi Pascal,<br class=""><br class="">I am sure you have it somewhere, but could you repeat here a simple explanation of what DYNAMIC-WIND and PROCEED do?<br class=""><br class="">Thanks<br class=""><br class="">Marco<br class=""></blockquote></blockquote><br class="">_______________________________________________<br class="">Lisp Hug - the mailing list for LispWorks users<br class=""><a href="mailto:lisp-hug@lispworks.com" class="">lisp-hug@lispworks.com</a><br class="">http://www.lispworks.com/support/lisp-hug.html<br class=""></blockquote></div></div></blockquote></div><br class=""></div></body></html>
+
+                 </article>
+                </section>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: Dynamic Closures?</h1>
+                  <pre>The code example I showed is used in Actors. Actors are guaranteed single-thread semantics. But if you call something that might block, you could choose to spawn that off into another worker (sub-actor) so that the main Actor isn’t tied up.
+
+Problem is… when you have someone asking for the result of an Actor computation, there is no immediate answer available. So we set up a continuation callback, so that when the task is completed, that continuation will run once again in the actor. And if we were in the midst of an ASK by some client code, then we should send the result back to them. 
+
+So the example code I gave, allows for an ASK that might not be able to complete right now. But it can be restarted later to finish the job. And using DYNAMIC-WIND makes this so easy to do.
+
+- DM
+
+&gt On Nov 15, 2020, at 4:06 AM, Michał phoe Herda &lt;phoe@disroot.org&gt wrote:
+&gt 
+&gt Hmmm. Would you mind writing some sort of an article that describes and
+&gt exemplifies these? I don't think I have encountered any such piece of
+&gt writing before, and it would help me visualize what's going on under the
+&gt hood; I assume it could help other people with understanding this, too.
+&gt 
+&gt ~phoe
+&gt 
+&gt On 15.11.2020 12:01, dbm@refined-audiometrics.com wrote:
+&gt&gt DYNAMIC-WIND - maintains a stack of closures. Each one consists of the an FLET on the body enclosed. But there is a MACROLET PROCEED inside the FLET. Wherever PROCEED is used, it becomes replaced by an IF statement. The FLET itself is parameterized by a thunk argument. Initially, the FLET is called with a null thunk. The IF of the PROCEED checks that thunk, and if null, it executes the code contained within the PROCEED macro. Otherwise it calls the thunk.
+&gt&gt 
+&gt&gt After some succession of DYNAMIC-WIND groups, you can call CAPTURE-DYNAMIC-ENVIRONMENT to produce a captured continuation state.
+&gt&gt 
+&gt&gt Later, you can invoke any function you like within the dynamic context at the time you captured it using CALL-WITH-DYNAMIC-ENVIROMENT, or using macro WITH-DYNAMIC-ENVIRONMENT. These reinstate the dynamic environment that you captured, before calling your function code. It calls the saved DYNAMIC-WIND flet functions in the same order as when they were created, ahead of your capturing of the dynamic context.
+&gt&gt 
+&gt&gt Pretty simple, really, but very clever and powerful. To my mind’s eye, I find the syntax considerably easier to grok than most implementations of delimited continuations, even though they accomplish essentially the same thing. I find DYNAMIC-WIND and PROCEED much more in line with Lisp syntax. Even more direct than Scheme’s CALL/CC.
+&gt&gt 
+&gt&gt - DM
+&gt&gt 
+&gt&gt 
+&gt&gt&gt On Nov 15, 2020, at 3:39 AM, Pascal Costanza &lt;pc@p-cos.net&gt wrote:
+&gt&gt&gt 
+&gt&gt&gt Hi Marco,
+&gt&gt&gt 
+&gt&gt&gt Unfortunately, it has been a while since I wrote this code, so I would need to immerse myself again in my code for a bit to figure out myself what I was trying to achieve. Maybe David is in a better position to explain this right now. :)
+&gt&gt&gt 
+&gt&gt&gt Pascal
+&gt&gt&gt 
+&gt&gt&gt Sent from my iPad
+&gt&gt&gt 
+&gt&gt&gt&gt On 15 Nov 2020, at 10:57, Marco Antoniotti &lt;marco.antoniotti@unimib.it&gt wrote:
+&gt&gt&gt&gt 
+&gt&gt&gt&gt ﻿
+&gt&gt&gt&gt Hi Pascal,
+&gt&gt&gt&gt 
+&gt&gt&gt&gt I am sure you have it somewhere, but could you repeat here a simple explanation of what DYNAMIC-WIND and PROCEED do?
+&gt&gt&gt&gt 
+&gt&gt&gt&gt Thanks
+&gt&gt&gt&gt 
+&gt&gt&gt&gt Marco
+&gt&gt 
+&gt&gt _______________________________________________
+&gt&gt Lisp Hug - the mailing list for LispWorks users
+&gt&gt lisp-hug@lispworks.com
+&gt&gt http://www.lispworks.com/support/lisp-hug.html
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                 </article>
+                </section>
+               </section>
+              </section>
+             </div>
+            </div>
+           </body>
+          </html>

@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>RE: Browser (client) side: bring up cPanel website, success and problem</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+           </head>
+           <body>
+            <div class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </div>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>RE: Browser (client) side: bring up cPanel website, success and problem</h1>
+                <pre>I used Drakma to get a cPanel login page. "https://assigned-email-manager.com:2083/" 
+It worked easily and perfectly when my function returned a string that displayed in the Listener. That's the success part.
+
+So, then I modified the code to output to a file. It would not output the file. Raised an error. I added (finish-output out-stream) to my code and found that the output to file stopped with error when it got some high value Unicode character. It reported U+0167.
+
+I guessed that the characters were coming from the cPanel page's drop down box that allows you to select the language you want. Each language is displayed in its own character set (Arabic in Arabic letters, etc.).
+
+What I wound up doing is (mod chr 256) to force any character to be within range.
+
+Even though I got the file to write "without errors", I think my solution is a poor solution. Maybe it is okay for problem isolation. Seems like I should be able to get characters from all languages to write to a file.
+
+(format t "~c" chr) and (write-char chr) write without problem to the Listener.
+(format out-stream "~c" chr) and (write-char chr out-stream) to a file result in bouncing out to the debugger with the error that complains about not being able to write U+0167.
+
+Here is the main part of the code:
+
+=============== start code ==================================
+;;;; 
+;;;; Package xcomm-drakma
+;;;; 
+;;;; experiment with drakma library
+;;;; 
+;;;; 
+;;;; 
+;;;; 
+
+(in-package xcomm-drakma)
+
+(ql:quickload "drakma")
+
+
+
+(defparameter url-str "https://assigned-email-manager.com:2083/")
+
+(defparameter data-path "D:/Users/Ron/Documents/LispWorks/comm/data/")
+
+
+(defun out-file ()
+  (concatenate 'string 
+               data-path
+               "cpanel-response.html"))
+
+
+
+(defun go-to-cpanel ()
+  (drakma:http-request url-str))
+
+
+(defun output-str-to-file-2 (chr-lst outstrm)
+  (mapcar #'(lambda (chr)
+              (let ((chr-1 (if (&lt; (char-code chr) 256)   
+                               chr 
+                             (code-char (mod (char-code chr) 256)))))  ; poor solution!!!
+                (write-char chr-1 outstrm)
+                (finish-output outstrm)))
+          chr-lst))
+
+
+
+
+(defun output-str-to-file-1 (str outstrm)
+  (cond ((null outstrm)
+         (format t "~%output file did not open.~%"))
+
+        (t
+         (output-str-to-file-2 (coerce str 'list) outstrm))))
+
+
+
+(defun output-str-to-file (str file)
+  (with-open-file (out-strm file
+                            :direction :output
+                            :if-exists :supersede
+                            :if-does-not-exist :create)   ; maybe need to specify more here?
+                            
+    
+    (output-str-to-file-1 str out-strm)))
+
+
+(defun out-cpanel-to-file ()
+  (let ((response (go-to-cpanel)))
+    (output-str-to-file response (out-file))
+    (format t "~%cpanel response output to file cpanel-response.html~%")))
+================ end code ============================
+
+Invoking the last function, out-cpanel-to-file, is supposed to output cPanel's response to a file.
+
+This is the kind of problem I think I would solve by reading documentation. I'm looking here: http://www.lispworks.com/documentation/lw70/CLHS/Body/m_w_open.htm 
+
+Is this where I should be reading? 
+
+Ron Lewis
+
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Browser (client) side: bring up cPanel website, success and problem</h1><div dir="ltr">Yes, you should read through that, paying particular attention to what it says about :external-format. You should also skim through the chapter on &quot;The external-format package&quot; in the Lispworks Reference Manual.<div><br></div><div>Note: the external format that I personally would use for this (:utf-8) is not mentioned in the external-formats chapter - I&#39;m not sure if this is just an omission, or if there&#39;s a valid reason for it.</div></div><div class="gmail_extra"><br><div class="gmail_quote">On Tue, Mar 20, 2018 at 4:01 AM, Ron Lewis <span dir="ltr">&lt;<a href="mailto:rlewis-4d@indinfer.com" target="_blank">rlewis-4d@indinfer.com</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">I used Drakma to get a cPanel login page. &quot;<a href="https://assigned-email-manager.com:2083/" rel="noreferrer" target="_blank">https://assigned-email-<wbr>manager.com:2083/</a>&quot;<br>
+It worked easily and perfectly when my function returned a string that displayed in the Listener. That&#39;s the success part.<br>
+<br>
+So, then I modified the code to output to a file. It would not output the file. Raised an error. I added (finish-output out-stream) to my code and found that the output to file stopped with error when it got some high value Unicode character. It reported U+0167.<br>
+<br>
+I guessed that the characters were coming from the cPanel page&#39;s drop down box that allows you to select the language you want. Each language is displayed in its own character set (Arabic in Arabic letters, etc.).<br>
+<br>
+What I wound up doing is (mod chr 256) to force any character to be within range.<br>
+<br>
+Even though I got the file to write &quot;without errors&quot;, I think my solution is a poor solution. Maybe it is okay for problem isolation. Seems like I should be able to get characters from all languages to write to a file.<br>
+<br>
+(format t &quot;~c&quot; chr) and (write-char chr) write without problem to the Listener.<br>
+(format out-stream &quot;~c&quot; chr) and (write-char chr out-stream) to a file result in bouncing out to the debugger with the error that complains about not being able to write U+0167.<br>
+<br>
+Here is the main part of the code:<br>
+<br>
+=============== start code ==============================<wbr>====<br>
+;;;;<br>
+;;;; Package xcomm-drakma<br>
+;;;;<br>
+;;;; experiment with drakma library<br>
+;;;;<br>
+;;;;<br>
+;;;;<br>
+;;;;<br>
+<br>
+(in-package xcomm-drakma)<br>
+<br>
+(ql:quickload &quot;drakma&quot;)<br>
+<br>
+<br>
+<br>
+(defparameter url-str &quot;<a href="https://assigned-email-manager.com:2083/" rel="noreferrer" target="_blank">https://assigned-email-<wbr>manager.com:2083/</a>&quot;)<br>
+<br>
+(defparameter data-path &quot;D:/Users/Ron/Documents/<wbr>LispWorks/comm/data/&quot;)<br>
+<br>
+<br>
+(defun out-file ()<br>
+  (concatenate &#39;string<br>
+               data-path<br>
+               &quot;cpanel-response.html&quot;))<br>
+<br>
+<br>
+<br>
+(defun go-to-cpanel ()<br>
+  (drakma:http-request url-str))<br>
+<br>
+<br>
+(defun output-str-to-file-2 (chr-lst outstrm)<br>
+  (mapcar #&#39;(lambda (chr)<br>
+              (let ((chr-1 (if (&lt; (char-code chr) 256)<br>
+                               chr<br>
+                             (code-char (mod (char-code chr) 256)))))  ; poor solution!!!<br>
+                (write-char chr-1 outstrm)<br>
+                (finish-output outstrm)))<br>
+          chr-lst))<br>
+<br>
+<br>
+<br>
+<br>
+(defun output-str-to-file-1 (str outstrm)<br>
+  (cond ((null outstrm)<br>
+         (format t &quot;~%output file did not open.~%&quot;))<br>
+<br>
+        (t<br>
+         (output-str-to-file-2 (coerce str &#39;list) outstrm))))<br>
+<br>
+<br>
+<br>
+(defun output-str-to-file (str file)<br>
+  (with-open-file (out-strm file<br>
+                            :direction :output<br>
+                            :if-exists :supersede<br>
+                            :if-does-not-exist :create)   ; maybe need to specify more here?<br>
+<br>
+<br>
+    (output-str-to-file-1 str out-strm)))<br>
+<br>
+<br>
+(defun out-cpanel-to-file ()<br>
+  (let ((response (go-to-cpanel)))<br>
+    (output-str-to-file response (out-file))<br>
+    (format t &quot;~%cpanel response output to file cpanel-response.html~%&quot;)))<br>
+================ end code ============================<br>
+<br>
+Invoking the last function, out-cpanel-to-file, is supposed to output cPanel&#39;s response to a file.<br>
+<br>
+This is the kind of problem I think I would solve by reading documentation. I&#39;m looking here: <a href="http://www.lispworks.com/documentation/lw70/CLHS/Body/m_w_open.htm" rel="noreferrer" target="_blank">http://www.lispworks.com/<wbr>documentation/lw70/CLHS/Body/<wbr>m_w_open.htm</a><br>
+<br>
+Is this where I should be reading?<br>
+<br>
+Ron Lewis<br>
+<br>
+<br>
+<br>
+______________________________<wbr>_________________<br>
+Lisp Hug - the mailing list for LispWorks users<br>
+<a href="mailto:lisp-hug@lispworks.com">lisp-hug@lispworks.com</a><br>
+<a href="http://www.lispworks.com/support/lisp-hug.html" rel="noreferrer" target="_blank">http://www.lispworks.com/<wbr>support/lisp-hug.html</a><br>
+</blockquote></div><br></div>
+
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Browser (client) side: bring up cPanel website, success and problem</h1>
+                 <pre>You may have set lw:*default-character-element-type* in your startup file; the default on OSX at least is base-char (for 6.1.1, 7.0 and 7.1).
+
+&gt On 20 Mar 2018, at 21:39 , Erik Ronström &lt;erik.ronstrom@doremir.com&gt wrote:
+&gt 
+&gt It is strange that you have to explicitly specify :element-type ’character. From the listener, I can successfully write unicode characters to a file using this code:
+&gt 
+&gt (with-open-file (out-strm "~/Desktop/test.txt"
+&gt                           :direction :output
+&gt                           :if-exists :supersede
+&gt                           :if-does-not-exist :create
+&gt                           :external-format :utf-8)
+&gt  (format out-strm "づ”))
+&gt 
+&gt What platform are you on? (Don’t know if that matters, but just maybe)
+&gt 
+&gt Erik
+&gt 
+&gt 
+&gt 
+&gt&gt 20 mars 2018 kl. 15:34 skrev Ron Lewis &lt;rlewis-4d@indinfer.com&gt:
+&gt&gt 
+&gt&gt 
+&gt&gt Erik and Raymond,
+&gt&gt 
+&gt&gt Sounds like I was a little bit on the right direction. Seems like the Lisp Standard documentation (http://www.lispworks.com/documentation/lw70/CLHS/Body/f_open.htm) only tells me about :default as a value possibility for :external-format key value. I suppose only telling about :default makes sense for documentation of standard Lisp because :default is the only value that is required by the standard.
+&gt&gt 
+&gt&gt You have led me to look at LispWorks specific documentation which I hope I can remember for future self-sufficient problem solving. Looking at LispWorks specific documentation makes sense because the value I want will be specific to  LispWorks.
+&gt&gt 
+&gt&gt And Bingo! I started up LispWorks IDE. In the Listener I typed “(open” and left the cursor on ‘n’. Then I clicked on Help &gt&gt Symbol, etc. This time, instead of going to ANSI Common Lisp Standard, I went to “open function 689” in LispWorks User Guide and Reference Manual. I thought, “So far, doesn’t seem to help enough. Where are my options?” But at the bottom I saw “See also” and clicked on “valid-external-format-p”.
+&gt&gt 
+&gt&gt valid-external-format-p looks to be valuable to tell me whether or not I am specifying an :external-format with valid syntax. And it has an example of what I might specify, “ ‘(:Unicode :eol-style :lf)) ”. 
+&gt&gt 
+&gt&gt So, anyway I will interrupt my blow by blow account to get to what worked.
+&gt&gt 
+&gt&gt  (with-open-file (out-strm file
+&gt&gt                            :direction :output
+&gt&gt                            :if-exists :supersede
+&gt&gt                            :if-does-not-exist :create 
+&gt&gt                            :external-format :utf-8
+&gt&gt                            :element-type 'character)
+&gt&gt 
+&gt&gt I am surprised that nothing worked until I specified both :external-format and :element-type. I thought :character was the default. And then :character was incorrect. I needed ‘character (apostrophe instead of colon).
+&gt&gt 
+&gt&gt My working code above is based on the LispWorks User Guide and Reference Manual (thank you for pointing me to it), Chapter-Section 24.2.6 “Instantiating the stream”. And a list of :external-format’s I could use are at 26.6 “External Formats”. :utf-8 looks best in epsilon (my emacs-like text editor). But :unicode and :utf-16 also work (no errors and the file gets written), just that only :utf-8 looks good in epsilon. (I think I could configure epsilon to display the other :external-formats, if I want to bother with it.)
+&gt&gt 
+&gt&gt I don’t know why I need to specify :element-type ‘character since character is supposed to be the default, right? Maybe my specifying :external-format affects :element-type somehow?
+&gt&gt 
+&gt&gt In any case, thank you for helping me to become more self-sufficient (I hope) in Lisp problem solving.
+&gt&gt 
+&gt&gt Now I have success and success instead of success with a problem.
+&gt&gt 
+&gt&gt Ron Lewis
+&gt&gt 
+&gt&gt From: owner-lisp-hug@lispworks.com &lt;owner-lisp-hug@lispworks.com&gt On Behalf Of Raymond Wiker
+&gt&gt Sent: Tuesday, March 20, 2018 3:27 AM
+&gt&gt To: Ron Lewis &lt;rlewis-4d@indinfer.com&gt
+&gt&gt Cc: Lisp HUG &lt;lisp-hug@lispworks.com&gt
+&gt&gt Subject: Re: Browser (client) side: bring up cPanel website, success and problem
+&gt&gt 
+&gt&gt Yes, you should read through that, paying particular attention to what it says about :external-format. You should also skim through the chapter on "The external-format package" in the Lispworks Reference Manual.
+&gt&gt 
+&gt&gt Note: the external format that I personally would use for this (:utf-8) is not mentioned in the external-formats chapter - I'm not sure if this is just an omission, or if there's a valid reason for it.
+&gt&gt 
+&gt&gt On Tue, Mar 20, 2018 at 4:01 AM, Ron Lewis &lt;rlewis-4d@indinfer.com&gt wrote:
+&gt&gt&gt I used Drakma to get a cPanel login page. "https://assigned-email-manager.com:2083/"
+&gt&gt&gt It worked easily and perfectly when my function returned a string that displayed in the Listener. That's the success part.
+&gt&gt&gt 
+&gt&gt&gt So, then I modified the code to output to a file. It would not output the file. Raised an error. I added (finish-output out-stream) to my code and found that the output to file stopped with error when it got some high value Unicode character. It reported U+0167.
+&gt&gt&gt 
+&gt&gt&gt I guessed that the characters were coming from the cPanel page's drop down box that allows you to select the language you want. Each language is displayed in its own character set (Arabic in Arabic letters, etc.).
+&gt&gt&gt 
+&gt&gt&gt What I wound up doing is (mod chr 256) to force any character to be within range.
+&gt&gt&gt 
+&gt&gt&gt Even though I got the file to write "without errors", I think my solution is a poor solution. Maybe it is okay for problem isolation. Seems like I should be able to get characters from all languages to write to a file.
+&gt&gt&gt 
+&gt&gt&gt (format t "~c" chr) and (write-char chr) write without problem to the Listener.
+&gt&gt&gt (format out-stream "~c" chr) and (write-char chr out-stream) to a file result in bouncing out to the debugger with the error that complains about not being able to write U+0167.
+&gt&gt&gt 
+&gt&gt&gt Here is the main part of the code:
+&gt&gt&gt 
+&gt&gt&gt =============== start code ==================================
+&gt&gt&gt ;;;;
+&gt&gt&gt ;;;; Package xcomm-drakma
+&gt&gt&gt ;;;;
+&gt&gt&gt ;;;; experiment with drakma library
+&gt&gt&gt ;;;;
+&gt&gt&gt ;;;;
+&gt&gt&gt ;;;;
+&gt&gt&gt ;;;;
+&gt&gt&gt 
+&gt&gt&gt (in-package xcomm-drakma)
+&gt&gt&gt 
+&gt&gt&gt (ql:quickload "drakma")
+&gt&gt&gt 
+&gt&gt&gt 
+&gt&gt&gt 
+&gt&gt&gt (defparameter url-str "https://assigned-email-manager.com:2083/")
+&gt&gt&gt 
+&gt&gt&gt (defparameter data-path "D:/Users/Ron/Documents/LispWorks/comm/data/")
+&gt&gt&gt 
+&gt&gt&gt 
+&gt&gt&gt (defun out-file ()
+&gt&gt&gt  (concatenate 'string
+&gt&gt&gt               data-path
+&gt&gt&gt               "cpanel-response.html"))
+&gt&gt&gt 
+&gt&gt&gt 
+&gt&gt&gt 
+&gt&gt&gt (defun go-to-cpanel ()
+&gt&gt&gt  (drakma:http-request url-str))
+&gt&gt&gt 
+&gt&gt&gt 
+&gt&gt&gt (defun output-str-to-file-2 (chr-lst outstrm)
+&gt&gt&gt  (mapcar #'(lambda (chr)
+&gt&gt&gt              (let ((chr-1 (if (&lt; (char-code chr) 256)
+&gt&gt&gt                               chr
+&gt&gt&gt                             (code-char (mod (char-code chr) 256)))))  ; poor solution!!!
+&gt&gt&gt                (write-char chr-1 outstrm)
+&gt&gt&gt                (finish-output outstrm)))
+&gt&gt&gt          chr-lst))
+&gt&gt&gt 
+&gt&gt&gt 
+&gt&gt&gt 
+&gt&gt&gt 
+&gt&gt&gt (defun output-str-to-file-1 (str outstrm)
+&gt&gt&gt  (cond ((null outstrm)
+&gt&gt&gt         (format t "~%output file did not open.~%"))
+&gt&gt&gt 
+&gt&gt&gt        (t
+&gt&gt&gt         (output-str-to-file-2 (coerce str 'list) outstrm))))
+&gt&gt&gt 
+&gt&gt&gt 
+&gt&gt&gt 
+&gt&gt&gt (defun output-str-to-file (str file)
+&gt&gt&gt  (with-open-file (out-strm file
+&gt&gt&gt                            :direction :output
+&gt&gt&gt                            :if-exists :supersede
+&gt&gt&gt                            :if-does-not-exist :create)   ; maybe need to specify more here?
+&gt&gt&gt 
+&gt&gt&gt 
+&gt&gt&gt    (output-str-to-file-1 str out-strm)))
+&gt&gt&gt 
+&gt&gt&gt 
+&gt&gt&gt (defun out-cpanel-to-file ()
+&gt&gt&gt  (let ((response (go-to-cpanel)))
+&gt&gt&gt    (output-str-to-file response (out-file))
+&gt&gt&gt    (format t "~%cpanel response output to file cpanel-response.html~%")))
+&gt&gt&gt ================ end code ============================
+&gt&gt&gt 
+&gt&gt&gt Invoking the last function, out-cpanel-to-file, is supposed to output cPanel's response to a file.
+&gt&gt&gt 
+&gt&gt&gt This is the kind of problem I think I would solve by reading documentation. I'm looking here: http://www.lispworks.com/documentation/lw70/CLHS/Body/m_w_open.htm
+&gt&gt&gt 
+&gt&gt&gt Is this where I should be reading?
+&gt&gt&gt 
+&gt&gt&gt Ron Lewis
+&gt&gt&gt 
+&gt&gt&gt 
+&gt&gt&gt 
+&gt&gt&gt _______________________________________________
+&gt&gt&gt Lisp Hug - the mailing list for LispWorks users
+&gt&gt&gt lisp-hug@lispworks.com
+&gt&gt&gt http://www.lispworks.com/support/lisp-hug.html
+&gt 
+&gt 
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+           </body>
+          </html>

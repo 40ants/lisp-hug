@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Tail Call Optimization Troubles Ahead?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+           </head>
+           <body>
+            <div class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </div>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Tail Call Optimization Troubles Ahead?</h1><html><head><meta http-equiv="Content-Type" content="text/html; charset=us-ascii"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class="">This sounds potentially troubling for Lisp languages and tail call optimization / continuations:<div class=""><br class=""></div><div class=""><a href="https://arstechnica.com/information-technology/2020/06/intel-will-soon-bake-anti-malware-defenses-directly-into-its-cpus/" class="">https://arstechnica.com/information-technology/2020/06/intel-will-soon-bake-anti-malware-defenses-directly-into-its-cpus/</a></div><div class=""><br class=""></div><div class="">- David McClain</div><div class="">Refined Audiometrics Laboratory, LLC</div></body></html>
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Tail Call Optimization Troubles Ahead?</h1>
+                 <pre>&gt CET introduces changes in the CPU that create a new stack called the
+&gt control stack. This stack cant be modified by attackers and doesnt
+&gt store any data. It stores the return addresses of the Lego bricks that
+&gt are already in the stack. Because of this, even if an attacker has
+&gt corrupted a return address in the data stack, the control stack
+&gt retains the correct return address. The processor can detect this and
+&gt halt execution.
+I assume that compilers will need to use that feature explicitly in
+order to benefit from that, meaning that they will need to opt in for
+using the new immutable control stack for their returns.
+
+This is because I think that the last thing Intel wants is breaking
+backwards compatibility with already existing and working software that
+uses mutable stacks (which is, like, 99% of contemporary x86 software?),
+since breaking backwards compatibility like that would be an endless
+source of bug reports for them. x86_64 is famous for being backwards
+compatible with 16-bit DOS, after all.
+
+So, to use Betteridge's law of headlines: no, I don't think it'll be
+much of an issue.
+
+~phoe
+
+On 15.06.2020 15:21, dbm@refined-audiometrics.com wrote:
+&gt This sounds potentially troubling for Lisp languages and tail call
+&gt optimization / continuations:
+&gt
+&gt https://arstechnica.com/information-technology/2020/06/intel-will-soon-bake-anti-malware-defenses-directly-into-its-cpus/
+&gt
+&gt - David McClain
+&gt Refined Audiometrics Laboratory, LLC
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Tail Call Optimization Troubles Ahead?</h1>
+                 <pre>I'm a little concerned about it, in that it might make it much harder to 
+inter-operate between more dynamic languages (such as Lisp) and more 
+static ones (such as C). It's all very well turning it off in Lisp 
+world, but how are we supposed to build a shared library that can be 
+called from C?
+
+These days I work (in C) in low-level tools development for HPC Linux 
+clusters. This technology will stop us from doing some things when it's 
+turned on (such as correctly wrapping a dlopen() call in an LD_PRELOAD 
+library, details on request), so there's widespread interest tempered 
+with a certain level of scepticism that people will ever turn it on.
+
+Nick B
+
+On 15 Jun 2020, at 14:31, Michał "phoe" Herda wrote:
+
+&gt&gt CET introduces changes in the CPU that create a new stack called the
+&gt&gt control stack. This stack can’t be modified by attackers and 
+&gt&gt doesn’t
+&gt&gt store any data. It stores the return addresses of the Lego bricks 
+&gt&gt that
+&gt&gt are already in the stack. Because of this, even if an attacker has
+&gt&gt corrupted a return address in the data stack, the control stack
+&gt&gt retains the correct return address. The processor can detect this and
+&gt&gt halt execution.
+&gt I assume that compilers will need to use that feature explicitly in
+&gt order to benefit from that, meaning that they will need to opt in for
+&gt using the new immutable control stack for their returns.
+&gt
+&gt This is because I think that the last thing Intel wants is breaking
+&gt backwards compatibility with already existing and working software 
+&gt that
+&gt uses mutable stacks (which is, like, 99% of contemporary x86 
+&gt software?),
+&gt since breaking backwards compatibility like that would be an endless
+&gt source of bug reports for them. x86_64 is famous for being backwards
+&gt compatible with 16-bit DOS, after all.
+&gt
+&gt So, to use Betteridge's law of headlines: no, I don't think it'll be
+&gt much of an issue.
+&gt
+&gt ~phoe
+&gt
+&gt On 15.06.2020 15:21, dbm@refined-audiometrics.com wrote:
+&gt&gt This sounds potentially troubling for Lisp languages and tail call
+&gt&gt optimization / continuations:
+&gt&gt
+&gt&gt https://arstechnica.com/information-technology/2020/06/intel-will-soon-bake-anti-malware-defenses-directly-into-its-cpus/
+&gt&gt
+&gt&gt - David McClain
+&gt&gt Refined Audiometrics Laboratory, LLC
+&gt
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Tail Call Optimization Troubles Ahead?</h1>
+                 <pre>Correct, it will be difficult in a place where we need to add FFI into
+the mix; I would imagine that such kind of mitigation would need to be
+taken into account either when linking against code that is compiled
+with such stacks, unless the OS finds out a way to enable such
+mitigations for whole individual processes.
+
+(That said, and going slightly off-topic, I imagine that some
+paranoia-oriented operating systems, such as OpenBSD, will be the first
+to compile and run everything they can with such a technology enabled.)
+UNIX and Lisp are two completely distinct worlds, and I imagine that
+such a mitigation technique would be most useful for the former,
+memory-unsafe world.
+
+But then again, I'll share an optimistic point of view; in case this
+technology is deployed, I imagine that Lisp won't be the only dynamic
+language that will need to figure out a way of linking dynamic code
+against static code with a separate, immutable control stack. If Python
+and Ruby find a way, so will Lisp.
+
+~phoe
+
+On 15.06.2020 16:13, Nick Barnes wrote:
+&gt I'm a little concerned about it, in that it might make it much harder
+&gt to inter-operate between more dynamic languages (such as Lisp) and
+&gt more static ones (such as C). It's all very well turning it off in
+&gt Lisp world, but how are we supposed to build a shared library that can
+&gt be called from C?
+&gt
+&gt These days I work (in C) in low-level tools development for HPC Linux
+&gt clusters. This technology will stop us from doing some things when
+&gt it's turned on (such as correctly wrapping a dlopen() call in an
+&gt LD_PRELOAD library, details on request), so there's widespread
+&gt interest tempered with a certain level of scepticism that people will
+&gt ever turn it on.
+&gt
+&gt Nick B
+&gt
+&gt On 15 Jun 2020, at 14:31, Michał "phoe" Herda wrote:
+&gt
+&gt&gt&gt CET introduces changes in the CPU that create a new stack called the
+&gt&gt&gt control stack. This stack can’t be modified by attackers and doesn’t
+&gt&gt&gt store any data. It stores the return addresses of the Lego bricks that
+&gt&gt&gt are already in the stack. Because of this, even if an attacker has
+&gt&gt&gt corrupted a return address in the data stack, the control stack
+&gt&gt&gt retains the correct return address. The processor can detect this and
+&gt&gt&gt halt execution.
+&gt&gt I assume that compilers will need to use that feature explicitly in
+&gt&gt order to benefit from that, meaning that they will need to opt in for
+&gt&gt using the new immutable control stack for their returns.
+&gt&gt
+&gt&gt This is because I think that the last thing Intel wants is breaking
+&gt&gt backwards compatibility with already existing and working software that
+&gt&gt uses mutable stacks (which is, like, 99% of contemporary x86 software?),
+&gt&gt since breaking backwards compatibility like that would be an endless
+&gt&gt source of bug reports for them. x86_64 is famous for being backwards
+&gt&gt compatible with 16-bit DOS, after all.
+&gt&gt
+&gt&gt So, to use Betteridge's law of headlines: no, I don't think it'll be
+&gt&gt much of an issue.
+&gt&gt
+&gt&gt ~phoe
+&gt&gt
+&gt&gt On 15.06.2020 15:21, dbm@refined-audiometrics.com wrote:
+&gt&gt&gt This sounds potentially troubling for Lisp languages and tail call
+&gt&gt&gt optimization / continuations:
+&gt&gt&gt
+&gt&gt&gt https://arstechnica.com/information-technology/2020/06/intel-will-soon-bake-anti-malware-defenses-directly-into-its-cpus/
+&gt&gt&gt
+&gt&gt&gt
+&gt&gt&gt - David McClain
+&gt&gt&gt Refined Audiometrics Laboratory, LLC
+&gt&gt
+&gt&gt _______________________________________________
+&gt&gt Lisp Hug - the mailing list for LispWorks users
+&gt&gt lisp-hug@lispworks.com
+&gt&gt http://www.lispworks.com/support/lisp-hug.html
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+           </body>
+          </html>

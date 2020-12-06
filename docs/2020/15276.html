@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>ASDF weirdness</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+           </head>
+           <body>
+            <div class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </div>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>ASDF weirdness</h1>
+                <pre>For some reason I have lost track of I decided I should make things so that various of my packages can use ASDF.  I'm using 64-bit LW 7.1.1 on OSX.  I think I'm using the bundled ASDF, but I might have updated it.  ASDF reports itself as being 3.3.0.
+
+To configure the source registry system I have this form:
+
+(asdf:initialize-source-registry
+ '(:source-registry
+   :inherit-configuration
+   (:tree
+    (:root "Local" "tfb" "packages" "asdf"))))
+
+I know this is not how you are meant to do that, but it means I can have the configuration in a single file which I control with git rather than some obscure config file which I have no idea where it is, and I can put my packages in "/Local/tfb/packages/asdf/...".
+
+And this works fine:
+
+&gt (asdf:locate-system "org.tfeb.hax")
+t
+nil
+#P"/Local/tfb/packages/asdf/org.tfeb.hax/org.tfeb.hax.asd"
+nil
+nil
+
+All is shiny and good.
+
+Except ... not.  This is great in the LW GUI, but I also have console images which are made by
+
+&lt;lispworks-binary&gt -build make-console-image.lisp
+
+Where make-console-image.lisp is:
+
+(in-package :cl-user)
+
+;;; This is not needed, but harmless
+(load-all-patches)
+
+(save-image "lw"
+            :clean-down t
+            :console t
+            :environment nil)
+(quit)
+
+And in these images nothing works:
+
+CL-USER 1 &gt (asdf:locate-system "org.tfeb.hax")
+nil
+nil
+nil
+nil
+nil
+
+CL-USER 2 &gt asdf:*source-registry-parameter*
+(:source-registry
+ :inherit-configuration
+ (:tree (:root "Local" "tfb" "packages" "asdf")))
+
+As you can see the console image has read the init file.  I've also tried explicitly clearing the registry and redefining it.  No good.
+
+Does anyone understand ASDF well enough to explain what's going on?  Every time I try and understand it it just fills me with depression and I end up using LW's defsystem and/or writing another makefile because it's easier, but I also realise that I kind of need to have a defsystem I can use on platforms other than LW if I want to make any of my code available to people.
+
+Just knowing what function I should trace or hook I should set to tell ASDF to show me where it's looking would be good.
+
+Thanks
+
+--tim
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: ASDF weirdness</h1><!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/xhtml; charset=utf-8">
+</head>
+<body>
+<div style="font-family:sans-serif"><div style="white-space:normal">
+<p dir="auto">I'm not in a position to test this myself, but my best guess about what is wrong is that you need to invoke <code style="background-color:#F7F7F7; border-radius:3px; margin:0; padding:0 0.4em" bgcolor="#F7F7F7">asdf:initialize-source-registry</code> <em>again</em>, after the image restarts.  It sounds like you might have tried this.</p>
+
+<p dir="auto">Minor note: the proper API function is <code style="background-color:#F7F7F7; border-radius:3px; margin:0; padding:0 0.4em" bgcolor="#F7F7F7">asdf:find-system</code>, which has a simpler return form than <code style="background-color:#F7F7F7; border-radius:3px; margin:0; padding:0 0.4em" bgcolor="#F7F7F7">locate-system</code>.</p>
+
+<p dir="auto">Also, when I look at the source registry form you posted, I note that there's an unquoted <code style="background-color:#F7F7F7; border-radius:3px; margin:0; padding:0 0.4em" bgcolor="#F7F7F7">top</code> in there, but I don't know if that's just a cut-and-paste error.</p>
+
+<p dir="auto">You can also ask questions on the <code style="background-color:#F7F7F7; border-radius:3px; margin:0; padding:0 0.4em" bgcolor="#F7F7F7">asdf-devel</code> mailing list (see the project page for ASDF on common-lisp.net)</p>
+
+<p dir="auto">Finally, have a look at the FAQ in the ASDF manual on the common-lisp.net page: ISTR that I put something in there about how to debug configurations.</p>
+
+<p dir="auto">Ping me if that is not enough to put you on the right track.</p>
+
+<p dir="auto">On 9 Jun 2020, at 12:43, Tim Bradshaw wrote:</p>
+
+</div>
+<div style="white-space:normal"><blockquote style="border-left:2px solid #777; color:#777; margin:0 0 5px; padding-left:5px"><p dir="auto">For some reason I have lost track of I decided I should make things so that various of my packages can use ASDF.  I'm using 64-bit LW 7.1.1 on OSX.  I think I'm using the bundled ASDF, but I might have updated it.  ASDF reports itself as being 3.3.0.<br>
+<br>
+To configure the source registry system I have this form:<br>
+<br>
+(asdf:initialize-source-registry<br>
+ '(:source-registry<br>
+   :inherit-configuration<br>
+   (:tree<br>
+    (:root "Local" "tfb" "packages" "asdf"top ))))<br>
+<br>
+I know this is not how you are meant to do that, but it means I can have the configuration in a single file which I control with git rather than some obscure config file which I have no idea where it is, and I can put my packages in "/Local/tfb/packages/asdf/...".<br>
+<br>
+And this works fine:<br>
+</p>
+<blockquote style="border-left:2px solid #777; color:#999; margin:0 0 5px; padding-left:5px; border-left-color:#999"><p dir="auto">(asdf:locate-system "org.tfeb.hax")</p>
+</blockquote><p dir="auto">t<br>
+nil<br>
+#P"/Local/tfb/packages/asdf/org.tfeb.hax/org.tfeb.hax.asd"<br>
+nil<br>
+nil<br>
+<br>
+All is shiny and good.<br>
+<br>
+Except ... not.  This is great in the LW GUI, but I also have console images which are made by<br>
+<br>
+&lt;lispworks-binary&gt; -build make-console-image.lisp<br>
+<br>
+Where make-console-image.lisp is:<br>
+<br>
+(in-package :cl-user)<br>
+<br>
+;;; This is not needed, but harmless<br>
+(load-all-patches)<br>
+<br>
+(save-image "lw"<br>
+            :clean-down t<br>
+            :console t<br>
+            :environment nil)<br>
+(quit)<br>
+<br>
+And in these images nothing works:<br>
+<br>
+CL-USER 1 &gt; (asdf:locate-system "org.tfeb.hax")<br>
+nil<br>
+nil<br>
+nil<br>
+nil<br>
+nil<br>
+<br>
+CL-USER 2 &gt; asdf:*source-registry-parameter*<br>
+(:source-registry<br>
+ :inherit-configuration<br>
+ (:tree (:root "Local" "tfb" "packages" "asdf")))<br>
+<br>
+As you can see the console image has read the init file.  I've also tried explicitly clearing the registry and redefining it.  No good.<br>
+<br>
+Does anyone understand ASDF well enough to explain what's going on?  Every time I try and understand it it just fills me with depression and I end up using LW's defsystem and/or writing another makefile because it's easier, but I also realise that I kind of need to have a defsystem I can use on platforms other than LW if I want to make any of my code available to people.<br>
+<br>
+Just knowing what function I should trace or hook I should set to tell ASDF to show me where it's looking would be good.<br>
+<br>
+Thanks<br>
+<br>
+--tim<br>
+<br>
+_______________________________________________<br>
+Lisp Hug - the mailing list for LispWorks users<br>
+lisp-hug@lispworks.com<br>
+<a href="http://www.lispworks.com/support/lisp-hug.html" style="color:#777">http://www.lispworks.com/support/lisp-hug.html</a></p>
+</blockquote></div>
+<div style="white-space:normal">
+
+<p dir="auto">Robert P. Goldman<br>
+Research Fellow<br>
+Smart Information Flow Technologies (d/b/a SIFT, LLC)</p>
+
+<p dir="auto">319 N. First Ave., Suite 400<br>
+Minneapolis, MN 55401</p>
+
+<p dir="auto">Voice:    (612) 326-3934<br>
+Email:    <a href="mailto:rpgoldman@SIFT.net" style="color:#3983C4">rpgoldman@SIFT.net</a></p>
+</div>
+</div>
+</body>
+</html>
+
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: ASDF weirdness</h1><html><head><meta http-equiv="Content-Type" content="text/html; charset=us-ascii"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class="">On 9 Jun 2020, at 19:26, Robert Goldman &lt;<a href="mailto:rpgoldman@sift.net" class="">rpgoldman@sift.net</a>&gt; wrote:<br class=""><div><blockquote type="cite" class=""><br class="Apple-interchange-newline"><div class="">
+
+
+<meta http-equiv="Content-Type" content="text/xhtml; charset=utf-8" class="">
+
+<div class="">
+<div style="font-family:sans-serif" class=""><div style="white-space:normal" class=""><p dir="auto" class="">I'm not in a position to test this myself, but my best guess about what is wrong is that you need to invoke <code style="background-color:#F7F7F7; border-radius:3px; margin:0; padding:0 0.4em" bgcolor="#F7F7F7" class="">asdf:initialize-source-registry</code> <em class="">again</em>, after the image restarts.  It sounds like you might have tried this.</p><p dir="auto" class="">Minor note: the proper API function is <code style="background-color:#F7F7F7; border-radius:3px; margin:0; padding:0 0.4em" bgcolor="#F7F7F7" class="">asdf:find-system</code>, which has a simpler return form than <code style="background-color:#F7F7F7; border-radius:3px; margin:0; padding:0 0.4em" bgcolor="#F7F7F7" class="">locate-system</code>.</p><div class=""><br class=""></div></div></div></div></div></blockquote><div><br class=""></div>Yes, I did try resetting it after the image starts properly. &nbsp;Yes, sorry, I got confused: I'd tried both forms but pasted the wrong one.<br class=""><blockquote type="cite" class=""><div class=""><div class=""><div style="font-family:sans-serif" class=""><div style="white-space:normal" class=""><p dir="auto" class="">Also, when I look at the source registry form you posted, I note that there's an unquoted <code style="background-color:#F7F7F7; border-radius:3px; margin:0; padding:0 0.4em" bgcolor="#F7F7F7" class="">top</code> in there, but I don't know if that's just a cut-and-paste error.</p><div class=""><br class=""></div></div></div></div></div></blockquote><div><br class=""></div>It was, the actual form is right.<br class=""><blockquote type="cite" class=""><div class=""><div class=""><div style="font-family:sans-serif" class=""><div style="white-space:normal" class=""><p dir="auto" class="">You can also ask questions on the <code style="background-color:#F7F7F7; border-radius:3px; margin:0; padding:0 0.4em" bgcolor="#F7F7F7" class="">asdf-devel</code> mailing list (see the project page for ASDF on <a href="http://common-lisp.net" class="">common-lisp.net</a>)</p><p dir="auto" class="">Finally, have a look at the FAQ in the ASDF manual on the <a href="http://common-lisp.net" class="">common-lisp.net</a> page: ISTR that I put something in there about how to debug configurations.</p><div class=""><br class=""></div></div></div></div></div></blockquote><div><br class=""></div>Thanks I will have a look at it.</div><div><br class=""></div><div><blockquote type="cite" class=""><div class=""><div class=""><div style="font-family:sans-serif" class=""><div style="white-space:normal" class=""><p dir="auto" class="">Ping me if that is not enough to put you on the right track.</p><p dir="auto" class="">On 9 Jun 2020, at 12:43, Tim Bradshaw wrote:</p>
+
+</div>
+<div style="white-space:normal" class=""><blockquote style="border-left:2px solid #777; color:#777; margin:0 0 5px; padding-left:5px" class=""><p dir="auto" class="">For some reason I have lost track of I decided I should make things so that various of my packages can use ASDF.  I'm using 64-bit LW 7.1.1 on OSX.  I think I'm using the bundled ASDF, but I might have updated it.  ASDF reports itself as being 3.3.0.<br class="">
+<br class="">
+To configure the source registry system I have this form:<br class="">
+<br class="">
+(asdf:initialize-source-registry<br class="">
+ '(:source-registry<br class="">
+   :inherit-configuration<br class="">
+   (:tree<br class="">
+    (:root "Local" "tfb" "packages" "asdf"top ))))<br class="">
+<br class="">
+I know this is not how you are meant to do that, but it means I can have the configuration in a single file which I control with git rather than some obscure config file which I have no idea where it is, and I can put my packages in "/Local/tfb/packages/asdf/...".<br class="">
+<br class="">
+And this works fine:<br class="">
+</p>
+<blockquote style="border-left:2px solid #777; color:#999; margin:0 0 5px; padding-left:5px; border-left-color:#999" class=""><p dir="auto" class="">(asdf:locate-system "org.tfeb.hax")</p>
+</blockquote><p dir="auto" class="">t<br class="">
+nil<br class="">
+#P"/Local/tfb/packages/asdf/org.tfeb.hax/org.tfeb.hax.asd"<br class="">
+nil<br class="">
+nil<br class="">
+<br class="">
+All is shiny and good.<br class="">
+<br class="">
+Except ... not.  This is great in the LW GUI, but I also have console images which are made by<br class="">
+<br class="">
+&lt;lispworks-binary&gt; -build make-console-image.lisp<br class="">
+<br class="">
+Where make-console-image.lisp is:<br class="">
+<br class="">
+(in-package :cl-user)<br class="">
+<br class="">
+;;; This is not needed, but harmless<br class="">
+(load-all-patches)<br class="">
+<br class="">
+(save-image "lw"<br class="">
+            :clean-down t<br class="">
+            :console t<br class="">
+            :environment nil)<br class="">
+(quit)<br class="">
+<br class="">
+And in these images nothing works:<br class="">
+<br class="">
+CL-USER 1 &gt; (asdf:locate-system "org.tfeb.hax")<br class="">
+nil<br class="">
+nil<br class="">
+nil<br class="">
+nil<br class="">
+nil<br class="">
+<br class="">
+CL-USER 2 &gt; asdf:*source-registry-parameter*<br class="">
+(:source-registry<br class="">
+ :inherit-configuration<br class="">
+ (:tree (:root "Local" "tfb" "packages" "asdf")))<br class="">
+<br class="">
+As you can see the console image has read the init file.  I've also tried explicitly clearing the registry and redefining it.  No good.<br class="">
+<br class="">
+Does anyone understand ASDF well enough to explain what's going on?  Every time I try and understand it it just fills me with depression and I end up using LW's defsystem and/or writing another makefile because it's easier, but I also realise that I kind of need to have a defsystem I can use on platforms other than LW if I want to make any of my code available to people.<br class="">
+<br class="">
+Just knowing what function I should trace or hook I should set to tell ASDF to show me where it's looking would be good.<br class="">
+<br class="">
+Thanks<br class="">
+<br class="">
+--tim<br class="">
+<br class="">
+_______________________________________________<br class="">
+Lisp Hug - the mailing list for LispWorks users<br class="">
+<a href="mailto:lisp-hug@lispworks.com" class="">lisp-hug@lispworks.com</a><br class="">
+<a href="http://www.lispworks.com/support/lisp-hug.html" style="color:#777" class="">http://www.lispworks.com/support/lisp-hug.html</a></p>
+</blockquote></div>
+<div style="white-space:normal" class=""><p dir="auto" class="">Robert P. Goldman<br class="">
+Research Fellow<br class="">
+Smart Information Flow Technologies (d/b/a SIFT, LLC)</p><p dir="auto" class="">319 N. First Ave., Suite 400<br class="">
+Minneapolis, MN 55401</p><p dir="auto" class="">Voice:    (612) 326-3934<br class="">
+Email:    <a href="mailto:rpgoldman@SIFT.net" style="color:#3983C4" class="">rpgoldman@SIFT.net</a></p>
+</div>
+</div>
+</div>
+
+</div></blockquote></div><br class=""></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: ASDF weirdness</h1>
+                 <p>
+                  Unable to parse email body. Email id is 15279
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: ASDF weirdness</h1>
+                 <pre>On 10 Jun 2020, at 11:34, Martin Simmons &lt;martin@lispworks.com&gt wrote:
+&gt 
+&gt Note that the pathspec is relative, so it wil depend on the current working
+&gt directory and cl:*default-pathname-defaults*.  I don't know if this is a bug
+&gt or a feature, but it is probably not what you want.
+&gt 
+&gt It might work better if you use (:tree "/Local/tfb/packages/asdf").
+
+Thanks, this is it.  The LW GUI starts up in / (which is kind of annoying: I think I'd rather it started up in the user's home directory, but there's clearly not really any good choice) while a console image has a good idea of where it is, and this caused the search to be silently wrong.
+
+And this as because I was confused about what :root is meant to do: I'd naively assumed it meant, well, the root directory.  But it doesn't:
+
+  :ROOT
+    ;; magic, for output-translations source only: paths that are relative
+    ;; to the root of the source host and device
+
+It means the root directory but only in some cases, and not in this case when it means, I think, nothing.
+
+I've since also discovered that find-system doesn't actually search for systems as best I can see: that search happens when the source registry is defined.  So if you define the source registry at image start time, and there's a big tree to search, the image is slow to start: on my machine
+
+  (initialize-source-registry
+   '(:source-registry
+     :inherit-configuration
+     (:tree "/Local")))
+
+makes the image take a great chunk of a minute to start (well, the first time: once the filesystem cache is warm it's better).
+
+Well, OK, I'm going to revive my antique hack which knew how to search for things based on their names and modify it so it will look for asd files, and make sure that that tree is not where ASDF searches by default so my images start quickly.
+
+However, thanks: this has solved it.
+
+--tim
+
+
+
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: ASDF weirdness</h1><!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/xhtml; charset=utf-8">
+</head>
+<body>
+<div style="font-family:sans-serif"><div style="white-space:normal">
+<p dir="auto">On 10 Jun 2020, at 6:09, Tim Bradshaw wrote:</p>
+
+<blockquote style="border-left:2px solid #777; color:#777; margin:0 0 5px; padding-left:5px">
+<p dir="auto">I've since also discovered that find-system doesn't actually search for systems as best I can see: that search happens when the source registry is defined.  So if you define the source registry at image start time, and there's a big tree to search, the image is slow to start: on my machine</p>
+
+<p dir="auto">(initialize-source-registry<br>
+   '(:source-registry<br>
+     :inherit-configuration<br>
+     (:tree "/Local")))</p>
+
+<p dir="auto">makes the image take a great chunk of a minute to start (well, the first time: once the filesystem cache is warm it's better).</p>
+</blockquote>
+
+<p dir="auto">Yes, that was done by Faré a long time ago.  I believe that this was done to handle very large lisp systems like the ones that ITA was building, but you are right that it doesn't make a great tradeoff for people with more modest systems.</p>
+
+<p dir="auto">If you like looking for systems on an as-needed basis, you can use <code style="background-color:#F7F7F7; border-radius:3px; margin:0; padding:0 0.4em" bgcolor="#F7F7F7">asdf:*central-registry*</code>, the old school way of specifying where to look for systems, but note that it does not have the equivalent of <code style="background-color:#F7F7F7; border-radius:3px; margin:0; padding:0 0.4em" bgcolor="#F7F7F7">:tree</code>.  See below</p>
+
+<blockquote style="border-left:2px solid #777; color:#777; margin:0 0 5px; padding-left:5px">
+<p dir="auto">Well, OK, I'm going to revive my antique hack which knew how to search for things based on their names and modify it so it will look for asd files, and make sure that that tree is not where ASDF searches by default so my images start quickly.</p>
+</blockquote>
+
+<p dir="auto">I have an equivalent to this hack, called <code style="background-color:#F7F7F7; border-radius:3px; margin:0; padding:0 0.4em" bgcolor="#F7F7F7">asd-finder.</code> LMK off list if you would like a copy of it.</p>
+
+<p dir="auto">Also note that if you would like things to start more quickly, you can provide a smaller region for the <code style="background-color:#F7F7F7; border-radius:3px; margin:0; padding:0 0.4em" bgcolor="#F7F7F7">:tree</code> search to cover, possibly by having two different regions (one for common libraries and one for the actual system you are loading), and searching two smaller trees instead of one big one.</p>
+
+<p dir="auto">Best,<br>
+R</p>
+</div>
+</div>
+</body>
+</html>
+
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: ASDF weirdness</h1><html><head><meta http-equiv="Content-Type" content="text/html; charset=us-ascii"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class="">On 10 Jun 2020, at 17:08, Robert Goldman &lt;<a href="mailto:rpgoldman@sift.net" class="">rpgoldman@sift.net</a>&gt; wrote:<br class=""><div><blockquote type="cite" class=""><br class="Apple-interchange-newline"><div class=""><p dir="auto" style="caret-color: rgb(0, 0, 0); font-family: sans-serif; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class="">I have an equivalent to this hack, called<span class="Apple-converted-space">&nbsp;</span><code bgcolor="#F7F7F7" style="background-color: rgb(247, 247, 247); border-top-left-radius: 3px; border-top-right-radius: 3px; border-bottom-right-radius: 3px; border-bottom-left-radius: 3px; margin: 0px; padding: 0px 0.4em;" class="">asd-finder.</code><span class="Apple-converted-space">&nbsp;</span>LMK off list if you would like a copy of it.</p><div class=""><br class=""></div></div></blockquote>I might do, but I'll have a go at reviving my old code first -- I'll mail you privately if so, thank you for the offer.</div><div><br class=""><blockquote type="cite" class=""><div class=""><p dir="auto" style="caret-color: rgb(0, 0, 0); font-family: sans-serif; font-size: 12px; font-style: normal; font-variant-caps: normal; font-weight: normal; letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; text-decoration: none;" class="">Also note that if you would like things to start more quickly, you can provide a smaller region for the<span class="Apple-converted-space">&nbsp;</span><code bgcolor="#F7F7F7" style="background-color: rgb(247, 247, 247); border-top-left-radius: 3px; border-top-right-radius: 3px; border-bottom-right-radius: 3px; border-bottom-left-radius: 3px; margin: 0px; padding: 0px 0.4em;" class="">:tree</code><span class="Apple-converted-space">&nbsp;</span>search to cover, possibly by having two different regions (one for common libraries and one for the actual system you are loading), and searching two smaller trees instead of one big one</p><div class=""><br class=""></div></div></blockquote><br class=""></div><div>Yes, in fact the thing that was irritating (and I think still is) is that if I have some external process which takes a system and then dumps it into a place where it should be found, then ASDF doesn't look for it without kicking it.</div><div><br class=""></div><div>I realise though that I'm basically whining about a system which I'm getting for free and which I'm not contributing any resource to. &nbsp;I hope that I didn't seem rude: I was not meaning to be, and I'm very grateful for all the people who've made ASDF exist!</div><div><br class=""></div><div>--tim</div><br class=""></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: ASDF weirdness</h1><!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/xhtml; charset=utf-8">
+</head>
+<body>
+<div style="font-family:sans-serif"><div style="white-space:normal">
+<p dir="auto">On 11 Jun 2020, at 10:13, Tim Bradshaw wrote:</p>
+
+</div>
+<div style="white-space:normal"><blockquote style="border-left:2px solid #777; color:#777; margin:0 0 5px; padding-left:5px"><blockquote style="border-left:2px solid #777; color:#999; margin:0 0 5px; padding-left:5px; border-left-color:#999"><p dir="auto">Also note that if you would like things to start more quickly, you can provide a smaller region for the `:tree` search to cover, possibly by having two different regions (one for common libraries and one for the actual system you are loading), and searching two smaller trees instead of one big one</p>
+</blockquote></blockquote><blockquote style="border-left:2px solid #777; color:#777; margin:0 0 5px; padding-left:5px"><p dir="auto">Yes, in fact the thing that was irritating (and I think still is) is that if I have some external process which takes a system and then dumps it into a place where it should be found, then ASDF doesn't look for it without kicking it.</p>
+</blockquote></div>
+<div style="white-space:normal">
+
+<p dir="auto">Yes, ASDF does now lock you into eagerly finding systems, rather than lazily finding them, <em>unless</em> you use <code style="background-color:#F7F7F7; border-radius:3px; margin:0; padding:0 0.4em" bgcolor="#F7F7F7">asdf:*central-registry*</code>, but if you do that, you can find things lazily.</p>
+
+<p dir="auto">The docs encourage you to use the new shiny thing, but <code style="background-color:#F7F7F7; border-radius:3px; margin:0; padding:0 0.4em" bgcolor="#F7F7F7">*central-registry*</code> is simple and has worked for me forever.</p>
+</div>
+</div>
+</body>
+</html>
+
+
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+           </body>
+          </html>

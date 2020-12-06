@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Reppy Channels &amp; Asynchronous Actors</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+           </head>
+           <body>
+            <div class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </div>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Reppy Channels &amp; Asynchronous Actors</h1>
+                <pre>I have an initial cut of Reppy Channels atop a massively improved and cut-down version of my Actors package. It turned out to be relatively easy to adapt the Reppy Channel protocol to Actors, while still keeping synchronous communications between true thread-based processes (e.g. Listener requesting actions involving Reppy channels).
+
+The Actors are really just chunks of code with private local state that can only be invoked on one thread at a time. The underlying system provides pseudo Green Threads for these Actor objects, running on an expandable pool of Executive system threads. The whole of Actors can be succinctly written in one lambda closure, along with Doug Hoyte’s DLAMBDA facilities. Any number of Actors can be running concurrently, up to the limit of number of processors in your CPU, but any one Actor can only be executing on one thread.
+
+Reppy Channels were first invented for CML, and originally provided for composable synchronous communications between processes. But “processes” in the original CML were single-threaded entities that were very cheap to construct, and the CML system provided continuations to help them along. CML processes were garbage collected if they were hung waiting on a resource that would never become available.
+
+I adapted Reppy Channels with composable events to our Lispworks system, despite not having continuations and automatic GC of hung processes. A process in LW has been a system thread. That is significantly heavier than a CML process. Even though we are heavier weight than CML processes, a lot of useful things can be done. We just have to be less cavalier about spawning off garbage worker threads.
+
+Now, with Actors serving as lightweight process proxy objects, still running on SMP threads in parallel, their inherent asynchronous communications has been adapted to the Reppy composable event paradigm. Not every event composition makes sense in an asynchronous setting, but many do. So we can wrap successful rendezvous with actions, and we can wrap aborted rendezvous paths with recovery actions. With Actors in the mix, we can be cavalier once again with spawning off worker tasks. 
+
+So here is a simple example of an Actor being spawned to perform a CML-style composable event:
+
+(spawn (lambda () 
+	(exec-with-timeout 1  ;; &lt;— this causes a debugger pop-up notification that a timeout has occurred.
+		(lambda () 
+			(sleep 5)))))
+
+The SPAWN spins off the lambda in an Actor body, to be executed immediately on one of the available pool threads. The Exec-with-timeout is a wrapper construction:
+
+(defun exec-with-timeout (dt fn &amp;rest args)
+  (sync (wrap-timeout dt (apply #'execEvt fn args))))
+
+(defun wrap-timeout (dt ev)
+  (choose* ev
+           (timeoutEvt dt)))
+
+and an ExecEvt is thus:
+
+(defun execEvt (fn &amp;rest args)
+  ;; turn any function execution into an event
+  ;; so that we can have execution with timeouts
+  (guard (lambda ()
+           (let* ((ch  (make-channel))
+                  (thr (spawn (lambda ()
+                                (poke ch
+                                      (apply #'um:capture-ans-or-exn
+                                             fn args)))
+                              )))
+                     (wrap-abort
+                      (wrap (recvEvt ch)
+                            #'um:recover-ans-or-exn)
+                      (lambda ()
+                        ;; this respects unwind-protect in the thread
+                        (mp:process-terminate thr)))
+                     ))
+         ))
+
+CHOOSE, CHOOSE*, WRAP, WRAP-ABORT, RecvEvt, SendEvt, GUARD, are all CML-like Reppy primitives.
+
+- DM
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+               </article>
+              </section>
+             </div>
+            </div>
+           </body>
+          </html>

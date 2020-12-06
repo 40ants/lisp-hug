@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Overriding imported macro</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+           </head>
+           <body>
+            <div class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </div>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Overriding imported macro</h1>
+                <pre>Hi,
+
+I’m curious: is there a way to ”extend” an imported macro?
+
+Let’s say I have a package defining a macro:
+
+(in-package :silly-macros)
+
+(defmacro with-dynamic-var ((value) &amp;body body)
+  `(let ((*dynamic-var* ,value))
+     ,@body))
+
+Now, in the code that uses silly-macros, I would like to use with-dynamic-var, but I would also like to do something more (like binding another dynamic variable).
+
+Obviously I could define a new macro and call with-dynamic-var in its definition, but what I really would like to do is to have a new macro with extended behavior *using the same name*, overriding or shadowing the old.
+
+Is this possible?
+
+Erik
+
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Overriding imported macro</h1><html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class=""><br class=""><div><br class=""><blockquote type="cite" class=""><div class="">On 15 May 2020, at 23:32, Erik Ronström &lt;<a href="mailto:erik.ronstrom@doremir.com" class="">erik.ronstrom@doremir.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><div class="">Hi,<br class=""><br class="">I’m curious: is there a way to ”extend” an imported macro?<br class=""><br class="">Let’s say I have a package defining a macro:<br class=""><br class="">(in-package :silly-macros)<br class=""><br class="">(defmacro with-dynamic-var ((value) &amp;body body)<br class=""> &nbsp;`(let ((*dynamic-var* ,value))<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;,@body))<br class=""><br class="">Now, in the code that uses silly-macros, I would like to use with-dynamic-var, but I would also like to do something more (like binding another dynamic variable).<br class=""><br class="">Obviously I could define a new macro and call with-dynamic-var in its definition, but what I really would like to do is to have a new macro with extended behavior *using the same name*, overriding or shadowing the old.<br class=""><br class="">Is this possible?<br class=""><br class=""></div></div></blockquote><br class=""></div><div>If you don’t want to edit the sources of silly-macros, or your sources at all, then the best solution remaining is to set a *macroexpansion-hook*.</div><div><br class=""></div><div>Other kludges would be to put reader macros, for example on #\( to substitute your with-dynamic-var).</div><div><br class=""></div><br class=""><div class="">
+<div style="color: rgb(0, 0, 0); letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class=""><div style="color: rgb(0, 0, 0); letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class=""><div style="color: rgb(0, 0, 0); letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class="">--&nbsp;<br class="">__Pascal J. Bourguignon__</div><div style="color: rgb(0, 0, 0); letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class=""><br class=""><br class=""><br class=""></div></div></div>
+</div>
+<br class=""></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Overriding imported macro</h1>
+                 <pre>Erik Ronström &lt;erik.ronstrom@doremir.com&gt writes:
+
+&gt I’m curious: is there a way to ”extend” an imported macro?
+&gt
+&gt Let’s say I have a package defining a macro:
+&gt
+&gt (in-package :silly-macros)
+&gt
+&gt (defmacro with-dynamic-var ((value) &amp;body body)
+&gt   `(let ((*dynamic-var* ,value))
+&gt      ,@body))
+&gt
+&gt Now, in the code that uses silly-macros, I would like to use with-dynamic-var, but I would also like to do something more (like binding another dynamic variable).
+&gt
+&gt Obviously I could define a new macro and call with-dynamic-var in its definition, but what I really would like to do is to have a new macro with extended behavior *using the same name*, overriding or shadowing the old.
+&gt
+&gt Is this possible?
+
+It can be done with *MACROEXPAND-HOOK* but it's usually a bad idea.
+
+-- 
+Laat hulle almal sterf.  Ek is tevrede om die wêreld te sien brand en die vallende 
+konings te spot.  Ek en my aasdier sal loop op die as van die verwoeste aarde.
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Overriding imported macro</h1><html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class=""><br class=""><div><br class=""><blockquote type="cite" class=""><div class="">On 16 May 2020, at 00:07, Lieven Marchand &lt;<a href="mailto:mal@wyrd.be" class="">mal@wyrd.be</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><div class="">Erik Ronström &lt;<a href="mailto:erik.ronstrom@doremir.com" class="">erik.ronstrom@doremir.com</a>&gt; writes:<br class=""><br class=""><blockquote type="cite" class="">I’m curious: is there a way to ”extend” an imported macro?<br class=""><br class="">Let’s say I have a package defining a macro:<br class=""><br class="">(in-package :silly-macros)<br class=""><br class="">(defmacro with-dynamic-var ((value) &amp;body body)<br class=""> &nbsp;`(let ((*dynamic-var* ,value))<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;,@body))<br class=""><br class="">Now, in the code that uses silly-macros, I would like to use with-dynamic-var, but I would also like to do something more (like binding another dynamic variable).<br class=""><br class="">Obviously I could define a new macro and call with-dynamic-var in its definition, but what I really would like to do is to have a new macro with extended behavior *using the same name*, overriding or shadowing the old.<br class=""><br class="">Is this possible?<br class=""></blockquote><br class="">It can be done with *MACROEXPAND-HOOK* but it's usually a bad idea.<br class=""></div></div></blockquote><br class=""></div><div>What you would expect, is to have hooks provided by the with-dynamic-var macro to change its behaviour in a controlled way. &nbsp;In the absence of such macro-specific hooks, using the generic and global *macroexpand-hook* should be acceptable. &nbsp;As long as you keep the semantics of the with-dynamic-var macro, you can implement extensions in the *macroexpand-hook*. &nbsp;</div><div><br class=""></div><div><br class=""></div><div><div><br class=""></div><div>(defmacro with-dynamic-var ((value) &amp;body body)</div><div>&nbsp;`(let ((*dynamic-var* ,value))</div><div>&nbsp; &nbsp; ,@body))</div><div><br class=""></div><div>(defvar *dynvar-level* 0)</div><div><br class=""></div><div>(defun make-dynamic-var-hook (old-hook)</div><div>&nbsp; (lambda (expander form env)</div><div>&nbsp; &nbsp; (if (and (listp form)</div><div>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(eq 'with-dynamic-var (first form)))</div><div>&nbsp; &nbsp; &nbsp; &nbsp; `(let ((*dynvar-level* (1+ *dynvar-level*)))</div><div>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;,(funcall expander form env))</div><div>&nbsp; &nbsp; &nbsp; &nbsp; (funcall old-hook expander form env))))</div><div><br class=""></div><div><br class=""></div><div>(setf *macroexpand-hook* (make-dynamic-var-hook *macroexpand-hook*))</div><div>(with-dynamic-var (42) (list *dynvar-level* *dynamic-var*))</div><div>--&gt; (1 42)</div><div class=""><br class=""></div></div><div><br class=""></div><br class=""><div class="">
+<div style="color: rgb(0, 0, 0); letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class=""><div style="color: rgb(0, 0, 0); letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class=""><div style="color: rgb(0, 0, 0); letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class="">--&nbsp;<br class="">__Pascal J. Bourguignon__</div><div style="color: rgb(0, 0, 0); letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class=""><br class=""><br class=""><br class=""></div></div></div>
+</div>
+<br class=""></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Overriding imported macro</h1><html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class="">Hi Erik,<div class=""><br class=""></div><div class="">that's a somewhat advanced and obscure feature.</div><div class=""><br class=""></div><div class="">LispWorks has a built-in feature for that, which in Lisp is usually called advising.</div><div class="">This usually adds code to a function.</div><div class=""><br class=""></div><div class="">LispWorks DEFADVICE can also add code to macros: before, after and around.</div><div class="">It might work for your purpose...</div><div class=""><br class=""></div><div class="">Note that LispWorks' DEFADVICE is an extension to Common Lisp.</div><div class=""><br class=""></div><div class=""><br class=""></div><div class=""><b class="">The basic macro:</b></div><div class=""><br class=""></div><div class=""><div class="">(defparameter *dynamic-var-0* 'foo-0)</div><div class=""><br class=""></div><div class="">(defmacro with-dynamic-var ((value) &amp;body body)</div><div class="">&nbsp; `(let ((*dynamic-var-0* ,value))</div><div class="">&nbsp; &nbsp; &nbsp;,@body))</div><div class=""><br class=""></div><div class=""><br class=""></div><div class=""><b class="">Advising a macro:</b></div><div class=""><br class=""></div><div class="">Now we want to add another level of LET binding for a different variable around it:</div><div class=""><br class=""></div><div class="">(defparameter *dynamic-var-1* 'foo-1)</div><div class=""><br class=""></div><div class="">(defadvice (with-dynamic-var around-with-dynamic-var :around)</div><div class="">&nbsp; &nbsp; (call-form env)</div><div class="">&nbsp; (destructuring-bind (with-dynamic-var-symbol (value) &amp;body body)</div><div class="">&nbsp; &nbsp; &nbsp; call-form</div><div class="">&nbsp; &nbsp; (declare (ignore with-dynamic-var-symbol body))</div><div class="">&nbsp; &nbsp; `(let ((*dynamic-var-1* (1+ ,value)))</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp;,(call-next-advice call-form env))))</div><div class=""><br class=""></div><div class=""><br class=""></div><div class="">The lambda list is call-form and env, which means we need to destructure it.</div><div class="">CALL-NEXT-ADVICE then calls the next macro implementation.</div><div class=""><br class=""></div><div class=""><b class="">Example use:</b></div><div class=""><br class=""></div><div class="">(defun test (bar)</div><div class="">&nbsp; (with-dynamic-var (bar)</div><div class="">&nbsp; &nbsp; (list :var-0 *dynamic-var-0*</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; :var-1 *dynamic-var-1*)))</div><div class=""><br class=""></div><div class=""><br class=""></div><div class="">Regards,</div><div class="">Rainer</div><div class=""><br class=""></div><div class=""><br class=""></div><div><br class=""><blockquote type="cite" class=""><div class="">Am 15.05.2020 um 23:32 schrieb Erik Ronström &lt;<a href="mailto:erik.ronstrom@doremir.com" class="">erik.ronstrom@doremir.com</a>&gt;:</div><br class="Apple-interchange-newline"><div class=""><div class="">Hi,<br class=""><br class="">I’m curious: is there a way to ”extend” an imported macro?<br class=""><br class="">Let’s say I have a package defining a macro:<br class=""><br class="">(in-package :silly-macros)<br class=""><br class="">(defmacro with-dynamic-var ((value) &amp;body body)<br class=""> &nbsp;`(let ((*dynamic-var* ,value))<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;,@body))<br class=""><br class="">Now, in the code that uses silly-macros, I would like to use with-dynamic-var, but I would also like to do something more (like binding another dynamic variable).<br class=""><br class="">Obviously I could define a new macro and call with-dynamic-var in its definition, but what I really would like to do is to have a new macro with extended behavior *using the same name*, overriding or shadowing the old.<br class=""><br class="">Is this possible?<br class=""><br class="">Erik<br class=""><br class=""><br class=""><br class="">_______________________________________________<br class="">Lisp Hug - the mailing list for LispWorks users<br class=""><a href="mailto:lisp-hug@lispworks.com" class="">lisp-hug@lispworks.com</a><br class="">http://www.lispworks.com/support/lisp-hug.html<br class=""></div></div></blockquote></div><br class=""></div></body></html>
+
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+           </body>
+          </html>

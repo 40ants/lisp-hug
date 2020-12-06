@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Using LW7.1's X11-based legacy IDE on Mac OS X</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+           </head>
+           <body>
+            <div class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </div>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Using LW7.1's X11-based legacy IDE on Mac OS X</h1>
+                <pre>Hi,
+
+LispWorks’ X11-based legacy IDE on Mac OS X is useful when you remote login to a Mac (with LW installed) by SSH (with X11 forwarding enabled) and want to start the LW IDE.  There’re two versions of LW IDE, one uses GTK+2.0, the other uses OpenMotif (2.3).  For previous LW versions it’s hard to start the Motif-based IDE because Imlib1 library is not available unless you built it or get an installer from LW official, but now LW uses Imlib2, things become quite easy.
+
+Here is my little experiences (tested with 64-bit LW 7.1 on Mac OS X 10.11):
+
+1. To use the Motif-based LW IDE on Mac.  It's recommend to install Homebrew [1], then install two packages: imlib2 and openmotif:
+
+$ brew install openmotif imlib2
+
+then the Motif-based IDE should start without any other settings.
+
+2. To use the GTK-based IDE, you can’t use Homebrew, because the GTK package there is not X11-based.  Instead, I recommend to use GTK packages from Fink [2]. (For old Mac OS X versions, Homebrew may not work at all, but Fink always work). The needed packages are: gtk+2, optional packages (for changing the GTK theme) are: gtk2-engines, gtk-change-theme.
+
+$ fink install gtk+2 gtk2-engines gtk-change-theme
+
+then you need to make two (and only two) soft links into /usr/local/lib:
+
+$ cd /usr/local/lib
+$ ln -s /sw/lib/libgthread-2.0.0.dylib .
+$ ln -s /sw/lib/libgtk-x11-2.0.0.dylib .
+
+then the GTK2-based LW IDE should start correctly.
+
+3. To get the Motif-based LW execution:
+
+By default the command line image (lispworks-7-1-0-amd64-darwin-gtk) is GTK2-based, the following script (save-lw-motif.lisp) can be used to build the Motif-based image:
+
+(load-all-patches)
+
+(require "capi-motif")
+
+(let* ((name (format nil "LispWorks ~A~@[~A~]"
+                     (lisp-implementation-version)
+                     (when (sys:featurep :lispworks-64bit) " 64-bit")))
+       (exe-name (string-downcase
+                  (substitute #\- #\. (substitute #\- #\Space name)))))
+  (save-image (merge-pathnames
+               (make-pathname :name (format nil "~A-motif-console" exe-name))
+               (lisp-image-name))
+              :console t
+              :remarks name
+              :environment nil
+              :multiprocessing nil)
+  (save-image (merge-pathnames
+               (make-pathname :name (format nil "~A-motif" exe-name))
+               (lisp-image-name))
+              :remarks name
+              :environment t))
+
+$ cd "/Applications/LispWorks 7.1 (64-bit)"
+$ ./lispworks-7-1-0-amd64-darwin-gtk -build save-lw-motif.lisp
+
+the resulting file "lispworks-7-1-0-64-bit-motif” (and another console version) is the Motif-based execution.
+
+NOTE: you may also need to make above LW top-level directory writable first:
+
+$ cd "/Applications/LispWorks 7.1 (64-bit)"
+$ sudo chmod go+w .
+
+For 32-bit LispWorks 7.1, above GTK and motif packages must be also 32-bit, but I’m not sure if Homebrew and Fink can still provide 32-bit versions of these libraries on recent versions of Mac OS X (essentially 64-bit). I’ll be glad if anyone succeeds to install these 32-bit libraries and provide steps here for others.
+
+Hope this helps,
+
+Chun Tian
+
+[1] https://brew.sh
+[2] http://www.finkproject.org
+
+
+</pre>
+               </article>
+              </section>
+             </div>
+            </div>
+           </body>
+          </html>

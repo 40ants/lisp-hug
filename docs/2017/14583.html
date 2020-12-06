@@ -1,0 +1,1057 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Defensive Multithreaded Coding...</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+           </head>
+           <body>
+            <div class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </div>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Defensive Multithreaded Coding...</h1><html><head><meta http-equiv="Content-Type" content="text/html charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">As a result of my recent bout of confusion regarding the priorities of Common Lisp binding mechanisms, I had to come up with something to protect the code from all future REPL hackings that might cause unintentional special bindings to occur. Of course this would only matter if you need to recompile a source after playing at the keyboard. But that situation happens almost all the time for me.<div class=""><br class=""></div><div class="">I really don’t want a protective mechanism that causes recompiles to fail. I’d much rather have a system that simply defends against future problems. So I came up with a set of macros for ensuring lexical bindings. However, they use symbol-macrolet to avoid the need for a code walker. So in any event, a compile with raise an error signal if any of the mentioned names are already bound at the global level.</div><div class=""><br class=""></div><div class="">Here is an example of use:</div><div class=""><br class=""></div><div class=""><div class="">;; 1m10s to compare entire Lispworks trees between Dachshund and Malachite!!</div><div class="">(defun compare-system (path node node-path)</div><div class=""><font color="#9a244f" class="">&nbsp; (um:ensure-lexical (path node node-path)</font></div><div class=""><font color="#9a244f" class="">&nbsp; &nbsp; (um:llet (tree-a tree-b)</font></div><div class="">&nbsp; &nbsp; &nbsp; (um:par</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; (setf tree-a (grand-hash path))</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; (setf tree-b (bfly:!? (concatenate 'string "eval@" node)</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; `(grand-hash ,node-path))))</div><div class="">&nbsp; &nbsp; &nbsp; (compare-directory tree-a tree-b))))</div></div><div class=""><br class=""></div><div class=""><br class=""></div><div class="">This code will execute two filesystem hashing scans in parallel on two machines connected over a secure network channel. Each form inside the um:par clause may be fired off into another thread for execution. They rendezvous at the close of the um:par clause.</div><div class=""><br class=""></div><div class="">But references inside those worker forms are to free vars for PATH, NODE, NODE-PATH, TREE-A, and TREE-B. Hence, if any of these are names of global bindings, then the code would fail except for the use of ENSURE-LEXICAL and the LLET.</div><div class=""><br class=""></div><div class="">You normally don’t know and don’t care whether the names of function args happen to also name global bindings. They are bound on entry, and behave essentially the same inside the body of the function. But any embedded lambda closures that may be performed in another thread really will care if they refer to these function args. Unless you can be sure that the free vars refer to lexically bound vars that refer to the arguments, you will instead end up looking at blank globals belonging to the host thread that runs the lambda closure. Kaboom! ENSURE-LEXICAL and LLET give you some defensive tactics against such errors.</div><div class=""><br class=""></div><div class=""><div class=""><font color="#9a244f" class="">(defmacro llet (bindings &amp;body body)</font></div><div class=""><font color="#9a244f" class="">&nbsp; ;; enforce lexical binding by way of alpha conversion</font></div><div class=""><font color="#9a244f" class="">&nbsp; ;; of the binding symbols</font></div><div class=""><font color="#9a244f" class="">&nbsp; ;;</font></div><div class=""><font color="#9a244f" class="">&nbsp; ;; symbol-macrolet will signal an error if one of the symbols</font></div><div class=""><font color="#9a244f" class="">&nbsp; ;; in the llet is named in a special declaration</font></div><div class=""><font color="#9a244f" class="">&nbsp; (multiple-value-bind (new-bindings new-body)</font></div><div class=""><font color="#9a244f" class="">&nbsp; &nbsp; &nbsp; (rebindings bindings body)</font></div><div class=""><font color="#9a244f" class="">&nbsp; &nbsp; `(let ,new-bindings</font></div><div class=""><font color="#9a244f" class="">&nbsp; &nbsp; &nbsp; &nbsp;,new-body)))</font></div><div class=""><font color="#9a244f" class=""><br class=""></font></div><div class=""><font color="#9a244f" class=""><br class=""></font></div><div class=""><font color="#9a244f" class="">(defmacro llet* (bindings &amp;body body)</font></div><div class=""><font color="#9a244f" class="">&nbsp; `(llet (,(car bindings))</font></div><div class=""><font color="#9a244f" class="">&nbsp; &nbsp; &nbsp;,@(if (cdr bindings)</font></div><div class=""><font color="#9a244f" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;`((llet* ,(cdr bindings)</font></div><div class=""><font color="#9a244f" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ,@body))</font></div><div class=""><font color="#9a244f" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;body)))</font></div><div class=""><font color="#9a244f" class=""><br class=""></font></div><div class=""><font color="#9a244f" class="">(defmacro ensure-lexical (syms &amp;body body)</font></div><div class=""><font color="#9a244f" class="">&nbsp; ;; Use this to ensure that free vars inside body lambda closures</font></div><div class=""><font color="#9a244f" class="">&nbsp; ;; refer to lexically bound values.</font></div><div class=""><font color="#9a244f" class="">&nbsp; ;;</font></div><div class=""><font color="#9a244f" class="">&nbsp; ;; Note that because of the symbol-macrolet, if any symbols in the list</font></div><div class=""><font color="#9a244f" class="">&nbsp; ;; are already bound specially, compiling will signal an error.</font></div><div class=""><font color="#9a244f" class="">&nbsp; (let* ((gnames &nbsp; (mapcar (um:compose #'gensym #'string) syms)))</font></div><div class=""><font color="#9a244f" class="">&nbsp; &nbsp; `(let ,(mapcar #'list gnames syms)</font></div><div class=""><font color="#9a244f" class="">&nbsp; &nbsp; &nbsp; &nbsp;(symbol-macrolet ,(mapcar #'list syms gnames)</font></div><div class=""><font color="#9a244f" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;,@body))))</font></div><div class=""><br class=""></div></div><div class=""><div class="">(defun rebindings (bindings body)</div><div class="">&nbsp; (let* ((names &nbsp; &nbsp; &nbsp; &nbsp;(get-binding-syms bindings))</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(gnames &nbsp; &nbsp; &nbsp; (mapcar (um:compose #'gensym #'string) names))</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(new-bindings (mapcar #'(lambda (binding gname)</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(if (consp binding)</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;`(,gname ,@(cdr binding))</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;gname))</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;bindings gnames)))</div><div class="">&nbsp; &nbsp; (values new-bindings</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; `(symbol-macrolet ,(mapcar #'list names gnames)</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;,@body))))</div><div class=""><br class=""></div></div><div class=""><div class="">(defun get-binding-sym (binding)</div><div class="">&nbsp; (if (consp binding)</div><div class="">&nbsp; &nbsp; &nbsp; (car binding)</div><div class="">&nbsp; &nbsp; binding))</div><div class=""><br class=""></div><div class="">(defun get-binding-syms (bindings)</div><div class="">&nbsp; (mapcar #'get-binding-sym bindings))</div><div class=""><br class=""></div><div class=""><br class=""></div></div><div class="">- DM</div></body></html>
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Defensive Multithreaded Coding...</h1><html><head><meta http-equiv="Content-Type" content="text/html charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">Here’s an additional extension to help avoid mis-using the ENSURE-LEXICAL. It creates a closure, like lambda, but ensures that stated free-vars are bound over lexically at the time of closure creation.<div class=""><br class=""></div><div class=""><div class=""><font color="#9a244f" class="">(defmacro llambda ((args &amp;key free-vars) &amp;body body)</font></div><div class=""><font color="#9a244f" class="">&nbsp; ;; create a lambda closure with the free-vars bound lexically</font></div><div class=""><font color="#9a244f" class="">&nbsp; ;; to their extant values at the time of closure creation</font></div><div class=""><font color="#9a244f" class="">&nbsp; `(ensure-lexical ,free-vars</font></div><div class=""><font color="#9a244f" class="">&nbsp; &nbsp; &nbsp;#'(lambda ,args</font></div><div class=""><font color="#9a244f" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;,@body)))</font></div><div class=""><br class=""></div></div><div class=""><br class=""></div><div class="">Example:</div><div class=""><br class=""></div><div class=""><div class="">(defun sexpEvt (&amp;key flush (stream *standard-input*) read-eval)</div><div class="">&nbsp; ;; an event that waits for a SEXP of input from the keyboard</div><div class="">&nbsp; (execEvt<font color="#9a244f" class=""> (um:llambda (() :free-vars (flush stream read-eval))</font></div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(when flush</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(flushInp stream))</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(let ((*read-eval* read-eval))</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(read stream)))</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;))</div></div><div class=""><br class=""></div><div class="">Here the args to the function sexpEvt are used as free-vars inside the lambda closure. So to be sure that we get the bound function argument values when the closure is executed, in whatever thread, we use LLAMBDA and state those free vars to be lexically bound over before the closure is constructed.</div><div class=""><br class=""></div><div class="">If there is the slightest doubt about what thread might perform a closure, it is best to use LLAMBDA.</div><div class=""><br class=""></div><div class="">Too bad there isn’t a way to automate the extraction of free vars inside of lambda expressions. You have to do this manually to provide the :free-vars list. And there might be some time when you really don’t want all the free vars bound over lexically. I can’t think of any times off hand, but it is possible. In that case just elide them from the :free-vars list.</div><div class=""><br class=""></div><div class="">But by placing the free vars next to the lambda closure expression, it becomes easier to see which free vars really need to be bound over lexically. Just using ENSURE-LEXICAL at the top of some function body might have you miss one or overstate the situation.</div><div class=""><br class=""></div><div class="">- DM</div></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Defensive Multithreaded Coding...</h1><html><head><meta http-equiv="Content-Type" content="text/html charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">Here is a version that automatically scans the body of lambda closures and provides lexical bindings for global specials and rewrites the body to reference those lexical bindings. (Whew!)<div class=""><br class=""></div><div class="">The only cases we are ever concerned about are lambda closures passed to another thread for execution. Hence, there is just one macro, named MP-LAMBDA which is used exactly like LAMBDA. If the body has free vars that are globally bound at the time of compile, then a let-over-lambda is formed, otherwise just the lambda.</div><div class=""><br class=""></div><div class="">To cover those rare cases when you really do want to refer to a global, despite the fact that who-knows-what the binding value will be in some foreign thread, then the arg keywords list for MP-LAMBDA has been extended to allow &amp;GLOBAL followed by one symbol or a list of symbols that should *not* receive local lexical bindings around the lambda closure.</div><div class=""><br class=""></div><div class="">Example:</div><div class=""><br class=""></div><div class="">(mp-lambda (a b c)</div><div class=""><span class="Apple-tab-span" style="white-space:pre">	</span>(declare (ignore c))</div><div class=""><span class="Apple-tab-span" style="white-space:pre">	</span>(+ x a b))</div><div class=""><br class=""></div><div class="">When x is not a global special, this just becomes a standard lambda closure with no additional pre-bindings. Presumably the surrounding context provides a lexical binding for x. But if x has been declared as global special, this is converted into&nbsp;</div><div class=""><br class=""></div><div class="">(LET ((#:X57364 X)) #'(LAMBDA (A B C) (DECLARE (IGNORE C)) (+ #:X57364 A B)))</div><div class=""><br class=""></div><div class="">But if you really do want to refer to the global binding for x, then use this:</div><div class=""><br class=""></div><div class=""><div class="">(mp-lambda (a b c &amp;global x)</div><div class=""><span class="Apple-tab-span" style="white-space: pre;">	</span>(declare (ignore c))</div><div class=""><span class="Apple-tab-span" style="white-space: pre;">	</span>(+ x a b))</div></div><div class=""><br class=""></div><div class="">Then, since there are no remaining free vars referring to globals inside the body of the lambda, this will just become a standard lambda with no pre-bindings again. The &amp;GLOBAL and its parameter are elided before passing along the args list to LAMBDA.</div><div class=""><br class=""></div><div class="">The intent is that if you form any lambda closures with an eye toward having them executed in another thread, then you should write MP-LAMBDA instead of LAMBDA.</div><div class=""><br class=""></div><div class="">Unlike SYMBOL-MACROLET, there are no errors resulting from attempted rewrites if there really are global specials already defined. Symbol-macrolet in this application is actually quite useless because it would do nothing if there were no global specials, (I wouldn’t have issued any symbol-macrolets in that case), and when there are some extant global bindings, then symbol-macrolet forces an error condition.</div><div class=""><br class=""></div><div class="">One caveat is that I stole the rewriting actions from LW’s WALKER. So this probably isn’t portable to any other Lisp. Furthermore, there results some nuisance warnings on things like the (declare (ignore c)) shown above, and some unused symbol-macrolets when using WITH-SLOTS. The code looks correct on walk through, so there must be some interaction with my walking an rewriting the code. It looks like macro expansion may have already occurred before I get my hands on the body code, but then I leave those declares and symbol-macrolets in place.</div><div class=""><br class=""></div><div class="">——————————————————————</div><div class=""><br class=""></div><div class=""><div class="">(defun rewrite (names gnames body)</div><div class="">&nbsp; (let ((alst (pairlis names gnames)))</div><div class="">&nbsp; &nbsp; (labels ((rewriter (subform context env)</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(declare (ignore context))</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(let ((pair (and (symbolp subform)</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ;; presumably, this avoids inner let rebindings...</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (not (walker:variable-lexical-p subform env))</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (assoc subform alst))))</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(if pair</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(cdr pair)</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;subform))))</div><div class="">&nbsp; &nbsp; &nbsp; (walker:walk-form body nil #'rewriter))))</div></div><div class=""><br class=""></div><div class=""><div class="">(defun find-global-free-vars (body)</div><div class="">&nbsp; (let ((free-vars nil))</div><div class="">&nbsp; &nbsp; (labels ((walk (subform context env)</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(declare (ignore context))</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(when (and (symbolp subform)</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (not (walker:variable-lexical-p subform env))</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (sys:declared-special-p subform))</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(pushnew subform free-vars))</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;subform))</div><div class="">&nbsp; &nbsp; &nbsp; (walker:walk-form body nil #'walk)</div><div class="">&nbsp; &nbsp; &nbsp; free-vars)))</div><div class=""><br class=""></div><div class="">(defun mklist (arg)</div><div class="">&nbsp; (if (consp arg)</div><div class="">&nbsp; &nbsp; &nbsp; arg</div><div class="">&nbsp; &nbsp; (list arg)))</div><div class=""><br class=""></div><div class="">(defun remove-pair (lst pos)</div><div class="">&nbsp; (if pos</div><div class="">&nbsp; &nbsp; &nbsp; (append (subseq lst 0 pos)</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (subseq lst (min (+ 2 pos) (length lst))))</div><div class="">&nbsp; &nbsp; lst))</div><div class=""><br class=""></div><div class="">(<font color="#9a244f" class="">defmacro mp-lambda</font> (args &amp;body body)</div><div class="">&nbsp; (let* ((kws-pos &nbsp; &nbsp;(position '&amp;global args))</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(exceptions (when kws-pos</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(mklist (nth (1+ kws-pos) args))))</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(new-args &nbsp; (remove-pair args kws-pos))</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(globals &nbsp; &nbsp;(set-difference (find-global-free-vars body)</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;exceptions)))</div><div class="">&nbsp; &nbsp; (if globals</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; (let* ((gnames &nbsp;(mapcar (lambda (name)</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (gensym (string name)))</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; globals))</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(new-bindings &nbsp;(mapcar #'list gnames globals))</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(new-body &nbsp; &nbsp; &nbsp;(rewrite globals gnames body)))</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; `(let ,new-bindings</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(lambda ,new-args</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;,@new-body)))</div><div class="">&nbsp; &nbsp; &nbsp; ;; else</div><div class="">&nbsp; &nbsp; &nbsp; `(lambda ,new-args</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;,@body))))</div><div class=""><br class=""></div></div><div class=""><br class=""></div></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Defensive Multithreaded Coding...</h1>
+                 <pre>I considerably cleaned up and refactored the code. I also tracked down the source of the spurious warnings and modified my approach a bit. Instead of walking the lambda body, it was necessary to provide a proper context for declares and symbol-macrolets by constructing an entire lambda form for the walker to walk.
+
+New code more efficiently handles the &amp;global keywords in mp-lambda arglists, and permits as many of them as you like in a single arglist.
+
+——————————————
+(defun rewrite (body dict)
+  (labels ((rewriter (subform context env)
+             (declare (ignore context))
+             (let ((pair (and (symbolp subform)
+                              ;; presumably, this avoids inner let rebindings...
+                              (not (walker:variable-lexical-p subform env))
+                              (assoc subform dict))))
+               (if pair
+                   (cdr pair)
+                 subform))))
+    (walker:walk-form body nil #'rewriter)))
+
+(defun find-global-free-vars (body)
+  (let ((free-vars nil))
+    (labels ((walk (subform context env)
+               (declare (ignore context))
+               (when (and (symbolp subform)
+                          (not (walker:variable-lexical-p subform env))
+                          (sys:declared-special-p subform))
+                 (pushnew subform free-vars))
+               subform))
+      (walker:walk-form body nil #'walk)
+      free-vars)))
+
+(defun mklist (arg)
+  (if (listp arg)
+      arg
+    (list arg)))
+
+(defun is-&amp;global (item)
+  (and (symbolp item)
+       (string-equal #.(string '&amp;global) item)))
+
+(defun process-args (args)
+  (let (exceptions)
+    (labels ((trim (lst)
+               (unless (endp lst)
+                 (cond ((is-&amp;global (car lst))
+                        (setf exceptions (append (mklist (cadr lst)) exceptions))
+                        (trim (cddr lst)))
+
+                       (t
+                        (cons (car lst)
+                              (trim (cdr lst))))
+                       ))))
+      (let ((new-args (trim args)))
+        (values new-args exceptions))
+      )))
+
+(defun gensym-like (sym)
+  (gensym (string sym)))
+
+(defun rewrite-with-lexical-bindings (globals body)
+  (let* ((gnames        (mapcar #'gensym-like globals))
+         (new-bindings  (mapcar #'list gnames globals))
+         (new-body      (rewrite body (pairlis globals gnames))))
+    (values new-bindings new-body)))
+  
+(defmacro mp-lambda (args &amp;body body)
+  (multiple-value-bind (new-args exceptions)
+      (process-args args)
+    (let* ((tmp-body `(lambda ,new-args ,@body))
+           (globals (set-difference (find-global-free-vars tmp-body)
+                                    exceptions)))
+      (if globals
+          (multiple-value-bind (new-bindings new-body)
+              (rewrite-with-lexical-bindings globals tmp-body)
+            `(let ,new-bindings
+               ,new-body))
+        ;; else
+        tmp-body) )))
+
+(editor:setup-indent "mp-lambda" 1)
+
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Defensive Multithreaded Coding...</h1>
+                 <pre>There is one other case that I can think of, after reviewing my MP oriented codes… Many times a function will utilize local functions via FLET or LABELS. Those implicitly form functional closures when passed as first class objects to other functions or bound to some name. If there is the slightest chance of these being executed in another thread, then they also need to become made safe.
+
+So I invent another macro (ENSURE-LEXICAL-BINDINGS args &amp;body body) which scans and rewrites (if needed) the body to make use of new lexical bindings to cover any extant dynamic binding references in the body. The args is usually NIL, but can take one keyword :GLOBAL which should furnish a symbol or a list of symbols that should be treated as dynamically bound anyway. The use of the :GLOBAL argument will prevent making new lexical bindings for those symbols.
+
+Example:
+
+(defun diddly ()
+	(ensure-lexical-bindings (:global base)
+		(flet ((my-local-fn (x)
+				…))
+			(mp:funcall-async #’my-local arg)))
+
+Because you can’t know, in general, whether a symbol has been previously bound dynamically by the time you compile a new function, and the fact that there is no syntactic distinction between dynamic and lexical binding, the use of ENSURE-LEXICAL-BINDINGS is necessary for avoiding unpleasant surprises when your FLET and LABELS functions are, or could be, fired off into another thread.
+
+Original Lisp didn’t have multiprocessing, and so it couldn’t foresee the possibilities arising from design choices. I appreciate that the path chosen by LW and many others is expedient, and runtime efficient. And so we must become more aware in our code of potential pitfalls as a result. 
+
+I must say, the LW folks did “told you so…”, but only in the vaguest manner, by stating that each thread has its own dynamic binding environment. What, exactly, were the implications? We now see… How much old code would really break if LAMBDA, FLET, and LABELS were redesigned to produce lexical bindings by default?
+
+————————————————
+;; Augments MP-LABEL code…
+
+(defmacro ensure-lexical-bindings ((&amp;key global) &amp;body body)
+  (let ((globals (set-difference (find-global-free-vars body)
+                                 (mklist global))))
+    (if globals
+        (multiple-value-bind (new-bindings new-body)
+            (rewrite-with-lexical-bindings globals body)
+          `(let ,new-bindings
+             ,@new-body))
+      ;; else
+      `(progn
+         ,@body))
+    ))
+
+(editor:setup-indent "ensure-lexical-bindings" 1)
+
+
+&gt On Oct 10, 2017, at 04:03, David McClain &lt;dbm@refined-audiometrics.com&gt wrote:
+&gt 
+&gt I considerably cleaned up and refactored the code. I also tracked down the source of the spurious warnings and modified my approach a bit. Instead of walking the lambda body, it was necessary to provide a proper context for declares and symbol-macrolets by constructing an entire lambda form for the walker to walk.
+&gt 
+&gt New code more efficiently handles the &amp;global keywords in mp-lambda arglists, and permits as many of them as you like in a single arglist.
+&gt 
+&gt ——————————————
+&gt (defun rewrite (body dict)
+&gt  (labels ((rewriter (subform context env)
+&gt             (declare (ignore context))
+&gt             (let ((pair (and (symbolp subform)
+&gt                              ;; presumably, this avoids inner let rebindings...
+&gt                              (not (walker:variable-lexical-p subform env))
+&gt                              (assoc subform dict))))
+&gt               (if pair
+&gt                   (cdr pair)
+&gt                 subform))))
+&gt    (walker:walk-form body nil #'rewriter)))
+&gt 
+&gt (defun find-global-free-vars (body)
+&gt  (let ((free-vars nil))
+&gt    (labels ((walk (subform context env)
+&gt               (declare (ignore context))
+&gt               (when (and (symbolp subform)
+&gt                          (not (walker:variable-lexical-p subform env))
+&gt                          (sys:declared-special-p subform))
+&gt                 (pushnew subform free-vars))
+&gt               subform))
+&gt      (walker:walk-form body nil #'walk)
+&gt      free-vars)))
+&gt 
+&gt (defun mklist (arg)
+&gt  (if (listp arg)
+&gt      arg
+&gt    (list arg)))
+&gt 
+&gt (defun is-&amp;global (item)
+&gt  (and (symbolp item)
+&gt       (string-equal #.(string '&amp;global) item)))
+&gt 
+&gt (defun process-args (args)
+&gt  (let (exceptions)
+&gt    (labels ((trim (lst)
+&gt               (unless (endp lst)
+&gt                 (cond ((is-&amp;global (car lst))
+&gt                        (setf exceptions (append (mklist (cadr lst)) exceptions))
+&gt                        (trim (cddr lst)))
+&gt 
+&gt                       (t
+&gt                        (cons (car lst)
+&gt                              (trim (cdr lst))))
+&gt                       ))))
+&gt      (let ((new-args (trim args)))
+&gt        (values new-args exceptions))
+&gt      )))
+&gt 
+&gt (defun gensym-like (sym)
+&gt  (gensym (string sym)))
+&gt 
+&gt (defun rewrite-with-lexical-bindings (globals body)
+&gt  (let* ((gnames        (mapcar #'gensym-like globals))
+&gt         (new-bindings  (mapcar #'list gnames globals))
+&gt         (new-body      (rewrite body (pairlis globals gnames))))
+&gt    (values new-bindings new-body)))
+&gt 
+&gt (defmacro mp-lambda (args &amp;body body)
+&gt  (multiple-value-bind (new-args exceptions)
+&gt      (process-args args)
+&gt    (let* ((tmp-body `(lambda ,new-args ,@body))
+&gt           (globals (set-difference (find-global-free-vars tmp-body)
+&gt                                    exceptions)))
+&gt      (if globals
+&gt          (multiple-value-bind (new-bindings new-body)
+&gt              (rewrite-with-lexical-bindings globals tmp-body)
+&gt            `(let ,new-bindings
+&gt               ,new-body))
+&gt        ;; else
+&gt        tmp-body) )))
+&gt 
+&gt (editor:setup-indent "mp-lambda" 1)
+&gt 
+&gt 
+&gt 
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+&gt 
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Defensive Multithreaded Coding...</h1>
+                 <pre>… there is nothing wrong with referring to a declared constant from any arbitrary thread… These happen also to be declared as special bindings, but they can never be accidentally rebound or altered. So fix the code to forego lexical rebinding of declared constants. 
+
+And while we’re at it, improve efficiency by performing a one-pass scan / rewrite, and fix the problem of leftover symbol-macrolets, which cause spurious warnings during compile.
+
+;; -----------------------------------------------------------------
+;; ENSURE-LEXICAL-BINDINGS &amp; MP-LAMBDA macros and their walking
+;; scanner/rewriter
+
+(defun rebind-global-free-vars (form global-exceptions)
+  ;; Single-pass scan and rewrite, looking for symbols that have
+  ;; global special bindings. We build up a dictionary as an alist and
+  ;; hand it back to the caller so he can generate lexical bindings
+  ;; around our newly macro-expanded and rewritten form.
+  ;;
+  ;; global-exceptions is a list of symbols that should be excluded
+  ;; from rewriting.
+  ;;
+  (let (free-vars)
+    (labels ((get-replacement (sym)
+               (or (sys:cdr-assoc sym free-vars)
+                   (let ((gname (gensym (string sym))))
+                     (setf free-vars (acons sym gname free-vars))
+                     gname)))
+
+             (convert-pair-to-revlist (pair)
+               (destructuring-bind (sym . gsym) pair
+                 (list gsym sym)))
+
+             (get-bindings-form ()
+               (mapcar #'convert-pair-to-revlist free-vars))
+             
+             (rewrite (subform context env)
+               (declare (ignore context))
+               (cond ((and (symbolp subform)
+                           (not (constantp subform))
+                           (not (walker:variable-lexical-p subform env))
+                           (sys:declared-special-p subform))
+                      
+                      (if (member subform global-exceptions)
+                          subform
+                        (get-replacement subform)))
+                     
+
+                     ;; This shouldn't be our problem... but when the
+                     ;; walker encounters a symbol-macrolet form, it
+                     ;; macroexpands all the symbols, but leaves the
+                     ;; symbol-macrolet and its bindings in place. A
+                     ;; subsequent repeat walk through from the
+                     ;; compiler will trigger a warning that none of
+                     ;; the symbol-macrolet bindings were referenced.
+                     ;;
+                     ;; So, we take the liberty of liberating the
+                     ;; walked form of the symbol-macrolet and its
+                     ;; bindings and plant the rest of the clauses
+                     ;; into a progn. That keeps the system quiet.
+                     ;;
+                     ((and (consp subform)
+                           (eql 'symbol-macrolet (car subform)))
+                      `(progn ,@(cddr (walker:walk-form subform))))
+                     
+                     (t
+                      subform)
+                     )))
+      (let ((expansion (walker:walk-form form nil #'rewrite)))
+        (if free-vars
+            `(let ,(get-bindings-form)
+               ,expansion)
+          ;; else
+          expansion)) )))
+
+(defun mklist (arg)
+  (if (listp arg)
+      arg
+    (list arg)))
+
+(defvar *in-scan* nil) ;; prevents all but outermost scan from occurring
+
+(defmacro ensure-lexical-bindings ((&amp;key global) form)
+  ;; keyword arg global is really a symbol or a list of symbols that
+  ;; should be excluded from lexical rebinding, remaining special
+  ;; bindings in the form. (so-called global-exceptions). These should
+  ;; be rare, so the default case is to assume that globals require
+  ;; lexical rebindings around the form.
+  (if *in-scan*
+      form
+    ;; else
+    (let ((*in-scan* t))
+      (rebind-global-free-vars form (mklist global))) ))
+
+;; ------------------------------------------------------------
+
+(defun process-args (args)
+  (let (global-exceptions)
+    (labels ((is-&amp;global (item)
+               (and (symbolp item)
+                    (string-equal #.(string '&amp;global) item)))
+               
+             (trim (lst)
+               (unless (endp lst)
+                 (cond ((is-&amp;global (car lst))
+                        (setf global-exceptions (append (mklist (cadr lst)) global-exceptions))
+                        (trim (cddr lst)))
+
+                       (t
+                        (cons (car lst)
+                              (trim (cdr lst))))
+                       ))))
+      (let ((new-args (trim args)))
+        (values new-args global-exceptions))
+      )))
+
+(defmacro mp-lambda (args &amp;body body)
+  (multiple-value-bind (new-args global-exceptions)
+      (process-args args)
+    `(ensure-lexical-bindings (:global ,global-exceptions)
+       (lambda ,new-args ,@body))))
+
+(editor:setup-indent "mp-lambda" 1)
+(editor:setup-indent "ensure-lexical-bindings" 1)
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Defensive Multithreaded Coding...</h1><html><head><meta http-equiv="Content-Type" content="text/html charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">Wow! I just ran into a really subtle issue on this stuff…<div class=""><br class=""></div><div class="">The macros work just fine, but their placement position in the client code can make a huge difference. And it appears that attempting to patch things up in the walker is not possible.</div><div class=""><br class=""></div><div class="">Example:</div><div class=""><br class=""></div><div class=""><div class="">(defun compare-system (path node node-path)</div><div class="">&nbsp; (let (tree-a tree-b)</div><div class="">&nbsp; &nbsp; <font color="#9a244f" class="">(um:ensure-lexical-bindings () &nbsp;;; &lt;— this is the proper location</font></div><div class="">&nbsp; &nbsp; &nbsp; (um:par</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; (setf tree-a (grand-hash path))</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; (setf tree-b (bfly:!? (concatenate 'string "eval@" node)</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; `(grand-hash ,node-path))))</div><div class="">&nbsp; &nbsp; &nbsp; (compare-directory tree-a tree-b))))</div></div><div class=""><br class=""></div><div class=""><br class=""></div><div class="">Version 2:</div><div class=""><br class=""></div><div class=""><div class="">(defun compare-system (path node node-path)</div><div class="">&nbsp; <font color="#9a244f" class="">(um:ensure-lexical-bindings () ;; &lt;— this is an improper location</font></div><div class="">&nbsp; &nbsp; (let (tree-a tree-b)</div><div class="">&nbsp; &nbsp; &nbsp; (um:par</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; (setf tree-a (grand-hash path))</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; (setf tree-b (bfly:!? (concatenate 'string "eval@" node)</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; `(grand-hash ,node-path))))</div><div class="">&nbsp; &nbsp; &nbsp; (compare-directory tree-a tree-b))))</div></div><div class=""><br class=""></div><div class="">In the second version, the macro works just fine by alpha converting all references to special globals, and capturing their bound values at the location of the macro. But then we come along and possibly modify one or more of them in the following LET form. If either of tree-a or tree-b were accidentally declared as special globals, our captured binding values will be old news, and the clients of those captured values might not like it.</div><div class=""><br class=""></div><div class="">The first version is correctly positioned because it comes after any possible rebindings of special globals and captures their updated binding values before alpha conversion.</div><div class=""><br class=""></div><div class="">In order to have this situation corrected automatically, the walker would have to spot the location of LET bindings after the ensure-lexical-bindings macro, and then insert some more bindings for capturing updated values. But once you issue a rewrite inside of the walker, it scans your rewritten code again, and we would end up in an endless loop.</div><div class=""><br class=""></div><div class="">So this appears to require careful thinking by the programmer, and manual placement of ensure-lexical-bindings must be carefully crafted.</div><div class=""><br class=""></div><div class="">It would almost be safe to just use mp-lambda forms, which arranges capture bindings just around the alpha converted lambda form. But then it would become difficult to share information between threads, as in this example where thread results are planted in tree-a and tree-b for later consideration after the (PAR …) form. So that doesn’t work either.</div><div class=""><br class=""></div><div class="">- DM</div></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Defensive Multithreaded Coding...</h1>
+                 <pre>Ahah! I can fully automate it using 3 separate walkthrough passes. 
+
+First walkthrough expands all the macros, just in case someone has a special version of LET or LET* for themselves (called My-Let or some such thing). This scan also performs symbol macrolet substitutions.
+
+Second walkthrough performs full alpha conversion on referenced global symbols, and marks the location of LET and LET* re-bindings with such globals using a unique marker symbol inserted in front of the LET. This scan also removes the gratuitous symbol-macrolet’s that were left in the rewrite from the first pass, to eliminate spurious warning messages during compile.
+
+Third and final walkthrough looks for those markers and rewrites the LET clauses to insert a nested LET with lexical capture of the newly re-bound globals that precede, along with the body of the original LET clause.
+
+Result is fully automated and trustworthy lexical rewrites of your code. Now I’ll look for ways to improve efficiency. I can probably merge passes 1 and 2 already.
+
+- DM
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Defensive Multithreaded Coding...</h1>
+                 <pre>Wow the Walker seems an odd bit of code. There are hints to be found on the copyrights page of the LW manuals, that it dates back to Lucid. And probing on Google brings up ancestor codes from Symbolics and even earlier. 
+
+Using the Walker successfully requires forgetting about how you think it should work, and paying attention to how it really is working. Maybe this note can help others, based on what I found by reverse engineering and trial and error.
+
+The Walker basically works with a user provided callback function to which it passes the current subform under inspection, the current environment, and a context. It seems the context is to be ignored. You pass back from the callback routine your modifications to the current subform. That much seems pretty straightforward. The environment is an important piece of the puzzle as it successively records the symbols and kinds of bindings that occur as the Walker probes ever deeper.
+
+But… the Walker will keep throwing your last form right back to you until you return it unchanged. It took a while for that to sink in. So if you perform augmenting rewrites on forms, such as providing nested LET forms inside those present in the subform, then you will go into an infinite loop unless you statefully remember the last form you sent back and compare against the next presented subform. If they are identical, as in EQ, then you should just return it back to the Walker unchanged. Otherwise it represents a new subform for you to chew on.
+
+Once I realized this order in the universe, my lexical binding scanner became massively simplified. No need for markers and cleanup passes to rewrite those markers. Go ahead and augment the subforms handed to you. And using something like Optima MATCH can make life so much more pleasant for finding the subform patterns needing rewriting. Alpha conversion is almost trivial now, except for the fact that lambda arglists must also be alpha converted, lest the arguments refer to extant special bindings (global and otherwise through (DECLARE SPECIAL)).
+
+The bit about it not cleaning up SYMBOL-MACROLET after itself is puzzling, and so I trivially remove the detritus in my second pass. I mark it up to an ancient code base that suffered through many iterations of attempted uniformity against an unruly universe of Lisp providers all going their own way on various aspects of the language.
+
+The Walker is an incredibly useful tool. Too bad so little has been known about it by those of us not members of the pioneer crowd.
+
+Cheers,
+
+- DM
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>RE: Defensive Multithreaded Coding...</h1>
+                 <pre>Hi Chun,
+
+I can see your point but since this topic can certainly be seen as being complex and not entirely derivable from Lisp specifications (due to threading issues that did not exist when the spec was written), I certainly have benefited in seeing the conditions, problem, and evolution of the solution through the e-mails covering this subject. If it would have just come out as one report in a "problem and solution pair" then I would have not probably spent time even reflecting on the issue. I learned something important.
+
+However, one question remains: why is the code walker's current source not available for viewing?
+
+Thanks,
+
+Toomas
+
+-----Original Message-----
+From: owner-lisp-hug@lispworks.com [mailto:owner-lisp-hug@lispworks.com] On Behalf Of Chun Tian
+Sent: 12. lokakuuta 2017 12:58
+To: David McClain &lt;dbm@refined-audiometrics.com&gt
+Cc: Harlequin User Group &lt;lisp-hug@lispworks.com&gt
+Subject: Re: Defensive Multithreaded Coding...
+
+Good job $B!D(B
+
+P. S. if I sent two emails (without questions or question marks inside) in a public forum in the same thread but got no replies, probably it means nobody is interested in the topic or has no time to look into long emails, then I will not send the 3rd email again, I definitely won$B!G(Bt send 10 emails in this case. If I have good project ideas, I would rather try to finish it FIRST, then post a brief news for comments. Hope this helps.
+
+&gt $B:_(B 12 ott 2017$B!$(B11:21$B!$(BDavid McClain &lt;dbm@refined-audiometrics.com&gt $B&lt;LF;!'(B
+&gt 
+&gt Wow the Walker seems an odd bit of code. There are hints to be found on the copyrights page of the LW manuals, that it dates back to Lucid. And probing on Google brings up ancestor codes from Symbolics and even earlier.
+&gt 
+&gt Using the Walker successfully requires forgetting about how you think it should work, and paying attention to how it really is working. Maybe this note can help others, based on what I found by reverse engineering and trial and error.
+&gt 
+&gt The Walker basically works with a user provided callback function to which it passes the current subform under inspection, the current environment, and a context. It seems the context is to be ignored. You pass back from the callback routine your modifications to the current subform. That much seems pretty straightforward. The environment is an important piece of the puzzle as it successively records the symbols and kinds of bindings that occur as the Walker probes ever deeper.
+&gt 
+&gt But$B!D(B the Walker will keep throwing your last form right back to you until you return it unchanged. It took a while for that to sink in. So if you perform augmenting rewrites on forms, such as providing nested LET forms inside those present in the subform, then you will go into an infinite loop unless you statefully remember the last form you sent back and compare against the next presented subform. If they are identical, as in EQ, then you should just return it back to the Walker unchanged. Otherwise it represents a new subform for you to chew on.
+&gt 
+&gt Once I realized this order in the universe, my lexical binding scanner became massively simplified. No need for markers and cleanup passes to rewrite those markers. Go ahead and augment the subforms handed to you. And using something like Optima MATCH can make life so much more pleasant for finding the subform patterns needing rewriting. Alpha conversion is almost trivial now, except for the fact that lambda arglists must also be alpha converted, lest the arguments refer to extant special bindings (global and otherwise through (DECLARE SPECIAL)).
+&gt 
+&gt The bit about it not cleaning up SYMBOL-MACROLET after itself is puzzling, and so I trivially remove the detritus in my second pass. I mark it up to an ancient code base that suffered through many iterations of attempted uniformity against an unruly universe of Lisp providers all going their own way on various aspects of the language.
+&gt 
+&gt The Walker is an incredibly useful tool. Too bad so little has been known about it by those of us not members of the pioneer crowd.
+&gt 
+&gt Cheers,
+&gt 
+&gt - DM
+&gt 
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users lisp-hug@lispworks.com 
+&gt http://www.lispworks.com/support/lisp-hug.html
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Defensive Multithreaded Coding...</h1><html><head><meta http-equiv="Content-Type" content="text/html charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">BTW… this should be pointed out… The current definition of a global special in the walker callback is:<div class=""><br class=""></div><div class=""><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(is-global (sym env)</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(and (symbolp sym)</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ;;</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ;; DEFCONSTANT produces a special binding,</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ;; but it can't be accidentally rebound or</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ;; redefined, so it is okay for other</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ;; threads to use this truly global fixed</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ;; values</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ;;</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (not (constantp sym))</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ;;</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ;; once declared special with DEFVAR or DEFPARAMETER you</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ;; can never bind a symbol lexically. The only way to</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ;; remove its special property is to unintern it.</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ;;</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (or (sys:declared-special-p sym)</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ;;</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ;; and using (DECLARE SPECIAL) can make</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ;; dynamic bindings, even if there is</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ;; no global declaration with that</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ;; symbol. But these local special</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ;; bindings can be overridden by an</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ;; inner lexical binding with the same</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ;; symbol.</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ;;</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <font color="#b92d5d" class="">(walker:variable-special-p sym env)</font>)</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ;;</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ;; make sure we aren't supposed to ignore this symbol</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ;;</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (not (member sym global-exceptions))))</div><div class=""><br class=""></div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; The red highlighted line shows the main distinction from earlier versions. The Walker keeps track of a lot of information in the variables environment when it sees LET bindings. When external globals have already been declared somewhere else, the Walker probably isn’t aware of them, and that’s the reason for my SYS:DECLARED-SPECIAL-P. But the Walker does understand lexical and locally declared special bindings. And while you can never override a globally declared special binding (except by UNINTERN), the use of (DECLARE SPECIAL) *can* be overridden by an enclosed LET, and the Walker seems to understand that.</div><div class=""><br class=""></div><div class="">So the prior sources showed something like (NOT (WALKER:VARIABLE-LEXICAL-P)) that isn’t the correct test. It should be (WALKER:VARIABLE-SPECIAL-P) as shown above.</div><div class=""><br class=""></div><div class="">… at least, I think so now…</div><div class=""><br class=""></div><div class="">(Finish what? … how does one know when it is finished, whatever *it* is? These ramblings produce an archive on Google for someday when someone else runs into the same problems and wants to search for prior resolutions.)</div><div class=""><br class=""></div><div class="">- DM</div><div class=""><br class=""></div><div class=""><br class=""></div><div class=""><br class=""></div><div><blockquote type="cite" class=""><div class="">On Oct 12, 2017, at 05:16, Toomas Altosaar &lt;<a href="mailto:toomas.altosaar@fi.abb.com" class="">toomas.altosaar@fi.abb.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><div class="">Hi Chun,<br class=""><br class="">I can see your point but since this topic can certainly be seen as being complex and not entirely derivable from Lisp specifications (due to threading issues that did not exist when the spec was written), I certainly have benefited in seeing the conditions, problem, and evolution of the solution through the e-mails covering this subject. If it would have just come out as one report in a "problem and solution pair" then I would have not probably spent time even reflecting on the issue. I learned something important.<br class=""><br class="">However, one question remains: why is the code walker's current source not available for viewing?<br class=""><br class="">Thanks,<br class=""><br class="">Toomas<br class=""><br class="">-----Original Message-----<br class="">From: <a href="mailto:owner-lisp-hug@lispworks.com" class="">owner-lisp-hug@lispworks.com</a> [<a href="mailto:owner-lisp-hug@lispworks.com" class="">mailto:owner-lisp-hug@lispworks.com</a>] On Behalf Of Chun Tian<br class="">Sent: 12. lokakuuta 2017 12:58<br class="">To: David McClain &lt;<a href="mailto:dbm@refined-audiometrics.com" class="">dbm@refined-audiometrics.com</a>&gt;<br class="">Cc: Harlequin User Group &lt;<a href="mailto:lisp-hug@lispworks.com" class="">lisp-hug@lispworks.com</a>&gt;<br class="">Subject: Re: Defensive Multithreaded Coding...<br class=""><br class="">Good job …<br class=""><br class="">P. S. if I sent two emails (without questions or question marks inside) in a public forum in the same thread but got no replies, probably it means nobody is interested in the topic or has no time to look into long emails, then I will not send the 3rd email again, I definitely won’t send 10 emails in this case. If I have good project ideas, I would rather try to finish it FIRST, then post a brief news for comments. Hope this helps.<br class=""><br class=""><blockquote type="cite" class="">在 12 ott 2017，11:21，David McClain &lt;<a href="mailto:dbm@refined-audiometrics.com" class="">dbm@refined-audiometrics.com</a>&gt; 写道：<br class=""><br class="">Wow the Walker seems an odd bit of code. There are hints to be found on the copyrights page of the LW manuals, that it dates back to Lucid. And probing on Google brings up ancestor codes from Symbolics and even earlier.<br class=""><br class="">Using the Walker successfully requires forgetting about how you think it should work, and paying attention to how it really is working. Maybe this note can help others, based on what I found by reverse engineering and trial and error.<br class=""><br class="">The Walker basically works with a user provided callback function to which it passes the current subform under inspection, the current environment, and a context. It seems the context is to be ignored. You pass back from the callback routine your modifications to the current subform. That much seems pretty straightforward. The environment is an important piece of the puzzle as it successively records the symbols and kinds of bindings that occur as the Walker probes ever deeper.<br class=""><br class="">But… the Walker will keep throwing your last form right back to you until you return it unchanged. It took a while for that to sink in. So if you perform augmenting rewrites on forms, such as providing nested LET forms inside those present in the subform, then you will go into an infinite loop unless you statefully remember the last form you sent back and compare against the next presented subform. If they are identical, as in EQ, then you should just return it back to the Walker unchanged. Otherwise it represents a new subform for you to chew on.<br class=""><br class="">Once I realized this order in the universe, my lexical binding scanner became massively simplified. No need for markers and cleanup passes to rewrite those markers. Go ahead and augment the subforms handed to you. And using something like Optima MATCH can make life so much more pleasant for finding the subform patterns needing rewriting. Alpha conversion is almost trivial now, except for the fact that lambda arglists must also be alpha converted, lest the arguments refer to extant special bindings (global and otherwise through (DECLARE SPECIAL)).<br class=""><br class="">The bit about it not cleaning up SYMBOL-MACROLET after itself is puzzling, and so I trivially remove the detritus in my second pass. I mark it up to an ancient code base that suffered through many iterations of attempted uniformity against an unruly universe of Lisp providers all going their own way on various aspects of the language.<br class=""><br class="">The Walker is an incredibly useful tool. Too bad so little has been known about it by those of us not members of the pioneer crowd.<br class=""><br class="">Cheers,<br class=""><br class="">- DM<br class=""><br class="">_______________________________________________<br class="">Lisp Hug - the mailing list for LispWorks users <a href="mailto:lisp-hug@lispworks.com" class="">lisp-hug@lispworks.com</a> <br class=""><a href="http://www.lispworks.com/support/lisp-hug.html" class="">http://www.lispworks.com/support/lisp-hug.html</a><br class=""></blockquote><br class=""><br class="">_______________________________________________<br class="">Lisp Hug - the mailing list for LispWorks users<br class=""><a href="mailto:lisp-hug@lispworks.com" class="">lisp-hug@lispworks.com</a><br class="">http://www.lispworks.com/support/lisp-hug.html<br class=""><br class=""></div></div></blockquote></div><br class=""></div></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Defensive Multithreaded Coding...</h1>
+                 <pre>I think what you actually need is
+
+(eq (hcl:variable-information sym env) :special)
+
+which deals with global and local declarations.
+
+-- 
+Martin Simmons
+LispWorks Ltd
+http://www.lispworks.com/
+
+
+&gt&gt&gt&gt&gt On Thu, 12 Oct 2017 05:41:09 -0700, David McClain said:
+&gt 
+&gt BTW… this should be pointed out… The current definition of a global special in the walker callback is:
+&gt 
+&gt          (is-global (sym env)
+&gt            (and (symbolp sym)
+&gt             ;;
+&gt             ;; DEFCONSTANT produces a special binding,
+&gt             ;; but it can't be accidentally rebound or
+&gt             ;; redefined, so it is okay for other
+&gt             ;; threads to use this truly global fixed
+&gt             ;; values
+&gt             ;;
+&gt             (not (constantp sym))
+&gt             ;;
+&gt             ;; once declared special with DEFVAR or DEFPARAMETER you
+&gt             ;; can never bind a symbol lexically. The only way to
+&gt             ;; remove its special property is to unintern it.
+&gt             ;;
+&gt             (or (sys:declared-special-p sym)
+&gt                 ;;
+&gt                 ;; and using (DECLARE SPECIAL) can make
+&gt                 ;; dynamic bindings, even if there is
+&gt                 ;; no global declaration with that
+&gt                 ;; symbol. But these local special
+&gt                 ;; bindings can be overridden by an
+&gt                 ;; inner lexical binding with the same
+&gt                 ;; symbol.
+&gt                 ;;
+&gt                 (walker:variable-special-p sym env))
+&gt             ;;
+&gt             ;; make sure we aren't supposed to ignore this symbol
+&gt             ;;
+&gt             (not (member sym global-exceptions))))
+&gt 
+&gt         The red highlighted line shows the main distinction from earlier versions. The Walker keeps track of a lot of information in the variables environment when it sees LET bindings. When external globals have already been declared somewhere else, the Walker probably isn’t aware of them, and that’s the reason for my SYS:DECLARED-SPECIAL-P. But the Walker does understand lexical and locally declared special bindings. And while you can never override a globally declared special binding (except by UNINTERN), the use of (DECLARE SPECIAL) *can* be overridden by an enclosed LET, and the Walker seems to understand that.
+&gt 
+&gt So the prior sources showed something like (NOT (WALKER:VARIABLE-LEXICAL-P)) that isn’t the correct test. It should be (WALKER:VARIABLE-SPECIAL-P) as shown above.
+&gt 
+&gt … at least, I think so now…
+&gt 
+&gt (Finish what? … how does one know when it is finished, whatever *it* is? These ramblings produce an archive on Google for someday when someone else runs into the same problems and wants to search for prior resolutions.)
+&gt 
+&gt - DM
+&gt 
+&gt 
+&gt 
+&gt &gt On Oct 12, 2017, at 05:16, Toomas Altosaar &lt;toomas.altosaar@fi.abb.com&gt wrote:
+&gt &gt 
+&gt &gt Hi Chun,
+&gt &gt 
+&gt &gt I can see your point but since this topic can certainly be seen as being complex and not entirely derivable from Lisp specifications (due to threading issues that did not exist when the spec was written), I certainly have benefited in seeing the conditions, problem, and evolution of the solution through the e-mails covering this subject. If it would have just come out as one report in a "problem and solution pair" then I would have not probably spent time even reflecting on the issue. I learned something important.
+&gt &gt 
+&gt &gt However, one question remains: why is the code walker's current source not available for viewing?
+&gt &gt 
+&gt &gt Thanks,
+&gt &gt 
+&gt &gt Toomas
+&gt &gt 
+&gt &gt -----Original Message-----
+&gt &gt From: owner-lisp-hug@lispworks.com [mailto:owner-lisp-hug@lispworks.com] On Behalf Of Chun Tian
+&gt &gt Sent: 12. lokakuuta 2017 12:58
+&gt &gt To: David McClain &lt;dbm@refined-audiometrics.com&gt
+&gt &gt Cc: Harlequin User Group &lt;lisp-hug@lispworks.com&gt
+&gt &gt Subject: Re: Defensive Multithreaded Coding...
+&gt &gt 
+&gt &gt Good job …
+&gt &gt 
+&gt &gt P. S. if I sent two emails (without questions or question marks inside) in a public forum in the same thread but got no replies, probably it means nobody is interested in the topic or has no time to look into long emails, then I will not send the 3rd email again, I definitely won’t send 10 emails in this case. If I have good project ideas, I would rather try to finish it FIRST, then post a brief news for comments. Hope this helps.
+&gt &gt 
+&gt &gt&gt 在 12 ott 2017，11:21，David McClain &lt;dbm@refined-audiometrics.com&gt 写道：
+&gt &gt&gt 
+&gt &gt&gt Wow the Walker seems an odd bit of code. There are hints to be found on the copyrights page of the LW manuals, that it dates back to Lucid. And probing on Google brings up ancestor codes from Symbolics and even earlier.
+&gt &gt&gt 
+&gt &gt&gt Using the Walker successfully requires forgetting about how you think it should work, and paying attention to how it really is working. Maybe this note can help others, based on what I found by reverse engineering and trial and error.
+&gt &gt&gt 
+&gt &gt&gt The Walker basically works with a user provided callback function to which it passes the current subform under inspection, the current environment, and a context. It seems the context is to be ignored. You pass back from the callback routine your modifications to the current subform. That much seems pretty straightforward. The environment is an important piece of the puzzle as it successively records the symbols and kinds of bindings that occur as the Walker probes ever deeper.
+&gt &gt&gt 
+&gt &gt&gt But… the Walker will keep throwing your last form right back to you until you return it unchanged. It took a while for that to sink in. So if you perform augmenting rewrites on forms, such as providing nested LET forms inside those present in the subform, then you will go into an infinite loop unless you statefully remember the last form you sent back and compare against the next presented subform. If they are identical, as in EQ, then you should just return it back to the Walker unchanged. Otherwise it represents a new subform for you to chew on.
+&gt &gt&gt 
+&gt &gt&gt Once I realized this order in the universe, my lexical binding scanner became massively simplified. No need for markers and cleanup passes to rewrite those markers. Go ahead and augment the subforms handed to you. And using something like Optima MATCH can make life so much more pleasant for finding the subform patterns needing rewriting. Alpha conversion is almost trivial now, except for the fact that lambda arglists must also be alpha converted, lest the arguments refer to extant special bindings (global and otherwise through (DECLARE SPECIAL)).
+&gt &gt&gt 
+&gt &gt&gt The bit about it not cleaning up SYMBOL-MACROLET after itself is puzzling, and so I trivially remove the detritus in my second pass. I mark it up to an ancient code base that suffered through many iterations of attempted uniformity against an unruly universe of Lisp providers all going their own way on various aspects of the language.
+&gt &gt&gt 
+&gt &gt&gt The Walker is an incredibly useful tool. Too bad so little has been known about it by those of us not members of the pioneer crowd.
+&gt &gt&gt 
+&gt &gt&gt Cheers,
+&gt &gt&gt 
+&gt &gt&gt - DM
+&gt &gt&gt 
+&gt &gt&gt _______________________________________________
+&gt &gt&gt Lisp Hug - the mailing list for LispWorks users lisp-hug@lispworks.com 
+&gt &gt&gt http://www.lispworks.com/support/lisp-hug.html
+&gt &gt 
+&gt &gt 
+&gt &gt _______________________________________________
+&gt &gt Lisp Hug - the mailing list for LispWorks users
+&gt &gt lisp-hug@lispworks.com
+&gt &gt http://www.lispworks.com/support/lisp-hug.html
+&gt &gt 
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Defensive Multithreaded Coding...</h1>
+                 <pre>Thanks Martin,
+
+But when I substitute your recommended test in place of my OR clause with SYS:DECLARED-SPECIAL-P and WALKER:VARIABLE-SPECIAL-P, then my alpha conversion stops working.
+
+Here is my test example:
+
+(defvar x 15)  ;; &lt;— plant a global special
+
+;; then walk this
+(let ((u 1)
+      (x 32)
+      (y 15))
+  (declare (special y))
+  (locally ;; let ((y 77))  ;; &lt;— allows me to test for a lexical override on special
+    (ensure-lexical-bindings ()
+      (let ((v 2)
+            (x "twently"))
+        (ensure-lexical-bindings ()
+          (symbol-macrolet ((c 3))
+            (mp-lambda (x a b)
+              (+ x y a b c))))))))
+
+
+With your recommended HCL:VARIABLE-INFORMATION I get the following as a Walker result:
+
+(LET ((U 1) (X 32) (Y 15)) (DECLARE (SPECIAL Y)) (LOCALLY (LET ((V 2) (X "twently")) #'(LAMBDA (X A B) (+ X Y A B 3)))))
+
+But with my original code I get this:
+
+(LET ((U 1) (X 32) (Y 15))
+  (DECLARE (SPECIAL Y))
+  (LOCALLY
+    (LET ((#:Y50649 Y) (#:X50648 X))
+      (DECLARE (IGNORABLE #:Y50649 #:X50648))
+      (LET ((V 2) (X "twently")) (LET ((#:X50648 X)) (DECLARE (IGNORABLE #:X50648)) #'(LAMBDA (#:X50648 A B) (+ #:X50648 #:Y50649 A B 3)))))))
+
+
+- DM
+
+
+&gt On Oct 12, 2017, at 07:10, Martin Simmons &lt;martin@lispworks.com&gt wrote:
+&gt 
+&gt I think what you actually need is
+&gt 
+&gt (eq (hcl:variable-information sym env) :special)
+&gt 
+&gt which deals with global and local declarations.
+&gt 
+&gt -- 
+&gt Martin Simmons
+&gt LispWorks Ltd
+&gt http://www.lispworks.com/
+&gt 
+&gt 
+&gt&gt&gt&gt&gt&gt On Thu, 12 Oct 2017 05:41:09 -0700, David McClain said:
+&gt&gt 
+&gt&gt BTW… this should be pointed out… The current definition of a global special in the walker callback is:
+&gt&gt 
+&gt&gt         (is-global (sym env)
+&gt&gt           (and (symbolp sym)
+&gt&gt            ;;
+&gt&gt            ;; DEFCONSTANT produces a special binding,
+&gt&gt            ;; but it can't be accidentally rebound or
+&gt&gt            ;; redefined, so it is okay for other
+&gt&gt            ;; threads to use this truly global fixed
+&gt&gt            ;; values
+&gt&gt            ;;
+&gt&gt            (not (constantp sym))
+&gt&gt            ;;
+&gt&gt            ;; once declared special with DEFVAR or DEFPARAMETER you
+&gt&gt            ;; can never bind a symbol lexically. The only way to
+&gt&gt            ;; remove its special property is to unintern it.
+&gt&gt            ;;
+&gt&gt            (or (sys:declared-special-p sym)
+&gt&gt                ;;
+&gt&gt                ;; and using (DECLARE SPECIAL) can make
+&gt&gt                ;; dynamic bindings, even if there is
+&gt&gt                ;; no global declaration with that
+&gt&gt                ;; symbol. But these local special
+&gt&gt                ;; bindings can be overridden by an
+&gt&gt                ;; inner lexical binding with the same
+&gt&gt                ;; symbol.
+&gt&gt                ;;
+&gt&gt                (walker:variable-special-p sym env))
+&gt&gt            ;;
+&gt&gt            ;; make sure we aren't supposed to ignore this symbol
+&gt&gt            ;;
+&gt&gt            (not (member sym global-exceptions))))
+&gt&gt 
+&gt&gt        The red highlighted line shows the main distinction from earlier versions. The Walker keeps track of a lot of information in the variables environment when it sees LET bindings. When external globals have already been declared somewhere else, the Walker probably isn’t aware of them, and that’s the reason for my SYS:DECLARED-SPECIAL-P. But the Walker does understand lexical and locally declared special bindings. And while you can never override a globally declared special binding (except by UNINTERN), the use of (DECLARE SPECIAL) *can* be overridden by an enclosed LET, and the Walker seems to understand that.
+&gt&gt 
+&gt&gt So the prior sources showed something like (NOT (WALKER:VARIABLE-LEXICAL-P)) that isn’t the correct test. It should be (WALKER:VARIABLE-SPECIAL-P) as shown above.
+&gt&gt 
+&gt&gt … at least, I think so now…
+&gt&gt 
+&gt&gt (Finish what? … how does one know when it is finished, whatever *it* is? These ramblings produce an archive on Google for someday when someone else runs into the same problems and wants to search for prior resolutions.)
+&gt&gt 
+&gt&gt - DM
+&gt&gt 
+&gt&gt 
+&gt&gt 
+&gt&gt&gt On Oct 12, 2017, at 05:16, Toomas Altosaar &lt;toomas.altosaar@fi.abb.com&gt wrote:
+&gt&gt&gt 
+&gt&gt&gt Hi Chun,
+&gt&gt&gt 
+&gt&gt&gt I can see your point but since this topic can certainly be seen as being complex and not entirely derivable from Lisp specifications (due to threading issues that did not exist when the spec was written), I certainly have benefited in seeing the conditions, problem, and evolution of the solution through the e-mails covering this subject. If it would have just come out as one report in a "problem and solution pair" then I would have not probably spent time even reflecting on the issue. I learned something important.
+&gt&gt&gt 
+&gt&gt&gt However, one question remains: why is the code walker's current source not available for viewing?
+&gt&gt&gt 
+&gt&gt&gt Thanks,
+&gt&gt&gt 
+&gt&gt&gt Toomas
+&gt&gt&gt 
+&gt&gt&gt -----Original Message-----
+&gt&gt&gt From: owner-lisp-hug@lispworks.com [mailto:owner-lisp-hug@lispworks.com] On Behalf Of Chun Tian
+&gt&gt&gt Sent: 12. lokakuuta 2017 12:58
+&gt&gt&gt To: David McClain &lt;dbm@refined-audiometrics.com&gt
+&gt&gt&gt Cc: Harlequin User Group &lt;lisp-hug@lispworks.com&gt
+&gt&gt&gt Subject: Re: Defensive Multithreaded Coding...
+&gt&gt&gt 
+&gt&gt&gt Good job …
+&gt&gt&gt 
+&gt&gt&gt P. S. if I sent two emails (without questions or question marks inside) in a public forum in the same thread but got no replies, probably it means nobody is interested in the topic or has no time to look into long emails, then I will not send the 3rd email again, I definitely won’t send 10 emails in this case. If I have good project ideas, I would rather try to finish it FIRST, then post a brief news for comments. Hope this helps.
+&gt&gt&gt 
+&gt&gt&gt&gt 在 12 ott 2017，11:21，David McClain &lt;dbm@refined-audiometrics.com&gt 写道：
+&gt&gt&gt&gt 
+&gt&gt&gt&gt Wow the Walker seems an odd bit of code. There are hints to be found on the copyrights page of the LW manuals, that it dates back to Lucid. And probing on Google brings up ancestor codes from Symbolics and even earlier.
+&gt&gt&gt&gt 
+&gt&gt&gt&gt Using the Walker successfully requires forgetting about how you think it should work, and paying attention to how it really is working. Maybe this note can help others, based on what I found by reverse engineering and trial and error.
+&gt&gt&gt&gt 
+&gt&gt&gt&gt The Walker basically works with a user provided callback function to which it passes the current subform under inspection, the current environment, and a context. It seems the context is to be ignored. You pass back from the callback routine your modifications to the current subform. That much seems pretty straightforward. The environment is an important piece of the puzzle as it successively records the symbols and kinds of bindings that occur as the Walker probes ever deeper.
+&gt&gt&gt&gt 
+&gt&gt&gt&gt But… the Walker will keep throwing your last form right back to you until you return it unchanged. It took a while for that to sink in. So if you perform augmenting rewrites on forms, such as providing nested LET forms inside those present in the subform, then you will go into an infinite loop unless you statefully remember the last form you sent back and compare against the next presented subform. If they are identical, as in EQ, then you should just return it back to the Walker unchanged. Otherwise it represents a new subform for you to chew on.
+&gt&gt&gt&gt 
+&gt&gt&gt&gt Once I realized this order in the universe, my lexical binding scanner became massively simplified. No need for markers and cleanup passes to rewrite those markers. Go ahead and augment the subforms handed to you. And using something like Optima MATCH can make life so much more pleasant for finding the subform patterns needing rewriting. Alpha conversion is almost trivial now, except for the fact that lambda arglists must also be alpha converted, lest the arguments refer to extant special bindings (global and otherwise through (DECLARE SPECIAL)).
+&gt&gt&gt&gt 
+&gt&gt&gt&gt The bit about it not cleaning up SYMBOL-MACROLET after itself is puzzling, and so I trivially remove the detritus in my second pass. I mark it up to an ancient code base that suffered through many iterations of attempted uniformity against an unruly universe of Lisp providers all going their own way on various aspects of the language.
+&gt&gt&gt&gt 
+&gt&gt&gt&gt The Walker is an incredibly useful tool. Too bad so little has been known about it by those of us not members of the pioneer crowd.
+&gt&gt&gt&gt 
+&gt&gt&gt&gt Cheers,
+&gt&gt&gt&gt 
+&gt&gt&gt&gt - DM
+&gt&gt&gt&gt 
+&gt&gt&gt&gt _______________________________________________
+&gt&gt&gt&gt Lisp Hug - the mailing list for LispWorks users lisp-hug@lispworks.com 
+&gt&gt&gt&gt http://www.lispworks.com/support/lisp-hug.html
+&gt&gt&gt 
+&gt&gt&gt 
+&gt&gt&gt _______________________________________________
+&gt&gt&gt Lisp Hug - the mailing list for LispWorks users
+&gt&gt&gt lisp-hug@lispworks.com
+&gt&gt&gt http://www.lispworks.com/support/lisp-hug.html
+&gt&gt&gt 
+&gt 
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+&gt 
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Defensive Multithreaded Coding...</h1><html><head><meta http-equiv="Content-Type" content="text/html charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">BTW, the nested ENSURE-LEXICAL-BINDINGS is redundant, as it should be. Only the outermost ensure does anything. Inner ones simply return their associated &amp;body in walkthrough. So the second one in my test code was planted to be certain that nesting behavior is correct. Same goes for any MP-LAMBDA inside the scope of the ensure.<div class=""><br class=""></div><div class="">- DM</div><div class=""><br class=""><div><blockquote type="cite" class=""><div class="">On Oct 12, 2017, at 08:19, David McClain &lt;<a href="mailto:dbm@refined-audiometrics.com" class="">dbm@refined-audiometrics.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><div class="">Thanks Martin,<br class=""><br class="">But when I substitute your recommended test in place of my OR clause with SYS:DECLARED-SPECIAL-P and WALKER:VARIABLE-SPECIAL-P, then my alpha conversion stops working.<br class=""><br class="">Here is my test example:<br class=""><br class="">(defvar x 15) &nbsp;;; &lt;— plant a global special<br class=""><br class="">;; then walk this<br class="">(let ((u 1)<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(x 32)<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(y 15))<br class=""> &nbsp;(declare (special y))<br class=""> &nbsp;(locally ;; let ((y 77)) &nbsp;;; &lt;— allows me to test for a lexical override on special<br class=""> &nbsp;&nbsp;&nbsp;(ensure-lexical-bindings ()<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(let ((v 2)<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(x "twently"))<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<font color="#b92d5d" class="">(ensure-lexical-bindings ()</font><br class=""> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(symbol-macrolet ((c 3))<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(mp-lambda (x a b)<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(+ x y a b c))))))))<br class=""><br class=""><br class="">With your recommended HCL:VARIABLE-INFORMATION I get the following as a Walker result:<br class=""><br class="">(LET ((U 1) (X 32) (Y 15)) (DECLARE (SPECIAL Y)) (LOCALLY (LET ((V 2) (X "twently")) #'(LAMBDA (X A B) (+ X Y A B 3)))))<br class=""><br class="">But with my original code I get this:<br class=""><br class="">(LET ((U 1) (X 32) (Y 15))<br class=""> &nbsp;(DECLARE (SPECIAL Y))<br class=""> &nbsp;(LOCALLY<br class=""> &nbsp;&nbsp;&nbsp;(LET ((#:Y50649 Y) (#:X50648 X))<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(DECLARE (IGNORABLE #:Y50649 #:X50648))<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(LET ((V 2) (X "twently")) (LET ((#:X50648 X)) (DECLARE (IGNORABLE #:X50648)) #'(LAMBDA (#:X50648 A B) (+ #:X50648 #:Y50649 A B 3)))))))<br class=""><br class=""><br class="">- DM<br class=""><br class=""><br class=""><blockquote type="cite" class="">On Oct 12, 2017, at 07:10, Martin Simmons &lt;<a href="mailto:martin@lispworks.com" class="">martin@lispworks.com</a>&gt; wrote:<br class=""><br class="">I think what you actually need is<br class=""><br class="">(eq (hcl:variable-information sym env) :special)<br class=""><br class="">which deals with global and local declarations.<br class=""><br class="">-- <br class="">Martin Simmons<br class="">LispWorks Ltd<br class=""><a href="http://www.lispworks.com/" class="">http://www.lispworks.com/</a><br class=""><br class=""><br class=""><blockquote type="cite" class=""><blockquote type="cite" class=""><blockquote type="cite" class=""><blockquote type="cite" class=""><blockquote type="cite" class="">On Thu, 12 Oct 2017 05:41:09 -0700, David McClain said:<br class=""></blockquote></blockquote></blockquote></blockquote><br class="">BTW… this should be pointed out… The current definition of a global special in the walker callback is:<br class=""><br class=""> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(is-global (sym env)<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(and (symbolp sym)<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;;<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;; DEFCONSTANT produces a special binding,<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;; but it can't be accidentally rebound or<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;; redefined, so it is okay for other<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;; threads to use this truly global fixed<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;; values<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;;<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(not (constantp sym))<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;;<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;; once declared special with DEFVAR or DEFPARAMETER you<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;; can never bind a symbol lexically. The only way to<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;; remove its special property is to unintern it.<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;;<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(or (sys:declared-special-p sym)<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;;<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;; and using (DECLARE SPECIAL) can make<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;; dynamic bindings, even if there is<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;; no global declaration with that<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;; symbol. But these local special<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;; bindings can be overridden by an<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;; inner lexical binding with the same<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;; symbol.<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;;<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(walker:variable-special-p sym env))<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;;<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;; make sure we aren't supposed to ignore this symbol<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;;<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(not (member sym global-exceptions))))<br class=""><br class=""> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The red highlighted line shows the main distinction from earlier versions. The Walker keeps track of a lot of information in the variables environment when it sees LET bindings. When external globals have already been declared somewhere else, the Walker probably isn’t aware of them, and that’s the reason for my SYS:DECLARED-SPECIAL-P. But the Walker does understand lexical and locally declared special bindings. And while you can never override a globally declared special binding (except by UNINTERN), the use of (DECLARE SPECIAL) *can* be overridden by an enclosed LET, and the Walker seems to understand that.<br class=""><br class="">So the prior sources showed something like (NOT (WALKER:VARIABLE-LEXICAL-P)) that isn’t the correct test. It should be (WALKER:VARIABLE-SPECIAL-P) as shown above.<br class=""><br class="">… at least, I think so now…<br class=""><br class="">(Finish what? … how does one know when it is finished, whatever *it* is? These ramblings produce an archive on Google for someday when someone else runs into the same problems and wants to search for prior resolutions.)<br class=""><br class="">- DM<br class=""><br class=""><br class=""><br class=""><blockquote type="cite" class="">On Oct 12, 2017, at 05:16, Toomas Altosaar &lt;toomas.altosaar@fi.abb.com&gt; wrote:<br class=""><br class="">Hi Chun,<br class=""><br class="">I can see your point but since this topic can certainly be seen as being complex and not entirely derivable from Lisp specifications (due to threading issues that did not exist when the spec was written), I certainly have benefited in seeing the conditions, problem, and evolution of the solution through the e-mails covering this subject. If it would have just come out as one report in a "problem and solution pair" then I would have not probably spent time even reflecting on the issue. I learned something important.<br class=""><br class="">However, one question remains: why is the code walker's current source not available for viewing?<br class=""><br class="">Thanks,<br class=""><br class="">Toomas<br class=""><br class="">-----Original Message-----<br class="">From: owner-lisp-hug@lispworks.com [mailto:owner-lisp-hug@lispworks.com] On Behalf Of Chun Tian<br class="">Sent: 12. lokakuuta 2017 12:58<br class="">To: David McClain &lt;dbm@refined-audiometrics.com&gt;<br class="">Cc: Harlequin User Group &lt;lisp-hug@lispworks.com&gt;<br class="">Subject: Re: Defensive Multithreaded Coding...<br class=""><br class="">Good job …<br class=""><br class="">P. S. if I sent two emails (without questions or question marks inside) in a public forum in the same thread but got no replies, probably it means nobody is interested in the topic or has no time to look into long emails, then I will not send the 3rd email again, I definitely won’t send 10 emails in this case. If I have good project ideas, I would rather try to finish it FIRST, then post a brief news for comments. Hope this helps.<br class=""><br class=""><blockquote type="cite" class="">在 12 ott 2017，11:21，David McClain &lt;dbm@refined-audiometrics.com&gt; 写道：<br class=""><br class="">Wow the Walker seems an odd bit of code. There are hints to be found on the copyrights page of the LW manuals, that it dates back to Lucid. And probing on Google brings up ancestor codes from Symbolics and even earlier.<br class=""><br class="">Using the Walker successfully requires forgetting about how you think it should work, and paying attention to how it really is working. Maybe this note can help others, based on what I found by reverse engineering and trial and error.<br class=""><br class="">The Walker basically works with a user provided callback function to which it passes the current subform under inspection, the current environment, and a context. It seems the context is to be ignored. You pass back from the callback routine your modifications to the current subform. That much seems pretty straightforward. The environment is an important piece of the puzzle as it successively records the symbols and kinds of bindings that occur as the Walker probes ever deeper.<br class=""><br class="">But… the Walker will keep throwing your last form right back to you until you return it unchanged. It took a while for that to sink in. So if you perform augmenting rewrites on forms, such as providing nested LET forms inside those present in the subform, then you will go into an infinite loop unless you statefully remember the last form you sent back and compare against the next presented subform. If they are identical, as in EQ, then you should just return it back to the Walker unchanged. Otherwise it represents a new subform for you to chew on.<br class=""><br class="">Once I realized this order in the universe, my lexical binding scanner became massively simplified. No need for markers and cleanup passes to rewrite those markers. Go ahead and augment the subforms handed to you. And using something like Optima MATCH can make life so much more pleasant for finding the subform patterns needing rewriting. Alpha conversion is almost trivial now, except for the fact that lambda arglists must also be alpha converted, lest the arguments refer to extant special bindings (global and otherwise through (DECLARE SPECIAL)).<br class=""><br class="">The bit about it not cleaning up SYMBOL-MACROLET after itself is puzzling, and so I trivially remove the detritus in my second pass. I mark it up to an ancient code base that suffered through many iterations of attempted uniformity against an unruly universe of Lisp providers all going their own way on various aspects of the language.<br class=""><br class="">The Walker is an incredibly useful tool. Too bad so little has been known about it by those of us not members of the pioneer crowd.<br class=""><br class="">Cheers,<br class=""><br class="">- DM<br class=""><br class="">_______________________________________________<br class="">Lisp Hug - the mailing list for LispWorks users lisp-hug@lispworks.com <br class="">http://www.lispworks.com/support/lisp-hug.html<br class=""></blockquote><br class=""><br class="">_______________________________________________<br class="">Lisp Hug - the mailing list for LispWorks users<br class="">lisp-hug@lispworks.com<br class="">http://www.lispworks.com/support/lisp-hug.html<br class=""><br class=""></blockquote></blockquote><br class="">_______________________________________________<br class="">Lisp Hug - the mailing list for LispWorks users<br class="">lisp-hug@lispworks.com<br class="">http://www.lispworks.com/support/lisp-hug.html<br class=""><br class=""></blockquote><br class=""><br class="">_______________________________________________<br class="">Lisp Hug - the mailing list for LispWorks users<br class=""><a href="mailto:lisp-hug@lispworks.com" class="">lisp-hug@lispworks.com</a><br class="">http://www.lispworks.com/support/lisp-hug.html<br class=""><br class=""></div></div></blockquote></div><br class=""></div></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Defensive Multithreaded Coding...</h1>
+                 <pre>Sorry, forget that, it looks like the walker doesn't create the necessary
+environment data for HCL:VARIABLE-INFORMATION to find specials.
+
+-- 
+Martin Simmons
+LispWorks Ltd
+http://www.lispworks.com/
+
+
+
+&gt&gt&gt&gt&gt On Thu, 12 Oct 2017 08:19:43 -0700, David McClain said:
+&gt 
+&gt Thanks Martin,
+&gt 
+&gt But when I substitute your recommended test in place of my OR clause with SYS:DECLARED-SPECIAL-P and WALKER:VARIABLE-SPECIAL-P, then my alpha conversion stops working.
+&gt 
+&gt Here is my test example:
+&gt 
+&gt (defvar x 15)  ;; &lt;— plant a global special
+&gt 
+&gt ;; then walk this
+&gt (let ((u 1)
+&gt       (x 32)
+&gt       (y 15))
+&gt   (declare (special y))
+&gt   (locally ;; let ((y 77))  ;; &lt;— allows me to test for a lexical override on special
+&gt     (ensure-lexical-bindings ()
+&gt       (let ((v 2)
+&gt             (x "twently"))
+&gt         (ensure-lexical-bindings ()
+&gt           (symbol-macrolet ((c 3))
+&gt             (mp-lambda (x a b)
+&gt               (+ x y a b c))))))))
+&gt 
+&gt 
+&gt With your recommended HCL:VARIABLE-INFORMATION I get the following as a Walker result:
+&gt 
+&gt (LET ((U 1) (X 32) (Y 15)) (DECLARE (SPECIAL Y)) (LOCALLY (LET ((V 2) (X "twently")) #'(LAMBDA (X A B) (+ X Y A B 3)))))
+&gt 
+&gt But with my original code I get this:
+&gt 
+&gt (LET ((U 1) (X 32) (Y 15))
+&gt   (DECLARE (SPECIAL Y))
+&gt   (LOCALLY
+&gt     (LET ((#:Y50649 Y) (#:X50648 X))
+&gt       (DECLARE (IGNORABLE #:Y50649 #:X50648))
+&gt       (LET ((V 2) (X "twently")) (LET ((#:X50648 X)) (DECLARE (IGNORABLE #:X50648)) #'(LAMBDA (#:X50648 A B) (+ #:X50648 #:Y50649 A B 3)))))))
+&gt 
+&gt 
+&gt - DM
+&gt 
+&gt 
+&gt &gt On Oct 12, 2017, at 07:10, Martin Simmons &lt;martin@lispworks.com&gt wrote:
+&gt &gt 
+&gt &gt I think what you actually need is
+&gt &gt 
+&gt &gt (eq (hcl:variable-information sym env) :special)
+&gt &gt 
+&gt &gt which deals with global and local declarations.
+&gt &gt 
+&gt &gt -- 
+&gt &gt Martin Simmons
+&gt &gt LispWorks Ltd
+&gt &gt http://www.lispworks.com/
+&gt &gt 
+&gt &gt 
+&gt &gt&gt&gt&gt&gt&gt On Thu, 12 Oct 2017 05:41:09 -0700, David McClain said:
+&gt &gt&gt 
+&gt &gt&gt BTW… this should be pointed out… The current definition of a global special in the walker callback is:
+&gt &gt&gt 
+&gt &gt&gt         (is-global (sym env)
+&gt &gt&gt           (and (symbolp sym)
+&gt &gt&gt            ;;
+&gt &gt&gt            ;; DEFCONSTANT produces a special binding,
+&gt &gt&gt            ;; but it can't be accidentally rebound or
+&gt &gt&gt            ;; redefined, so it is okay for other
+&gt &gt&gt            ;; threads to use this truly global fixed
+&gt &gt&gt            ;; values
+&gt &gt&gt            ;;
+&gt &gt&gt            (not (constantp sym))
+&gt &gt&gt            ;;
+&gt &gt&gt            ;; once declared special with DEFVAR or DEFPARAMETER you
+&gt &gt&gt            ;; can never bind a symbol lexically. The only way to
+&gt &gt&gt            ;; remove its special property is to unintern it.
+&gt &gt&gt            ;;
+&gt &gt&gt            (or (sys:declared-special-p sym)
+&gt &gt&gt                ;;
+&gt &gt&gt                ;; and using (DECLARE SPECIAL) can make
+&gt &gt&gt                ;; dynamic bindings, even if there is
+&gt &gt&gt                ;; no global declaration with that
+&gt &gt&gt                ;; symbol. But these local special
+&gt &gt&gt                ;; bindings can be overridden by an
+&gt &gt&gt                ;; inner lexical binding with the same
+&gt &gt&gt                ;; symbol.
+&gt &gt&gt                ;;
+&gt &gt&gt                (walker:variable-special-p sym env))
+&gt &gt&gt            ;;
+&gt &gt&gt            ;; make sure we aren't supposed to ignore this symbol
+&gt &gt&gt            ;;
+&gt &gt&gt            (not (member sym global-exceptions))))
+&gt &gt&gt 
+&gt &gt&gt        The red highlighted line shows the main distinction from earlier versions. The Walker keeps track of a lot of information in the variables environment when it sees LET bindings. When external globals have already been declared somewhere else, the Walker probably isn’t aware of them, and that’s the reason for my SYS:DECLARED-SPECIAL-P. But the Walker does understand lexical and locally declared special bindings. And while you can never override a globally declared special binding (except by UNINTERN), the use of (DECLARE SPECIAL) *can* be overridden by an enclosed LET, and the Walker seems to understand that.
+&gt &gt&gt 
+&gt &gt&gt So the prior sources showed something like (NOT (WALKER:VARIABLE-LEXICAL-P)) that isn’t the correct test. It should be (WALKER:VARIABLE-SPECIAL-P) as shown above.
+&gt &gt&gt 
+&gt &gt&gt … at least, I think so now…
+&gt &gt&gt 
+&gt &gt&gt (Finish what? … how does one know when it is finished, whatever *it* is? These ramblings produce an archive on Google for someday when someone else runs into the same problems and wants to search for prior resolutions.)
+&gt &gt&gt 
+&gt &gt&gt - DM
+&gt &gt&gt 
+&gt &gt&gt 
+&gt &gt&gt 
+&gt &gt&gt&gt On Oct 12, 2017, at 05:16, Toomas Altosaar &lt;toomas.altosaar@fi.abb.com&gt wrote:
+&gt &gt&gt&gt 
+&gt &gt&gt&gt Hi Chun,
+&gt &gt&gt&gt 
+&gt &gt&gt&gt I can see your point but since this topic can certainly be seen as being complex and not entirely derivable from Lisp specifications (due to threading issues that did not exist when the spec was written), I certainly have benefited in seeing the conditions, problem, and evolution of the solution through the e-mails covering this subject. If it would have just come out as one report in a "problem and solution pair" then I would have not probably spent time even reflecting on the issue. I learned something important.
+&gt &gt&gt&gt 
+&gt &gt&gt&gt However, one question remains: why is the code walker's current source not available for viewing?
+&gt &gt&gt&gt 
+&gt &gt&gt&gt Thanks,
+&gt &gt&gt&gt 
+&gt &gt&gt&gt Toomas
+&gt &gt&gt&gt 
+&gt &gt&gt&gt -----Original Message-----
+&gt &gt&gt&gt From: owner-lisp-hug@lispworks.com [mailto:owner-lisp-hug@lispworks.com] On Behalf Of Chun Tian
+&gt &gt&gt&gt Sent: 12. lokakuuta 2017 12:58
+&gt &gt&gt&gt To: David McClain &lt;dbm@refined-audiometrics.com&gt
+&gt &gt&gt&gt Cc: Harlequin User Group &lt;lisp-hug@lispworks.com&gt
+&gt &gt&gt&gt Subject: Re: Defensive Multithreaded Coding...
+&gt &gt&gt&gt 
+&gt &gt&gt&gt Good job …
+&gt &gt&gt&gt 
+&gt &gt&gt&gt P. S. if I sent two emails (without questions or question marks inside) in a public forum in the same thread but got no replies, probably it means nobody is interested in the topic or has no time to look into long emails, then I will not send the 3rd email again, I definitely won’t send 10 emails in this case. If I have good project ideas, I would rather try to finish it FIRST, then post a brief news for comments. Hope this helps.
+&gt &gt&gt&gt 
+&gt &gt&gt&gt&gt 在 12 ott 2017，11:21，David McClain &lt;dbm@refined-audiometrics.com&gt 写道：
+&gt &gt&gt&gt&gt 
+&gt &gt&gt&gt&gt Wow the Walker seems an odd bit of code. There are hints to be found on the copyrights page of the LW manuals, that it dates back to Lucid. And probing on Google brings up ancestor codes from Symbolics and even earlier.
+&gt &gt&gt&gt&gt 
+&gt &gt&gt&gt&gt Using the Walker successfully requires forgetting about how you think it should work, and paying attention to how it really is working. Maybe this note can help others, based on what I found by reverse engineering and trial and error.
+&gt &gt&gt&gt&gt 
+&gt &gt&gt&gt&gt The Walker basically works with a user provided callback function to which it passes the current subform under inspection, the current environment, and a context. It seems the context is to be ignored. You pass back from the callback routine your modifications to the current subform. That much seems pretty straightforward. The environment is an important piece of the puzzle as it successively records the symbols and kinds of bindings that occur as the Walker probes ever deeper.
+&gt &gt&gt&gt&gt 
+&gt &gt&gt&gt&gt But… the Walker will keep throwing your last form right back to you until you return it unchanged. It took a while for that to sink in. So if you perform augmenting rewrites on forms, such as providing nested LET forms inside those present in the subform, then you will go into an infinite loop unless you statefully remember the last form you sent back and compare against the next presented subform. If they are identical, as in EQ, then you should just return it back to the Walker unchanged. Otherwise it represents a new subform for you to chew on.
+&gt &gt&gt&gt&gt 
+&gt &gt&gt&gt&gt Once I realized this order in the universe, my lexical binding scanner became massively simplified. No need for markers and cleanup passes to rewrite those markers. Go ahead and augment the subforms handed to you. And using something like Optima MATCH can make life so much more pleasant for finding the subform patterns needing rewriting. Alpha conversion is almost trivial now, except for the fact that lambda arglists must also be alpha converted, lest the arguments refer to extant special bindings (global and otherwise through (DECLARE SPECIAL)).
+&gt &gt&gt&gt&gt 
+&gt &gt&gt&gt&gt The bit about it not cleaning up SYMBOL-MACROLET after itself is puzzling, and so I trivially remove the detritus in my second pass. I mark it up to an ancient code base that suffered through many iterations of attempted uniformity against an unruly universe of Lisp providers all going their own way on various aspects of the language.
+&gt &gt&gt&gt&gt 
+&gt &gt&gt&gt&gt The Walker is an incredibly useful tool. Too bad so little has been known about it by those of us not members of the pioneer crowd.
+&gt &gt&gt&gt&gt 
+&gt &gt&gt&gt&gt Cheers,
+&gt &gt&gt&gt&gt 
+&gt &gt&gt&gt&gt - DM
+&gt &gt&gt&gt&gt 
+&gt &gt&gt&gt&gt _______________________________________________
+&gt &gt&gt&gt&gt Lisp Hug - the mailing list for LispWorks users lisp-hug@lispworks.com 
+&gt &gt&gt&gt&gt http://www.lispworks.com/support/lisp-hug.html
+&gt &gt&gt&gt 
+&gt &gt&gt&gt 
+&gt &gt&gt&gt _______________________________________________
+&gt &gt&gt&gt Lisp Hug - the mailing list for LispWorks users
+&gt &gt&gt&gt lisp-hug@lispworks.com
+&gt &gt&gt&gt http://www.lispworks.com/support/lisp-hug.html
+&gt &gt&gt&gt 
+&gt &gt 
+&gt &gt _______________________________________________
+&gt &gt Lisp Hug - the mailing list for LispWorks users
+&gt &gt lisp-hug@lispworks.com
+&gt &gt http://www.lispworks.com/support/lisp-hug.html
+&gt &gt 
+&gt 
+&gt 
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Defensive Multithreaded Coding...</h1>
+                 <pre>Final wrapup… 
+
+The Walker is an insufficient tool, in that it fails to furnish any information about the context in which symbols are seen, meaning TAGBODY tags, BLOCK labels, variable bindings, etc. As a result, attempts to have the Walker assist us to rewrite and augment bindings with inserted known lexical bindings invariably fails in some cases. Rebindings are invented for symbols of unknown binding character, when in fact they are TAGBODY labels. Alpha conversion is similarly hobbled.
+
+I spent a whole day going down the rabbit hole of a recursive descent walker more directly under my own control, and finally stopped in exasperation with its size and complexity. I really don’t want to rewrite a Lisp compiler, and the tool needs to be kept lightweight.
+
+So backtrack… The goal is to avoid accidentally producing code that fails to behave as expected in a foreign thread from where it had been produced, when that code runs just fine in the original thread.
+
+We can very easily have the Walker help us ferret out non-lexical and special symbols, build up a list of such symbols, then wrap the body of code in an idempotent SYMBOL-MACROLET over those symbols like this:
+	
+	(symbol-macrolet ((x x) (y y) (z z) …)
+		… )
+
+This works by performing innoccuous substitutions, and signaling an error if any of the symbols have already been defined with global special bindings. The code to do this is small and simple. Since we just want to know that our code will behave properly in another thread, being told of an error during compile time is okay. At least it won’t blindly produce bad code. Just go back into the package and UNINTERN the offending symbols and try compiling again. Or if you really want to refer to a global binding, just leave its symbol out of the macrolet symbol list.
+
+This shouldn’t have to be a big deal. And it normally wouldn’t be if you are disciplined enough to not play in the same package in which your code has been defined, or if you religiously follow the earmuff convention. I am historically neither. The damning thing is that Lisp entraps you with one-way conversions to special bindings. No way to undo that except by uninterning the symbols.
+
+I suppose an alternative is to wrap the body of code with a block of symbol uninterns. But since that happens silently, you might not like it when you discover you can no longer examine that data you set aside in a global binding. I think being notified by an error signal is probably the better course.
+
+- DM
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+           </body>
+          </html>

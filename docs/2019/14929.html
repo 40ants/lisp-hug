@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Conditional dependencies</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+           </head>
+           <body>
+            <div class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </div>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Conditional dependencies</h1>
+                <pre>Hi,
+
+I’m working on a library with a couple of different backends, each with a different set of required libraries. Since not all backends are relevant for all situations, it would be nice to offer users of the lib the possibility to choose which backends to use and avoid loading the dependencies that belong to the unused backends. Is there a good/clean/simple way to achieve this?
+
+Read-time conditionals would be one way to go of course, but I wonder if there are other ways.
+
+Regards
+Erik
+
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Conditional dependencies</h1><html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class=""><br class=""><div><br class=""><blockquote type="cite" class=""><div class="">On 14 Feb 2019, at 22:13, Erik Ronström &lt;<a href="mailto:erik.ronstrom@doremir.com" class="">erik.ronstrom@doremir.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><div class="">Hi,<br class=""><br class="">I’m working on a library with a couple of different backends, each with a different set of required libraries. Since not all backends are relevant for all situations, it would be nice to offer users of the lib the possibility to choose which backends to use and avoid loading the dependencies that belong to the unused backends. Is there a good/clean/simple way to achieve this?<br class=""><br class="">Read-time conditionals would be one way to go of course, but I wonder if there are other ways.<br class=""></div></div></blockquote><br class=""></div><div>One good current solution is to use asdf, and to define different systems for the different configurations of backends.</div><div><br class=""></div><div>You can define 3 different systems, all depending on a core system, and each on a different backend system. &nbsp;The core system can use any backend thru a common API. (eg. all backend systems can define a package with the same name as API).</div><div><br class=""></div><div><br class=""></div><div><div><font face="Menlo" class="">&nbsp;+-------------+ &nbsp; &nbsp; &nbsp; &nbsp;+-------------+ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;</font></div><div><font face="Menlo" class="">&nbsp;| &nbsp;backend-1 &nbsp;|&lt;-------| &nbsp; system-1 &nbsp;|-----+ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;</font></div><div><font face="Menlo" class="">&nbsp;+-------------+ &nbsp; &nbsp; &nbsp; &nbsp;+-------------+ &nbsp; &nbsp; | &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;</font></div><div><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; | &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;</font></div><div><font face="Menlo" class="">&nbsp;+-------------+ &nbsp; &nbsp; &nbsp; &nbsp;+-------------+ &nbsp; &nbsp; +---&gt;+-------------+&nbsp;</font></div><div><font face="Menlo" class="">&nbsp;| &nbsp;backend-2 &nbsp;|&lt;-------| &nbsp; system-2 &nbsp;|---------&gt;| &nbsp; &nbsp; core &nbsp; &nbsp;|&nbsp;</font></div><div><font face="Menlo" class="">&nbsp;+-------------+ &nbsp; &nbsp; &nbsp; &nbsp;+-------------+ &nbsp; &nbsp; +---&gt;+-------------+&nbsp;</font></div><div><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; | &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;</font></div><div><font face="Menlo" class="">&nbsp;+-------------+ &nbsp; &nbsp; &nbsp; &nbsp;+-------------+ &nbsp; &nbsp; | &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;</font></div><div><font face="Menlo" class="">&nbsp;| &nbsp;backend-3 &nbsp;|&lt;-------| &nbsp; system-3 &nbsp;|-----+ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;</font></div><div><font face="Menlo" class="">&nbsp;+-------------+ &nbsp; &nbsp; &nbsp; &nbsp;+-------------+ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;</font></div></div><div class=""><br class=""></div><div class=""><br class=""></div><div class="">An alternative, is to merge backend-n with system-n, and just load the system of the backend you want. See for example, portable hemlock:</div><div class=""><br class=""></div><div class=""><div class=""><font face="Menlo" class="">cl-user&gt; (quick-apropos "hemlock")</font></div><div class=""><font face="Menlo" class=""><br class=""></font></div><div class=""><font face="Menlo" class="">#&lt;system hemlock.base / hemlock-20161208-git / quicklisp 2018-10-18&gt;&nbsp;</font></div><div class=""><font face="Menlo" class="">#&lt;system hemlock.clx / hemlock-20161208-git / quicklisp 2018-10-18&gt;&nbsp;</font></div><div class=""><font face="Menlo" class="">#&lt;system hemlock.qt / hemlock-20161208-git / quicklisp 2018-10-18&gt;&nbsp;</font></div><div class=""><font face="Menlo" class="">#&lt;system hemlock.tty / hemlock-20161208-git / quicklisp 2018-10-18&gt;&nbsp;</font></div><div class=""><br class=""></div><div class="">You would load one of hemlock.clx, hemlock.qt or hemlock.tty depending on the UI backend you want to use. &nbsp;Loading hemlock.base (the core) wouldn’t let you do much, since it doesn’t contain an UI.</div><div class=""><br class=""></div><div class=""><br class=""></div><div class="">The fundamental idea is, instead of using read-time conditionals in the sources, use the configuration management system (ie asdf) to select what source to load or not.</div><div class=""><br class=""></div><div class="">
+<div style="color: rgb(0, 0, 0); letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class=""><div style="color: rgb(0, 0, 0); letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class=""><div style="color: rgb(0, 0, 0); letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class="">--&nbsp;<br class="">__Pascal J. Bourguignon__</div><div style="color: rgb(0, 0, 0); letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class=""><br class=""><br class=""><br class=""></div></div></div>
+</div>
+<br class=""></div></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Conditional dependencies</h1>
+                 <pre>&gt&gt&gt&gt&gt On Thu, 14 Feb 2019 22:13:43 +0100, Erik Ronström said:
+&gt 
+&gt Hi,
+&gt 
+&gt I’m working on a library with a couple of different backends, each with a different set of required libraries. Since not all backends are relevant for all situations, it would be nice to offer users of the lib the possibility to choose which backends to use and avoid loading the dependencies that belong to the unused backends. Is there a good/clean/simple way to achieve this?
+&gt 
+&gt Read-time conditionals would be one way to go of course, but I wonder if there are other ways.
+
+For LispWorks defsystem, you could use the :features keyword in the definition
+of the members:
+
+(defsystem my-library (:default-type :system)
+  :members  ("core-system-1"
+             "core-system-2"
+             ("optional-system-1" :feature :want-option-1)
+             ("optional-system-2" :feature :want-option-2)))
+
+Defsystem evaluates the :feature expression (using *features*) when
+compiling/loading the system, rather than at read time.
+
+-- 
+Martin Simmons
+LispWorks Ltd
+http://www.lispworks.com/
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Conditional dependencies</h1><div dir="ltr">As I understand it real time conditional would not be enough unless there exist some function for each alternative that only spins up the resources for that alternative when/if called for.  The other need that often arises in such cases is for a common overall API to talk to these alternatives uniformly so their differences do not spread to the rest of the system more than necessary.   Microservices fired up from some container is one way to go.  Dynamic loading is another.  <br><br>Personally I don&#39;t think a whole tree of possible build combinations is the way to go.  Not dynamic enough.  For instance what if the backend are interfaces to different types of database and I would like to dynamically interact with persistent data from more than one of them at the same time?  It gets even more intractable if the set of different backends or other possibilities is not known ahead of time. <div><br></div></div><br><div class="gmail_quote"><div dir="ltr" class="gmail_attr">On Thu, Feb 14, 2019 at 2:16 PM Erik Ronström &lt;<a href="mailto:erik.ronstrom@doremir.com">erik.ronstrom@doremir.com</a>&gt; wrote:<br></div><blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex">Hi,<br>
+<br>
+I’m working on a library with a couple of different backends, each with a different set of required libraries. Since not all backends are relevant for all situations, it would be nice to offer users of the lib the possibility to choose which backends to use and avoid loading the dependencies that belong to the unused backends. Is there a good/clean/simple way to achieve this?<br>
+<br>
+Read-time conditionals would be one way to go of course, but I wonder if there are other ways.<br>
+<br>
+Regards<br>
+Erik<br>
+<br>
+<br>
+<br>
+_______________________________________________<br>
+Lisp Hug - the mailing list for LispWorks users<br>
+<a href="mailto:lisp-hug@lispworks.com" target="_blank">lisp-hug@lispworks.com</a><br>
+<a href="http://www.lispworks.com/support/lisp-hug.html" rel="noreferrer" target="_blank">http://www.lispworks.com/support/lisp-hug.html</a><br>
+</blockquote></div>
+
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Conditional dependencies</h1><html><head><meta http-equiv="Content-Type" content="text/html; charset=us-ascii"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class=""><br class=""><div><br class=""><blockquote type="cite" class=""><div class="">On 15 Feb 2019, at 19:26, Samantha Atkins &lt;<a href="mailto:sjatkins@gmail.com" class="">sjatkins@gmail.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><div dir="ltr" class="">As I understand it real time conditional would not be enough unless there exist some function for each alternative that only spins up the resources for that alternative when/if called for.&nbsp; The other need that often arises in such cases is for a common overall API to talk to these alternatives uniformly so their differences do not spread to the rest of the system more than necessary.&nbsp; &nbsp;Microservices fired up from some container is one way to go.&nbsp; Dynamic loading is another.&nbsp;&nbsp;<br class=""><br class="">Personally I don't think a whole tree of possible build combinations is the way to go.&nbsp; Not dynamic enough.&nbsp; For instance what if the backend are interfaces to different types of database and I would like to dynamically interact with persistent data from more than one of them at the same time?&nbsp; It gets even more intractable if the set of different backends or other possibilities is not known ahead of time.&nbsp;<div class=""></div></div><div class="gmail_quote"><blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex"><br class="">
+</blockquote></div>
+</div></blockquote><br class=""></div><div>In this case, and assuming you keep the specification that you only want to load what is currently used, you would want some kind of plug-in architecture.</div><div>You would compile the different backends into different fasl files, and load them at run-time as needed.</div><div>IIRC, asdf has an operation to build a single fasl from a whole system (check the user manual). &nbsp;Then you would have a separate system for each backend plug-in.</div><div><br class=""></div><div class="">
+<div style="color: rgb(0, 0, 0); letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class=""><div style="color: rgb(0, 0, 0); letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class=""><div style="color: rgb(0, 0, 0); letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class="">--&nbsp;<br class="">__Pascal J. Bourguignon__</div><div style="color: rgb(0, 0, 0); letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class=""><br class=""><br class=""><br class=""></div></div></div>
+</div>
+<br class=""></body></html>
+
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+           </body>
+          </html>

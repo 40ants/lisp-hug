@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Creating large arrays</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+           </head>
+           <body>
+            <div class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </div>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Creating large arrays</h1>
+                <pre>Hello,
+
+I am trying to create a moderately large (4GB) array on LispWorks 64-bit on a barebone 16Gb Windows 10 PC, only LispWorks running, beside Windows services (HobbyistDV license):
+
+
+(progn (make-array (* 4 1024 1024 1024)
+             :allocation :long-lived
+              :element-type '(unsigned-byte 8)
+              :fill-pointer t)
+  (values))
+
+
+(Note: thanks to lispm on reddit for tip on using (values) to avoid huge output at REPL)
+
+
+Even when compiling the above expression, I get this error message:
+
+&gt Bad total size 4294967296 for array, should be in the inclusive
+&gt range 0 to 536870910.
+
+
+On same PC, the following works fine on ccl:
+
+(progn
+  (make-array (* 4 1024 1024 1024)
+              :element-type '(unsigned-byte 8)
+              :fill-pointer t) (values))
+
+
+The only thing I could notice is that 536870910 is close to (expt 2 29) -&gt 536870912
+
+Shouldn't The heap grow automatically by requesting more memory from the operating system?
+
+In any case, based on this page,
+http://www.lispworks.com/documentation/lw71/LW/html/lw-212.htm#37447
+
+I tried using --relocate-image and --dynamic-space-size with same issue.
+
+
+I was unable to find any other information that could help.
+
+What am I doing wrong?
+
+How can one use large arrays in LispWorks 64-bit, potentially more than 10 GB?
+
+
+
+Thanks for any hint or direction,
+
+Priyadarshan
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Creating large arrays</h1><div dir="ltr">See 
+
+<a href="http://www.lispworks.com/documentation/lw71/LW/html/lw-233.htm#pgfId-891709">http://www.lispworks.com/documentation/lw71/LW/html/lw-233.htm#pgfId-891709</a>. <div><br></div><div>It seems that 64-bit Lispworks does not support arrays of more than 2^29-1 elements, which seems a bit low for a 64-bit implementation.</div><div><br></div><div>A possible workaround is to use multiple arrays; another might be to use the FLI to allocate a large chunk of memory outside the Lisp heap. Neither of these seem like a great solution, though.</div></div><br><div class="gmail_quote"><div dir="ltr" class="gmail_attr">On Thu, Jul 18, 2019 at 1:01 PM Lisp Student &lt;<a href="mailto:lisp@gmx.com">lisp@gmx.com</a>&gt; wrote:<br></div><blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex">Hello,<br>
+<br>
+I am trying to create a moderately large (4GB) array on LispWorks 64-bit on a barebone 16Gb Windows 10 PC, only LispWorks running, beside Windows services (HobbyistDV license):<br>
+<br>
+<br>
+(progn (make-array (* 4 1024 1024 1024)<br>
+             :allocation :long-lived<br>
+              :element-type &#39;(unsigned-byte 8)<br>
+              :fill-pointer t)<br>
+  (values))<br>
+<br>
+<br>
+(Note: thanks to lispm on reddit for tip on using (values) to avoid huge output at REPL)<br>
+<br>
+<br>
+Even when compiling the above expression, I get this error message:<br>
+<br>
+&gt; Bad total size 4294967296 for array, should be in the inclusive<br>
+&gt; range 0 to 536870910.<br>
+<br>
+<br>
+On same PC, the following works fine on ccl:<br>
+<br>
+(progn<br>
+  (make-array (* 4 1024 1024 1024)<br>
+              :element-type &#39;(unsigned-byte 8)<br>
+              :fill-pointer t) (values))<br>
+<br>
+<br>
+The only thing I could notice is that 536870910 is close to (expt 2 29) -&gt; 536870912<br>
+<br>
+Shouldn&#39;t The heap grow automatically by requesting more memory from the operating system?<br>
+<br>
+In any case, based on this page,<br>
+<a href="http://www.lispworks.com/documentation/lw71/LW/html/lw-212.htm#37447" rel="noreferrer" target="_blank">http://www.lispworks.com/documentation/lw71/LW/html/lw-212.htm#37447</a><br>
+<br>
+I tried using --relocate-image and --dynamic-space-size with same issue.<br>
+<br>
+<br>
+I was unable to find any other information that could help.<br>
+<br>
+What am I doing wrong?<br>
+<br>
+How can one use large arrays in LispWorks 64-bit, potentially more than 10 GB?<br>
+<br>
+<br>
+<br>
+Thanks for any hint or direction,<br>
+<br>
+Priyadarshan<br>
+<br>
+_______________________________________________<br>
+Lisp Hug - the mailing list for LispWorks users<br>
+<a href="mailto:lisp-hug@lispworks.com" target="_blank">lisp-hug@lispworks.com</a><br>
+<a href="http://www.lispworks.com/support/lisp-hug.html" rel="noreferrer" target="_blank">http://www.lispworks.com/support/lisp-hug.html</a><br>
+</blockquote></div>
+
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Creating large arrays</h1><html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class=""><br class=""><div><blockquote type="cite" class=""><div class=""><div class="">Are there other fast-access data structures with no such limitations, on<br class="">LispWorks?<br class=""><br class=""><br class="">Thank you again,<br class=""><br class="">Priyadarshan<br class=""></div></div></blockquote></div><br class=""><div class="">I have created something called ’N-Dimensional Sparse Spaces’ as a solution to the large array allocation problem. &nbsp;</div><div class=""><br class=""></div><div class=""><br class=""></div><div class=""><img class="spotlight" alt="No photo description available." aria-busy="true" apple-inline="yes" id="B58D6DF5-CC08-4DE3-9322-02D326DB1332" src="cid:6D3944FF-54B8-4C31-9A73-D3F5D36C2270"></div><div class=""><br class=""></div><div class="">This initial implementation is one to replace a set of random points within an N-Dimensional Sparse Grid addressed using integers, hence the use of #’= in #’make-space.</div><div class=""><br class=""></div><div class="">It is more generallized using other equals functions such as #’eql (so you can use symbols, and hence make an addressable symbol space), #’equals and #equalp letting you use S-Expressions as your addresses.</div><div class=""><br class=""></div><div class="">I have a more general implementation somewhere in my code, but the above image is the code I initially wrote that can be springboarded off of to create your own implementation.</div><div class=""><br class=""></div><div class="">One trick I have thought of is to, after you have completed your work with the space, is to compile it to a more suituable data structure for read-only access.</div><div class=""><br class=""></div><div class="">The sparce space is for editing and loading of the data you want to work with. &nbsp;A complied space is for reading data from the space, giving up generality.</div><div class=""><br class=""></div><div class="">Feel free to write me to discuss this data structure further if you have any questions or comments on its usefulness and generality and applicability to your problem.</div><div class=""><br class=""></div><div class="">Burton Samograd</div><div class="">BusFactor1 Inc.</div></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Creating large arrays</h1>
+                 <p>
+                  Unable to parse email body. Email id is 14963
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+           </body>
+          </html>

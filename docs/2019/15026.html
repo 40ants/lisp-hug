@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Objc interface: NSError reference arguments</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+           </head>
+           <body>
+            <div class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </div>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Objc interface: NSError reference arguments</h1><html><head><meta http-equiv="Content-Type" content="text/html; charset=us-ascii"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class=""><div class=""><div class="">What is the proper way to invoke an Objective-C method that takes an NSError argument by reference if I want to check the NSError after the call completes?</div><div class=""><br class=""></div></div><div class="">Suppose, for example, that I want to invoke a method with a signature likethis:</div><div class=""><pre class="objective_c highlight" style="font-stretch: normal; font-size: 0.95em; line-height: normal; font-family: Menlo, monospace; color: rgb(119, 119, 119); word-wrap: normal; padding: 0px 40px 40px 0px; border: none; border-top-left-radius: 4px; border-top-right-radius: 4px; border-bottom-right-radius: 4px; border-bottom-left-radius: 4px; margin-bottom: -25px;"><code style="border: 0px; margin: 0px 0px 1em; outline: 0px; padding: 0px; vertical-align: baseline; font-stretch: normal; font-size: 0.95em; line-height: normal; font-family: Menlo, monospace; word-wrap: normal; border-top-left-radius: 4px; border-top-right-radius: 4px; border-bottom-right-radius: 4px; border-bottom-left-radius: 4px;" class=""><span class="nf" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline; color: rgb(153, 0, 0);">initWithName</span><span class="p" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline;">:(</span><span class="n" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline;">NSString</span> <span class="o" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline; color: rgb(0, 0, 0); font-weight: bold;">*</span><span class="p" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline;">)</span><span class="nv" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline; color: rgb(0, 128, 128);">name</span>
+<span class="nf" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline; color: rgb(153, 0, 0);">  config</span><span class="p" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline;">: </span><span class="p" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline;">(</span>SomeConfigurationClass<span class="o" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline; color: rgb(0, 0, 0); font-weight: bold;">*</span><span class="p" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline;">)</span><span class="nv" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline; color: rgb(0, 128, 128);">config</span>
+<span class="nf" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline; color: rgb(153, 0, 0);">  error</span><span class="p" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline;">:(</span><span class="n" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline;">NSError</span> <span class="o" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline; color: rgb(0, 0, 0); font-weight: bold;">*</span><span class="p" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline;">)</span><span class="nv" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline; color: rgb(0, 128, 128);">error</span><span class="p" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline;">;</span></code></pre><div class=""><br class=""></div></div><div class="">The Lispworks manual shows how to pass arguments by reference like this:</div><div class=""><br class=""></div><div class=""><pre class="Code-first" style="margin: 8pt 0pt 0pt 27pt; font-size: 9pt; font-weight: bold; vertical-align: baseline; font-family: Courier, monospace;">(defun get-result (object)</pre><pre class="Code-body" style="margin: 0pt 0pt 0pt 27pt; font-size: 9pt; font-weight: bold; vertical-align: baseline; font-family: Courier, monospace;"><a name="pgfId-894159" class=""></a>  (fli:with-dynamic-foreign-objects ((result-value :int))</pre><pre class="Code-body" style="margin: 0pt 0pt 0pt 27pt; font-size: 9pt; font-weight: bold; vertical-align: baseline; font-family: Courier, monospace;"><a name="pgfId-894160" class=""></a>    (objc:invoke object "getValueInto:" result-value)</pre><pre class="Code-last" style="margin: 0pt 0pt 8pt 27pt; font-size: 9pt; font-weight: bold; vertical-align: baseline; font-family: Courier, monospace;"><a name="pgfId-894161" class=""></a>    (fli:dereference result-value)))</pre><div class=""><br class=""></div></div><div class="">What type should the argument&nbsp;<font face="Menlo" class="">error&nbsp;</font>take?</div><div class=""><br class=""></div><div class="">NSError is a class; the Objective-C manual says that the type named <font face="Menlo" class=""><span style="font-style: normal;" class="">objc:objc-object-pointer</span></font> represents instances of Objective-C classes. That suggests that I should be using something like</div><div class=""><br class=""></div><div class=""><pre class="Code-body" style="margin: 0pt 0pt 0pt 27pt; font-size: 9pt; font-weight: bold; vertical-align: baseline; font-family: Courier, monospace;">  (fli:with-dynamic-foreign-objects ((err :objc-object-pointer))</pre><pre class="Code-body" style="margin: 0pt 0pt 0pt 27pt; font-size: 9pt; font-weight: bold; vertical-align: baseline; font-family: Courier, monospace;"><a name="pgfId-894160" class=""></a>    (objc:invoke object "initWithName:config:error" my-name my-config err)</pre><pre class="Code-last" style="margin: 0pt 0pt 8pt 27pt; font-size: 9pt; font-weight: bold; vertical-align: baseline; font-family: Courier, monospace;"><a name="pgfId-894161" class=""></a>    (fli:dereference err)))</pre></div><div class=""><br class=""></div><div class="">...but the Lispworks compiler complains that objc-object-pointer is an illegal foreign type (I've tried writing the name various ways).&nbsp;</div><div class=""><br class=""></div><div class="">Using :pointer yields&nbsp;</div><div class=""><br class=""></div><div class=""><div class=""><font face="Menlo" class=""><span style="font-style: normal;" class="">Illegal instruction(4) [code 0] at 7FFF7DF731C2</span></font></div><div class=""><font face="Menlo" class=""><span style="font-style: normal;" class="">&nbsp; &nbsp; &nbsp; &nbsp; Foreign code offset #x17 from symbol "_os_unfair_lock_recursive_abort"</span></font></div><div class=""><font face="Menlo" class=""><span style="font-style: normal;" class="">&nbsp; &nbsp; &nbsp; &nbsp; module "/usr/lib/system/libsystem_platform.dylib" [ #x7FFF7DF6D000 ]</span></font></div></div><div class=""><br class=""></div><div class="">The examples in the Library are no help; the Objective-C method calls that take an error argument are called with NIL for that argument, which is then ignored.</div><div class=""><br class=""></div><div class="">I can of course pass NIL, as the examples do, but what's the right way to invoke the method if I want to be able to check the NSError argument after the method call?</div><div class=""><br class=""></div></body></html>
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Objc interface: NSError reference arguments</h1><html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class=""><br class=""><div><br class=""><blockquote type="cite" class=""><div class="">On 18 Sep 2019, at 14:53, mikel evins &lt;<a href="mailto:mevins@me.com" class="">mevins@me.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><meta http-equiv="Content-Type" content="text/html; charset=us-ascii" class=""><div style="word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class=""><div class=""><div class="">What is the proper way to invoke an Objective-C method that takes an NSError argument by reference if I want to check the NSError after the call completes?</div><div class=""><br class=""></div></div><div class="">Suppose, for example, that I want to invoke a method with a signature likethis:</div><div class=""><pre class="objective_c highlight" style="font-stretch: normal; font-size: 0.95em; line-height: normal; font-family: Menlo, monospace; color: rgb(119, 119, 119); word-wrap: normal; padding: 0px 40px 40px 0px; border: none; border-top-left-radius: 4px; border-top-right-radius: 4px; border-bottom-right-radius: 4px; border-bottom-left-radius: 4px; margin-bottom: -25px;"><code style="border: 0px; margin: 0px 0px 1em; outline: 0px; padding: 0px; vertical-align: baseline; font-stretch: normal; font-size: 0.95em; line-height: normal; font-family: Menlo, monospace; word-wrap: normal; border-top-left-radius: 4px; border-top-right-radius: 4px; border-bottom-right-radius: 4px; border-bottom-left-radius: 4px;" class=""><span class="nf" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline; color: rgb(153, 0, 0);">initWithName</span><span class="p" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline;">:(</span><span class="n" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline;">NSString</span> <span class="o" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline; font-weight: bold;">*</span><span class="p" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline;">)</span><span class="nv" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline; color: rgb(0, 128, 128);">name</span>
+<span class="nf" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline; color: rgb(153, 0, 0);">  config</span><span class="p" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline;">: </span><span class="p" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline;">(</span>SomeConfigurationClass<span class="o" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline; font-weight: bold;">*</span><span class="p" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline;">)</span><span class="nv" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline; color: rgb(0, 128, 128);">config</span>
+<span class="nf" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline; color: rgb(153, 0, 0);">  error</span><span class="p" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline;">:(</span><span class="n" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline;">NSError</span> <span class="o" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline; font-weight: bold;">*</span><span class="p" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline;">)</span><span class="nv" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline; color: rgb(0, 128, 128);">error</span><span class="p" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline;">;</span></code></pre></div></div></div></blockquote><div><br class=""></div><div><br class=""></div>Check your API. &nbsp;Usually, it’s (NSError**)error, not (NSError*)error.</div><div><br class=""></div><div>So you would pass either NULL if you’re not interested in the error, or:</div><div><br class=""></div><div><font face="Menlo" class="">NSError* error=nil;</font></div><div><font face="Menlo" class="">[object fooWithSomething:something error: &amp;error]</font></div><div><font face="Menlo" class="">if(error){</font></div><div><font face="Menlo" class="">&nbsp; handle_the_error(error);}</font></div><div><br class=""></div><div><br class=""></div><div>If you have an API with effectively (NSError*)error then the error cannot be an output parameter, but an input parameter. &nbsp;</div><div>You will have to allocate an NSError instance, or obtain one from another method.</div><div><br class=""></div><div><br class=""></div><div>I won’t enter into the details of Lispworks specific FFI, since I use cffi in general...</div><div class="">
+<div style="color: rgb(0, 0, 0); letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class=""><div style="color: rgb(0, 0, 0); letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class=""><div style="color: rgb(0, 0, 0); letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class="">--&nbsp;<br class="">__Pascal J. Bourguignon__</div><div style="color: rgb(0, 0, 0); letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class=""><br class=""><br class=""><br class=""></div></div></div>
+</div>
+<br class=""></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Objc interface: NSError reference arguments</h1><html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class="">Good point; thanks.<div class=""><br class=""><div><br class=""><blockquote type="cite" class=""><div class="">On Sep 18, 2019, at 9:07 AM, Pascal Bourguignon &lt;<a href="mailto:pjb@informatimago.com" class="">pjb@informatimago.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><meta http-equiv="Content-Type" content="text/html; charset=utf-8" class=""><div style="word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class=""><br class=""><div class=""><br class=""><blockquote type="cite" class=""><div class="">On 18 Sep 2019, at 14:53, mikel evins &lt;<a href="mailto:mevins@me.com" class="">mevins@me.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><meta http-equiv="Content-Type" content="text/html; charset=us-ascii" class=""><div style="word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class=""><div class=""><div class="">What is the proper way to invoke an Objective-C method that takes an NSError argument by reference if I want to check the NSError after the call completes?</div><div class=""><br class=""></div></div><div class="">Suppose, for example, that I want to invoke a method with a signature likethis:</div><div class=""><pre class="objective_c highlight" style="font-stretch: normal; font-size: 0.95em; line-height: normal; font-family: Menlo, monospace; color: rgb(119, 119, 119); word-wrap: normal; padding: 0px 40px 40px 0px; border: none; border-top-left-radius: 4px; border-top-right-radius: 4px; border-bottom-right-radius: 4px; border-bottom-left-radius: 4px; margin-bottom: -25px;"><code style="border: 0px; margin: 0px 0px 1em; outline: 0px; padding: 0px; vertical-align: baseline; font-stretch: normal; font-size: 0.95em; line-height: normal; font-family: Menlo, monospace; word-wrap: normal; border-top-left-radius: 4px; border-top-right-radius: 4px; border-bottom-right-radius: 4px; border-bottom-left-radius: 4px;" class=""><span class="nf" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline; color: rgb(153, 0, 0);">initWithName</span><span class="p" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline;">:(</span><span class="n" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline;">NSString</span> <span class="o" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline; font-weight: bold;">*</span><span class="p" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline;">)</span><span class="nv" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline; color: rgb(0, 128, 128);">name</span>
+<span class="nf" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline; color: rgb(153, 0, 0);">  config</span><span class="p" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline;">: </span><span class="p" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline;">(</span>SomeConfigurationClass<span class="o" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline; font-weight: bold;">*</span><span class="p" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline;">)</span><span class="nv" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline; color: rgb(0, 128, 128);">config</span>
+<span class="nf" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline; color: rgb(153, 0, 0);">  error</span><span class="p" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline;">:(</span><span class="n" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline;">NSError</span> <span class="o" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline; font-weight: bold;">*</span><span class="p" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline;">)</span><span class="nv" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline; color: rgb(0, 128, 128);">error</span><span class="p" style="border: 0px; margin: 0px; outline: 0px; padding: 0px; vertical-align: baseline;">;</span></code></pre></div></div></div></blockquote><div class=""><br class=""></div><div class=""><br class=""></div>Check your API. &nbsp;Usually, it’s (NSError**)error, not (NSError*)error.</div><div class=""><br class=""></div><div class="">So you would pass either NULL if you’re not interested in the error, or:</div><div class=""><br class=""></div><div class=""><font face="Menlo" class="">NSError* error=nil;</font></div><div class=""><font face="Menlo" class="">[object fooWithSomething:something error: &amp;error]</font></div><div class=""><font face="Menlo" class="">if(error){</font></div><div class=""><font face="Menlo" class="">&nbsp; handle_the_error(error);}</font></div><div class=""><br class=""></div><div class=""><br class=""></div><div class="">If you have an API with effectively (NSError*)error then the error cannot be an output parameter, but an input parameter. &nbsp;</div><div class="">You will have to allocate an NSError instance, or obtain one from another method.</div><div class=""><br class=""></div><div class=""><br class=""></div><div class="">I won’t enter into the details of Lispworks specific FFI, since I use cffi in general...</div><div class="">
+<div style="letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class=""><div style="letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class=""><div style="letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class="">--&nbsp;<br class="">__Pascal J. Bourguignon__</div><div style="letter-spacing: normal; text-align: start; text-indent: 0px; text-transform: none; white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; word-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;" class=""><br class=""><br class=""><br class=""></div></div></div>
+</div>
+<br class=""></div></div></blockquote></div><br class=""></div></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Objc interface: NSError reference arguments</h1>
+                 <p>
+                  Unable to parse email body. Email id is 15030
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Objc interface: NSError reference arguments</h1>
+                 <pre>I think you and pjb correctly identified my error. I'll proceed on that basis. If it turns out not to be true, I'll ask more questions.
+
+Thanks!
+
+
+&gt On Sep 18, 2019, at 9:10 AM, Martin Simmons &lt;martin@lispworks.com&gt wrote:
+&gt 
+&gt&gt&gt&gt&gt&gt On Wed, 18 Sep 2019 07:53:19 -0500, mikel evins said:
+&gt&gt 
+&gt&gt What is the proper way to invoke an Objective-C method that takes an NSError argument by reference if I want to check the NSError after the call completes?
+&gt&gt 
+&gt&gt Suppose, for example, that I want to invoke a method with a signature likethis:
+&gt&gt initWithName:(NSString *)name
+&gt&gt  config: (SomeConfigurationClass*)config
+&gt&gt  error:(NSError *)error;
+&gt 
+&gt Are you sure this is (NSError *)?  I would expect (NSError **) like this:
+&gt 
+&gt initWithName:(NSString *)name
+&gt  config: (SomeConfigurationClass*)config
+&gt  error:(NSError **)error;
+&gt 
+&gt 
+&gt&gt The Lispworks manual shows how to pass arguments by reference like this:
+&gt&gt 
+&gt&gt (defun get-result (object)
+&gt&gt   (fli:with-dynamic-foreign-objects ((result-value :int))
+&gt&gt     (objc:invoke object "getValueInto:" result-value)
+&gt&gt     (fli:dereference result-value)))
+&gt&gt 
+&gt&gt What type should the argument error take?
+&gt&gt 
+&gt&gt NSError is a class; the Objective-C manual says that the type named objc:objc-object-pointer represents instances of Objective-C classes. That suggests that I should be using something like
+&gt&gt 
+&gt&gt  (fli:with-dynamic-foreign-objects ((err :objc-object-pointer))
+&gt&gt     (objc:invoke object "initWithName:config:error" my-name my-config err)
+&gt&gt     (fli:dereference err)))
+&gt&gt 
+&gt&gt ...but the Lispworks compiler complains that objc-object-pointer is an illegal foreign type (I've tried writing the name various ways). 
+&gt 
+&gt It should be:
+&gt 
+&gt (fli:with-dynamic-foreign-objects ((err objc:objc-object-pointer))
+&gt  (objc:invoke object "initWithName:config:error:" my-name my-config err)
+&gt  (fli:dereference err))
+&gt 
+&gt This works for me with NSData dataWithContentsOfFile:options:error: at least.
+&gt 
+&gt 
+&gt&gt 
+&gt&gt Using :pointer yields 
+&gt&gt 
+&gt&gt Illegal instruction(4) [code 0] at 7FFF7DF731C2
+&gt&gt        Foreign code offset #x17 from symbol "_os_unfair_lock_recursive_abort"
+&gt&gt        module "/usr/lib/system/libsystem_platform.dylib" [ #x7FFF7DF6D000 ]
+&gt 
+&gt I would expect :pointer to work too.
+&gt 
+&gt Do you get this error inside initWithName:config:error: or after it has
+&gt returned?  You might need to check the return value of objc:invoke first,
+&gt before using the value of (fli:dereference err).
+&gt 
+&gt -- 
+&gt Martin Simmons
+&gt LispWorks Ltd
+&gt http://www.lispworks.com/
+&gt 
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+           </body>
+          </html>

@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Quasiquote and Comma symbols</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+           </head>
+           <body>
+            <div class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </div>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Quasiquote and Comma symbols</h1>
+                <pre>Hello,
+
+Sometimes I have lists that would be easier to build using the actual symbols (like quote) rather than the quote (‘), backquote (`) and comma (,) characters.  I’m wondering what the names are for the quasi quote and comma symbols expanded by the parser in Lispworks.  A search of the documentation has lead to nothing. 
+
+Burton
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Quasiquote and Comma symbols</h1>
+                 <pre>Hi!
+
+As other people said here, those details are not standardized, and are
+not documented. There are libraries for implementation of quasiquoting
+which (I think) can be made portable. Original implementaiton of
+quasiquote is in CLTL2
+(http://www.cs.cmu.edu/Groups/AI/html/cltl/clm/node367.html#SECTION003600000000000000000
+)
+
+You can use the original library and/or deduce which structures which
+represent quasiquoted data from the source. If you don't want to go
+this way, you can try further deducing details from the
+implementation.
+
+I made the following experiment in SBCL:
+
+507 CL-USER&gt(setf *print-pretty* nil)
+NIL
+508 CL-USER&gt'``(foo ,(bar ,baz))
+(SB-INT:QUASIQUOTE (SB-INT:QUASIQUOTE (FOO #S(SB-IMPL::COMMA :EXPR
+(BAR #S(SB-IMPL::COMMA :EXPR BAZ :KIND 0)) :KIND 0))))
+
+So, you might need nested quasiquote to learn something essential. We
+see there are some structures which represent quasiquotes. In an
+open-source implementation
+you can go to the source of the reader (start from the read function
+and the result of (get-macro-character #\`) in your open-source
+implementation).
+
+I currently have no Lispworks at hand, but you can try similar
+experiments until you can deduce what the exact structure is. You have
+no source codes, but you can use the result of printer output. If
+Lispworks does not show you the unleashed internal structure, try
+using inspector on the data Lispworks creates for you.
+
+2017-08-03 6:36 GMT+03:00, BusFactor1 Inc. &lt;busfactor1@gmail.com&gt:
+&gt Hello,
+&gt
+&gt Sometimes I have lists that would be easier to build using the actual
+&gt symbols (like quote) rather than the quote (‘), backquote (`) and comma (,)
+&gt characters.  I’m wondering what the names are for the quasi quote and comma
+&gt symbols expanded by the parser in Lispworks.  A search of the documentation
+&gt has lead to nothing.
+&gt
+&gt Burton
+&gt
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Quasiquote and Comma symbols</h1>
+                 <pre>Hi Burton,
+
+CL-USER&gt (quote `(1 2 ,*x*))
+
+(SYSTEM::BQ-LIST 1 2 *X*)
+
+CL-USER&gt (quote `(1 2 *x*))
+
+(QUOTE (1 2 *X*))
+
+The details of backquoting, in particular when nested, I have found to
+differ quite a lot between LW and SBCL, though I don't recall the
+precise details I think SBCL worked the way I thought it should.
+Perhaps this is not well specified in the standard.
+
+There are a bunch of related functions, though I couldn't tell you
+exactly how they differ, and of course being undocumented I wouldn't
+expect LW to notify me if they changed between releases.
+
+CL-USER&gt (apropos "BQ-")
+LW-XP::COPY-BQ-STRUCT (defined)
+LW-XP::MAKE-BQ-STRUCT (defined)
+LW-XP::BQ-STRUCT-PRINT (defined)
+LW-XP::BQ-LIST-TO-VECTOR
+LW-XP::BQ-VECTOR
+LW-XP::BQ-PRINT (defined)
+LW-XP::BQ-ELEMENTS
+LW-XP::BQ-STRUCT
+LW-XP::BQ-STRUCT-
+LW-XP::BQ-STRUCT-P (defined)
+LW-XP::BQ-STRUCT-CODE (defined)
+LW-XP::BQ-STRUCT-DATA (defined)
+SYSTEM::BQ-APPEND (defined)
+SYSTEM::BQ-CONS (defined)
+SYSTEM::BQ-VECTOR (defined)
+SYSTEM::BQ-LIST* (defined)
+SYSTEM::BQ-NCONC (defined)
+SYSTEM::BQ-LIST (defined)
+SYSTEM::*INTERNAL-BQ-FUNCTIONS-ALIST*, value: ((SYSTEM::BQ-LIST* .
+CONS) (SYSTEM::BQ-LIST* . LIST*) (SYSTEM::BQ-LIST . LIST)
+(SYSTEM::BQ-APPEND . APPEND) (SYSTEM::BQ-NCONC . NCONC)
+(SYSTEM::BQ-VECTOR . VECTOR) (SYSTEM::IN-SHARP-LEFT-PAREN .
+SYSTEM::IN-SHARP-LEFT-PAREN))
+
+Cheers,
+Andrew Kirkpatrick
+
+On 3 August 2017 at 13:06, BusFactor1 Inc. &lt;busfactor1@gmail.com&gt wrote:
+&gt Hello,
+&gt
+&gt Sometimes I have lists that would be easier to build using the actual symbols (like quote) rather than the quote (‘), backquote (`) and comma (,) characters.  I’m wondering what the names are for the quasi quote and comma symbols expanded by the parser in Lispworks.  A search of the documentation has lead to nothing.
+&gt
+&gt Burton
+&gt
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Quasiquote and Comma symbols</h1>
+                 <pre>Thank you all for your information and advice.  I was hoping it would be a bit more trivial to use the symbols; but the introspection techniques are quite enlightening.  I’ll use some of those to dig around and see what I can find.
+
+
+Burton 
+
+&gt On Aug 3, 2017, at 5:26 AM, 73budden . &lt;budden73@gmail.com&gt wrote:
+&gt 
+&gt Hi!
+&gt 
+&gt As other people said here, those details are not standardized, and are
+&gt not documented. There are libraries for implementation of quasiquoting
+&gt which (I think) can be made portable. Original implementaiton of
+&gt quasiquote is in CLTL2
+&gt (http://www.cs.cmu.edu/Groups/AI/html/cltl/clm/node367.html#SECTION003600000000000000000
+&gt )
+&gt 
+&gt You can use the original library and/or deduce which structures which
+&gt represent quasiquoted data from the source. If you don't want to go
+&gt this way, you can try further deducing details from the
+&gt implementation.
+&gt 
+&gt I made the following experiment in SBCL:
+&gt 
+&gt 507 CL-USER&gt(setf *print-pretty* nil)
+&gt NIL
+&gt 508 CL-USER&gt'``(foo ,(bar ,baz))
+&gt (SB-INT:QUASIQUOTE (SB-INT:QUASIQUOTE (FOO #S(SB-IMPL::COMMA :EXPR
+&gt (BAR #S(SB-IMPL::COMMA :EXPR BAZ :KIND 0)) :KIND 0))))
+&gt 
+&gt So, you might need nested quasiquote to learn something essential. We
+&gt see there are some structures which represent quasiquotes. In an
+&gt open-source implementation
+&gt you can go to the source of the reader (start from the read function
+&gt and the result of (get-macro-character #\`) in your open-source
+&gt implementation).
+&gt 
+&gt I currently have no Lispworks at hand, but you can try similar
+&gt experiments until you can deduce what the exact structure is. You have
+&gt no source codes, but you can use the result of printer output. If
+&gt Lispworks does not show you the unleashed internal structure, try
+&gt using inspector on the data Lispworks creates for you.
+&gt 
+&gt 2017-08-03 6:36 GMT+03:00, BusFactor1 Inc. &lt;busfactor1@gmail.com&gt:
+&gt&gt Hello,
+&gt&gt 
+&gt&gt Sometimes I have lists that would be easier to build using the actual
+&gt&gt symbols (like quote) rather than the quote (‘), backquote (`) and comma (,)
+&gt&gt characters.  I’m wondering what the names are for the quasi quote and comma
+&gt&gt symbols expanded by the parser in Lispworks.  A search of the documentation
+&gt&gt has lead to nothing.
+&gt&gt 
+&gt&gt Burton
+&gt&gt 
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+           </body>
+          </html>
