@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Finding CAPI elements by name</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Finding CAPI elements by name</h1>
+                <pre>
+Is there a predefined function to find a pane within an interface by
+name (CAPI-OBJECT-NAME)?  I know that this is easy to do yourself with
+MAP-PANE-DESCENDANT-CHILDREN, I'm just checking if I'm reinventing the
+(CAPI) wheel again like I've done before... :)
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Finding CAPI elements by name</h1>
+                 <pre>
+On Wednesday 27 February 2008 8:20:23 pm Edi Weitz wrote:
+&gt Is there a predefined function to find a pane within an interface by
+&gt name (CAPI-OBJECT-NAME)?  I know that this is easy to do yourself with
+&gt MAP-PANE-DESCENDANT-CHILDREN, 
+
+When I want to access a particular capi pane in an interface, I declare 
+an :accessor initarg
+
+(capi:define-interface ... (...)
+ (...)
+ (:panes
+....
+   (arrow-button
+     capi:button 
+....
+     :accessor arrow-button)
+....
+))
+
+....
+(defun some-function-on-an-interface (... intf ...)
+.... (arrow-button intf) ...
+
+
+AFAIK, panes are just CLOS slots in the interface class and the usual rules 
+apply.
+
+&gt I'm just checking if I'm reinventing the
+&gt (CAPI) wheel again like I've done before... :)
+
+If we could all get into the same room for a week, we would probably learn all 
+sorts of (very liberating) secrets from one another...
+
+pt
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Finding CAPI elements by name</h1>
+                 <pre>
+On Wed, 27 Feb 2008 23:49:31 -0500, Paul Tarvydas &lt;tarvydas@visualframeworksinc.com&gt wrote:
+
+&gt When I want to access a particular capi pane in an interface, I
+&gt declare an :accessor initarg
+
+Yes, thanks, I know about accessors.  That's not what I need.  In my
+application there is one huge dialog with /lots/ of panes.  The idea
+is that when the user exits the dialog, it will remember the last
+active (focused) pane as it is likely that the next time the dialog
+will be opened again, the user wants to start with the focus in the
+same pane.  Now, I can't store the pane itself between invocations as
+it is a CLOS object that will disappear.  Instead, I store its (CAPI)
+name and use that to set the focus the next time the dialog is
+displayed.  Something like this:
+
+  (defun find-pane-by-name (name interface)
+    (capi:map-pane-descendant-children interface
+                                       (lambda (child)
+                                         (when (eq name (capi:capi-object-name child))
+                                           (return-from find-pane-by-name child))))
+    nil)
+
+  (defun find-active-pane (interface)
+    (capi:map-pane-descendant-children interface
+                                       (lambda (child)
+                                         (when (capi:pane-has-focus-p child)
+                                           (return-from find-active-pane child))))
+    nil)
+
+And the interface has callbacks like these:
+
+  :destroy-callback (lambda (interface)
+                      (lw:when-let (active-pane (find-active-pane interface))
+                        (setq *last-active-pane* (capi:capi-object-name active-pane))))
+  :create-callback (lambda (interface)
+                     (when *last-active-name*
+                       (lw:when-let (named-pane (find-pane-by-name *last-active-name* interface))
+                         (when (capi:simple-pane-enabled named-pane)
+                           (capi:activate-pane named-pane)))))
+
+I was just checking if something like FIND-PANE-BY-NAME already
+existed.  It's only five lines, but I'm always eager to discover
+things I've missed so far... :)
+
+And, BTW, before someone complains - the above is only a sketch of the
+idea.  The actual implementation is a bit more difficult as in the
+destroy callback above the pane with focus is probably the button that
+closed the interface and that is not what I want.  But the code
+hopefully suffices to illustrate the idea.
+
+&gt If we could all get into the same room for a week, we would probably
+&gt learn all sorts of (very liberating) secrets from one another...
+
+Hehe, yes.  Maybe we should do that one day.
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:40 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

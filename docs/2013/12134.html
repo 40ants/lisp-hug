@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Calling back from FLI to Lisp</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Calling back from FLI to Lisp</h1>
+                <pre>
+Hi,
+
+Here is a problem with the foreign language interface I haven't got to solve properly and was hoping that someone has a solution.
+
+I need to dispatch a foreign callback into my Lisp code.  The only information I have is a "user info" pointer I can set when creating the underlying data structure, more specifically [1]:
+
+CVReturn MyDisplayLinkCallback (
+   CVDisplayLinkRef displayLink,
+   const CVTimeStamp *inNow,
+   const CVTimeStamp *inOutputTime,
+   CVOptionFlags flagsIn,
+   CVOptionFlags *flagsOut,
+   void *displayLinkContext
+   );
+
+
+displayLinkContext is the pointer to the data I provided when creating a display link.
+
+I would like to be able to create several display links with different callbacks, so I need to be able to make the difference between two callbacks.  The only solution I see is to maintain a hash-table of identifiers paired with my lisp objects, and pass that identifier to the display link creation function.
+
+It seems like I could use FLI wrappers, but I don't totally understand how they work and how they would make it easier for me.
+
+How would do to efficiently get back a lisp object from a callback like this?
+
+
+Best,
+Cam
+
+
+[1] http://developer.apple.com/library/mac/#documentation/QuartzCore/Reference/CVDisplayLinkRef/Reference/reference.html
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Calling back from FLI to Lisp</h1>
+                 <pre>
+I do exactly what you describe in my interface to OpenRM; the pointer
+is an integer used to associate objects on the Lisp side.
+
+In my case I used CFFI. This method worked just fine using Lispworks.
+However SBCL would core after a while. The probability of coreing in
+SBCL increased considerably if I printed debug information within the
+callback, or if objects are removed from a hash table within the
+callback.
+
+-Luke
+
+On Feb 22, 2013, at 22:21, Camille Troillard &lt;camille@osculator.net&gt wrote:
+
+&gt
+&gt Thank you Ron, I appreciate your help!
+&gt FLI:DEFINE-FOREIGN-CALLABLE is already what I use to define a callback that I pass to a C function as a parameter.
+&gt
+&gt I realize my question was not clearly formulated:
+&gt
+&gt I have found no way to associate a callback (or rather, a "foreign-callable") with specific data from my code, other than using the "user info" pointer that most of those callbacks provide.
+&gt
+&gt The problem with this pointer is that you can obviously not pass it any lisp object, you have to choose an integer number that you associate with your Lisp object and pass it as the "user info".  Then when foreign code calls back in, reconnect it to a Lisp object by looking up the integer value you receive in the callback.
+&gt
+&gt Foreign-callable functions are defined as top-level forms, you cannot define them on the fly.  If foreign-callables were able to capture local state of my program (like a closure), the solution would be trivial.
+&gt
+&gt I would like to know how LispWorks users deal with this situation when they need to associate more than one context with a single foreign callback.
+&gt
+&gt
+&gt Best,
+&gt Cam
+&gt
+&gt
+&gt On 22 févr. 2013, at 23:12, Ron Lund &lt;rlund@secureoutcomes.net&gt wrote:
+&gt
+&gt&gt While researching a problem of my own I came across a reference to a LispWorks
+&gt&gt FLI function which may be what you're looking for with the issue in this email of yours.
+&gt&gt
+&gt&gt It's in the FLI reference, "define-foreign-callable"
+&gt
+&gt
+&gt
+&gt&gt On 2/21/2013 11:03 AM, Camille Troillard wrote:
+&gt&gt&gt Hi,
+&gt&gt&gt
+&gt&gt&gt Here is a problem with the foreign language interface I haven't got to solve properly and was hoping that someone has a solution.
+&gt&gt&gt
+&gt&gt&gt I need to dispatch a foreign callback into my Lisp code.  The only information I have is a "user info" pointer I can set when creating the underlying data structure, more specifically [1]:
+&gt&gt&gt
+&gt&gt&gt CVReturn MyDisplayLinkCallback (
+&gt&gt&gt   CVDisplayLinkRef displayLink,
+&gt&gt&gt   const CVTimeStamp *inNow,
+&gt&gt&gt   const CVTimeStamp *inOutputTime,
+&gt&gt&gt   CVOptionFlags flagsIn,
+&gt&gt&gt   CVOptionFlags *flagsOut,
+&gt&gt&gt   void *displayLinkContext
+&gt&gt&gt   );
+&gt&gt&gt
+&gt&gt&gt
+&gt&gt&gt displayLinkContext is the pointer to the data I provided when creating a display link.
+&gt&gt&gt
+&gt&gt&gt I would like to be able to create several display links with different callbacks, so I need to be able to make the difference between two callbacks.  The only solution I see is to maintain a hash-table of identifiers paired with my lisp objects, and pass that identifier to the display link creation function.
+&gt&gt&gt
+&gt&gt&gt It seems like I could use FLI wrappers, but I don't totally understand how they work and how they would make it easier for me.
+&gt&gt&gt
+&gt&gt&gt How would do to efficiently get back a lisp object from a callback like this?
+&gt&gt&gt
+&gt&gt&gt
+&gt&gt&gt Best,
+&gt&gt&gt Cam
+&gt&gt&gt
+&gt&gt&gt
+&gt&gt&gt [1] http://developer.apple.com/library/mac/#documentation/QuartzCore/Reference/CVDisplayLinkRef/Reference/reference.html
+&gt
+&gt
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+&gt
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:31 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

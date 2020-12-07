@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>CAPI and multiprocessing</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>CAPI and multiprocessing</h1><html><head></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space; ">Hi folks,<div><br></div><div>The documentation states that</div><div><br></div><div><b>Operations on CAPI objects are not atomic in general. The same is true 
+for anything in the IDE. These operations need to be invoked from the 
+thread that owns the object, for example by <a name="marker-892459"></a><code class="Code">
+capi:execute-with-interface</code>
+ or <a name="marker-892464"></a><code class="Code">
+capi:apply-in-pane-process</code>
+..</b></div><div><br></div><div>Is this true also for added slots in a derived class?</div><div><br></div><div>I have an interface class (defined with define-interface) with some custom slots. I'm experiencing strange problems where one of those slots is suddenly set to nil. My only guess is that it has to do with multiprocessing somehow, but before wrapping every call to these slots in capi:execute-with-interface, it would be nice to know if that can possibly have any effect.</div><div><br></div><div><br></div><div>A second question is if the number printed by print-object is supposed to be a stable memory location. I get the following in my log:</div><div><br></div><div>click-callback &nbsp;(capi:top-level-interface self) = #&lt;USER:TEST-PANEL "Test" <b><font class="Apple-style-span" color="#ff2617">200F0FBB</font></b>&gt;</div><div>click-callback &nbsp;(capi:top-level-interface self) = #&lt;USER:TEST-PANEL "Test" <b><font class="Apple-style-span" color="#ff2617">200F0FBB</font></b>&gt;</div><div>…</div><div>click-callback &nbsp;(capi:top-level-interface self) = #&lt;USER:TEST-PANEL "Test" <b><font class="Apple-style-span" color="#ff2617">24225C7B</font></b>&gt;</div><div><br></div><div>Is this "normal", or does it indicate that the interface has been "replaced" somehow?</div><div><br></div><div><br></div><div>Regards</div><div>Erik</div><div><br></div><div><br></div></body></html>
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: CAPI and multiprocessing</h1>
+                 <pre>
+&gt&gt&gt&gt&gt On Sat, 3 Mar 2012 15:19:25 +0100, Erik Ronström said:
+&gt 
+&gt Hi folks,
+&gt 
+&gt The documentation states that
+&gt 
+&gt Operations on CAPI objects are not atomic in general. The same is true for
+&gt anything in the IDE. These operations need to be invoked from the thread
+&gt that owns the object, for example by capi:execute-with-interface or
+&gt capi:apply-in-pane-process .
+&gt 
+&gt Is this true also for added slots in a derived class?
+
+Slots added by define-interface are normal standard-object slots, so access to
+each slot is atomic with respect to modification of that slot and with respect
+to class redefinition.
+
+Note however that access to multiple slots or multiple accesses to a single
+slot isn't an atomic operation overall.  For example, the form
+
+(with-slots (foo) object
+  (+ foo foo foo))
+
+access the slot foo three times, because with-slots is defined using
+symbol-macrolet.
+
+
+
+&gt I have an interface class (defined with define-interface) with some custom
+&gt slots. I'm experiencing strange problems where one of those slots is
+&gt suddenly set to nil. My only guess is that it has to do with multiprocessing
+&gt somehow, but before wrapping every call to these slots in
+&gt capi:execute-with-interface, it would be nice to know if that can possibly
+&gt have any effect.
+
+Using capi:execute-with-interface is probably best anyway, because it avoids
+problems with the order of multiple slot accesses.
+
+
+&gt A second question is if the number printed by print-object is supposed to be
+&gt a stable memory location. I get the following in my log:
+&gt 
+&gt click-callback  (capi:top-level-interface self) = #&lt;USER:TEST-PANEL "Test" 200F0FBB&gt
+&gt click-callback  (capi:top-level-interface self) = #&lt;USER:TEST-PANEL "Test" 200F0FBB&gt
+&gt 
+&gt click-callback  (capi:top-level-interface self) = #&lt;USER:TEST-PANEL "Test" 24225C7B&gt
+&gt 
+&gt Is this "normal", or does it indicate that the interface has been "replaced" somehow?
+
+This is normal -- the number is the address of the object in memory and
+garbage collection might move it.
+
+-- 
+Martin Simmons
+LispWorks Ltd
+http://www.lispworks.com/
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:32 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

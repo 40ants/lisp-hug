@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>rebinding *error-output* and *terminal-io*</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>rebinding *error-output* and *terminal-io*</h1><html>
+
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=us-ascii">
+<meta name=Generator content="Microsoft Word 11 (filtered)">
+<style>
+<!--
+ /* Font Definitions */
+ @font-face
+	{font-family:Helvetica-Narrow;
+	panose-1:0 0 0 0 0 0 0 0 0 0;}
+@font-face
+	{font-family:"Comic Sans MS";
+	panose-1:3 15 7 2 3 3 2 2 2 4;}
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{margin-top:0in;
+	margin-right:0in;
+	margin-bottom:6.0pt;
+	margin-left:0in;
+	font-size:12.0pt;
+	font-family:"Times New Roman";}
+p.MsoCaption, li.MsoCaption, div.MsoCaption
+	{margin-top:0in;
+	margin-right:0in;
+	margin-bottom:6.0pt;
+	margin-left:0in;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	font-weight:bold;}
+a:link, span.MsoHyperlink
+	{color:blue;
+	text-decoration:underline;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;}
+p.Code, li.Code, div.Code
+	{margin-top:0in;
+	margin-right:.25in;
+	margin-bottom:6.0pt;
+	margin-left:.25in;
+	font-size:12.0pt;
+	font-family:Helvetica-Narrow;}
+p.CodeCxSpFirst, li.CodeCxSpFirst, div.CodeCxSpFirst
+	{margin-top:0in;
+	margin-right:.25in;
+	margin-bottom:0in;
+	margin-left:.25in;
+	margin-bottom:.0001pt;
+	font-size:12.0pt;
+	font-family:Helvetica-Narrow;}
+p.CodeCxSpMiddle, li.CodeCxSpMiddle, div.CodeCxSpMiddle
+	{margin-top:0in;
+	margin-right:.25in;
+	margin-bottom:0in;
+	margin-left:.25in;
+	margin-bottom:.0001pt;
+	font-size:12.0pt;
+	font-family:Helvetica-Narrow;}
+p.CodeCxSpLast, li.CodeCxSpLast, div.CodeCxSpLast
+	{margin-top:0in;
+	margin-right:.25in;
+	margin-bottom:6.0pt;
+	margin-left:.25in;
+	font-size:12.0pt;
+	font-family:Helvetica-Narrow;}
+p.StyleCaptionCentered, li.StyleCaptionCentered, div.StyleCaptionCentered
+	{margin-top:0in;
+	margin-right:0in;
+	margin-bottom:6.0pt;
+	margin-left:0in;
+	text-align:center;
+	font-size:12.0pt;
+	font-family:Arial;
+	font-weight:bold;}
+span.EmailStyle20
+	{font-family:"Comic Sans MS";
+	color:windowtext;
+	font-weight:normal;
+	font-style:normal;
+	text-decoration:none none;}
+@page Section1
+	{size:8.5in 11.0in;
+	margin:1.0in 1.25in 1.0in 1.25in;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
+
+</head>
+
+<body lang=EN-US link=blue vlink=purple>
+
+<div class=Section1>
+
+<p class=MsoNormal><font size=2 face="Comic Sans MS"><span style='font-size:
+10.0pt;font-family:"Comic Sans MS"'>Hi Huggers,</span></font></p>
+
+<p class=MsoNormal><font size=2 face="Comic Sans MS"><span style='font-size:
+10.0pt;font-family:"Comic Sans MS"'>I&#8217;m trying to port some code from
+Allegro to Lispworks. One function in Allegro allowed us to set up a &#8220;bidirectional-terminal-stream&#8221;
+with the input and output specified as file descriptors (i.e., 0 for stdin, 1
+for stdout, 2 for stderr). The program I&#8217;m porting took advantage of this
+to rebind the output part to stderr, and I&#8217;m trying to figure out how to
+do this in Lispworks. By default, apparently, *<b><span style='font-weight:
+bold'>error-output</span></b>* and *<b><span style='font-weight:bold'>standard-output</span></b>*
+are the same system::terminal stream when running lispworks from the shell, so
+this isn&#8217;t just a matter of rebinding *<b><span style='font-weight:bold'>terminal-io</span></b>*
+to (make-two-way-stream *<b><span style='font-weight:bold'>standard-input</span></b>*
+*<b><span style='font-weight:bold'>error-output</span></b>*). I care about this
+because the application is running as a pipe, so needs to deal with the various
+file descriptors bound by the shell.</span></font></p>
+
+<p class=MsoNormal><font size=2 face="Comic Sans MS"><span style='font-size:
+10.0pt;font-family:"Comic Sans MS"'>Thanks for any hints!</span></font></p>
+
+<p class=MsoNormal><font size=2 face="Comic Sans MS"><span style='font-size:
+10.0pt;font-family:"Comic Sans MS"'>&nbsp;</span></font></p>
+
+<p class=MsoNormal><font size=2 face=Arial><span style='font-size:10.0pt;
+font-family:Arial'>-- </span></font></p>
+
+<p class=MsoNormal><font size=2 face=Arial><span style='font-size:10.0pt;
+font-family:Arial'>Bradford W. Miller<br>
+Senior Principal Cognitive/Computer Scientist<br>
+DD(X) System Architecture<br>
+Software Engineering and HSI Center<br>
+Raytheon, Inc.<br>
+1847 West Main Road M/S N19<br>
+Portsmouth, RI 02871-1087</span></font></p>
+
+<p class=MsoNormal><font size=2 face=Arial><span style='font-size:10.0pt;
+font-family:Arial'>&nbsp;</span></font></p>
+
+<p class=MsoNormal><font size=2 face=Arial><span style='font-size:10.0pt;
+font-family:Arial'>(401) 842-3578 (v)<br>
+(401) 842-2040 (f)</span></font></p>
+
+<p class=MsoNormal><font size=3 face="Times New Roman"><span style='font-size:
+12.0pt'>&nbsp;</span></font></p>
+
+</div>
+
+</body>
+
+</html>
+
+
+               </article>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:48 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

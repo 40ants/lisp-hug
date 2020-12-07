@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Indeterminate progress bar</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Indeterminate progress bar</h1>
+                <pre>
+Hi,
+
+Does anyone know of a way in CAPI to display an activity indicator for a process of unknown duration?
+
+Some Mac applications display an indeterminate progress bar, which is like a barber's pole, but I can't find any interface to it in CAPI.
+
+Thanks!
+David Johnson-Davies
+
++------------------------------------------------------------+
+David Johnson-Davies, Human-Computer Interface Ltd
+17 Signet Court, Swanns Road, Cambridge, CB5 8LA, England.
+
+Tel: +44 1223 314934, Fax: +44 1223 462562
+Email: david@interface.co.uk, Web: http://www.interface.co.uk/
++------------------------------------------------------------+
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Indeterminate progress bar</h1>
+                 <pre>
+I have code for doing just that, placed into the repository Data-Objects at
+
+https://github.com/dbmcclain/data-objects
+
+file is called Progress-bar.lisp
+
+- DM
+
+
+
+On Jan 8, 2013, at 08:28 AM, David Johnson-Davies &lt;david@interface.co.uk&gt wrote:
+
+&gt 
+&gt Hi,
+&gt 
+&gt Does anyone know of a way in CAPI to display an activity indicator for a process of unknown duration?
+&gt 
+&gt Some Mac applications display an indeterminate progress bar, which is like a barber's pole, but I can't find any interface to it in CAPI.
+&gt 
+&gt Thanks!
+&gt David Johnson-Davies
+&gt 
+&gt +------------------------------------------------------------+
+&gt David Johnson-Davies, Human-Computer Interface Ltd
+&gt 17 Signet Court, Swanns Road, Cambridge, CB5 8LA, England.
+&gt 
+&gt Tel: +44 1223 314934, Fax: +44 1223 462562
+&gt Email: david@interface.co.uk, Web: http://www.interface.co.uk/
+&gt +------------------------------------------------------------+
+&gt 
+&gt 
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+&gt 
+&gt 
+
+Dr. David McClain
+CTO &amp; Co-Founder
+Acudora (TM)
+e-mail: david@acudora.com
+Tel: (+1) 520-529-2437
+
+
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Indeterminate progress bar</h1>
+                 <pre>
+Hi,
+
+If you are on Mac, you can hook into the underlying widget, like this:
+
+(defun progress-bar-set-indeterminate (progress-bar indeterminate)
+  (let ((pb-obj (slot-value (slot-value (slot-value progress-bar 'capi::implementation)
+                                               'capi-internals:representation) 'capi-cocoa-library::main-view)))
+          (objc:invoke pb-obj "setIndeterminate:" (if indeterminate 1 0))
+          (when indeterminate
+            (objc:invoke pb-obj "startAnimation:" nil))))
+
+For some reason, animation does not work when I just tested it now with capi:contain:
+
+(let ((progress-bar (capi:contain (make-instance 'capi:progress-bar :start 0 :end 100))))
+  (progress-bar-set-indeterminate progress-bar t))
+
+But it may have something to do with threading. It works in my production code anyway.
+
+Regards
+Erik
+
+
+
+8 jan 2013 kl. 16:28 skrev David Johnson-Davies:
+
+&gt 
+&gt Hi,
+&gt 
+&gt Does anyone know of a way in CAPI to display an activity indicator for a process of unknown duration?
+&gt 
+&gt Some Mac applications display an indeterminate progress bar, which is like a barber's pole, but I can't find any interface to it in CAPI.
+&gt 
+&gt Thanks!
+&gt David Johnson-Davies
+&gt 
+&gt +------------------------------------------------------------+
+&gt David Johnson-Davies, Human-Computer Interface Ltd
+&gt 17 Signet Court, Swanns Road, Cambridge, CB5 8LA, England.
+&gt 
+&gt Tel: +44 1223 314934, Fax: +44 1223 462562
+&gt Email: david@interface.co.uk, Web: http://www.interface.co.uk/
+&gt +------------------------------------------------------------+
+&gt 
+&gt 
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+&gt 
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:32 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

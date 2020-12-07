@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>What is HARP::NREG ?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>What is HARP::NREG ?</h1>
+                <pre>
+
+I have some code that uses SYSTEM:INT32 that when I compile it gives
+this warning:
+
+   Variable A [type HARP::NREG] being set to HARP::GREG value
+
+What does this mean?
+
+This is on LispWorks 5.0.2 running on my Intel Mac (still using Mac OS
+10.4.10).
+
+The code is below.
+
+Cheers,
+Chris Dean
+
+
+(defun my-test-hash-32bit (data)
+  (declare (optimize (float 0)))
+
+  (let ((a (system:integer-to-int32 (length data))))
+    (dotimes (i (length data))
+      (let ((x (aref data i)))
+        (setf a (system:int32+ a (system:integer-to-int32 x)))))
+    
+    (system:int32-to-integer a)))
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>RE: What is HARP::NREG ?</h1>
+                 <pre>
+A GREG is a virtual register holding a garbage collectable value (a value that the garbage collector should mark through). An NREG is a virtual register holding a value that the garbage collector will not trace.
+
+As far as I can see, one of the moves has been translated to the sequence
+
+  (MOVE G35/eax N32/eax)
+  (MOVE N5/NSPILL-0 G35/eax)
+
+Which is doing a move using a temporary garbage collectable virtual register. This should work fine, but is not optimial.
+
+Disclaimer: I might well be missing the target here. It's a long time since I looked at this stuff, and I haven't given it a lot of time.
+
+-----Original Message-----
+From: owner-lisp-hug@lispworks.com [mailto:owner-lisp-hug@lispworks.com] On Behalf Of Chris Dean
+Sent: 29 October 2007 06:17
+To: LispWorks HUG
+Subject: What is HARP::NREG ?
+
+
+
+I have some code that uses SYSTEM:INT32 that when I compile it gives
+this warning:
+
+   Variable A [type HARP::NREG] being set to HARP::GREG value
+
+What does this mean?
+
+This is on LispWorks 5.0.2 running on my Intel Mac (still using Mac OS
+10.4.10).
+
+The code is below.
+
+Cheers,
+Chris Dean
+
+
+(defun my-test-hash-32bit (data)
+  (declare (optimize (float 0)))
+
+  (let ((a (system:integer-to-int32 (length data))))
+    (dotimes (i (length data))
+      (let ((x (aref data i)))
+        (setf a (system:int32+ a (system:integer-to-int32 x)))))
+
+    (system:int32-to-integer a)))
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: What is HARP::NREG ?</h1>
+                 <p>
+                  Unable to parse email body. Email id is 7088
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Pointer out of bounds when using int32 (was: What is HARP::NREG ?)</h1>
+                 <pre>
+
+When I use the int32 library I get 
+
+  &lt;**&gtPointer out of bounds in mark object=1 field =215a3e48 ebp
+  215a3e5c ret-addr 202294ca name ?
+
+errors. 
+
+The test function is relatively simple:
+
+    (defun test-int32 ()
+      (declare (optimize (float 0)))
+
+      (dotimes (n 2000)
+        (let ((val system:+int32-0+))
+          (dotimes (i 50)
+            (setf val (system:int32+ val
+                                     system:+int32-1+)))))
+
+        nil)
+
+It's so simple that I can't think of a work around.  Can anyone else
+think of a way of avoiding this problem?  
+
+This is on LispWorks 5.0.2 running on my Intel Mac (still using Mac OS
+10.4.10).  The first few error lines are below.
+
+Cheers,
+Chris Dean
+
+CL-USER 1 &gt (load "~/work/lisp-examples/int32")
+; Loading fasl file /Users/ctdean/work/lisp-examples/int32.xfasl
+#P"/Users/ctdean/work/lisp-examples/int32.xfasl"
+
+CL-USER 2 &gt (test-int32)
+&lt;**&gtPointer out of bounds in mark object=1 field =215a3e48 ebp 215a3e5c ret-addr 202294ca name ?
+
+;&gt&gt&gt&gt&gt dumping  215a3e28  [28]
+;&gt 215a3e28:         0       28 208112c3       24
+;&gt 215a3e38:        28       28      7ec       24
+;&gt 215a3e48:         1 2010403b      7ec        a
+;&gt 215a3e58:       7f0 215a3e84 202294ca       56
+;&gt 215a3e68:         0       56       56       56
+;&gt 215a3e78:        56      886 ffffffe0 215a3e9c
+;&gt 215a3e88:  2022a3a3 215273d3 20094b39 20094b39
+;&gt 215a3e98:  20094b39 215a3ed4 202288bb 2010ed33
+;&gt 215a3ea8:        56 2010ed5b       56 2010ed0b
+;&gt 215a3eb8:        56 2010ece3       56 21527408
+;&gt 215a3ec8:  20094b39 20094b39 20094b39 215a3ee4
+;&gt 215a3ed8:  2022f049 201db1bb 20094b39 215a4028
+;&gt 215a3ee8:  2022e8f1 20094b39       16 215a3f04
+;&gt 215a3ef8:  215a4028 2022e90a 2022ed2b       16
+;&gt 215a3f08:  215a3f94 215a4028 2022e90f 2003f0e3
+;&gt 215a3f18:  2013dce3 215a3f25 215a3ea4 90ff8096
+;&gt 215a3f28:  215a3f31 215a418d 90ff8096 215a3f3f
+;&gt 215a3f38:        56 90ff8076       1c 2027716b
+;&gt 215a3f48:  20030553 215a3fa9 215a3f6a       56
+;&gt 215a3f58:  215a3f82        0 9000800e 2022e45a
+;&gt 215a3f68:  f7bf0037 e9215a3f fec8a4e6        0
+;&gt 215a3f78:  9000800e 2022e382 f7bf0037 e9215a3f
+;&gt 215a3f88:  fec8a3f6        0        0       16
+;&gt 215a3f98:  215a3fb4 215a4028 2022e92b 215a3fa9
+;&gt 215a3fa8:  90ff8096       56       56       16
+;&gt 215a3fb8:  215a3fc8 215a4028 2022e926 215a3fdd
+;&gt 215a3fc8:        16 215a40f4 215a4028 2022e922
+;&gt 215a3fd8:  215a3fe9 90ff8096       56       56
+&lt;**&gtPointer out of bounds in mark object=a field =215a3e54 ebp 215a3e5c ret-addr 202294ca name ?
+
+;&gt&gt&gt&gt&gt dumping  215a3e34  [28]
+;&gt 215a3e34:        24       28       28      7ec
+;&gt 215a3e44:        24       66 2010403b      7ec
+;&gt 215a3e54:         a      7f0 215a3e84 202294ca
+;&gt 215a3e64:        56        0       56       56
+;&gt 215a3e74:        56       56      886 ffffffe0
+;&gt 215a3e84:  215a3e9c 2022a3a3 215273d3 20094b39
+;&gt 215a3e94:  20094b39 20094b39 215a3ed4 202288bb
+;&gt 215a3ea4:  2010ed33       56 2010ed5b       56
+;&gt 215a3eb4:  2010ed0b       56 2010ece3       56
+;&gt 215a3ec4:  21527408 20094b39 20094b39 20094b39
+;&gt 215a3ed4:  215a3ee4 2022f049 201db1bb 20094b39
+;&gt 215a3ee4:  215a4028 2022e8f1 20094b39       16
+;&gt 215a3ef4:  215a3f04 215a4028 2022e90a 2022ed2b
+;&gt 215a3f04:        16 215a3f94 215a4028 2022e90f
+;&gt 215a3f14:  2003f0e3 2013dce3 215a3f25 215a3ea4
+;&gt 215a3f24:  90ff8096 215a3f31 215a418d 90ff8096
+;&gt 215a3f34:  215a3f3f       56 90ff8076       1c
+;&gt 215a3f44:  2027716b 20030553 215a3fa9 215a3f6a
+;&gt 215a3f54:        56 215a3f82        0 9000800e
+;&gt 215a3f64:  2022e45a f7bf0037 e9215a3f fec8a4e6
+;&gt 215a3f74:         0 9000800e 2022e382 f7bf0037
+;&gt 215a3f84:  e9215a3f fec8a3f6        0        0
+;&gt 215a3f94:        16 215a3fb4 215a4028 2022e92b
+;&gt 215a3fa4:  215a3fa9 90ff8096       56       56
+;&gt 215a3fb4:        16 215a3fc8 215a4028 2022e926
+;&gt 215a3fc4:  215a3fdd       16 215a40f4 215a4028
+;&gt 215a3fd4:  2022e922 215a3fe9 90ff8096       56
+;&gt 215a3fe4:        56 90ff8096       56       56
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Pointer out of bounds when using int32 (was: What is HARP::NREG ?)</h1>
+                 <p>
+                  Unable to parse email body. Email id is 7096
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:41 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

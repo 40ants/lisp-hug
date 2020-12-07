@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Combining masks</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Combining masks</h1>
+                <pre>
+Hi,
+
+Running this code
+
+(gp:with-graphics-mask (pane (list 100 100 50 50))
+  (gp:with-graphics-mask (pane (list 0 0 500 500))
+    (gp:draw-rectangle pane 0 0 500 500 :filled t :foreground :red)))
+
+results in a 500x500 rectangle being drawn. Apparently, the second mask overrides the first, while I would have expected them to be combined so that both masks restrict the drawing area.
+
+Is this a bug in GP, or is it expected behavior? In the latter case, is there any workaround?
+
+Regards
+Erik
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Combining masks</h1>
+                 <pre>
+
+* Erik Ronström &lt;A1A46ECF-0440-4AA6-AAA6-C38E5216C13A@doremir.com&gt :
+Wrote on Wed, 12 Nov 2014 20:02:00 +0100:
+|
+| (gp:with-graphics-mask (pane (list 100 100 50 50))
+|   (gp:with-graphics-mask (pane (list 0 0 500 500))
+|     (gp:draw-rectangle pane 0 0 500 500 :filled t :foreground :red)))
+|
+| results in a 500x500 rectangle being drawn. Apparently, the second
+| mask overrides the first, while I would have expected them to be
+| combined so that both masks restrict the drawing area.
+|
+| Is this a bug in GP, or is it expected behavior? In the latter case,
+| is there any workaround?
+
+This isn't a bug in GP, WITH-GRAPHICS-MASK works as specified: it merely
+`binds the mask slot of a port's graphics state across the execution of
+a body of code', and here we are changing the binding twice.
+
+I haven't really used these functions, but you there may be an ugly
+workaround to get what you want: by chaining WITH-PIXMAP-GRAPHICS-PORT
+within successive scopes of WITH-GRAPHICS-MASK and drawing to this port
+and finally copying the pixels of the innermost pixmap port back to the
+pane...---Madhu
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Combining masks</h1>
+                 <pre>
+* Erik Ronström &lt;CCC87700-887D-4D76-B3E5-838B48403234@doremir.com&gt :
+Wrote on Thu, 13 Nov 2014 21:22:59 +0100:
+
+| I found another way, which is perhaps slightly less ugly: I wrote a
+| new macro, which checks if the mask in the pane's graphics-state is
+| already bound, in which case the masks are combined. Fortunately, I
+| just need to deal with rectangular masks, for which the combination is
+| trivial. I wouldn't go into combining different paths.
+
+That is definitely less ugly when all the shapes all rectangles.
+
+Perhaps there was also some way to intersect (:path ...) masks easily?
+If GP was computing this, could it be exposed?  [i.e. without producing
+the pixmap.  A pointer to the algorithm may also help]---Regards, Madhu
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:29 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>FLI and :REFERENCE types</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>FLI and :REFERENCE types</h1>
+                <pre>
+I'm suddenly confused about :REFERENCE types in LispWorks' FLI
+although I've used them quite often in the past.  Maybe someone can
+deconfuse me.  I've defined some C struct and a corresponding foreign
+function like this:
+
+  (define-c-struct my-config
+    (type :unsigned-long)
+    (interface :unsigned-long)
+    (software-version :unsigned-long)
+    (hardware-version :unsigned-long)
+    (serial-number :unsigned-long)
+    (memory-size :unsigned-long))
+
+  (define-foreign-function (read-config "ReadConfig")
+      ((product-id :unsigned-long)
+       (category :unsigned-long)
+       (data (:reference-return sgl-config)))
+    :result-type :unsigned-long
+    :module :foo
+    :lambda-list (product-id &amp;optional (category 0) &amp;aux data))
+
+The original C function's prototype looks like so
+
+  ULONG ReadConfig(
+    ULONG ProductId,
+    ULONG Category,
+    ULONG *Data);
+
+and the C programmer is of course supposed to allocate memory for Data
+and take care of it.
+
+Now, if I define and call READ-CONFIG as above, I'll automatically get
+the FLI structure as the second return value and can look at its
+values.  But - do I have to call FREE-FOREIGN-OBJECT once I'm finished
+with it?  The documentation for :REFERENCE says that
+
+  "an object of TYPE is dynamically allocated across the scope of the
+   foreign function, and is automatically de-allocated once the
+   foreign function terminates"
+
+and I think the behaviour is quite clear when I have something like
+
+  (:reference-return :unsigned-long)
+
+where I'll end up with a Lisp integer being returned and don't have to
+care about the intermediate C unsigned long integer.  But what exactly
+is allocated and de-allocated and when in the case of aggregate types
+as above?
+
+Looking at the macro expansion of DEFINE-FOREIGN-FUNCTION for
+READ-CONFIG, it seems to me as if the struct for DATA is originally
+stack-allocated but then copied into memory which is allocated and not
+freed.  But maybe the memory will be automatically freed when the Lisp
+object which is the second return value of READ-CONFIG is
+garbage-collected?
+
+Thanks,
+Edi.
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: FLI and :REFERENCE types</h1>
+                 <pre>
+Hi Edi,
+
+even if the memory is freed upon garbage collection it would be an  
+error to do so.
+
+Imagine the situation if the C data structure you get returned via a  
+pointer itself contains further data structures that have been  
+allocated by malloc() and its friends... In Lisp land you wouldn't  
+know about these and therefore the Lisp shouldn't free automatically  
+any object without calling a deep-free function that recursively walks  
+down the data structure and frees any memory having been allocated  
+dynamically.
+
+When looking at your example with ULONG * there might be argued that  
+this is a trivial case because the returned object is known not to  
+contain any further dynamically allocated memory - or is the :unsigned- 
+long meant to be a pointer address ?
+If not then deallocating the object would be ok - no memory leaks  
+resulting.
+
+Not really the answer you were looking for but when Lispworks' garbage  
+collector is programmed properly it would know that it can't free a  
+NULL address. So a safe way to handle it would be:
+
+Free the data yourself.
+Set the address of the pointer to NULL.
+Done.
+
+I'd like to hear comments - I do so myself in another Lisp and there  
+this works. And I have to port to LW at some point in time ...
+
+;-)
+
+Frank
+
+Am 24.03.2008 um 12:57 schrieb Edi Weitz:
+&gt
+&gt I'm suddenly confused about :REFERENCE types in LispWorks' FLI
+&gt although I've used them quite often in the past.  Maybe someone can
+&gt deconfuse me.  I've defined some C struct and a corresponding foreign
+&gt function like this:
+&gt
+&gt  (define-c-struct my-config
+&gt    (type :unsigned-long)
+&gt    (interface :unsigned-long)
+&gt    (software-version :unsigned-long)
+&gt    (hardware-version :unsigned-long)
+&gt    (serial-number :unsigned-long)
+&gt    (memory-size :unsigned-long))
+&gt
+&gt  (define-foreign-function (read-config "ReadConfig")
+&gt      ((product-id :unsigned-long)
+&gt       (category :unsigned-long)
+&gt       (data (:reference-return sgl-config)))
+&gt    :result-type :unsigned-long
+&gt    :module :foo
+&gt    :lambda-list (product-id &amp;optional (category 0) &amp;aux data))
+&gt
+&gt The original C function's prototype looks like so
+&gt
+&gt  ULONG ReadConfig(
+&gt    ULONG ProductId,
+&gt    ULONG Category,
+&gt    ULONG *Data);
+&gt
+&gt and the C programmer is of course supposed to allocate memory for Data
+&gt and take care of it.
+&gt
+&gt Now, if I define and call READ-CONFIG as above, I'll automatically get
+&gt the FLI structure as the second return value and can look at its
+&gt values.  But - do I have to call FREE-FOREIGN-OBJECT once I'm finished
+&gt with it?  The documentation for :REFERENCE says that
+&gt
+&gt  "an object of TYPE is dynamically allocated across the scope of the
+&gt   foreign function, and is automatically de-allocated once the
+&gt   foreign function terminates"
+&gt
+&gt and I think the behaviour is quite clear when I have something like
+&gt
+&gt  (:reference-return :unsigned-long)
+&gt
+&gt where I'll end up with a Lisp integer being returned and don't have to
+&gt care about the intermediate C unsigned long integer.  But what exactly
+&gt is allocated and de-allocated and when in the case of aggregate types
+&gt as above?
+&gt
+&gt Looking at the macro expansion of DEFINE-FOREIGN-FUNCTION for
+&gt READ-CONFIG, it seems to me as if the struct for DATA is originally
+&gt stack-allocated but then copied into memory which is allocated and not
+&gt freed.  But maybe the memory will be automatically freed when the Lisp
+&gt object which is the second return value of READ-CONFIG is
+&gt garbage-collected?
+&gt
+&gt Thanks,
+&gt Edi.
+&gt
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: FLI and :REFERENCE types</h1>
+                 <pre>
+Hi Frank,
+
+On Mon, 24 Mar 2008 13:43:32 +0100, Frank Goenninger &lt;frgo@mac.com&gt wrote:
+
+&gt even if the memory is freed upon garbage collection it would be an
+&gt error to do so.
+&gt
+&gt Imagine the situation if the C data structure you get returned via a
+&gt pointer itself contains further data structures that have been
+&gt allocated by malloc() and its friends... In Lisp land you wouldn't
+&gt know about these and therefore the Lisp shouldn't free automatically
+&gt any object without calling a deep-free function that recursively
+&gt walks down the data structure and frees any memory having been
+&gt allocated dynamically.
+&gt
+&gt When looking at your example with ULONG * there might be argued that
+&gt this is a trivial case because the returned object is known not to
+&gt contain any further dynamically allocated memory - or is the
+&gt :unsigned-long meant to be a pointer address ?  If not then
+&gt deallocating the object would be ok - no memory leaks resulting.
+&gt
+&gt Not really the answer you were looking for but when Lispworks'
+&gt garbage collector is programmed properly it would know that it can't
+&gt free a NULL address. So a safe way to handle it would be:
+&gt
+&gt Free the data yourself.
+&gt Set the address of the pointer to NULL.
+&gt Done.
+&gt
+&gt I'd like to hear comments - I do so myself in another Lisp and there
+&gt this works. And I have to port to LW at some point in time ...
+
+I understand your concerns, but I think you're expecting too much.
+We're talking about C, after all... :)
+
+I would argue that a) if you declare something to be of type
+:UNSIGNED-LONG and use it as a pointer you should know what you're
+doing and b) if you free the space a C struct occupies which itself
+points to other objects, that's not a memory leak.  In the case of b),
+another pointer could point to the same object, so your "deep-free"
+function would be wrong unless it was a full GC with all bells and
+whistles - and even then it would be wrong as it wouldn't be able to
+know what happens in C land.
+
+In other words, for things like this, there should be a clear
+contract.  If a C function asks you to allocate space for a struct and
+then puts a pointer to some other object into this struct, it should
+be clearly specified who is responsible for the memory occupied by
+this object.  This has nothing to do with the memory for the struct
+itself, I'd say.
+
+Coming back to my original question, I'd like to see the :REFERENCE
+type as a kind of "translator" between C and Lisp.  Once it has done
+its work (in the case of :REFERENCE-RETURN), what I get back is a Lisp
+object (which might "wrap" a C struct) that can be treated like any
+other Lisp object - specifically, I can forget about it when it goes
+out of scope.  And I'm asking for confirmation that this POV is
+correct... :)
+
+Cheers,
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: FLI and :REFERENCE types</h1>
+                 <pre>
+Hello Edi,
+
+|   (define-c-struct my-config
+|     (type :unsigned-long)
+|     (interface :unsigned-long)
+|     (software-version :unsigned-long)
+|     (hardware-version :unsigned-long)
+|     (serial-number :unsigned-long)
+|     (memory-size :unsigned-long))
+| 
+|   (define-foreign-function (read-config "ReadConfig")
+|       ((product-id :unsigned-long)
+|        (category :unsigned-long)
+|        (data (:reference-return sgl-config)))
+|     :result-type :unsigned-long
+|     :module :foo
+|     :lambda-list (product-id &amp;optional (category 0) &amp;aux data))
+| 
+| The original C function's prototype looks like so
+| 
+|   ULONG ReadConfig(
+|     ULONG ProductId,
+|     ULONG Category,
+|     ULONG *Data);
+| 
+| and the C programmer is of course supposed to allocate memory for Data
+| and take care of it.
+
+Yes, :reference sounds a bit vague. That is why I prefer proven patterns
+like :pointer and decoding foreign structures into Lisp ones ASAP.
+
+(define-foreign-function (|ReadConfig| "ReadConfig")
+     ((product-id :unsigned-long)
+      (category :unsigned-long)
+      (data (:pointer sgl-config)))
+   :result-type :unsigned-long
+   :module :foo)
+
+(defun read-config (product-id &amp;optional (category 0))
+  (fli:with-dynamic-foreign-objects ((sc sql-config))
+    (let* ((result (|ReadConfig| product-id categor sc)))
+      (values result
+                 (fli:foreign-slot-value sc 'type)
+                 ...)))))
+--
+Sincerely,
+Dmitriy Ivanov
+lisp.ystok.ru
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: FLI and :REFERENCE types</h1>
+                 <p>
+                  Unable to parse email body. Email id is 7895
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:40 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

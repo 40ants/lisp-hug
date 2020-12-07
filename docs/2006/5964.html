@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Strange load numbers with lots of threads</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Strange load numbers with lots of threads</h1>
+                <pre>
+When using LW5-based binaries, I get absurd load numbers on a
+dual-dual Opteron machine that is really mostly idle (I think the
+% id number below must be right):
+
+top - 10:21:40 up 172 days,  8:33,  4 users,  load average: 18.65, 20.53, 21.69
+Tasks: 127 total,   1 running, 126 sleeping,   0 stopped,   0 zombie
+Cpu(s):  6.0% us, 10.9% sy,  0.0% ni, 82.9% id,  0.0% wa,  0.0% hi,  0.2% si
+Mem:   8251620k total,  5268472k used,  2983148k free,   206528k buffers
+Swap:  2104504k total,        0k used,  2104504k free,  3503824k cached
+
+  PID USER      PR  NI  VIRT  RES  SHR S %CPU %MEM    TIME+  COMMAND           
+10817 nftpd     15   0  969m 144m  908 S 25.3  1.8  16:42.91 nftpd
+10829 nftpd     15   0  915m 122m  908 S 21.0  1.5  21:06.33 nftpd
+10819 nftpd     15   0  867m 131m  908 S 15.6  1.6  12:18.42 nftpd
+10825 nftpd     15   0  392m 166m  916 S  2.0  2.1   3:16.89 nftpd
+26138 nftpd     15   0  615m 470m  904 S  1.7  5.8   2:03.33 nftpd
+
+This is linux 2.6.15.6 &amp; Debian 3.1
+
+Is there anyone on this list that knows whether this is an artifact
+caused by lots of pthreads (these 5 processes have a total of 327
+threads) that is hard to avoid, or is it a known kernel bug? 
+
+(The problem is mostly that the high load numbers make our sysadmin
+ tasks a little harder - our nice little screen which shows xload on
+ all of our servers doesn't look nice anymore when this particular
+ machine looks as if it's close to choking ;))
+-- 
+  (espen)
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Strange load numbers with lots of threads</h1>
+                 <pre>
+&gt
+&gt When using LW5-based binaries, I get absurd load numbers on a
+&gt dual-dual Opteron machine that is really mostly idle (I think the
+&gt % id number below must be right):
+
+This is probably neither here nor there, but a machine's processor(s)  
+can be almost entirely idle with a huge load average: load average is  
+something like the number of processes or threads which are not  
+waiting for anything but I/O to complete.  So if the machine is  
+heavily I/O bound and/or very short of memory, you can get huge load  
+averages while the processor has nothing to do, because there are no  
+processes which *aren't* waiting for I/O in some form.  Looking at  
+iostat or vmstat should tell you more (I dunno which of these works  
+on Linux, if either: probably depends on Kernel &amp; distro in the usual  
+horrible ways.)
+
+Another issue (which I'm sure you've already thought of) is that this  
+is a 4 core machine, so this is only equivalent to a load of 4-and-a- 
+bit on a single core machine.
+
+--tim
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Strange load numbers with lots of threads</h1>
+                 <pre>
+Tim Bradshaw &lt;tfb@cley.com&gt writes:
+
+&gt This is probably neither here nor there, but a machine's processor(s)  
+&gt can be almost entirely idle with a huge load average: load average is  
+&gt something like the number of processes or threads which are not  
+&gt waiting for anything but I/O to complete.  
+
+Hmm? Not in my understanding. The load average should be the number
+of processes currently running plus those in the run queue.
+
+&gt Another issue (which I'm sure you've already thought of) is that this  
+&gt is a 4 core machine, so this is only equivalent to a load of 4-and-a- 
+&gt bit on a single core machine.
+
+Sure. But that would still be a way too high number.
+
+Until recently, this machine ran LW4-based versions of the same binaries,
+and typically had a load of 0.1-0.8. The new LW5-based binaries do
+not consume any more cpu run time (as reported by top or ps) - it's
+only the load average number that has changed.
+
+So somehow this is related to the use of pthreads - either pthreads
+themselves or the way LW utilizes them.
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Strange load numbers with lots of threads</h1>
+                 <pre>
+On Wed, 11 Oct 2006 11:48:20 +0200, Espen Vestre &lt;ev@netfonds.no&gt wrote:
+
+&gt So somehow this is related to the use of pthreads - either pthreads
+&gt themselves or the way LW utilizes them.
+
+I'm really not an expert in these things but I seem to remember that
+on Linux threads are (or were?) in a way just processes in disguise.
+In fact, IIRC, in earlier versions of SBCL with native threads each
+thread appeared as a seperate line in the output of ps(1).  If that's
+the case, I think it is understandable that a higher load is reported
+although in reality nothing has changed - with LW 4.4 and "green"
+threads the OS saw just one process and that was it.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Strange load numbers with lots of threads</h1>
+                 <pre>
+Edi Weitz &lt;edi@agharta.de&gt writes:
+
+&gt I'm really not an expert in these things but I seem to remember that
+&gt on Linux threads are (or were?) in a way just processes in disguise.
+&gt In fact, IIRC, in earlier versions of SBCL with native threads each
+&gt thread appeared as a seperate line in the output of ps(1). 
+
+Yes, you can still see each thread if you supply the H option to
+ps.
+
+&gt If that's the case, I think it is understandable that a higher load
+&gt is reported although in reality nothing has changed - with LW 4.4
+&gt and "green" threads the OS saw just one process and that was it.
+
+Yes, it would be understandable if these threads/processes were in
+fact very active - but they're not. They're not consuming much
+cpu. The 5 processes with all their threads have consumed a total of
+appr.  1,5 cpu hours since their startup 5 hours ago.
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Strange load numbers with lots of threads</h1>
+                 <pre>
+On 10/11/06, Tim Bradshaw &lt;tfb@cley.com&gt wrote:
+&gt
+&gt &gt
+&gt &gt When using LW5-based binaries, I get absurd load numbers on a
+&gt &gt dual-dual Opteron machine that is really mostly idle (I think the
+&gt &gt % id number below must be right):
+&gt
+&gt This is probably neither here nor there, but a machine's processor(s)
+&gt can be almost entirely idle with a huge load average: load average is
+&gt something like the number of processes or threads which are not
+&gt waiting for anything but I/O to complete.  So if the machine is
+&gt heavily I/O bound and/or very short of memory, you can get huge load
+&gt averages while the processor has nothing to do, because there are no
+&gt processes which *aren't* waiting for I/O in some form.
+
+In that case top should not have shown the cpu as idle, but as waiting,
+(%wa)
+
+-- 
+  -asbjxrn
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Strange load numbers with lots of threads</h1>
+                 <pre>
+Tim Bradshaw &lt;tfb@cley.com&gt writes:
+
+&gt Well, for a suitable definition of `running' this is the same thing:  
+&gt the definition being `running, or waiting for certain kinds of I/O'.  
+&gt `Certain kinds of I/O' is the subtle bit: waiting for terminal input  
+&gt doesn't count, obviously, but waiting for disk I/O usually does (even  
+&gt more so does waiting for pages of memory to get swapped in or out).
+
+Waiting for paging: Certainly. Waiting for disk I/O? That depends.
+E.g. working with Solaris several years ago, we had an Oracle server
+that was close to its limits wrt. disk i/o, and would show a high
+"iowait" percentage in its cpu stats - but a load average close to
+zero. With a different setup, with the database residing on a NetApp
+nfs server, we would get high load numbers and zero iowait (presumably
+since the nfs load would count as kernel run time and not i/o wait).
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Strange load numbers with lots of threads</h1>
+                 <pre>
+Some additional info: strace seems to indicate that the process is
+spending most of its time waiting for a futex. I guess this might
+be due to the way lispworks implements threads? 
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:44 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

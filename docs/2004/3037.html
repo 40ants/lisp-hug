@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>define-foreign-callable</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>define-foreign-callable</h1><!doctype html public "-//W3C//DTD W3 HTML//EN">
+<html><head><style type="text/css"><!--
+blockquote, dl, ul, ol, li { padding-top: 0 ; padding-bottom: 0 }
+ --></style><title>define-foreign-callable</title></head><body>
+<div><font face="Helvetica" size="-2"
+color="#000000">Hello,</font></div>
+<div><font face="Helvetica" size="-2"
+color="#000000"><br></font></div>
+<div><font face="Helvetica" size="-2" color="#000000">We would need&nbsp;
+a C function that, after receiving a MIDI event</font></div>
+<div><font face="Helvetica" size="-2" color="#000000">from some
+external MIDI device,</font></div>
+<div><font face="Helvetica" size="-2" color="#000000">would in turn
+call a Lisp function to notify LW that the system has</font></div>
+<div><font face="Helvetica" size="-2" color="#000000">received a MIDI
+event. After reading the FLI manual we tried to<br>
+solve this problem by using the LW 'define-foreign-callable'
+macro.</font></div>
+<div><font face="Helvetica" size="-2"
+color="#000000"><br></font></div>
+<div><font face="Helvetica" size="-2" color="#000000">To simulate this
+behavior in C code we tried this :</font></div>
+<div><font face="Helvetica" size="-2" color="#000000"><br>
+</font><font face="Monaco" size="-3" color="#760F50">int</font><font
+face="Monaco" size="-3" color="#000000"> notify_lisp(</font><font
+face="Monaco" size="-3" color="#760F50">int x</font><font
+face="Monaco" size="-3" color="#000000">)<br>
+{<br>
+</font><font face="Monaco" size="-3"
+color="#760F50">&nbsp;return</font><font face="Monaco" size="-3"
+color="#000000">(</font><font face="Monaco" size="-3"
+color="#0000FF">x</font><font face="Monaco" size="-3"
+color="#000000">);<br>
+}</font><br>
+<font face="Monaco" size="-3" color="#000000"></font></div>
+<div><font face="Monaco" size="-3" color="#760F50">int</font><font
+face="Monaco" size="-3" color="#000000"> receive_midi(</font><font
+face="Monaco" size="-3" color="#760F50">int</font><font face="Monaco"
+size="-3" color="#000000"> x)<br>
+{<br>
+&nbsp;notify_lisp(x);<br>
+</font><font face="Monaco" size="-3"
+color="#760F50">&nbsp;return</font><font face="Monaco" size="-3"
+color="#000000">(</font><font face="Monaco" size="-3"
+color="#0000FF">0</font><font face="Monaco" size="-3"
+color="#000000">);<br>
+}</font><br>
+<font face="Helvetica" size="-2" color="#000000"></font></div>
+<div><font face="Helvetica" size="-2" color="#000000">The
+foreign-callable LW code in turn is defined like this:<br>
+<br>
+(fli:define-foreign-callable<br>
+&nbsp;&nbsp;&nbsp; (&quot;notify_lisp&quot; :result-type :int)<br>
+&nbsp;&nbsp;&nbsp; ((in-arg :int))&nbsp; (print (format t &quot;MIDI
+received ~a&quot; in-arg)))<br>
+<br>
+To test this from LW we do the following:<br>
+<br>
+(fli:define-foreign-function (test-midi-info &quot;</font><font
+face="Monaco" size="-3" color="#000000">receive_midi</font><font
+face="Helvetica" size="-2" color="#000000">&quot;)<br>
+&nbsp;&nbsp;&nbsp; ((in-arg :int)) :result-type :int)<br>
+<br>
+<br>
+But when calling:<br>
+<br>
+(test-midi-info 60)</font><br>
+<font face="Helvetica" size="-2" color="#000000"></font></div>
+<div><font face="Helvetica" size="-2" color="#000000">'test-midi-info'
+returns only 0 and does not call the '</font><font face="Monaco"
+size="-3" color="#000000">notify_lisp' function in Lisp as we
+hoped.</font></div>
+<div><font face="Monaco" size="-3" color="#000000">Probably the C
+function 'receive_midi' only calls the 'notify_lisp' that is defined
+in C.</font></div>
+<div><font face="Monaco" size="-3" color="#000000">How can we force
+the C function 'receive_midi' to call the<br>
+</font><font face="Helvetica" size="-2"
+color="#000000">foreign-callable function '</font><font face="Monaco"
+size="-3" color="#000000">notify_lisp' that would print the MIDI
+message in LW?</font></div>
+<div><font face="Monaco" size="-3" color="#000000">Do we need to deal
+with function pointers in C, and if this is the case,</font></div>
+<div><font face="Monaco" size="-3" color="#000000">how can we pass a
+function pointer of a</font><font face="Helvetica" size="-2"
+color="#000000"> foreign-callable&nbsp;</font><font face="Monaco"
+size="-3" color="#000000"> from Lisp to C?</font></div>
+<div><font face="Monaco" size="-3" color="#000000"><br></font></div>
+<div><font face="Monaco" size="-3" color="#000000">We are using LWM
+4.3.7.</font></div>
+<div><font face="Monaco" size="-3" color="#000000"><br></font></div>
+<div><font face="Monaco" size="-3" color="#000000">Any help
+appreciated.</font></div>
+<div><font face="Monaco" size="-3" color="#000000"><br></font></div>
+<div><font face="Monaco" size="-3" color="#000000">Mikael</font></div>
+</body>
+</html>
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: define-foreign-callable</h1>
+                 <pre>On Fri, 19 Nov 2004 18:29:35 +0200, Mikael Laurson &lt;laurson@siba.fi&gt wrote:
+
+&gt We would need a C function that, after receiving a MIDI event from
+&gt some external MIDI device, would in turn call a Lisp function to
+&gt notify LW that the system has received a MIDI event. After reading
+&gt the FLI manual we tried to solve this problem by using the LW
+&gt 'define-foreign-callable' macro.
+&gt
+&gt To simulate this behavior in C code we tried this :
+&gt
+&gt int notify_lisp(int x)
+&gt {
+&gt   return(x);
+&gt }
+&gt
+&gt int receive_midi(int x)
+&gt {
+&gt   notify_lisp(x);
+&gt   return(0);
+&gt }
+&gt
+&gt The foreign-callable LW code in turn is defined like this:
+&gt
+&gt (fli:define-foreign-callable
+&gt      ("notify_lisp" :result-type :int)
+&gt      ((in-arg :int))  (print (format t "MIDI received ~a" in-arg)))
+&gt
+&gt To test this from LW we do the following:
+&gt
+&gt (fli:define-foreign-function (test-midi-info "receive_midi")
+&gt      ((in-arg :int)) :result-type :int)
+&gt
+&gt
+&gt But when calling:
+&gt
+&gt (test-midi-info 60)
+&gt
+&gt 'test-midi-info' returns only 0 and does not call the 'notify_lisp'
+&gt function in Lisp as we hoped.  Probably the C function
+&gt 'receive_midi' only calls the 'notify_lisp' that is defined in C.
+
+Yes.
+
+&gt How can we force the C function 'receive_midi' to call the
+&gt foreign-callable function 'notify_lisp' that would print the MIDI
+&gt message in LW?  Do we need to deal with function pointers in C, and
+&gt if this is the case, how can we pass a function pointer of a
+&gt foreign-callable from Lisp to C?
+
+See here:
+
+  &lt;http://www1.xanalys.com/support/lisp/kbase.nsf/51fe6e1cdfe748a180256639005a2ba9/404d1bad7fe771f3802568c400540b50?OpenDocument&gt
+
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:50 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

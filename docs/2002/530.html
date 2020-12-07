@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>scrolling to the bottom of a window</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>scrolling to the bottom of a window</h1>
+                <pre>I have a fair number of little `stream viewer' thingies.  These are
+just wrappers around CAPI COLLECTOR-PANEs to which I send various
+random typeout.
+
+Is there an easy way to cause one of these things to scroll to the
+bottom on output?  What I want is something that will try and make
+sure that the most recent output to the stream is visible in the
+window.  I'm sure this is easy but I can't see how to do it.
+
+Thanks
+
+--tim
+
+(BTW if anyone ever used it, I recently put a newer version of my CLC
+thing at www.tfeb.org.  This now uses one of these viewer windows,
+which has the output-can-be-invisible problem I'm trying to solve!)
+
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: scrolling to the bottom of a window</h1>
+                 <pre>Tim Bradshaw &lt;tfb@cley.com&gt writes:
+
+&gt I have a fair number of little `stream viewer' thingies.  These are
+&gt just wrappers around CAPI COLLECTOR-PANEs to which I send various
+&gt random typeout.
+&gt 
+&gt Is there an easy way to cause one of these things to scroll to the
+&gt bottom on output?  What I want is something that will try and make
+&gt sure that the most recent output to the stream is visible in the
+&gt window.  I'm sure this is easy but I can't see how to do it.
+
+Dave and I had a fairly involved discussion about that some time
+ago. This is a method that works for a similar problem (making sure
+the viewers are at the beginning) for LW/Linux 4.1. A new scrolling
+API was announced for 4.2. If you update more than one, you need to
+call redisplay yourself. Otherwise only the last one done is shown.
+
+
+(defmethod fill-collectors ((interface test-case-4))
+  (let* ((collector-1-stream (capi:collector-pane-stream (collector-1 interface)))
+         (collector-2-stream (capi:collector-pane-stream (collector-2 interface))))
+    (loop repeat 100
+          do
+          (format collector-1-stream "1: Hello world!~%")
+          (format collector-2-stream "2: Hello world!~%"))
+    (capi:execute-with-interface interface
+                                 #'(lambda (pane)
+                                     (capi:call-editor pane "Beginning of Buffer")
+                                     (editor:redisplay))
+                                 (collector-1 interface))
+    (capi:execute-with-interface interface #'capi:call-editor (collector-2 interface) "Beginning of Buffer")
+    ))
+
+-- 
+Bored, now.
+Lieven Marchand &lt;mal@wyrd.be&gt
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: scrolling to the bottom of a window</h1>
+                 <pre>----- Original Message -----
+From: "Tim Bradshaw" &lt;tfb@cley.com&gt
+To: &lt;lisp-hug@xanalys.com&gt
+Sent: Thursday, August 22, 2002 10:50 AM
+Subject: scrolling to the bottom of a window
+
+
+&gt I have a fair number of little `stream viewer' thingies.  These are
+&gt just wrappers around CAPI COLLECTOR-PANEs to which I send various
+&gt random typeout.
+&gt
+&gt Is there an easy way to cause one of these things to scroll to the
+&gt bottom on output?  What I want is something that will try and make
+&gt sure that the most recent output to the stream is visible in the
+&gt window.  I'm sure this is easy but I can't see how to do it.
+&gt
+&gt Thanks
+&gt
+&gt --tim
+&gt
+&gt (BTW if anyone ever used it, I recently put a newer version of my CLC
+&gt thing at www.tfeb.org.  This now uses one of these viewer windows,
+&gt which has the output-can-be-invisible problem I'm trying to solve!)
+&gt
+&gt
+&gt
+An alternative to Lieven Marchand's method which may be simpler: (LWW 4.2.6)
+
+(setq pane (capi:contain (make-instance 'capi:collector-pane)))
+
+then put some text in the pane, either by typing or otherwise.
+
+Then
+(capi:scroll pane :vertical :page 10) moves 10 pages down
+(capi:scroll pane :vertical :page -10) moves 10 pages up
+
+If there are aren't 10 pages, seems not to matter so:
+(capi:scroll :vertical :page most-positive-fixnum)
+is fairly likely to get you to the bottom of the pane ;-)
+
+The capi reference manual says to use the scroll generic function, as
+set-scroll-position is deprecated.
+
+Jim Bushnell
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:57 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

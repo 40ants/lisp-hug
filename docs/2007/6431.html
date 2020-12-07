@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>bug in pprint with circular lists in structures?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>bug in pprint with circular lists in structures?</h1>
+                <pre>
+Hello all,
+I'm wondering if this is a bug. I'm not sure, as I'm having a hard time
+tracking down the inter-dependencies between the various
+*print-xxx*variables.
+
+In CLISP:
+
+
+[1]&gt (setf *print-circle* t)
+T
+[2]&gt (print '#1=(1 2 3 . #1#))
+
+#1=(1 2 3 . #1#)
+#1=(1 2 3 . #1#)
+[3]&gt (pprint '#1=(1 2 3 . #1#))
+
+#1=(1 2 3 . #1#)
+
+[4]&gt (defstruct foo l)
+FOO
+[5]&gt (print (make-foo :l '#1=(1 2 3 . #1#)))
+
+#S(FOO :L #1=(1 2 3 . #1#))
+#S(FOO :L #1=(1 2 3 . #1#))
+[6]&gt (pprint (make-foo :l '#1=(1 2 3 . #1#)))
+
+#S(FOO :L #1=(1 2 3 . #1#))
+
+
+But in Lispworks: (LWM 4.4.5):
+
+CL-USER 1 &gt (setf *print-circle* t)
+T
+
+CL-USER 2 &gt (print '#1=(1 2 3 . #1#))
+
+#1=(1 2 3 . #1#)
+#1=(1 2 3 . #1#)
+
+CL-USER 3 &gt (pprint '#1=(1 2 3 . #1#))
+
+#1=(1 2 3 . #1#)
+
+CL-USER 4 &gt (defstruct foo l)
+Foo
+
+CL-USER 5 &gt (print (make-foo :l '#1=(1 2 3 . #1#)))
+
+#S(Foo :L #1=(1 2 3 . #1#))
+#S(Foo :L #1=(1 2 3 . #1#))
+
+CL-USER 6 &gt (pprint (make-foo :l '#1=(1 2 3 . #1#)))
+
+;; and then it hangs here until I break manually.
+
+
+I'm having a hard time determining what the behavior
+*should* be (if it's even specified), and whether or not
+there's a bug here, or if I should be doing something
+with set-pprint-dispatch, &amp;c,
+
+Thanks!
+
+
+-- 
+=====================
+Joshua Taylor
+tayloj@rpi.edu
+
+"A lot of good things went down one time,
+     back in the goodle days."
+               John Hartford
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: bug in pprint with circular lists in structures?</h1>
+                 <pre>
+Sorry to reply to my own message, but I had posted this on
+comp.lang.lisp as well, and only just recently got a response
+suggesting that this is a bug, and not implementation specific
+behavior.
+
+So, should pprint respect *print-circle* ?
+
+On 2/22/07, Taylor, Joshua &lt;tayloj@rpi.edu&gt wrote:
+&gt Hello all,
+&gt I'm wondering if this is a bug. I'm not sure, as I'm having a hard time
+&gt tracking down the inter-dependencies between the various
+&gt *print-xxx*variables.
+&gt
+&gt In CLISP:
+&gt
+&gt
+&gt [1]&gt (setf *print-circle* t)
+&gt T
+&gt [2]&gt (print '#1=(1 2 3 . #1#))
+&gt
+&gt #1=(1 2 3 . #1#)
+&gt #1=(1 2 3 . #1#)
+&gt [3]&gt (pprint '#1=(1 2 3 . #1#))
+&gt
+&gt #1=(1 2 3 . #1#)
+&gt
+&gt [4]&gt (defstruct foo l)
+&gt FOO
+&gt [5]&gt (print (make-foo :l '#1=(1 2 3 . #1#)))
+&gt
+&gt #S(FOO :L #1=(1 2 3 . #1#))
+&gt #S(FOO :L #1=(1 2 3 . #1#))
+&gt [6]&gt (pprint (make-foo :l '#1=(1 2 3 . #1#)))
+&gt
+&gt #S(FOO :L #1=(1 2 3 . #1#))
+&gt
+&gt
+&gt But in Lispworks: (LWM 4.4.5):
+&gt
+&gt CL-USER 1 &gt (setf *print-circle* t)
+&gt T
+&gt
+&gt CL-USER 2 &gt (print '#1=(1 2 3 . #1#))
+&gt
+&gt #1=(1 2 3 . #1#)
+&gt #1=(1 2 3 . #1#)
+&gt
+&gt CL-USER 3 &gt (pprint '#1=(1 2 3 . #1#))
+&gt
+&gt #1=(1 2 3 . #1#)
+&gt
+&gt CL-USER 4 &gt (defstruct foo l)
+&gt Foo
+&gt
+&gt CL-USER 5 &gt (print (make-foo :l '#1=(1 2 3 . #1#)))
+&gt
+&gt #S(Foo :L #1=(1 2 3 . #1#))
+&gt #S(Foo :L #1=(1 2 3 . #1#))
+&gt
+&gt CL-USER 6 &gt (pprint (make-foo :l '#1=(1 2 3 . #1#)))
+&gt
+&gt ;; and then it hangs here until I break manually.
+&gt
+&gt
+&gt I'm having a hard time determining what the behavior
+&gt *should* be (if it's even specified), and whether or not
+&gt there's a bug here, or if I should be doing something
+&gt with set-pprint-dispatch, &amp;c,
+&gt
+&gt Thanks!
+&gt
+&gt
+&gt --
+&gt =====================
+&gt Joshua Taylor
+&gt tayloj@rpi.edu
+&gt
+&gt "A lot of good things went down one time,
+&gt      back in the goodle days."
+&gt                John Hartford
+&gt
+
+
+-- 
+=====================
+Joshua Taylor
+tayloj@rpi.edu
+
+"A lot of good things went down one time,
+     back in the goodle days."
+               John Hartford
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:43 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

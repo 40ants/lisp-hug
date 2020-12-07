@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Weird FFI problem in delivered image</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Weird FFI problem in delivered image</h1>
+                <pre>
+Hi.
+
+I have some FFI code for interfacing to a third-party C library.
+Functions in this library take a C struct as input and (sometimes)
+operate on it.  Between operations I store this struct as a
+base64-encoded string in a database.  The whole setup works like a
+charm in my development image, but not when I deliver my application.
+Suddenly the library functions return a status code indicating that
+the input is corrupted.
+
+My delivered apps have a REPL available, and going through the steps
+manually, I can't find any difference between the C structs in my
+development image and the delivered image.  The base64 strings are
+verified identical, as are each slot returned by
+fli:foreign-slot-names on the constructed c object.
+
+This has led me to believe that the problem is not actually with the
+input data, but somewhere on the FFI call chain.
+
+So I started looking at documentation, and discovered that
+fli:register-module should be called at runtime.  I had it as a
+toplevel form in the file containing fli definitions.  Calling
+fli:register-module from my application startup routine seems to fix
+the problem.
+
+But I don't really want to have all the applications that use this
+library have to know about it and call my new initialization
+function.
+
+So I started thinking about action lists.  But adding the
+initialization to "When starting image" doesn't help.  The C-libary is
+available, but calls return the same erroneous status code about
+corrupted input.  I found an undocumented action list called "Reset
+FFI on startup" that looked promising, but the same thing happened
+when I put the initialization on that one.
+
+To try to make sure there was no stale module registered before
+delivery, I also called fli:disconnect-module with :remove t from a
+delivery action.  I verified that if I don't call my initialization
+routine at all in the delivered image, I get an error about an
+unresolved symbol.
+
+My current guess is that not only must the fli:register-module call
+happen at runtime, it must happen after multiprocessing has been
+initialized, which I guess is after the "When starting image" action
+list has run.
+
+I have two questions, really: 
+
+* Has anyone else seen this kind of behaviour and have a clue about
+  what may be the cause of the weird return values?
+
+* Is there any way of specifying stuff to run after multiprocessing
+  has been initialized, but before (or in parallell with) the
+  application startup function takes over?
+
+My platform is LWL 5.1.1.  Delivered apps work fine in LWL 5.0 from
+the same codebase (with the fli:register-module call on toplevel).
+
+The C library I'm interfacing is very much a black box (RSA Securid
+Authentication Engine, if anyone cares), there's not much hope of
+debugging from that side.
+
+The foreign function I'm calling (there's lots of them, but all return
+the same error code) is defined as something like 
+
+(fli:define-foreign-function (%info
+                              "Info_NotTheRealFuncName"
+                              :source)
+                             ((bdata 
+                               (:pointer 
+                                (:struct binary-data)))
+                              (token-info
+                               (:pointer
+                                (:struct output-info-struct))))
+                             :result-type
+                             :int
+                             :language
+                             :ansi-c
+			     :module :pdata)
+
+The error return value is 45 in the faulty case, 0 normally.  This
+return value means that the first argument is internally inconsistent,
+but as I wrote, identical data in my development image is accepted.
+
+The whole thing is under NDA, so I can't really show much more of the
+definitions.
+
+-- 
+Mvh/Regards
+Peder O. Klingenberg
+Netfonds Bank ASA
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Weird FFI problem in delivered image</h1>
+                 <pre>
+On Wed, 25 Jun 2008 15:22:14 +0200, pok@netfonds.no (Peder O. Klingenberg) wrote:
+
+&gt So I started looking at documentation, and discovered that
+&gt fli:register-module should be called at runtime.  I had it as a
+&gt toplevel form in the file containing fli definitions.  Calling
+&gt fli:register-module from my application startup routine seems to fix
+&gt the problem.
+
+Strange.  Did you set the connection style explicitly?  I have several
+applications where REGISTER-MODULE is a top-level form and they work
+fine.  My understanding is that the default behaviour is that the DLL
+isn't loaded (and thus initialized) before it is actually used by some
+FLI call.  (This is on Windows, though.)
+
+&gt My platform is LWL 5.1.1.  Delivered apps work fine in LWL 5.0 from
+&gt the same codebase (with the fli:register-module call on toplevel).
+
+Smells like something specific to Linux and/or 5.1...
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Weird FFI problem in delivered image</h1>
+                 <p>
+                  Unable to parse email body. Email id is 8275
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Weird FFI problem in delivered image</h1>
+                 <pre>
+Nick Levine &lt;ndl@ravenbrook.com&gt writes:
+
+&gt    So I started thinking about action lists.  But adding the
+&gt    initialization to "When starting image" doesn't help.  The C-libary
+&gt    is available, but calls return the same erroneous status code about
+&gt    corrupted input.  I found an undocumented action list called "Reset
+&gt    FFI on startup" that looked promising, but the same thing happened
+&gt    when I put the initialization on that one.
+&gt
+&gt Was your action after all the predefined ones?
+
+According to lw:print-actions, yes.  I didn't explicitly set any
+:after condition, but it ended up at the bottom of both lists, and the
+doc says the output of print-actions is ordered.
+
+&gt Seems unlikely.
+
+No argument there, but I can't see what else is left.  Testing that
+hypothesis was the reason for my second question.
+
+&gt Why can't your initialization function explicitly register the modules
+&gt you need?
+
+Until now, my lisp-level library didn't have an initialization
+function.  Application code using it just included my lisp file in the
+build.  I'd prefer to keep the thing nicely encapsulated and taking
+care of its own needs, without involving the application startup code.
+But calling an initialization function which registers the modules
+from application startup is one way to avoid the problem.
+
+Another workaround, which I'm leaning towards at the moment, is that I
+can rely on the fact that all the ffi calls are wrapped in a single
+function, which handles marshalling of foreign objects and C's stupid
+way of handling multiple return values and stuff.  It's easy to have
+this function initialize the the module on the first call.
+
+Considering that each call to my lisp-functions causes at least one,
+usually two, round-trips to a database, an extra test on each call to
+determine if initalization is needed is not terribly costly.
+Nevertheless, this solution leaves me with an itch in my aesteticles.
+There should be a better way.
+
+My curiosity has been piqued, and using either of the available,
+tested and working workarounds seems like a cop-out at this point. :)
+
+-- 
+Mvh/Regards
+Peder O. Klingenberg
+Netfonds Bank ASA
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Weird FFI problem in delivered image</h1>
+                 <pre>
+Nick Levine &lt;ndl@ravenbrook.com&gt writes:
+
+&gt    My current guess is that not only must the fli:register-module call
+&gt    happen at runtime, it must happen after multiprocessing has been
+&gt    initialized, 
+&gt
+&gt Seems unlikely.
+
+And now disproven.
+
+After some insightful suggestions in private communication, I've come
+a little further.  Our build system wraps the application startup
+function in another function before calling lw:deliver.  I had this
+wrapper function run a custom action list immediately before calling
+the app startup function.  Same error happened, and this is definitely
+after MP has been initialized.
+
+I tried without the action list, having the startup-wrapper call
+fli:register-module directly, and no difference.
+
+So I went back and looked at the application startup again.  If i
+stuff the fli:register-module in at the bottom of that function, as in
+my first attempts, everything works.  So I gradually moved it up the
+function, and it turns out the critical point is the database
+connection.  If I call fli:register-module immediately before the
+database connection is established, it breaks.  If I call
+fli:register-module immediately after connecting to the DB, it all
+works.
+
+The DB connection is to Oracle, using the 10.2 instant client libs.
+We don't call sql:connect directly, but the layers between are really
+thin.  I'll keep digging.
+
+Anybody know of any particular pitfalls related to the Oracle&lt;-&gtlisp
+connection?
+
+-- 
+Mvh/Regards
+Peder O. Klingenberg
+Netfonds Bank ASA
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:39 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

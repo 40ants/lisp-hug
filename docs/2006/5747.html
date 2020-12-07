@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>"Error: definining system package"</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>"Error: definining system package"</h1>
+                <pre>
+While trying to load clsql-postgresql (i.e. the FFI version), the
+error "definining system package POSTGRESQL" is raised.
+
+This error is raised even in the following test case:
+
+CL-USER 24 &gt (find-package "POSTGRESQL")
+NIL
+
+CL-USER 25 &gt (defpackage "POSTGRESQL" (:use "CL"))
+
+Error: Defining system package POSTGRESQL.
+  1 (continue) Define it anyway.
+  2 (abort) Return to level 0.
+  3 Return to top loop level 0.
+
+Type :b for backtrace, :c &lt;option number&gt to proceed,  or :? for other options
+
+CL-USER 26 : 1 &gt (defpackage "pSTGRESQL" (:use "CL"))
+#&lt;The pSTGRESQL package, 0/16 internal, 0/16 external&gt
+
+Here I can simply pick the first restart, but ASDF aborts when it hits
+this error.  I do not have ODBC loaded, but somehow the package
+"POSTGRESQL" is specially marked.
+
+I can't find any information about "system packages" in the LispWorks
+documentation.  Any ideas?  I'm fine with the postgresql-socket
+backend for now, but I'd like to get this to work.  I am running
+LispWorks 5.0.
+
+-- 
+Bill Atkins
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: "Error: definining system package"</h1>
+                 <pre>
+Bill Atkins wrote:
+
+&gt I can't find any information about "system packages" in the LispWorks
+&gt documentation.  Any ideas?
+
+I'm not sure if this still works, but I used to solve this kind of
+problem by setting HCL:*PACKAGES-FOR-WARN-ON-REDEFINITION*.
+
+You could probably do something like:
+
+   (setq hcl:*packages-for-warn-on-redefinition*
+         (remove-if (lambda (package-name)
+                      (member package-name
+                             '("POSTGRESQL"
+                               ;; Add other system packages here if necessary.
+                              )
+                              :test #'string-equal))
+                    *packages-for-warn-on-redefinition*))
+
+I hope this helps,
+
+Arthur Lemmens
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: "Error: definining system package"</h1>
+                 <pre>
+Thanks!  That fixed it.
+
+On 8/8/06, Arthur Lemmens &lt;alemmens@xs4all.nl&gt wrote:
+&gt Bill Atkins wrote:
+&gt
+&gt &gt I can't find any information about "system packages" in the LispWorks
+&gt &gt documentation.  Any ideas?
+&gt
+&gt I'm not sure if this still works, but I used to solve this kind of
+&gt problem by setting HCL:*PACKAGES-FOR-WARN-ON-REDEFINITION*.
+&gt
+&gt You could probably do something like:
+&gt
+&gt    (setq hcl:*packages-for-warn-on-redefinition*
+&gt          (remove-if (lambda (package-name)
+&gt                       (member package-name
+&gt                              '("POSTGRESQL"
+&gt                                ;; Add other system packages here if necessary.
+&gt                               )
+&gt                               :test #'string-equal))
+&gt                     *packages-for-warn-on-redefinition*))
+&gt
+&gt I hope this helps,
+&gt
+&gt Arthur Lemmens
+&gt
+&gt
+&gt
+&gt
+
+
+-- 
+Bill Atkins
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:44 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

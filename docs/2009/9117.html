@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Problem with C callback (PortAudio)</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Problem with C callback (PortAudio)</h1>
+                <pre>
+I have written some bindings for PortAudio, a widely-used cross-platform C
+audio API. It requires a callback, which is called continuously while audio is
+required. It works, but I often encounter the following error -
+
+Error: Exception C0000005 [flags 0] at 218313C 
+eax    40200 ebx  262FA60 ecx   19CEF0 edx   A5BFE8
+esp  262FA14 ebp        0 esi        0 edi FFFFFFFF
+  1 (abort) Return to event loop.
+
+Type :b for backtrace, :c &lt;option number&gt to proceed,  or :? for other options
+
+PORTAUDIO-TEST 1 : 1 &gt :b
+Call to (HARLEQUIN-COMMON-LISP:SUBFUNCTION
+SYSTEM::|%FOREIGN-CALLABLE/fault_handler_on_c_stack|
+(FLI:DEFINE-FOREIGN-CALLABLE "fault_handler_on_c_stack"))
+Call to FLI::FOREIGN-CALLABLE-ENTRY-POINT-AUX-NESTED
+Call to |%cffi-foreign-function/PA-OPEN-STREAM|
+Interpreted call to PA-OPEN-STREAM
+Interpreted call to PLAY-SAMPLES
+Call to CAPI::EXECUTE-CALLBACK
+Call to CAPI:EXECUTE-WITH-INTERFACE
+Call to CAPI-WIN32-LIB::PERFORM-WM-COMMAND-FOR-R-PCL-WINDOW
+Call to WIN32::WND-PROC
+Call to (HARLEQUIN-COMMON-LISP:SUBFUNCTION
+WIN32::|%FOREIGN-CALLABLE/wnd_proc_callback| (FLI:DEFINE-FOREIGN-CALLABLE
+"wnd_proc_callback"))
+Call to FLI::FOREIGN-CALLABLE-ENTRY-POINT-AUX-NESTED
+Call to WIN32:IS-DIALOG-MESSAGE
+Call to WIN32::PROCESS-MESSAGES
+Call to MP::WIN32-PROCESS-WAIT-FOR-EVENT
+Call to MP:PROCESS-READ-EVENT
+Call to CAPI-INTERNALS:LOOP-PROCESS-EVENTS
+Call to CAPI::INTERFACE-EVENT-LOOP
+Call to CAPI::INITIALIZE-AND-PROCESS-EVENTS
+Call to (HARLEQUIN-COMMON-LISP:SUBFUNCTION MP::PROCESS-SG-FUNCTION
+MP::INITIALIZE-PROCESS-STACK)
+
+On my Mac I simply get this -
+
+Bus error(10) [code F068C678] at C
+
+The callback itself takes the following form (I'm using CFFI) -
+
+(defcallback process-samples :int ((input :pointer) 
+                                   (output :pointer) 
+			           (frames-per-buffer :ulong) 
+                                   (time-info pa-stream-callback-time-info) 
+                                   (status-flags pa-stream-callback-flags)
+	                           (user-data :pointer))
+  (declare (ignore input time-info status-flags user-data))
+  (loop with n-samps = (length *samples*)		 
+        for i from 0 below frames-per-buffer
+        for j = (+ *counter* i)		  
+	if (&lt; j n-samps)
+	do (setf (mem-aref output :float i) (aref *samples* j))	  
+	else do
+          (setf *counter* 0)
+          (return 1)
+	finally 
+	(setf *counter* (+ *counter* frames-per-buffer))
+	(return 0)))
+		
+This simply writes samples from the Lisp array *samples* to the output audio
+buffer in blocks of size frames-per-buffer (in this case 2048). While the 
+callback returns 0 it continues to be called, returning 1 stops it. The 
+variable *counter* stores the current position within the sample buffer.
+
+I suspect the error I'm getting may be due to GC occurring during the callback 
+process, thus moving objects which the foreign code is still pointing to. I've 
+declared my samples buffer static to hopefully account for this, but the error 
+remains. The callback lives in its own thread, so possibly it's a 
+multi-threading problem... Plus I'm calling PortAudio from a menu in my main 
+interface, which adds possibly another level of complication...
+
+PortAudio also has a non-callback interface, which causes no problems, but the 
+advantage of the callback approach is that it allows me to update various 
+variables on a 'per sample' basis. More info on this can be found at 
+http://www.portaudio.com/trac/wiki/TutorialDir/WritingACallback.
+
+Any help/suggestions greatly appreciated.
+
+Chris
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>AW: Problem with C callback (PortAudio)</h1>
+                 <pre>
+Hi Chris,
+
+this is just a rough guess. Did you compile the callback function?
+Interpreted code is slow in Lispworks AFAIK. This might be a problem in
+audio processing.
+
+Andreas
+
+
+&gt -----Ursprüngliche Nachricht-----
+&gt Von: owner-lisp-hug@lispworks.com [mailto:owner-lisp-hug@lispworks.com]
+&gt Im Auftrag von Chris Melen
+&gt Gesendet: Montag, 6. April 2009 00:54
+&gt An: lisp-hug@lispworks.com
+&gt Betreff: Problem with C callback (PortAudio)
+&gt 
+&gt 
+&gt I have written some bindings for PortAudio, a widely-used cross-
+&gt platform C
+&gt audio API. It requires a callback, which is called continuously while
+&gt audio is
+&gt required. It works, but I often encounter the following error -
+&gt 
+&gt Error: Exception C0000005 [flags 0] at 218313C
+&gt eax    40200 ebx  262FA60 ecx   19CEF0 edx   A5BFE8
+&gt esp  262FA14 ebp        0 esi        0 edi FFFFFFFF
+&gt   1 (abort) Return to event loop.
+&gt 
+&gt Type :b for backtrace, :c &lt;option number&gt to proceed,  or :? for other
+&gt options
+&gt 
+&gt PORTAUDIO-TEST 1 : 1 &gt :b
+&gt Call to (HARLEQUIN-COMMON-LISP:SUBFUNCTION
+&gt SYSTEM::|%FOREIGN-CALLABLE/fault_handler_on_c_stack|
+&gt (FLI:DEFINE-FOREIGN-CALLABLE "fault_handler_on_c_stack"))
+&gt Call to FLI::FOREIGN-CALLABLE-ENTRY-POINT-AUX-NESTED
+&gt Call to |%cffi-foreign-function/PA-OPEN-STREAM|
+&gt Interpreted call to PA-OPEN-STREAM
+&gt Interpreted call to PLAY-SAMPLES
+&gt Call to CAPI::EXECUTE-CALLBACK
+&gt Call to CAPI:EXECUTE-WITH-INTERFACE
+&gt Call to CAPI-WIN32-LIB::PERFORM-WM-COMMAND-FOR-R-PCL-WINDOW
+&gt Call to WIN32::WND-PROC
+&gt Call to (HARLEQUIN-COMMON-LISP:SUBFUNCTION
+&gt WIN32::|%FOREIGN-CALLABLE/wnd_proc_callback| (FLI:DEFINE-FOREIGN-
+&gt CALLABLE
+&gt "wnd_proc_callback"))
+&gt Call to FLI::FOREIGN-CALLABLE-ENTRY-POINT-AUX-NESTED
+&gt Call to WIN32:IS-DIALOG-MESSAGE
+&gt Call to WIN32::PROCESS-MESSAGES
+&gt Call to MP::WIN32-PROCESS-WAIT-FOR-EVENT
+&gt Call to MP:PROCESS-READ-EVENT
+&gt Call to CAPI-INTERNALS:LOOP-PROCESS-EVENTS
+&gt Call to CAPI::INTERFACE-EVENT-LOOP
+&gt Call to CAPI::INITIALIZE-AND-PROCESS-EVENTS
+&gt Call to (HARLEQUIN-COMMON-LISP:SUBFUNCTION MP::PROCESS-SG-FUNCTION
+&gt MP::INITIALIZE-PROCESS-STACK)
+&gt 
+&gt On my Mac I simply get this -
+&gt 
+&gt Bus error(10) [code F068C678] at C
+&gt 
+&gt The callback itself takes the following form (I'm using CFFI) -
+&gt 
+&gt (defcallback process-samples :int ((input :pointer)
+&gt                                    (output :pointer)
+&gt 			           (frames-per-buffer :ulong)
+&gt                                    (time-info pa-stream-callback-time-
+&gt info)
+&gt                                    (status-flags pa-stream-callback-
+&gt flags)
+&gt 	                           (user-data :pointer))
+&gt   (declare (ignore input time-info status-flags user-data))
+&gt   (loop with n-samps = (length *samples*)
+&gt         for i from 0 below frames-per-buffer
+&gt         for j = (+ *counter* i)
+&gt 	if (&lt; j n-samps)
+&gt 	do (setf (mem-aref output :float i) (aref *samples* j))
+&gt 	else do
+&gt           (setf *counter* 0)
+&gt           (return 1)
+&gt 	finally
+&gt 	(setf *counter* (+ *counter* frames-per-buffer))
+&gt 	(return 0)))
+&gt 
+&gt This simply writes samples from the Lisp array *samples* to the output
+&gt audio
+&gt buffer in blocks of size frames-per-buffer (in this case 2048). While
+&gt the
+&gt callback returns 0 it continues to be called, returning 1 stops it. The
+&gt variable *counter* stores the current position within the sample
+&gt buffer.
+&gt 
+&gt I suspect the error I'm getting may be due to GC occurring during the
+&gt callback
+&gt process, thus moving objects which the foreign code is still pointing
+&gt to. I've
+&gt declared my samples buffer static to hopefully account for this, but
+&gt the error
+&gt remains. The callback lives in its own thread, so possibly it's a
+&gt multi-threading problem... Plus I'm calling PortAudio from a menu in my
+&gt main
+&gt interface, which adds possibly another level of complication...
+&gt 
+&gt PortAudio also has a non-callback interface, which causes no problems,
+&gt but the
+&gt advantage of the callback approach is that it allows me to update
+&gt various
+&gt variables on a 'per sample' basis. More info on this can be found at
+&gt http://www.portaudio.com/trac/wiki/TutorialDir/WritingACallback.
+&gt 
+&gt Any help/suggestions greatly appreciated.
+&gt 
+&gt Chris
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Problem with C callback (PortAudio)</h1>
+                 <pre>
+On Sun, 05 Apr 2009 15:53:54 -0700, Chris Melen  
+&lt;relativeflux@hotmail.co.uk&gt wrote:
+
+&gt
+&gt I have written some bindings for PortAudio, a widely-used cross-platform  
+&gt C
+&gt audio API. It requires a callback, which is called continuously while  
+&gt audio is
+&gt required. It works, but I often encounter the following error -
+&gt
+&gt Error: Exception C0000005 [flags 0] at 218313C
+&gt eax    40200 ebx  262FA60 ecx   19CEF0 edx   A5BFE8
+&gt esp  262FA14 ebp        0 esi        0 edi FFFFFFFF
+&gt   1 (abort) Return to event loop.
+
+This might happen if PortAudio creates a new thread to perfrom the  
+callback.
+
+- Luke
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Problem with C callback (PortAudio)</h1>
+                 <p>
+                  Unable to parse email body. Email id is 9122
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Problem with C callback (PortAudio)</h1>
+                 <pre>
+&gt&gt&gt&gt&gt On Mon, 06 Apr 2009 10:10:46 -0700, Luke Crook said:
+&gt 
+&gt On Mon, 06 Apr 2009 09:33:27 -0700, Chris Melen  
+&gt &lt;relativeflux@hotmail.co.uk&gt wrote:
+&gt 
+&gt &gt
+&gt &gt Eivind Midtgård &lt;eivind &lt;at&gt autosim.no&gt writes:
+&gt &gt
+&gt &gt&gt &gt &gt
+&gt &gt&gt &gt &gt Error: Exception C0000005 [flags 0] at 218313C
+&gt &gt&gt &gt &gt eax    40200 ebx  262FA60 ecx   19CEF0 edx   A5BFE8
+&gt &gt&gt &gt &gt esp  262FA14 ebp        0 esi        0 edi FFFFFFFF
+&gt &gt&gt &gt &gt   1 (abort) Return to event loop.
+&gt &gt&gt &gt
+&gt &gt&gt &gt This might happen if PortAudio creates a new thread to perfrom the
+&gt &gt&gt &gt callback.
+&gt &gt&gt
+&gt &gt&gt If so, sys:setup-for-alien-threads should help.
+&gt &gt&gt
+&gt &gt&gt Eivind
+&gt &gt&gt
+&gt &gt&gt
+&gt &gt
+&gt &gt Thanks guys. I thought sys:setup-for-alien-threads wasn't necessary any  
+&gt &gt more,
+&gt &gt however, and had been removed.
+&gt 
+&gt It is no longer necessary in the latest version of Lispworks.
+
+Correct.  In fact, the function is no longer defined in LispWorks 5.1.
+
+
+&gt                                                               However this  
+&gt does not apply to callbacks from unknown foreign threads. If PortAudio  
+&gt spawns a new thread and the new thread calls back into Lispworks then you  
+&gt will see random crashes all over the place.
+
+That might be a bug.  New threads can call back into LispWorks, unless they
+have some particularly strange environmental requirements (though I can't
+think of any offhand).
+
+-- 
+Martin Simmons
+LispWorks Ltd
+http://www.lispworks.com/
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Problem with C callback (PortAudio)</h1>
+                 <p>
+                  Unable to parse email body. Email id is 9124
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:37 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

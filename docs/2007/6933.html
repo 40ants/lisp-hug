@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>What's happened to system colors like win32:color_highlight in LWW5.0?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>What's happened to system colors like win32:color_highlight in LWW5.0?</h1>
+                <pre>
+Hello lispworkers,
+
+In LWW4.4 I can easily use system colors win32:color_windowtext and the
+like. In the listener, I see
+
+CL-USER 2 &gt (color:get-color-alias-translation 'win32:color_highlight)
+WIN32:COLOR_HIGHLIGHT
+
+CL-USER 3 &gt (color:get-color-translation 'win32:color_highlight)
+#S(COLOR:COLOR-ALIAS :COLOR #(:RGB 0.0 0.5019607843137255
+0.5019607843137255))
+
+On the contrary, I do not see such aliases in LWW5.0 Personal:
+
+CL-USER 2 &gt (color:get-color-alias-translation :color_highlight)
+NIL
+
+CL-USER 3 &gt (color:get-color-translation 'win32:color_highlight)
+
+And I cannot refer to such aliases in CAPI panes.
+
+In readme-5-0.pdf, Section 12.5.3 mentions the following:
+
+You can supply :background :color_highlight and :foreground
+  :color_highlighttext...
+
+But these :color_highlight and :color_highlighttext are missing from
+color:*color-database* at all.
+
+What is wrong with them?
+--
+Sincerely,
+Dmitriy Ivanov
+lisp.ystok.ru
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: What's happened to system colors like win32:color_highlight in LWW5.0?</h1>
+                 <pre>
+I wrote:
+
+| In LWW4.4 I can easily use system colors win32:color_windowtext and the
+| like. In the listener, I see
+|
+| CL-USER 2 &gt (color:get-color-alias-translation 'win32:color_highlight)
+| WIN32:COLOR_HIGHLIGHT
+|
+| CL-USER 3 &gt (color:get-color-translation 'win32:color_highlight)
+| #S(COLOR:COLOR-ALIAS :COLOR #(:RGB 0.0 0.5019607843137255
+| 0.5019607843137255))
+|
+| On the contrary, I do not see such aliases in LWW5.0 Personal:
+|
+| CL-USER 2 &gt (color:get-color-alias-translation :color_highlight)
+| NIL
+|
+| CL-USER 3 &gt (color:get-color-translation 'win32:color_highlight)
+|
+| And I cannot refer to such aliases in CAPI panes.
+|
+| In readme-5-0.pdf, Section 12.5.3 mentions the following:
+|
+| You can supply :background :color_highlight and :foreground
+|   :color_highlighttext...
+|
+| But these :color_highlight and :color_highlighttext are missing from
+| color:*color-database* at all.
+|
+| What is wrong with them?
+
+Just answering myself, the following hack does the trick:
+
+(dolist (color CAPI-WIN32-LIB::*SYSTEM-COLORS*)
+  (color:define-color-alias (find-symbol (slot-value color 'keyword) :win32)
+                            (slot-value color 'CAPI-WIN32-LIB::COLOR)))
+
+Sorry for the noise.
+--
+Sincerely,
+Dmitriy Ivanov
+lisp.ystok.ru
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:42 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

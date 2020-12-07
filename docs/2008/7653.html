@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Rational = float</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Rational = float</h1>
+                <pre>
+I found a bug in my codes witch was due to a comparison between a fractional
+number and a float number. Because the float number is a 'limited' float
+with max 2 numbers after the point (and is always rational) I thought it
+works because :
+
+(= 1.0 1) =&gt T
+(= 0.5 1/2) =&gt T
+(= 0.25 1/4) =&gt T
+(= 1.125 9/8) =&gt T
+Etc.
+
+But in fact
+
+(= 0.2 1/5) =&gt NIL
+
+Is it correct to say that the denominator of the rational must always be a
+power of two  to make a valid comparison with a float ?
+
+In addition, is it a operator that return T for the test of comparison of
+0.2 and 1/5 ? Or is it the best solution to make (= 0.2 (float 1/5)) ?
+
+Thanks
+
+Denis
+
+-------------------------------------------------------
+Denis Pousseur
+70 rue de Wansijn
+1180 Bruxelles, Belgique
+
+Tel : 32 (0)2 219 31 09
+Mail :  denis.pousseur@gmail.com
+-------------------------------------------------------
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Rational = float</h1>
+                 <p>
+                  Unable to parse email body. Email id is 7654
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: Rational = float</h1>
+                  <pre>
+Le 5/02/08 13:55, «&nbsp;[NOM]&nbsp;» &lt;[ADRESSE]&gt a écrit&nbsp;:
+
+&gt    [...]
+&gt 
+&gt    But in fact
+&gt 
+&gt    (= 0.2 1/5) =&gt NIL
+&gt 
+&gt    Is it correct to say that the denominator of the rational must
+&gt    always be a power of two to make a valid comparison with a float ?
+&gt 
+&gt This condition is sufficient but might not be necessary.
+&gt 
+&gt    In addition, is it a operator that return T for the test of
+&gt    comparison of 0.2 and 1/5 ? Or is it the best solution to make (=
+&gt    0.2 (float 1/5)) ?
+&gt 
+&gt See the "Rule of Float and Rational Contagion"
+&gt 
+&gt http://www.lispworks.com/documentation/HyperSpec/Body/12_ada.htm
+
+Ah yes, so :
+
+(rational 0.2) =&gt 13421773/67108864 (glup...)
+
+And then (= 13421773/67108864 1/5) =&gt NIL (here I understand something)
+
+And, as says Espen : (rationalize 0.2) =&gt 1/5 (ouf!)
+
+But is not the RATIONALIZE function too expensive in term of performances to
+generalize a (rationalize float) mechanism ? Hmmm...
+
+Fortunately, I use float for displaying convenience and not really for
+computation. So I thing I could simply avoid this comparison (and it will
+certainly be more prudent)
+
+Thanks for your very interesting explanations (and the others I received)
+
+Denis
+
+&gt 
+&gt The 1/5 is coerced to a float as part of the = operation.
+&gt 
+&gt The real issue is: you should always (in any programming language) be
+&gt extremely wary when comparing floats, which by their very nature can
+&gt never be guaranteed exact. Both 0.2 and (float 1/5) have to be inexact
+&gt as IEEE floats, and it happens that they are inexact differently.
+&gt 
+&gt Something like
+&gt 
+&gt    (defun close-enough-= (this that)
+&gt      (&lt; (abs (- this that))
+&gt         +tolerance+))
+&gt 
+&gt might be more appropriate.
+&gt 
+&gt - nick
+&gt 
+
+-------------------------------------------------------
+Denis Pousseur
+70 rue de Wansijn
+1180 Bruxelles, Belgique
+
+Tel : 32 (0)2 219 31 09
+Mail :  denis.pousseur@gmail.com
+-------------------------------------------------------
+
+
+
+</pre>
+                 </article>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>Re: Rational = float</h1>
+                   <pre>
+Denis Pousseur &lt;denis.pousseur@gmail.com&gt writes:
+
+&gt And, as says Espen : (rationalize 0.2) =&gt 1/5 (ouf!)
+&gt
+&gt But is not the RATIONALIZE function too expensive in term of performances to
+&gt generalize a (rationalize float) mechanism ? Hmmm...
+
+YMMV. It's not 100% reliable either, at least it will fool you if you
+(EEK!) want to work with short-floats:
+
+NFTPD 59 &gt (rationalize (coerce 95/100 'short-float))
+41495/43679
+
+(I don't know if that might possibly be a bug in LWs rationalize
+ implementation...?)
+
+but it works fine with all single- and double-floats from 0.01, 0.02,
+...., 0.99
+-- 
+  (espen)
+
+
+</pre>
+                  </article>
+                 </section>
+                </section>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Rational = float</h1>
+                 <pre>
+Denis Pousseur &lt;denis.pousseur@gmail.com&gt writes:
+
+&gt I found a bug in my codes witch was due to a comparison between a fractional
+&gt number and a float number. Because the float number is a 'limited' float
+&gt with max 2 numbers after the point (and is always rational) I thought it
+&gt works because :
+
+All floating point numbers are rational. They're all
+mantissa*base^exponent.
+
+&gt (= 1.0 1) =&gt T
+&gt (= 0.5 1/2) =&gt T
+&gt (= 0.25 1/4) =&gt T
+&gt (= 1.125 9/8) =&gt T
+&gt Etc.
+&gt
+&gt But in fact
+&gt
+&gt (= 0.2 1/5) =&gt NIL
+&gt
+&gt Is it correct to say that the denominator of the rational must always be a
+&gt power of two  to make a valid comparison with a float ?
+
+A power of two not greater than the number of bits in the mantissa.
+
+&gt In addition, is it a operator that return T for the test of comparison of
+&gt 0.2 and 1/5 ? Or is it the best solution to make (= 0.2 (float 1/5)) ?
+
+Even that could fail for a number of reasons. 
+
+If you're going to work with floating point numbers, read Goldberg's
+"What every computer scientist should know about floating point
+arithmetic". It's easy available on the internet.
+
+-- 
+For a student of mathematics to hear someone talk about mathematics does 
+hardly any more good than for a student of swimming to hear someone talk
+about swimming.                                            - Paul Halmos
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: Rational = float</h1>
+                  <pre>
+
+
+
+Le 5/02/08 14:04, «&nbsp;[NOM]&nbsp;» &lt;[ADRESSE]&gt a écrit&nbsp;:
+
+&gt 
+&gt Denis Pousseur &lt;denis.pousseur@gmail.com&gt writes:
+&gt 
+&gt&gt I found a bug in my codes witch was due to a comparison between a fractional
+&gt&gt number and a float number. Because the float number is a 'limited' float
+&gt&gt with max 2 numbers after the point (and is always rational) I thought it
+&gt&gt works because :
+&gt 
+&gt All floating point numbers are rational. They're all
+&gt mantissa*base^exponent.
+&gt 
+&gt&gt (= 1.0 1) =&gt T
+&gt&gt (= 0.5 1/2) =&gt T
+&gt&gt (= 0.25 1/4) =&gt T
+&gt&gt (= 1.125 9/8) =&gt T
+&gt&gt Etc.
+&gt&gt 
+&gt&gt But in fact
+&gt&gt 
+&gt&gt (= 0.2 1/5) =&gt NIL
+&gt&gt 
+&gt&gt Is it correct to say that the denominator of the rational must always be a
+&gt&gt power of two  to make a valid comparison with a float ?
+&gt 
+&gt A power of two not greater than the number of bits in the mantissa.
+
+Could we consider then that (=  1.0 1) return *always* T ?
+
+Thanks
+
+Denis
+
+&gt 
+&gt&gt In addition, is it a operator that return T for the test of comparison of
+&gt&gt 0.2 and 1/5 ? Or is it the best solution to make (= 0.2 (float 1/5)) ?
+&gt 
+&gt Even that could fail for a number of reasons.
+&gt 
+&gt If you're going to work with floating point numbers, read Goldberg's
+&gt "What every computer scientist should know about floating point
+&gt arithmetic". It's easy available on the internet.
+
+-------------------------------------------------------
+Denis Pousseur
+70 rue de Wansijn
+1180 Bruxelles, Belgique
+
+Tel : 32 (0)2 219 31 09
+Mail :  denis.pousseur@gmail.com
+-------------------------------------------------------
+
+
+
+</pre>
+                 </article>
+                </section>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Rational = float</h1>
+                 <pre>
+Denis Pousseur &lt;denis.pousseur@gmail.com&gt writes:
+
+&gt In addition, is it a operator that return T for the test of comparison of
+&gt 0.2 and 1/5 ? Or is it the best solution to make (= 0.2 (float 1/5)) ?
+
+I think (= (rationalize 0.2) 1/5) will work for your usage.
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:40 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

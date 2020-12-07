@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Re: Floating point Infinities and NaN's?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Re: Floating point Infinities and NaN's?</h1><HTML><BODY style="word-wrap: break-word; -khtml-nbsp-mode: space; -khtml-line-break: after-white-space; ">Hi all,<DIV><BR class="khtml-block-placeholder"></DIV><DIV>I wonder if any of you know the preferred manner of testing for floating point infinities or NaN's in Common Lisp?</DIV><DIV><BR class="khtml-block-placeholder"></DIV><DIV>So far, what I've come up with is to enshroud the computation with a HANDLER-CASE, to trap the invalid operations, and then for those operations which "succeed" to test for an infinity by looking to see whether its reciprocal is zero...</DIV><DIV><BR class="khtml-block-placeholder"></DIV><DIV>(in my case, I'm also looking to be sure the result is a real-value, not a complex value)</DIV><DIV>-----------------------------------</DIV><DIV><FONT class="Apple-style-span" face="Courier">;; test for infinities</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier">(defun infinitep (v)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier">  (and (not (zerop v))</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier">       (zerop (/ v))))</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier"><BR class="khtml-block-placeholder"></FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier">;; careful evaluation with tests for infinities and non-real results</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier">(defun real-eval-with-nans (fn &amp;rest args)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier">  (handler-case</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier">      (let ((v (apply fn args)))</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier">        (if (or (complexp v)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier">                (infinitep v))</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier">            :nan</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier">          v))</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier">    (error (err)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier">      (declare (ignore err))</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier">      :nan)))</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier"><BR class="khtml-block-placeholder"></FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier">;; catchall predicate for both NaN's and infinities</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier">(defun nanp (v)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier">  (or (eq v :nan)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier">      (infinitep v)))</FONT></DIV><DIV><BR class="khtml-block-placeholder"></DIV><DIV>-------------------------------------</DIV><DIV>I find it interesting that Common Lisp will generate infinite results, and consider them as numbers, but does not appear to offer any method for testing for such results, or for classifying numbers as per the IEEE FP Standard.</DIV><DIV><BR class="khtml-block-placeholder"></DIV><DIV>I do see that NaN's are never actually generated since the operations that would produce them are trapped as invalid, or else produce complex results. So the NaN's are my own invention here, I guess. But infinities are not.</DIV><DIV><BR class="khtml-block-placeholder"></DIV><DIV><SPAN class="Apple-style-span" style="border-collapse: separate; border-spacing: 0px 0px; color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant: normal; font-weight: normal; letter-spacing: normal; line-height: normal; text-align: auto; -khtml-text-decorations-in-effect: none; text-indent: 0px; -apple-text-size-adjust: auto; text-transform: none; orphans: 2; white-space: normal; widows: 2; word-spacing: 0px; "><SPAN class="Apple-style-span" style="border-collapse: separate; border-spacing: 0px 0px; color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant: normal; font-weight: normal; letter-spacing: normal; line-height: normal; text-align: auto; -khtml-text-decorations-in-effect: none; text-indent: 0px; -apple-text-size-adjust: auto; text-transform: none; orphans: 2; white-space: normal; widows: 2; word-spacing: 0px; "><SPAN class="Apple-style-span" style="border-collapse: separate; border-spacing: 0px 0px; color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant: normal; font-weight: normal; letter-spacing: normal; line-height: normal; text-align: auto; -khtml-text-decorations-in-effect: none; text-indent: 0px; -apple-text-size-adjust: auto; text-transform: none; orphans: 2; white-space: normal; widows: 2; word-spacing: 0px; "><SPAN class="Apple-style-span" style="border-collapse: separate; border-spacing: 0px 0px; color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant: normal; font-weight: normal; letter-spacing: normal; line-height: normal; text-align: auto; -khtml-text-decorations-in-effect: none; text-indent: 0px; -apple-text-size-adjust: auto; text-transform: none; orphans: 2; white-space: normal; widows: 2; word-spacing: 0px; "><DIV style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; ">David McClain</DIV><DIV style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; ">Chief Technical Officer</DIV><DIV style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; ">Refined Audiometrics Laboratory</DIV><DIV style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; ">4391 N. Camino Ferreo</DIV><DIV style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; ">Tucson, AZ  85750</DIV><DIV style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; font: normal normal normal 12px/normal Helvetica; min-height: 14px; "><BR></DIV><DIV style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; ">email: <A href="mailto:dbm@refined-audiometrics.com">dbm@refined-audiometrics.com</A></DIV><DIV style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; ">phone: 1.520.390.3995</DIV><DIV style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; ">web: <A href="http://www.refined-audiometrics.com">http://www.refined-audiometrics.com</A></DIV><DIV style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; ">Skype: dbmcclain</DIV><BR class="Apple-interchange-newline"></SPAN><SPAN></SPAN></SPAN></SPAN></SPAN> </DIV><BR></BODY></HTML>
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Floating point Infinities and NaN's?</h1>
+                 <pre>
+
+David McClain &lt;dbm@refined-audiometrics.com&gt writes:
+&gt I wonder if any of you know the preferred manner of testing for
+&gt floating point infinities or NaN's in Common Lisp?
+
+What I generally do is either use eql checking or use /= (as you have
+done in another mail):
+
+  (defun nan-1? (x)
+    (eql x 1D+-0))
+
+  (defun nan-2? (x)
+    (/= x x))
+
+  (nan-1? 7)     =&gt NIL
+  (nan-1? 1d+-0) =&gt T
+  (nan-2? 7)     =&gt NIL
+  (nan-2? 1d+-0) =&gt T
+
+The nan-1? test assumes you know the data types you're using.
+
+Cheers,
+Chris Dean
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Floating point Infinities and NaN's?</h1><html><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space; ">
+David,<div><br class="webkit-block-placeholder"></div><div>I've only been following your discussion from afar but you might want to look at the GBBopen source as I'm pretty sure that there are portable versions of at least some of what you're looking for. (see <a href="http://www.gbbopen.org">http://www.gbbopen.org</a>/)</div><div><br class="webkit-block-placeholder"></div><div>regards,</div><div><br><div><div>On Aug 5, 2007, at 1:55 PM, David McClain wrote:</div><br class="Apple-interchange-newline"><blockquote type="cite">Hi all,<div><br class="khtml-block-placeholder"></div><div>I wonder if any of you know the preferred manner of testing for floating point infinities or NaN's in Common Lisp?</div><div><br class="khtml-block-placeholder"></div><div>So far, what I've come up with is to enshroud the computation with a HANDLER-CASE, to trap the invalid operations, and then for those operations which "succeed" to test for an infinity by looking to see whether its reciprocal is zero...</div><div><br class="khtml-block-placeholder"></div><div>(in my case, I'm also looking to be sure the result is a real-value, not a complex value)</div><div>-----------------------------------</div><div><font class="Apple-style-span" face="Courier">;; test for infinities</font></div><div><font class="Apple-style-span" face="Courier">(defun infinitep (v)</font></div><div><font class="Apple-style-span" face="Courier">  (and (not (zerop v))</font></div><div><font class="Apple-style-span" face="Courier">       (zerop (/ v))))</font></div><div><font class="Apple-style-span" face="Courier"><br class="khtml-block-placeholder"></font></div><div><font class="Apple-style-span" face="Courier">;; careful evaluation with tests for infinities and non-real results</font></div><div><font class="Apple-style-span" face="Courier">(defun real-eval-with-nans (fn &amp;rest args)</font></div><div><font class="Apple-style-span" face="Courier">  (handler-case</font></div><div><font class="Apple-style-span" face="Courier">      (let ((v (apply fn args)))</font></div><div><font class="Apple-style-span" face="Courier">        (if (or (complexp v)</font></div><div><font class="Apple-style-span" face="Courier">                (infinitep v))</font></div><div><font class="Apple-style-span" face="Courier">            :nan</font></div><div><font class="Apple-style-span" face="Courier">          v))</font></div><div><font class="Apple-style-span" face="Courier">    (error (err)</font></div><div><font class="Apple-style-span" face="Courier">      (declare (ignore err))</font></div><div><font class="Apple-style-span" face="Courier">      :nan)))</font></div><div><font class="Apple-style-span" face="Courier"><br class="khtml-block-placeholder"></font></div><div><font class="Apple-style-span" face="Courier">;; catchall predicate for both NaN's and infinities</font></div><div><font class="Apple-style-span" face="Courier">(defun nanp (v)</font></div><div><font class="Apple-style-span" face="Courier">  (or (eq v :nan)</font></div><div><font class="Apple-style-span" face="Courier">      (infinitep v)))</font></div><div><br class="khtml-block-placeholder"></div><div>-------------------------------------</div><div>I find it interesting that Common Lisp will generate infinite results, and consider them as numbers, but does not appear to offer any method for testing for such results, or for classifying numbers as per the IEEE FP Standard.</div><div><br class="khtml-block-placeholder"></div><div>I do see that NaN's are never actually generated since the operations that would produce them are trapped as invalid, or else produce complex results. So the NaN's are my own invention here, I guess. But infinities are not.</div><div><br class="khtml-block-placeholder"></div><div><span class="Apple-style-span" style="border-collapse: separate; border-spacing: 0px 0px; color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant: normal; font-weight: normal; letter-spacing: normal; line-height: normal; text-align: auto; -khtml-text-decorations-in-effect: none; text-indent: 0px; -apple-text-size-adjust: auto; text-transform: none; orphans: 2; white-space: normal; widows: 2; word-spacing: 0px; "><span class="Apple-style-span" style="border-collapse: separate; border-spacing: 0px 0px; color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant: normal; font-weight: normal; letter-spacing: normal; line-height: normal; text-align: auto; -khtml-text-decorations-in-effect: none; text-indent: 0px; -apple-text-size-adjust: auto; text-transform: none; orphans: 2; white-space: normal; widows: 2; word-spacing: 0px; "><span class="Apple-style-span" style="border-collapse: separate; border-spacing: 0px 0px; color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant: normal; font-weight: normal; letter-spacing: normal; line-height: normal; text-align: auto; -khtml-text-decorations-in-effect: none; text-indent: 0px; -apple-text-size-adjust: auto; text-transform: none; orphans: 2; white-space: normal; widows: 2; word-spacing: 0px; "><span class="Apple-style-span" style="border-collapse: separate; border-spacing: 0px 0px; color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant: normal; font-weight: normal; letter-spacing: normal; line-height: normal; text-align: auto; -khtml-text-decorations-in-effect: none; text-indent: 0px; -apple-text-size-adjust: auto; text-transform: none; orphans: 2; white-space: normal; widows: 2; word-spacing: 0px; "><div style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; ">David McClain</div><div style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; ">Chief Technical Officer</div><div style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; ">Refined Audiometrics Laboratory</div><div style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; ">4391 N. Camino Ferreo</div><div style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; ">Tucson, AZ  85750</div><div style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; font: normal normal normal 12px/normal Helvetica; min-height: 14px; "><br></div><div style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; ">email: <a href="mailto:dbm@refined-audiometrics.com">dbm@refined-audiometrics.com</a></div><div style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; ">phone: 1.520.390.3995</div><div style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; ">web: <a href="http://www.refined-audiometrics.com">http://www.refined-audiometrics.com</a></div><div style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; ">Skype: dbmcclain</div><br class="Apple-interchange-newline"></span><span></span></span></span></span> </div><br></blockquote></div><br><div> <span class="Apple-style-span" style="border-collapse: separate; border-spacing: 0px 0px; color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant: normal; font-weight: normal; letter-spacing: normal; line-height: normal; text-align: auto; -khtml-text-decorations-in-effect: none; text-indent: 0px; -apple-text-size-adjust: auto; text-transform: none; orphans: 2; white-space: normal; widows: 2; word-spacing: 0px; "><span class="Apple-style-span" style="border-collapse: separate; border-spacing: 0px 0px; color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant: normal; font-weight: normal; letter-spacing: normal; line-height: normal; text-align: auto; -khtml-text-decorations-in-effect: none; text-indent: 0px; -apple-text-size-adjust: auto; text-transform: none; orphans: 2; white-space: normal; widows: 2; word-spacing: 0px; "><span class="Apple-style-span" style="border-collapse: separate; border-spacing: 0px 0px; color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant: normal; font-weight: normal; letter-spacing: normal; line-height: normal; text-align: auto; -khtml-text-decorations-in-effect: none; text-indent: 0px; -apple-text-size-adjust: auto; text-transform: none; orphans: 2; white-space: normal; widows: 2; word-spacing: 0px; "><div>--</div><div>Gary Warren King, metabang.com </div><div>Cell: (413) 885 9127</div><div>Fax: (206) 338-4052</div></span><div>gwkkwg on Skype * garethsan on AIM</div><div><br class="khtml-block-placeholder"></div><div><br class="khtml-block-placeholder"></div></span><br class="Apple-interchange-newline"></span> </div><br></div></body></html>
+
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:42 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

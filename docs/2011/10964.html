@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>CFFI problem with LispWorks</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>CFFI problem with LispWorks</h1>Hello,<div><br></div><div>for now, I am trying to use CFFI to interface C++ code towards LispWorks. I tested on a simple example and it works on the SBCL implementation of Common Lisp but not on LispWorks. The thing is I have to use LispWorks so I am stuck. I also have to be able to put code in different files. I am working on MacOS X and have to do. All the code used is showed below, with the error at the end. I tried to load the library libA.so only and it works but I need to load the library libB which doesn&#39;t. </div>
+<div><br></div><div>Thank you for your help.</div><div><br></div><div>Sascha Van Cauwelaert.</div><div><br></div><div>Here are the different codes (files name are commented just above the code):</div><div><br></div><div>//a.hh</div>
+<div>class A { public: void func(); }; </div><div><br></div><div>//a.cc</div><div><div>#include &lt;iostream&gt;</div><div>#include &quot;a.hh&quot;</div><div>void A::func() { std::cout &lt;&lt; &quot;Hello World!&quot; &lt;&lt; std::endl; } </div>
+</div><div><br></div><div>//b.cc</div><div><div>#include &quot;a.hh&quot;</div><div>extern &quot;C&quot; {</div><div>  void a_func() { A *a = new A(); a-&gt;func(); delete a; }</div><div>} </div></div><div><br></div><div>
+//Makefile</div><div><div>all: libA.so libB.so</div><div><br></div><div>libA.so: a.cc</div><div><span class="Apple-tab-span" style="white-space:pre">	</span>g++ -arch i386 -fPIC -o $@ -shared $&lt;</div><div><br></div><div>
+libB.so: b.cc</div><div><span class="Apple-tab-span" style="white-space:pre">	</span>g++ -arch i386 -fPIC -o $@ -shared -L. -lA $&lt; </div></div><div><br></div><div>//load.lisp</div><div>;;before this, cffi loading is done</div>
+<div><div>(cffi:load-foreign-library &quot;/FullPathTowardsLibraryFile/libB..so&quot;) </div><div><br></div></div><div><br></div><div>Here is the error I got :</div><div><br></div><div><div>CL-USER 16 &gt; (cffi:load-foreign-library &quot;/<meta charset="utf-8">FullPathTowardsLibraryFile/libB.so&quot;) </div>
+<div><br></div><div>Error: Unable to load foreign library (LIBRARY-54605).</div><div>  Could not register handle for external module #:LIBRARY-54605:</div><div> Library not loaded: libA.so</div><div>  Referenced from: /<meta charset="utf-8">FullPathTowardsLibraryFile/libB.so</div>
+<div>  Reason: image not found.</div><div>  1 (continue) Try loading the foreign library again.</div><div>  2 Use another library instead.</div><div>  3 (abort) Return to level 0.</div><div>  4 Return to top loop level 0.</div>
+</div><div><br></div><div><br></div><div><br></div>
+
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: CFFI problem with LispWorks</h1>
+                 <pre>
+Hi Sascha,
+
+Try to load library libA first, then libB explicitly and make sure CFFI can find them both.
+
+On May 7, 2011, at 8:07 PM, sascha.vancauwelaert wrote:
+
+&gt Hello,
+&gt 
+&gt for now, I am trying to use CFFI to interface C++ code towards LispWorks. I tested on a simple example and it works on the SBCL implementation of Common Lisp but not on LispWorks. The thing is I have to use LispWorks so I am stuck. I also have to be able to put code in different files. I am working on MacOS X and have to do. All the code used is showed below, with the error at the end. I tried to load the library libA.so only and it works but I need to load the library libB which doesn't. 
+&gt 
+&gt Thank you for your help.
+&gt 
+&gt Sascha Van Cauwelaert.
+&gt 
+&gt Here are the different codes (files name are commented just above the code):
+&gt 
+&gt //a.hh
+&gt class A { public: void func(); }; 
+&gt 
+&gt //a.cc
+&gt #include &lt;iostream&gt
+&gt #include "a.hh"
+&gt void A::func() { std::cout &lt;&lt; "Hello World!" &lt;&lt; std::endl; } 
+&gt 
+&gt //b.cc
+&gt #include "a.hh"
+&gt extern "C" {
+&gt   void a_func() { A *a = new A(); a-&gtfunc(); delete a; }
+&gt } 
+&gt 
+&gt //Makefile
+&gt all: libA.so libB.so
+&gt 
+&gt libA.so: a.cc
+&gt 	g++ -arch i386 -fPIC -o $@ -shared $&lt;
+&gt 
+&gt libB.so: b.cc
+&gt 	g++ -arch i386 -fPIC -o $@ -shared -L. -lA $&lt; 
+&gt 
+&gt //load.lisp
+&gt ;;before this, cffi loading is done
+&gt (cffi:load-foreign-library "/FullPathTowardsLibraryFile/libB.so") 
+&gt 
+&gt 
+&gt Here is the error I got :
+&gt 
+&gt CL-USER 16 &gt (cffi:load-foreign-library "/FullPathTowardsLibraryFile/libB.so") 
+&gt 
+&gt Error: Unable to load foreign library (LIBRARY-54605).
+&gt   Could not register handle for external module #:LIBRARY-54605:
+&gt  Library not loaded: libA.so
+&gt   Referenced from: /FullPathTowardsLibraryFile/libB.so
+&gt   Reason: image not found.
+&gt   1 (continue) Try loading the foreign library again.
+&gt   2 Use another library instead.
+&gt   3 (abort) Return to level 0.
+&gt   4 Return to top loop level 0.
+&gt 
+&gt 
+&gt 
+
+--ska
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: CFFI problem with LispWorks</h1>FWIW, on Mac OS X DYLD_LIBRARY_PATH specifies the search directories for shared libraries. It has the same (AFAIK) semantics as LD_LIBRARY_PATH on Linux.<br><br>    -tree<br clear="all"><br>-- <br>Tom Emerson<br><a href="mailto:tremerson@gmail.com">tremerson@gmail.com</a><br>
+<a href="http://www.dreamersrealm.net/tree">http://www.dreamersrealm.net/tree</a><br><br><br>
+
+
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:34 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

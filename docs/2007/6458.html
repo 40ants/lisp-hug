@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>LWM - no services menu</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>LWM - no services menu</h1>
+                <pre>
+I'm cc'ing support here as well, but have any other LWM users noticed  
+that the Services menu is empty on both the IDE and any applications  
+created with CAPI? The docs say (well, actually the sample code says,  
+since the docs refer the reader to /Applications/LispWorks 5.0/ 
+Library/lib/5-0-0-0/examples/capi/applications/cocoa- 
+application.lisp) that:
+
+  ;; This is a special named component where the CAPI will
+;; attach the standard Services menu.
+:name :application-services
+
+However, at least on 5.0.1 (Intel), the services menu is empty, both  
+in the IDE, and the examples provided. Possibly this has something to  
+do with the fact that LispWorks' main menu is not merely a plain  
+vanilla NSMenu as in your typical cocoa app, but rather an instance  
+of LWCAPIMenuRepresentation, a custom subclass of NSMenu[1]. In  
+addition calling the equivalent of [[NSApplication sharedApplication]  
+servicesMenu] returns nil, so there is nothing provided by LispWorks  
+for a services menu.
+
+So, first, do others see this?
+
+Second, is there any fix availably or likely? I can't help thinking  
+that this is related to Bill Atkins' problem with drag and drop. The  
+services menu is populated when the user clicks on it by determining  
+if there are any objects in the responder chain within the  
+application that could utilize any of the available services.  
+Similarly, drags are supposed to be forwarded up the responder chain,  
+but as Bill Atkins' problem showed, drags are not forwarded if they  
+are to CAPI panes, even capi:cocoa-view-panes. It would seem that  
+CAPI may not be forwarding events up the responder chain in the way  
+that the AppKit expects.
+
+regards,
+
+Ralph
+
+
+[1]
+
+(defmacro @ (&amp;body body) `(objc:invoke ,@body))
+(defmacro @into (&amp;body body) `(objc:invoke-into ,@body))
+(defmacro @pool (&amp;body body) `(objc:with-autorelease-pool () ,@body))
+(defmacro @bool (&amp;body body) `(objc:invoke-bool ,@body)) ;; not used  
+here but useful
+
+(defvar *nsapp* (@ "NSApplication" "sharedApplication"))
+(defvar *main-menu* (@ *nsapp* "mainMenu"))
+(defvar *services-menu* (@pool (@ *nsapp* "servicesMenu")))
+
+(defun objc-class-name (an-object) (@pool (@into 'string an-object  
+"className")))
+(defun ns-menu-p (an-object) (@bool an-object "isKindOfClass:" (@  
+"NSMenu" "class")))
+
+CL-USER 2 &gt (objc-class-name *main-menu*)
+"LWCAPIMenuRepresentation"
+
+CL-USER 3 &gt (ns-menu-p *main-menu*)
+T
+
+CL-USER 4 &gt *services-menu*
+#&lt;Pointer: OBJC:OBJC-OBJECT-POINTER = #x00000000&gt
+
+
+Raffael Cavallaro, Ph.D.
+raffaelcavallaro@mac.com
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LWM - no services menu</h1>
+                 <pre>
+
+On Mar 7, 2007, at 2:23 PM, Raffael Cavallaro wrote:
+&gt
+&gt So, first, do others see this?
+
+I can confirm this with LW 5.0.1 and Mac OS X 10.4.8 on both PPC  
+(PowerBook) and Intel (Mac Pro).
+
+As an occasional Services menu user I do miss it.
+
+-greg
+
+
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:43 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

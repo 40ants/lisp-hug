@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>capi:print-rich-text-pane trouble</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>capi:print-rich-text-pane trouble</h1>
+                <pre>
+In LWW6, XPSP2, When I try to print a rich text pane, I get the error:
+
+The slot CAPI::PENDING-UPDATE-OPS is missing from
+#&lt;TEST-RT-INTERFACE "Print test" 26F5DD87&gt (of class
+#&lt;CAPI::CAPI-CLASS TEST-RT-INTERFACE 268B26F3&gt), when reading
+the value.
+
+I select "Print" from the file menu and click the print button in this 
+pane using this print function.
+
+(capi:define-interface test-rt-interface ()
+    ()
+    (:panes
+     (display-window
+      capi:rich-text-pane
+      :accessor display-window
+      :text "Test text"))
+    (:menus
+     (file-menu
+      "File"
+       (("Print"
+        :callback-type :interface
+        :callback 'print-pane))))
+     (:layouts
+      (main-layout
+       capi:column-layout
+       '(display-window)))
+     (:menu-bar file-menu)
+     (:default-initargs
+      :layout 'main-layout
+      :title "Print test"
+      :best-height 100
+      :best-width 100))
+
+(defun print-pane (pane)
+    (capi:print-rich-text-pane pane))
+
+ &gt (capi:display (make-instance 'test-rt-interface))
+
+Mitch Berkson
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: capi:print-rich-text-pane trouble</h1>
+                 <pre>
+On Wed, Nov 3, 2010 at 9:50 PM, Mitch Berkson &lt;mitch@bermita.com&gt wrote:
+&gt &nbsp; &nbsp; &nbsp;(("Print"
+&gt &nbsp; &nbsp; &nbsp; :callback-type :interface
+&gt &nbsp; &nbsp; &nbsp; :callback 'print-pane))))
+…
+&gt (defun print-pane (pane)
+&gt &nbsp; (capi:print-rich-text-pane pane))
+
+According to the docs, capi:print-rich-text-pane "Prints the contents
+of a rich-text-pane, on Microsoft Windows," so I can't test and
+confirm this, but shouldn't print-pane be called with the actual
+rich-text-pane and not the interface?  E.g., the :menus could be
+something like:
+
+(:menus
+   (file-menu
+    "File"
+     (("Print"
+      :callback-type :interface
+      :callback #'(lambda (i)
+                    (print-pane display-window))))))
+
+Does this fix the problem?
+
+//JT
+
+
+
+-- 
+Joshua Taylor, http://www.cs.rpi.edu/~tayloj/
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: capi:print-rich-text-pane trouble</h1>
+                 <pre>
+  You're right, thanks. That was a mistaken simplification I made for 
+the example. After including your suggestion, I get the different error:
+
+CAPI-LIBRARY:REPRESENTATION-PRINT-RICH-TEXT-PANE
+2137A1C2&gt is called with unpaired keyword in (#&lt;CAPI::PRINTER "HP
+LaserJet 1200 Series PCL"  27131507&gt :JOBNAME NIL :SELECTION
+NIL).
+
+The define-interface with the change:
+
+(capi:define-interface test-rt-interface ()
+    ()
+    (:panes
+     (display-window
+      capi:rich-text-pane
+      :text "Test text"))
+    (:menus
+     (file-menu
+      "File"
+       (("Print"
+        :callback-type :interface
+        :callback #'(lambda (i) (print-pane display-window))))))
+     (:layouts
+      (main-layout
+       capi:column-layout
+       '(display-window)))
+     (:menu-bar file-menu)
+     (:default-initargs
+      :layout 'main-layout
+      :title "Print test"
+      :best-height 100
+      :best-width 100))
+
+Mitch
+
+On 11/3/2010 11:09 PM, Joshua TAYLOR wrote:
+&gt On Wed, Nov 3, 2010 at 9:50 PM, Mitch Berkson&lt;mitch@bermita.com&gt  wrote:
+&gt&gt       (("Print"
+&gt&gt        :callback-type :interface
+&gt&gt        :callback 'print-pane))))
+&gt …
+&gt&gt (defun print-pane (pane)
+&gt&gt    (capi:print-rich-text-pane pane))
+&gt According to the docs, capi:print-rich-text-pane "Prints the contents
+&gt of a rich-text-pane, on Microsoft Windows," so I can't test and
+&gt confirm this, but shouldn't print-pane be called with the actual
+&gt rich-text-pane and not the interface?  E.g., the :menus could be
+&gt something like:
+&gt
+&gt (:menus
+&gt     (file-menu
+&gt      "File"
+&gt       (("Print"
+&gt        :callback-type :interface
+&gt        :callback #'(lambda (i)
+&gt                      (print-pane display-window))))))
+&gt
+&gt Does this fix the problem?
+&gt
+&gt //JT
+&gt
+&gt
+&gt
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: capi:print-rich-text-pane trouble</h1>
+                 <pre>
+  On 11/4/2010 10:58 AM, Martin Simmons wrote:
+&gt&gt&gt&gt&gt&gt On Thu, 4 Nov 2010 10:19:10 -0400, Paul Tarvydas said:
+&gt&gt There are still some typos in the code.  After fixing them, and explicitly
+&gt&gt setting every keyword argument, I get the same error message that you get.
+&gt&gt
+&gt&gt Unless we're both mis-reading the documentation, this should be reported
+&gt&gt this as a bug.
+&gt No need -- it is a bug and we will fix it.
+
+Might there be a workaround? I'm pretty sure this worked in LW5.
+
+Mitch Berkson
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:34 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

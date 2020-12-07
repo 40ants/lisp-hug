@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>structures and arrays : one conses the other doesn't</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>structures and arrays : one conses the other doesn't</h1>
+                <pre>Hi,
+
+Sorry to trouble the list again, but I was wondering if there was any way to
+stop the code in function 'testing' below from consing. Basically, I can see
+(following on from advice given earlier) how I can avoid consing by 'wrapping'
+my floating point ops as array -&gt array operations (thanks Tim). The code in
+the function 'testing2' does this and does not cons. I guess what
+I don't understand is why I cannot use structures (as in function 'testing')
+to acheive the same effect.
+
+It would basically be a lot 'nicer' to be able to use structures in this way
+(for some of my code), rather than arrays.
+
+
+(defstruct simple-struct
+  (field-1 0.0D0 :type double-float))
+(defparameter sa1 (make-array 1 :element-type 'double-float :initial-element 1.0D0))
+
+(defparameter ss0 (make-simple-struct))
+
+(defparameter sf1 1.0D0)
+(defparameter sf2 2.0D0)
+
+(defun testing2 (a b c)
+  (declare (type double-float b c)
+           (type (simple-array double-float (*)) a)
+           (optimize (speed 3) (safety 0) #+LispWorks(float 0) (debug 0)))
+    (setf (aref a 0) (+ b c))
+  a)
+
+
+(defun testing (a b c)
+  (declare (type double-float b c d)
+           (type simple-struct a)
+           (optimize (speed 3) (safety 0) #+LispWorks(float 0) (debug 0)))
+  (setf (simple-struct-field-1 a) (+ b c))
+  a)
+
+CL-USER 160 &gt (time (testing ss0 sf1 sf2))
+Timing the evaluation of (TESTING SS0 SF1 SF2)
+
+user time    =      0.000
+system time  =      0.000
+Elapsed time =   0:00:00
+Allocation   = 16 bytes standard / 0 bytes fixlen
+0 Page faults
+#S(SIMPLE-STRUCT FIELD-1 3.0)
+
+CL-USER 159 &gt (time (testing2 sa1 sf1 sf2))
+Timing the evaluation of (TESTING2 SA1 SF1 SF2)
+
+user time    =      0.000
+system time  =      0.000
+Elapsed time =   0:00:00
+Allocation   = 0 bytes standard / 0 bytes fixlen
+0 Page faults
+#(3.0)
+
+Thanks again,
+
+Barry.
+
+(BTW : Thanks again to Dave for his performance hint (declaring the type of
+the inner sum). But there was a minor bug in the code he posted :
+
+(defun matrix-product (m1 m2 m3)
+  (declare (type (simple-array single-float (* *)) m1 m2 m3))
+  (declare (optimize (float 0) (safety 0)))
+  (loop for i from 0 below (array-dimension m1 0)
+      
+        do
+        (loop for j from 0 below (array-dimension m2 1)
+              with sum of-type single-float = 0F0
+              do
+              (loop for alpha from 0 below (array-dimension m1 1)
+                    do (incf sum (* (aref m1 i alpha) (aref m2 alpha j))))
+              (setf (aref m3 i j) sum)))
+  m3)
+
+It should be :
+
+(defun matrix-product (m1 m2 m3)
+  (declare (type (simple-array single-float (* *)) m1 m2 m3)
+           (optimize (speed 3) (safety 0) (float 0)))
+  (loop for i fixnum from 0 below (array-dimension m1 0)
+        do
+        (loop for j fixnum from 0 below (array-dimension m2 1)
+              do
+              (loop for alpha fixnum from 0 below (array-dimension m1 1)
+                    with sum of-type single-float = 0.0F0
+                    do (incf sum (* (aref m1 i alpha) (aref m2 alpha j)))
+                    finally (setf (aref m3 i j) sum))))
+  m3)
+
+where the inner sum is moved into the inner loop, and the array element set in a
+finally clause. Otherwise, the sum is not zeroed until i is incremented.)
+
+
+-- 
+If in the last few years you haven't discarded a major opinion or  
+acquired a new one, check your pulse.  You may be dead.
+
+-- Gelett Burgess (1866-1951)
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: structures and arrays : one conses the other doesn't</h1>
+                 <p>
+                  Unable to parse email body. Email id is 211
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: structures and arrays : one conses the other doesn't</h1>
+                 <pre>* Barry Wilkes wrote:
+
+&gt It would basically be a lot 'nicer' to be able to use structures in this way
+&gt (for some of my code), rather than arrays.
+
+I think, as Nick says, the answer is that the special unboxed float
+support is only implemented for arrays.
+
+However it turns out that you can do this, which I think is not
+completely portable, but seems to work on LWW:
+
+(defstruct (foo (:type (vector single-float)))
+  fish
+  fob)
+
+And then FOOs will actually be vectors of SINGLE-FLOATs.  I have not
+tested this, but assuming structure accessors expand enough this
+should mean that code involving FOOs will look very much like code
+involving vectors.  You probably also need to define a type FOO which
+translates as (VECTOR SINGLE-FLOAT 2) or something.
+
+--tim
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: structures and arrays : one conses the other doesn't</h1>
+                 <pre>Tim Bradshaw &lt;tfb@cley.com&gt writes:
+
+&gt * Barry Wilkes wrote:
+&gt 
+&gt &gt It would basically be a lot 'nicer' to be able to use structures in this way
+&gt &gt (for some of my code), rather than arrays.
+&gt 
+&gt I think, as Nick says, the answer is that the special unboxed float
+&gt support is only implemented for arrays.
+&gt 
+&gt However it turns out that you can do this, which I think is not
+&gt completely portable, but seems to work on LWW:
+&gt 
+&gt (defstruct (foo (:type (vector single-float)))
+&gt   fish
+&gt   fob)
+
+Thanks again Tim, this is exactly what I want. The following works perfectly :
+
+(defstruct (foo (:type (vector single-float)))
+  fish
+  fob)
+
+(deftype foo () `(simple-array single-float (2)))
+
+(defun testing (a b c)
+  (declare (type single-float b c d)
+           (type foo a)
+           (optimize (speed 3) (safety 0) #+LispWorks(float 0) (debug 0)))
+  (setf (foo-fish a) (+ b c))
+  a)
+
+and yes, the above function does not cons. I will be using this quite a bit -
+maybe not as nice as being able to specify different types at a slot level,
+but very useful. I did not realise that one could specify the representation
+to be used for a structure - this bit of the Hyperspec was new to me. 
+
+To be honest, when I was (still am, of course) initially learning CL, I
+concentrated on defclass rather than defstruct. This was probably a good thing
+in general, but I now am aware that structures are very useful in their own
+right, and in paticular where performance is critical.
+
+
+Barry.
+
+-- 
+If in the last few years you haven't discarded a major opinion or  
+acquired a new one, check your pulse.  You may be dead.
+
+-- Gelett Burgess (1866-1951)
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:58 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

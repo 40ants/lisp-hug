@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>sys:open-pipe oddities...</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>sys:open-pipe oddities...</h1>
+                <pre>
+Hello all,
+I'm playing with pipe streams again, and I'm having a bit
+of an issue with command line arguments. I'm on
+Mac OS X 10.4.6, on Lispworks 4.4.6 Professional.
+
+Quoth the docs:
+
+"Signature
+open-pipe command &amp;key direction element-type interrupt-off shell-type =&gt stream
+....
+If command  is a string then it is passed to the shell as the command
+to run. If command is a list, then the first element is the command to
+run directly and the other elements are passed as arguments on the
+command line. If command  is nil , then the shell is run."
+
+So, something like
+
+(setq qq (sys:open-pipe "/bin/ls -l"))
+(loop while (print (read-line qq nil nil)))
+
+works, as I'd expect it to, the shell interprets the -l correctly.
+This example works if I just give "ls -l" as well, which also
+seems good; the shell is making sure PATH is consulted.
+
+Evaluating
+(setq qq (sys:open-pipe (list "/bin/ls")))
+in the listener causes a terminal window to come up,
+with a shell prompt at which
+
+/tmp/LWtemp.Wright.5021.1.command; exit
+
+has been entered. The call in the listener returns
+a pipe stream as expected.
+However,
+
+(loop while (print (read-line qq nil nil)))
+
+gives me
+
+"ng fasl file /Users/tayloj/.lisp-src/cl-ppcre-1.2.11/errors.nfasl"
+";  Loading fasl file /Users/tayloj/.lisp-src/cl-ppcre-1.2.11/lexer.nfasl"
+";  Loading fasl file /Users/tayloj/.lisp-src/cl-ppcre-1.2.11/parser.nfasl"
+";  Loading fasl file
+/Users/tayloj/.lisp-src/cl-ppcre-1.2.11/regex-class.nfasl"
+";  Loading fasl file /Users/tayloj/.lisp-src/cl-ppcre-1.2.11/convert.nfasl"
+";  Loading fasl file /Users/tayloj/.lisp-src/cl-ppcre-1.2.11/optimize.nfasl"
+";  Loading fasl file /Users/tayloj/.lisp-src/cl-ppcre-1.2.11/closures.nfasl"
+";  Loading fasl file
+/Users/tayloj/.lisp-src/cl-ppcre-1.2.11/repetition-closures.nfasl"
+";  Loading fasl file /Users/tayloj/.lisp-src/cl-ppcre-1.2.11/scanner.nfasl"
+";  Loading fasl file /Users/tayloj/.lisp-src/cl-ppcre-1.2.11/api.nfasl"
+";  Loading fasl file /Users/tayloj/.lisp-src/lw-doc/packages.nfasl"
+";  Loading fasl file /Users/tayloj/.lisp-src/lw-doc/specials.nfasl"
+";  Loading fasl file /Users/tayloj/.lisp-src/lw-doc/util.nfasl"
+";  Loading fasl file /Users/tayloj/.lisp-src/lw-doc/parse.nfasl"
+";  Loading fasl file /Users/tayloj/.lisp-src/lw-doc/pages.nfasl"
+";  Loading fasl file /Users/tayloj/.lisp-src/lw-add-ons-0.2.0/packages.nfasl"
+";  Loading fasl file /Users/tayloj/.lisp-src/lw-add-ons-0.2.0/specials.nfasl"
+";  Loading fasl file /Users/tayloj/.lisp-src/lw-add-ons-0.2.0/misc.nfasl"
+";  Loading fasl file
+/Users/tayloj/.lisp-src/lw-add-ons-0.2.0/documentation.nfasl"
+";  Loading fasl file
+/Users/tayloj/.lisp-src/lw-add-ons-0.2.0/completions.nfasl"
+";  Loading fasl file /Users/tayloj/.lisp-src/lw-add-ons-0.2.0/systems.nfasl"
+";; Creating system Common-Lisp-User::Cl-Ppcre"
+";; Creating system Common-Lisp-User::Cl-Who"
+";; Creating system Common-Lisp-User::Lw-Doc"
+";; Creating system Common-Lisp-User::Lw-Add-Ons"
+";  Loading fasl file /Users/tayloj/.lisp-src/lw-add-ons-0.2.0/editor.nfasl"
+";  Loading fasl file /Users/tayloj/.lisp-src/lw-add-ons-0.2.0/commands.nfasl"
+""
+"Error: Signal : Bus error(10)"
+"  1 (abort) Return to level 0."
+"  2 Return to top loop level 0."
+""
+"Type :b for backtrace, :c &lt;option number&gt to proceed,  or :? for
+other options"
+""
+
+and the call doesn't actually return. That's the (normally unseen) output of
+loading some things from my .lispworks file, and clearly not the output
+of ls.
+
+To make the whole issue even more complicated, if I run the darwin-motif
+lispworks binary from the console, I don't have this issue at all. Both forms
+of comand "ls" "/bin/ls" and ("/bin/ls") seem to work without a problem.
+The output of that follows. Any ideas?
+
+CL-USER 1 &gt (setq qq (sys:open-pipe "/bin/ls"))
+#&lt;SYSTEM::PIPE-STREAM "/bin/ls"&gt
+
+CL-USER 2 &gt (loop while (print (read-line qq nil nil)))
+
+"Applications"
+"Applications (Mac OS 9)"
+"Classic System Folder"
+"Desktop"
+"Desktop DB"
+"Desktop DF"
+"Developer"
+"Library"
+"Network"
+"System"
+"TheVolumeSettingsFolder"
+"User Guides And Information"
+"Users"
+"Volumes"
+"automount"
+"bin"
+"cores"
+"dev"
+"etc"
+"lost+found"
+"mach"
+"mach.sym"
+"mach_kernel"
+"opt"
+"private"
+"sbin"
+"sw"
+"tmp"
+"usr"
+"var"
+NIL
+NIL
+
+CL-USER 3 &gt (close qq)
+T
+
+CL-USER 4 &gt (setq qq (sys:open-pipe (list "/bin/ls")))
+#&lt;SYSTEM::PIPE-STREAM "/bin/ls"&gt
+
+CL-USER 5 &gt (loop while (print (read-line qq nil nil)))
+
+"Applications"
+"Applications (Mac OS 9)"
+"Classic System Folder"
+"Desktop"
+"Desktop DB"
+"Desktop DF"
+"Developer"
+"Library"
+"Network"
+"System"
+"TheVolumeSettingsFolder"
+"User Guides And Information"
+"Users"
+"Volumes"
+"automount"
+"bin"
+"cores"
+"dev"
+"etc"
+"lost+found"
+"mach"
+"mach.sym"
+"mach_kernel"
+"opt"
+"private"
+"sbin"
+"sw"
+"tmp"
+"usr"
+"var"
+NIL
+NIL
+
+CL-USER 6 &gt
+-- 
+=====================
+Joshua Taylor
+tayloj@rpi.edu
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: sys:open-pipe oddities...</h1>
+                 <pre>
+
+"Taylor, Joshua" &lt;tayloj@rpi.edu&gt writes: 
+&gt I'm on Mac OS X 10.4.6, on Lispworks 4.4.6 Professional.
+...
+&gt (setq qq (sys:open-pipe (list "/bin/ls")))
+&gt (loop while (print (read-line qq nil nil)))
+
+FWIW, confirmed.  I'm on the same versions of OS X and LispWorks and
+it works in my normal tty image, but does bad things in the GUI
+Listener.
+
+Cheers,
+Chris Dean
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: sys:open-pipe oddities...</h1>
+                 <p>
+                  Unable to parse email body. Email id is 5639
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: sys:open-pipe oddities...</h1>
+                 <pre>
+Ah, great, tihs is easy to work around then.
+
+By the way, is there somewhere on the Lispworks
+website where one can search for outstanding bugs?
+I found the area to report them, and the place to download
+patches, but I'm always worried when I bring up something
+that seems to be a bug that i've not searched some existing
+store of known bugs. Is there such a searchable store?
+(Aside from the list archives?)
+
+On 6/9/06, Martin Simmons &lt;martin@lispworks.com&gt wrote:
+&gt
+&gt &gt&gt&gt&gt&gt On Fri, 9 Jun 2006 11:23:16 -0400, "Taylor, Joshua" &lt;tayloj@rpi.edu&gt said:
+&gt &gt
+&gt &gt Hello all,
+&gt &gt I'm playing with pipe streams again, and I'm having a bit
+&gt &gt of an issue with command line arguments. I'm on
+&gt &gt Mac OS X 10.4.6, on Lispworks 4.4.6 Professional.
+&gt &gt
+&gt &gt Quoth the docs:
+&gt &gt
+&gt &gt "Signature
+&gt &gt open-pipe command &amp;key direction element-type interrupt-off shell-type =&gt stream
+&gt &gt ...
+&gt &gt If command  is a string then it is passed to the shell as the command
+&gt &gt to run. If command is a list, then the first element is the command to
+&gt &gt run directly and the other elements are passed as arguments on the
+&gt &gt command line. If command  is nil , then the shell is run."
+&gt &gt
+&gt &gt So, something like
+&gt &gt
+&gt &gt (setq qq (sys:open-pipe "/bin/ls -l"))
+&gt &gt (loop while (print (read-line qq nil nil)))
+&gt &gt
+&gt &gt works, as I'd expect it to, the shell interprets the -l correctly.
+&gt &gt This example works if I just give "ls -l" as well, which also
+&gt &gt seems good; the shell is making sure PATH is consulted.
+&gt &gt
+&gt &gt Evaluating
+&gt &gt (setq qq (sys:open-pipe (list "/bin/ls")))
+&gt &gt in the listener causes a terminal window to come up,
+&gt
+&gt This is caused by a bug in sys:open-pipe when the arguments are not
+&gt base-strings.  It works in some situations because the Lisp reader creates
+&gt strings with the same element type as the stream being read.
+&gt
+&gt To work around this, you can do
+&gt
+&gt (setq qq (sys:open-pipe (list (coerce "/bin/ls" 'base-string))))
+&gt
+&gt --
+&gt Martin Simmons
+&gt LispWorks Ltd
+&gt http://www.lispworks.com/
+&gt
+&gt
+
+
+-- 
+=====================
+Joshua Taylor
+tayloj@rpi.edu
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: sys:open-pipe oddities...</h1>
+                 <p>
+                  Unable to parse email body. Email id is 5641
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: sys:open-pipe oddities...</h1>
+                 <pre>
+Well, the base-string answer got me to a point where I
+can get the external excutable running. Now I'm facing
+a slightly more challenging problem, which might be more
+of an OS I/O issue, but I'm not sure.
+
+The program to which I'm opening a pipe accepts a
+filename as an argument, and it reads its input from this
+file. As I'm opening a pipe, I'm going to be writing that
+input directly. (I may run into the inability to close just
+one side of a pipe, an issue I've had in the past, but
+I'll attack that problem when I come to it.) When I'm
+working on a command prompt, it's no problem to
+give /dev/stdin as the file argument, or even /dev/fd/0.
+However, if I built my command line, or my list of
+command strings, with such an argument, I get a
+FILE NOT FOUND error.
+
+Here's an example with cat:
+-----------------------------------
+;; here's an example with 'cat -' where an '-' tells cat to
+;; read from standard input
+AS 84 &gt (setf pipe (sys:open-pipe (list (coerce "/bin/cat"
+'base-string) (coerce "-" 'base-string)) :direction :io))
+#&lt;System::Pty-Stream "/bin/cat"&gt
+
+AS 85 &gt (write-line "line 1" pipe)
+"line 1"
+
+AS 86 &gt (write-line "line 2" pipe)
+"line 2"
+
+AS 87 &gt (force-output pipe)
+Nil
+
+AS 88 &gt (read-line pipe)
+"line 1"
+Nil
+
+AS 89 &gt (read-line pipe)
+"line 2"
+Nil
+
+;; here's 'cat /dev/stdin' which fails with
+;; cat: /dev/stdin: Permission denied
+AS 92 &gt (setf pipe (sys:open-pipe (list (coerce "/bin/cat"
+'base-string) (coerce "/dev/stdin" 'base-string)) :direction :io))
+#&lt;System::Pty-Stream "/bin/cat"&gt
+
+AS 93 &gt (write-line "line 1" pipe)
+"line 1"
+
+AS 94 &gt (write-line "line 2" pipe)
+"line 2"
+
+AS 95 &gt (force-output pipe)
+
+Error: Error while writing on stream #&lt;System::Pty-Stream "/bin/cat"&gt:
+ Broken pipe [Unix Errno = 32].
+  1 (continue) Try writing to #&lt;Editor::Rubber-Stream #&lt;Editor:Buffer
+CAPI interactive-pane 2&gt 11AE4B7F&gt again.
+  2 (abort) Return to level 0.
+  3 Return to top loop level 0.
+
+Type :b for backtrace, :c &lt;option number&gt to proceed,  or :? for other options
+
+AS 96 : 1 &gt :a
+
+AS 97 &gt (read-line pipe)
+"cat: /dev/stdin: Permission denied"
+Nil
+
+AS 98 &gt (read-line pipe)
+
+Error: End of file while reading stream #&lt;System::Pty-Stream "/bin/cat"&gt.
+  1 (abort) Return to level 0.
+  2 Return to top loop level 0.
+
+Type :b for backtrace, :c &lt;option number&gt to proceed,  or :? for other options
+
+AS 99 : 1 &gt
+-------------------------------------
+
+I suspect that this might not be a LispWorks issue so
+much as a 'I'm naive about pipes' issue, so do let me know
+if that's the case.
+
+Thanks!
+
+
+On 6/9/06, Taylor, Joshua &lt;tayloj@rpi.edu&gt wrote:
+&gt Ah, great, tihs is easy to work around then.
+&gt
+&gt By the way, is there somewhere on the Lispworks
+&gt website where one can search for outstanding bugs?
+&gt I found the area to report them, and the place to download
+&gt patches, but I'm always worried when I bring up something
+&gt that seems to be a bug that i've not searched some existing
+&gt store of known bugs. Is there such a searchable store?
+&gt (Aside from the list archives?)
+&gt
+&gt On 6/9/06, Martin Simmons &lt;martin@lispworks.com&gt wrote:
+&gt &gt
+&gt &gt &gt&gt&gt&gt&gt On Fri, 9 Jun 2006 11:23:16 -0400, "Taylor, Joshua" &lt;tayloj@rpi.edu&gt said:
+&gt &gt &gt
+&gt &gt &gt Hello all,
+&gt &gt &gt I'm playing with pipe streams again, and I'm having a bit
+&gt &gt &gt of an issue with command line arguments. I'm on
+&gt &gt &gt Mac OS X 10.4.6, on Lispworks 4.4.6 Professional.
+&gt &gt &gt
+&gt &gt &gt Quoth the docs:
+&gt &gt &gt
+&gt &gt &gt "Signature
+&gt &gt &gt open-pipe command &amp;key direction element-type interrupt-off shell-type =&gt stream
+&gt &gt &gt ...
+&gt &gt &gt If command  is a string then it is passed to the shell as the command
+&gt &gt &gt to run. If command is a list, then the first element is the command to
+&gt &gt &gt run directly and the other elements are passed as arguments on the
+&gt &gt &gt command line. If command  is nil , then the shell is run."
+&gt &gt &gt
+&gt &gt &gt So, something like
+&gt &gt &gt
+&gt &gt &gt (setq qq (sys:open-pipe "/bin/ls -l"))
+&gt &gt &gt (loop while (print (read-line qq nil nil)))
+&gt &gt &gt
+&gt &gt &gt works, as I'd expect it to, the shell interprets the -l correctly.
+&gt &gt &gt This example works if I just give "ls -l" as well, which also
+&gt &gt &gt seems good; the shell is making sure PATH is consulted.
+&gt &gt &gt
+&gt &gt &gt Evaluating
+&gt &gt &gt (setq qq (sys:open-pipe (list "/bin/ls")))
+&gt &gt &gt in the listener causes a terminal window to come up,
+&gt &gt
+&gt &gt This is caused by a bug in sys:open-pipe when the arguments are not
+&gt &gt base-strings.  It works in some situations because the Lisp reader creates
+&gt &gt strings with the same element type as the stream being read.
+&gt &gt
+&gt &gt To work around this, you can do
+&gt &gt
+&gt &gt (setq qq (sys:open-pipe (list (coerce "/bin/ls" 'base-string))))
+&gt &gt
+&gt &gt --
+&gt &gt Martin Simmons
+&gt &gt LispWorks Ltd
+&gt &gt http://www.lispworks.com/
+&gt &gt
+&gt &gt
+&gt
+&gt
+&gt --
+&gt =====================
+&gt Joshua Taylor
+&gt tayloj@rpi.edu
+&gt
+
+
+
+-- 
+=====================
+Joshua Taylor
+tayloj@rpi.edu
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Code obfuscator (also, encryption)</h1><br>
+&gt; Also, if there are encryption libraries people like to use with<br>
+&gt; Lispworks, please feel free to mention them... (Ironclad looks good; or<br>
+&gt; perhaps we'll wrap our own...)<br>
+<br>
+IIRC Lispworks has a few problems compiling various <br>
+files in Ironclad (eg ripemd-160) due to the size of some of the <br>
+functions (hopefully it'll just work in LW 5.0), otherwise it's <br>
+quite a nice crypto lib.<br>
+<br>
+Cheers,<br>
+&nbsp;Sean.<br>
+<br>
+
+
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:44 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

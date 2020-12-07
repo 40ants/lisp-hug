@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>COM and variant woes</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>COM and variant woes</h1>
+                <pre>
+Hi there,
+
+Got myself stuck pretty good this time, on COM/Automation. Here's the scenario.
+
+Have myself a COM-INTERFACE:
+
+BOM 11 &gt obj
+#&lt;COM interface I-ACAD-BLOCK-REFERENCE = 001B3074&gt
+
+
+The IDL perspective on the interface can be seen here:
+    [
+      odl,
+      uuid(D50215E2-500B-4302-9C0E-991399B6C749),
+      helpstring("AutoCAD Block Reference Interface"),
+      helpcontext(0x00010010),
+      dual,
+      oleautomation
+    ]
+    interface IAcadBlockReference : IAcadEntity {
+        [id(0x00000001), propget, helpstring("Specify the X, Y, Z coordinate for insertion point of the block or use the Pick Point button to set X, Y, Z values simultaneously"), helpcontext(0x00010313)]
+        HRESULT InsertionPoint([out, retval] VARIANT* insPoint);
+        [id(0x00000001), propput, helpstring("Specify the X, Y, Z coordinate for insertion point of the block or use the Pick Point button to set X, Y, Z values simultaneously"), helpcontext(0x00010313)]
+        HRESULT InsertionPoint([in] VARIANT insPoint);
+        ...&lt;etc&gt...
+    };
+
+When invoking the propget method, the returned value is meaningful (a 3D Autocad coordinate):
+
+BOM 12 &gt (invoke-dispatch-get-property obj "insertionpoint")
+#(0.0D0 0.0D0 0.0D0)
+
+
+I'm stuck with the propput however, where I can't seem to supply the correct lisp object. The AutoCAD documentation on this method describes the input argument as a "Variant (three-element array of doubles)". Naively I tried this:
+
+BOM 13 &gt (setq ins (make-lisp-variant '(:array :double) #(0.0D0 0.0D0 0.0D0)))
+#S(LISP-VARIANT :TYPE (:ARRAY :DOUBLE) :VALUE #(0.0D0 0.0D0 0.0D0))
+
+But to no avail:
+
+BOM 14 &gt (invoke-dispatch-put-property obj "insertionpoint" ins)
+
+Error: COM IDispatch::Invoke Exception  in "IAcadBlockReference::InsertionPoint" {80070057 - The parameter is incorrect.}  : NIL
+  1 (abort) Return to level 0.
+  2 Return to top loop level 0.
+
+
+Nor incidentally, can I simply pass in what I got out:
+
+BOM 15 &gt (invoke-dispatch-put-property obj "insertionpoint" #(0.0D0 0.0D0 0.0D0))
+
+Error: COM IDispatch::Invoke Exception  in "IAcadBlockReference::InsertionPoint" {80070057 - The parameter is incorrect.}  : NIL
+  1 (abort) Return to level 0.
+  2 Return to top loop level 0.
+
+
+Dead in the water here. Any insights/recommendations greatly welcomed.
+
+Brian Connoy
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: COM and variant woes</h1>
+                 <pre>
+Following up.
+
+Martin from Lispworks nailed this one without even blinking:
+
+"Hi Brian,
+
+The problem might be caused by the meaning of (:array :double).  The :array
+type is somewhat subtle, because it can either describe a uniform array of one
+element type or an array of variants of different types.
+
+The type (:array :double) is actually an array of variants, the first of which
+contains a :double.  Subsequent variant types are guessed from the Lisp object
+type.
+
+I think you want to use (:array . :double), which is an array of :double
+values.  I.e. like this:
+
+(make-lisp-variant '(:array . :double) #(0.0D0 0.0D0 0.0D0))
+
+Regards,
+
+Martin Simmons
+LispWorks Technical Support
+http://www.lispworks.com/support/"
+
+
+Thanks once again Martin.
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:39 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

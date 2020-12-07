@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>arrayWithObjects: in LW</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>arrayWithObjects: in LW</h1>
+                <pre>Hi,
+
+I have following problem in LW 4.5.5. When i try to invoke method arrayWithObjects: with arguments as shown below i got the following error message: "Too many arguments in ("dave" "john" "guy") to method "arrayWithObjects:", wanted 1". I think that arrayWithObjects: method takes variable number of arguments, but may be i am worng, because of my ObjC knowledge is poor. Where's the problem ?
+
+example:
+
+ (let*  ((my-array (objc:invoke "NSArray" "arrayWithObjects:"  "dave" "john" "guy" nil))
+          (my-item (objc:invoke-into 'string  my-array "objectAtIndex:" 0)))
+
+Thanks.
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>
+                  Unable to render article 4083 because of ":DEFAULT stream decoding error on 
+                  #&lt;SB-SYS:FD-STREAM for \"socket 192.168.43.216:53107, peer: 
+                  116.202.254.214:119\" {1001A90053}&gt: the octet sequence #(225 108 32) cannot 
+                  be decoded." error</h1>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: arrayWithObjects: in LW</h1>
+                  <pre>
+On Jun 29, 2005, at Wed, Jun 29, 10:45 06 AM, Martin Simmons wrote:
+&gt
+&gt Sorry, the LW ObjC API doesn't support calling varargs methods so  
+&gt you will
+&gt have to make an empty array and then fill it.
+
+Something like this:
+
+;; note that this returns an NSArray which is immutable.
+;; if you want a mutable array, just edit this to leave
+;; out the arrayWithArray: line and return mut-array instead.
+
+(defun ns-array-with-list (some-list)
+   "returns an NSArray whose contents are the items of some-list"
+   (let ((ns-array)
+         (mut-array (objc:invoke "NSMutableArray"  
+"arrayWithCapacity:" 1)))
+          ;; 1 is arbitrary - mut-array can expand
+         (loop for item in some-list do
+               (objc:invoke mut-array "addObject:" item))
+         (setf ns-array (objc:invoke "NSArray" "arrayWithArray:" mut- 
+array))
+         ns-array))
+
+Then you can do:
+
+CL-USER 25 &gt (objc:with-autorelease-pool ()
+                (objc:invoke-into 'string (ns-array-with-list (list  
+"hello" "there" "you" "guys")) "objectAtIndex:" 0))
+"hello"
+
+regards,
+
+Ralph
+
+
+Raffael Cavallaro, Ph.D.
+raffaelcavallaro@mac.com
+
+
+</pre>
+                 </article>
+                </section>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:48 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

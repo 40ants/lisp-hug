@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>millisecond scheduler and CPU usage</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>millisecond scheduler and CPU usage</h1>
+                <pre>
+Hello,
+
+Trying to make a real-time scheduler to deal with musical (MIDI) sequencing,
+I encounter this problem :
+
+Basically, my goal is to build a scheduler with a precision of millisecond.
+Here is two simple test versions of the loop to explain the problem (the
+test run for 5 seconds) :
+
+1) first, I tried with a timeout of 0.001 second :
+
+(defvar *countIterations* 0)
+
+(defun run ()
+  (loop with delta = (get-internal-real-time)
+        do 
+        (mp:process-wait-with-timeout "" 0.001)
+        (let ((ms (- (get-internal-real-time) delta)))
+          (incf *countIterations*)
+          (when (&gt= ms 5000)
+            (return)
+          ))))
+
+(defun startChrono ()
+    (setf *countIterations* 0)
+    (mp:process-run-function "Chrono" nil #'run))
+
+#|
+RUN =&gt
+(startChrono)
+RESULT (after 5 seconds) =&gt
+(values *countIterations*)
+|#
+
+Here I get something like 100 steps by second (*countIterations* is ± 530)
+when I need 1000... (In fact, with a timeout of 0.01 or 0.001 the result is
+practically the same)
+
+2) Secondly, I tried with a timeout less than 0.001 second : suddenly, the
+accuracy becomes really higher but the consumption of CPU resource becomes
+also very high... (note that the result will be exactly the same with a
+timeout of 0.00099 or with a timeout of 0.0001).
+
+(defvar *countMS* 0)
+(defvar *bag* nil)
+
+(defun run ()
+    (loop with delta = (get-internal-real-time)
+          with prev = 0
+          do (mp:process-wait-with-timeout "" 0.00099)
+          (let* ((ms (- (get-internal-real-time) delta))
+                 (interval (- ms prev)))
+            (incf *countIterations*)
+            (when (&gt interval 0)
+              (setf prev ms)
+              (incf *countMS*)
+              (when (&gt interval 1) (push interval *bag*))
+              (when (&gt= ms 5000) (return) ) ) )))
+
+(defun startChrono ()
+    (setf *countMS* 0 *countIterations* 0 *bag* nil)
+    (mp:process-run-function "Chrono" nil #'run))
+#|
+RUN =&gt
+(startChrono)
+RESULT (after 5 seconds) =&gt
+(values *countIterations* *countMS* (reverse *bag*))
+|#
+
+Here the *countIterations* is ± 146.000 (almost 30 iterations for a
+millisecond) and the *countMS* is ± 4980. Witch means that the millisecond
+resolution is perfectly correct for more than 99.5% of the time (this is
+acceptable for what I have to do with).
+In the *bag* variable you can observe the granularity : the most significant
+interval is often at the start of the loop (something like 10 or 15 ms),
+after that, the granularity stays in a very acceptable range (most of the
+time less than 5ms).
+
+****
+ 
+The codes I run with a version derived of this loop give me a very good
+result. Even when the scheduler is running and has a lot of tasks to do, I
+can make real-time manipulation of the running sequence, interaction with
+the CAPI interfaces and menu, generally without serious alteration of the
+scheduler regularity.
+
+The only problem is the consumption of CPU resources : For an Intel Imac
+dual-core of 1.8 Ghz, something like 30 a 40% of the CPU for the user and ±
+50% for the system (as you can see in the Mac activity monitor), just for
+the loop running without any task...
+
+There is something I misunderstand : Why do a simple loop like this consume
+so many resources ? Is there any solution to limit the CPU usage ? Because
+the timeout seems not to be the solution, witch other parameter may I adjust
+?
+
+Any advice greatly appreciated. Thanks !
+
+
+Denis
+
+
+       
+        
+
+-------------------------------------------------------
+Denis Pousseur
+70 rue de Wansijn
+1180 Bruxelles, Belgique
+
+Tel : 32 (0)2 219 31 09
+Mail :  denis.pousseur@compositeurs.be
+Website : http://compositeurs.be/Pousseur
+-------------------------------------------------------
+
+
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: millisecond scheduler and CPU usage</h1>
+                 <pre>
+Hi Denis,
+
+I assume, that you run your tests as a process with priority within  
+normal scheduling range - not RTPRIO - so your process is subject to  
+normal scheduling under the OS (with the resolution somewhere around  
+10ms). On the other hand running app as RTPRIO might cause your  
+system stop to respond to other events. I would say, that best  
+solution for handling such jobs is to write kernel driver for the  
+MIDI device
+
+regards
+Chris
+
+On Jan 5, 2007, at 1:56 PM, Denis Pousseur wrote:
+
+&gt
+&gt Hello,
+&gt
+&gt Trying to make a real-time scheduler to deal with musical (MIDI)  
+&gt sequencing,
+&gt I encounter this problem :
+&gt
+&gt Basically, my goal is to build a scheduler with a precision of  
+&gt millisecond.
+&gt Here is two simple test versions of the loop to explain the problem  
+&gt (the
+&gt test run for 5 seconds) :
+&gt
+&gt 1) first, I tried with a timeout of 0.001 second :
+&gt
+&gt (defvar *countIterations* 0)
+&gt
+&gt (defun run ()
+&gt   (loop with delta = (get-internal-real-time)
+&gt         do
+&gt         (mp:process-wait-with-timeout "" 0.001)
+&gt         (let ((ms (- (get-internal-real-time) delta)))
+&gt           (incf *countIterations*)
+&gt           (when (&gt= ms 5000)
+&gt             (return)
+&gt           ))))
+&gt
+&gt (defun startChrono ()
+&gt     (setf *countIterations* 0)
+&gt     (mp:process-run-function "Chrono" nil #'run))
+&gt
+&gt #|
+&gt RUN =&gt
+&gt (startChrono)
+&gt RESULT (after 5 seconds) =&gt
+&gt (values *countIterations*)
+&gt |#
+&gt
+&gt Here I get something like 100 steps by second (*countIterations* is  
+&gt ± 530)
+&gt when I need 1000... (In fact, with a timeout of 0.01 or 0.001 the  
+&gt result is
+&gt practically the same)
+&gt
+&gt 2) Secondly, I tried with a timeout less than 0.001 second :  
+&gt suddenly, the
+&gt accuracy becomes really higher but the consumption of CPU resource  
+&gt becomes
+&gt also very high... (note that the result will be exactly the same  
+&gt with a
+&gt timeout of 0.00099 or with a timeout of 0.0001).
+&gt
+&gt (defvar *countMS* 0)
+&gt (defvar *bag* nil)
+&gt
+&gt (defun run ()
+&gt     (loop with delta = (get-internal-real-time)
+&gt           with prev = 0
+&gt           do (mp:process-wait-with-timeout "" 0.00099)
+&gt           (let* ((ms (- (get-internal-real-time) delta))
+&gt                  (interval (- ms prev)))
+&gt             (incf *countIterations*)
+&gt             (when (&gt interval 0)
+&gt               (setf prev ms)
+&gt               (incf *countMS*)
+&gt               (when (&gt interval 1) (push interval *bag*))
+&gt               (when (&gt= ms 5000) (return) ) ) )))
+&gt
+&gt (defun startChrono ()
+&gt     (setf *countMS* 0 *countIterations* 0 *bag* nil)
+&gt     (mp:process-run-function "Chrono" nil #'run))
+&gt #|
+&gt RUN =&gt
+&gt (startChrono)
+&gt RESULT (after 5 seconds) =&gt
+&gt (values *countIterations* *countMS* (reverse *bag*))
+&gt |#
+&gt
+&gt Here the *countIterations* is ± 146.000 (almost 30 iterations for a
+&gt millisecond) and the *countMS* is ± 4980. Witch means that the  
+&gt millisecond
+&gt resolution is perfectly correct for more than 99.5% of the time  
+&gt (this is
+&gt acceptable for what I have to do with).
+&gt In the *bag* variable you can observe the granularity : the most  
+&gt significant
+&gt interval is often at the start of the loop (something like 10 or 15  
+&gt ms),
+&gt after that, the granularity stays in a very acceptable range (most  
+&gt of the
+&gt time less than 5ms).
+&gt
+&gt ****
+&gt
+&gt The codes I run with a version derived of this loop give me a very  
+&gt good
+&gt result. Even when the scheduler is running and has a lot of tasks  
+&gt to do, I
+&gt can make real-time manipulation of the running sequence,  
+&gt interaction with
+&gt the CAPI interfaces and menu, generally without serious alteration  
+&gt of the
+&gt scheduler regularity.
+&gt
+&gt The only problem is the consumption of CPU resources : For an Intel  
+&gt Imac
+&gt dual-core of 1.8 Ghz, something like 30 a 40% of the CPU for the  
+&gt user and ±
+&gt 50% for the system (as you can see in the Mac activity monitor),  
+&gt just for
+&gt the loop running without any task...
+&gt
+&gt There is something I misunderstand : Why do a simple loop like this  
+&gt consume
+&gt so many resources ? Is there any solution to limit the CPU usage ?  
+&gt Because
+&gt the timeout seems not to be the solution, witch other parameter may  
+&gt I adjust
+&gt ?
+&gt
+&gt Any advice greatly appreciated. Thanks !
+&gt
+&gt
+&gt Denis
+&gt
+&gt
+&gt
+&gt
+&gt
+&gt -------------------------------------------------------
+&gt Denis Pousseur
+&gt 70 rue de Wansijn
+&gt 1180 Bruxelles, Belgique
+&gt
+&gt Tel : 32 (0)2 219 31 09
+&gt Mail :  denis.pousseur@compositeurs.be
+&gt Website : http://compositeurs.be/Pousseur
+&gt -------------------------------------------------------
+&gt
+&gt
+&gt
+&gt
+&gt
+&gt
+
+
+
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: millisecond scheduler and CPU usage</h1>
+                  <pre>
+Hi Chris,
+
+Thanks for your answer. I've no idea how to run a process as RTPRIO... But
+every tests I did with priorities don't change significantly the results I
+got. In the example 1, even with the highest priority, the resolution stays
+- as you say - around 10ms.
+
+But when I set the timeout to a interval less than 1ms (example 2), it seems
+that a very important change occurs in the way the OS deal with my process.
+But how exactly, it's a mystery... Do you thing that there is something to
+do with RTPRIO ? Is it a way to check this ?
+
+Regards
+
+Denis
+
+
+Le 5/01/07 15:25, «&nbsp;[NOM]&nbsp;» &lt;[ADRESSE]&gt a écrit&nbsp;:
+
+&gt 
+&gt Hi Denis,
+&gt 
+&gt I assume, that you run your tests as a process with priority within
+&gt normal scheduling range - not RTPRIO - so your process is subject to
+&gt normal scheduling under the OS (with the resolution somewhere around
+&gt 10ms). On the other hand running app as RTPRIO might cause your
+&gt system stop to respond to other events. I would say, that best
+&gt solution for handling such jobs is to write kernel driver for the
+&gt MIDI device
+&gt 
+&gt regards
+&gt Chris
+&gt 
+&gt On Jan 5, 2007, at 1:56 PM, Denis Pousseur wrote:
+&gt 
+&gt&gt 
+&gt&gt Hello,
+&gt&gt 
+&gt&gt Trying to make a real-time scheduler to deal with musical (MIDI)
+&gt&gt sequencing,
+&gt&gt I encounter this problem :
+&gt&gt 
+&gt&gt Basically, my goal is to build a scheduler with a precision of
+&gt&gt millisecond.
+&gt&gt Here is two simple test versions of the loop to explain the problem
+&gt&gt (the
+&gt&gt test run for 5 seconds) :
+&gt&gt 
+&gt&gt 1) first, I tried with a timeout of 0.001 second :
+&gt&gt 
+&gt&gt (defvar *countIterations* 0)
+&gt&gt 
+&gt&gt (defun run ()
+&gt&gt   (loop with delta = (get-internal-real-time)
+&gt&gt         do
+&gt&gt         (mp:process-wait-with-timeout "" 0.001)
+&gt&gt         (let ((ms (- (get-internal-real-time) delta)))
+&gt&gt           (incf *countIterations*)
+&gt&gt           (when (&gt= ms 5000)
+&gt&gt             (return)
+&gt&gt           ))))
+&gt&gt 
+&gt&gt (defun startChrono ()
+&gt&gt     (setf *countIterations* 0)
+&gt&gt     (mp:process-run-function "Chrono" nil #'run))
+&gt&gt 
+&gt&gt #|
+&gt&gt RUN =&gt
+&gt&gt (startChrono)
+&gt&gt RESULT (after 5 seconds) =&gt
+&gt&gt (values *countIterations*)
+&gt&gt |#
+&gt&gt 
+&gt&gt Here I get something like 100 steps by second (*countIterations* is
+&gt&gt ± 530)
+&gt&gt when I need 1000... (In fact, with a timeout of 0.01 or 0.001 the
+&gt&gt result is
+&gt&gt practically the same)
+&gt&gt 
+&gt&gt 2) Secondly, I tried with a timeout less than 0.001 second :
+&gt&gt suddenly, the
+&gt&gt accuracy becomes really higher but the consumption of CPU resource
+&gt&gt becomes
+&gt&gt also very high... (note that the result will be exactly the same
+&gt&gt with a
+&gt&gt timeout of 0.00099 or with a timeout of 0.0001).
+&gt&gt 
+&gt&gt (defvar *countMS* 0)
+&gt&gt (defvar *bag* nil)
+&gt&gt 
+&gt&gt (defun run ()
+&gt&gt     (loop with delta = (get-internal-real-time)
+&gt&gt           with prev = 0
+&gt&gt           do (mp:process-wait-with-timeout "" 0.00099)
+&gt&gt           (let* ((ms (- (get-internal-real-time) delta))
+&gt&gt                  (interval (- ms prev)))
+&gt&gt             (incf *countIterations*)
+&gt&gt             (when (&gt interval 0)
+&gt&gt               (setf prev ms)
+&gt&gt               (incf *countMS*)
+&gt&gt               (when (&gt interval 1) (push interval *bag*))
+&gt&gt               (when (&gt= ms 5000) (return) ) ) )))
+&gt&gt 
+&gt&gt (defun startChrono ()
+&gt&gt     (setf *countMS* 0 *countIterations* 0 *bag* nil)
+&gt&gt     (mp:process-run-function "Chrono" nil #'run))
+&gt&gt #|
+&gt&gt RUN =&gt
+&gt&gt (startChrono)
+&gt&gt RESULT (after 5 seconds) =&gt
+&gt&gt (values *countIterations* *countMS* (reverse *bag*))
+&gt&gt |#
+&gt&gt 
+&gt&gt Here the *countIterations* is ± 146.000 (almost 30 iterations for a
+&gt&gt millisecond) and the *countMS* is ± 4980. Witch means that the
+&gt&gt millisecond
+&gt&gt resolution is perfectly correct for more than 99.5% of the time
+&gt&gt (this is
+&gt&gt acceptable for what I have to do with).
+&gt&gt In the *bag* variable you can observe the granularity : the most
+&gt&gt significant
+&gt&gt interval is often at the start of the loop (something like 10 or 15
+&gt&gt ms),
+&gt&gt after that, the granularity stays in a very acceptable range (most
+&gt&gt of the
+&gt&gt time less than 5ms).
+&gt&gt 
+&gt&gt ****
+&gt&gt 
+&gt&gt The codes I run with a version derived of this loop give me a very
+&gt&gt good
+&gt&gt result. Even when the scheduler is running and has a lot of tasks
+&gt&gt to do, I
+&gt&gt can make real-time manipulation of the running sequence,
+&gt&gt interaction with
+&gt&gt the CAPI interfaces and menu, generally without serious alteration
+&gt&gt of the
+&gt&gt scheduler regularity.
+&gt&gt 
+&gt&gt The only problem is the consumption of CPU resources : For an Intel
+&gt&gt Imac
+&gt&gt dual-core of 1.8 Ghz, something like 30 a 40% of the CPU for the
+&gt&gt user and ±
+&gt&gt 50% for the system (as you can see in the Mac activity monitor),
+&gt&gt just for
+&gt&gt the loop running without any task...
+&gt&gt 
+&gt&gt There is something I misunderstand : Why do a simple loop like this
+&gt&gt consume
+&gt&gt so many resources ? Is there any solution to limit the CPU usage ?
+&gt&gt Because
+&gt&gt the timeout seems not to be the solution, witch other parameter may
+&gt&gt I adjust
+&gt&gt ?
+&gt&gt 
+&gt&gt Any advice greatly appreciated. Thanks !
+&gt&gt 
+&gt&gt 
+&gt&gt Denis
+&gt&gt 
+&gt&gt 
+&gt&gt 
+&gt&gt 
+&gt&gt 
+&gt&gt -------------------------------------------------------
+&gt&gt Denis Pousseur
+&gt&gt 70 rue de Wansijn
+&gt&gt 1180 Bruxelles, Belgique
+&gt&gt 
+&gt&gt Tel : 32 (0)2 219 31 09
+&gt&gt Mail :  denis.pousseur@compositeurs.be
+&gt&gt Website : http://compositeurs.be/Pousseur
+&gt&gt -------------------------------------------------------
+&gt&gt 
+&gt&gt 
+&gt&gt 
+&gt&gt 
+&gt&gt 
+&gt&gt 
+&gt 
+&gt 
+&gt 
+&gt 
+&gt 
+
+
+
+-------------------------------------------------------
+Denis Pousseur
+70 rue de Wansijn
+1180 Bruxelles, Belgique
+
+Tel : 32 (0)2 219 31 09
+Mail :  denis.pousseur@compositeurs.be
+Website : http://compositeurs.be/Pousseur
+-------------------------------------------------------
+
+
+
+
+
+</pre>
+                 </article>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>Re: millisecond scheduler and CPU usage</h1>
+                   <pre>
+
+--- Denis Pousseur &lt;denis.pousseur@compositeurs.be&gt wrote:
+
+&gt 
+&gt Hi Chris,
+&gt 
+&gt Thanks for your answer. I've no idea how to run a process as RTPRIO... But
+&gt every tests I did with priorities don't change significantly the results I
+&gt got. In the example 1, even with the highest priority, the resolution stays
+&gt - as you say - around 10ms.
+&gt 
+&gt But when I set the timeout to a interval less than 1ms (example 2), it
+&gt seems
+&gt that a very important change occurs in the way the OS deal with my process.
+&gt But how exactly, it's a mystery... Do you thing that there is something to
+&gt do with RTPRIO ? Is it a way to check this ?
+&gt 
+&gt Regards
+&gt 
+&gt Denis
+
+Hi Denis,
+
+The problem is that there are at least four timers in PC hardware. See
+http://www.microsoft.com/whdc/system/CEC/mm-timer.mspx for a discussion of
+the issues. Under Windows, the High Performance Event Timer (HPET), is used
+for accurate sub-millisecond timing events.
+
+&gtFrom your results, it appears that Lispworks is using the default
+millisecond-and-above timer, which doesn't have good resolution, until you
+specify sub-millisecond timings. Lispworks then appears to shift to a
+different method for producing the events. I've used HPET calls under
+Windows, under their former guise as MM (Multimedia) timer calls, and I don't
+recall them introducing the OS and CPU overheads you've observed.
+
+You may try finding the corresponding high-precision timing calls on each
+platform you use and make OS-specific FFI calls from your code. I don't know
+if that will cause any undesired interactions with Lispworks code, are you
+using native threads in your version of Lispworks, and is the Lispworks
+threading model robust enough that problems won't result? I don't know but it
+may work out OK. Perhaps you could make the HPET calls in a native C thread
+and perform Lispworks callbacks from there.
+
+Alternatively, perhaps Lispworks may be persuaded to change their code to use
+HPET equivs, at least on the platforms you need, if they are not doing so
+now.
+
+Jeff Caldwell
+
+
+__________________________________________________
+Do You Yahoo!?
+Tired of spam?  Yahoo! Mail has the best spam protection around 
+http://mail.yahoo.com 
+
+
+</pre>
+                  </article>
+                 </section>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>Re: millisecond scheduler and CPU usage</h1>
+                   <pre>
+I just realized what the 2002 article at
+http://www.microsoft.com/whdc/system/CEC/mm-timer.mspx is really saying. The
+older MM calls I was using use a combination of the four existing PC timers.
+Intel has introduced / is introducing a new HPET hardware timer. Without the
+new hardware timer, the article states that "Microsoft tests have found that,
+while lowering the timer tick frequency to 2 milliseconds has a negligible
+effect on system performance, a timer tick frequency of less than 2
+milliseconds can significantly degrade overall system performance." 
+
+&gtFrom that, it looks like Lispworks is doing what it should, that trying
+things from C won't improve anything.
+
+Jeff Caldwell
+
+
+__________________________________________________
+Do You Yahoo!?
+Tired of spam?  Yahoo! Mail has the best spam protection around 
+http://mail.yahoo.com 
+
+
+</pre>
+                  </article>
+                  <section class=tree>
+                   <article class=email>
+                    <h1>Re: millisecond scheduler and CPU usage</h1>
+                    <pre>
+Hi Jeff,
+
+All this explanations are very interesting.
+
+My approach, consisting of starting with a millisecond clock resolution, is
+maybe a bad idea... In fact I have to schedule two kind of events : regular
+events (for drawing counters and cursors) witch can really be scheduled at a
+1/100sec resolution and episodic events witch need to be scheduled at a ms
+resolution (musical events). So, I can maybe imagine a clock with a variable
+resolution, 1/100 generally, 1/1000 when really needed. For instance when
+the next event is at less than 15 (or 20) ms the resolution can turns to the
+high resolution and otherwise return to normal resolution. There could be a
+big advantage to this approach : the consumption of CPU resource would
+become relative to the density of the events in the sequence (witch seems a
+logical behavior...). After some tests in that way, it seems that I can
+reduce the CPU resource needed by 4 or 5 for "normal" situation.
+
+Anyway, it could be interesting to know from LW what's happening exactly
+when setting a timeout under one millisecond... Indeed, I have no guarantee
+that the undocumented actual behavior will be the same in future release....
+
+Thanks for your help !
+
+Best
+
+Denis
+
+
+Le 5/01/07 19:49, «&nbsp;[NOM]&nbsp;» &lt;[ADRESSE]&gt a écrit&nbsp;:
+
+&gt 
+&gt I just realized what the 2002 article at
+&gt http://www.microsoft.com/whdc/system/CEC/mm-timer.mspx is really saying.. The
+&gt older MM calls I was using use a combination of the four existing PC timers.
+&gt Intel has introduced / is introducing a new HPET hardware timer. Without the
+&gt new hardware timer, the article states that "Microsoft tests have found that,
+&gt while lowering the timer tick frequency to 2 milliseconds has a negligible
+&gt effect on system performance, a timer tick frequency of less than 2
+&gt milliseconds can significantly degrade overall system performance."
+&gt 
+&gt&gt From that, it looks like Lispworks is doing what it should, that trying
+&gt things from C won't improve anything.
+&gt 
+&gt Jeff Caldwell
+&gt 
+&gt 
+&gt __________________________________________________
+&gt Do You Yahoo!?
+&gt Tired of spam?  Yahoo! Mail has the best spam protection around
+&gt http://mail.yahoo.com
+&gt 
+&gt 
+
+
+
+-------------------------------------------------------
+Denis Pousseur
+70 rue de Wansijn
+1180 Bruxelles, Belgique
+
+Tel : 32 (0)2 219 31 09
+Mail :  denis.pousseur@compositeurs.be
+Website : http://compositeurs.be/Pousseur
+-------------------------------------------------------
+
+
+
+
+
+</pre>
+                   </article>
+                   <section class=tree>
+                    <article class=email>
+                     <h1>Re: millisecond scheduler and CPU usage</h1>
+                     <pre>
+On Sat, 06 Jan 2007 14:08:53 +0100, Denis Pousseur  
+&lt;denis.pousseur@compositeurs.be&gt wrote:
+
+&gt
+&gt Hi Jeff,
+&gt
+&gt All this explanations are very interesting.
+&gt
+&gt My approach, consisting of starting with a millisecond clock resolution,  
+&gt is
+&gt maybe a bad idea... In fact I have to schedule two kind of events :  
+&gt regular
+&gt events (for drawing counters and cursors) witch can really be scheduled  
+&gt at a
+&gt 1/100sec resolution and episodic events witch need to be scheduled at a  
+&gt ms
+&gt resolution (musical events).
+
+I don't quite get it.
+Why are you scheduling the musical event's yourself instead
+of using the device driver? Same for the graphics really (for sprites).
+Most of this is supported in hardware on most systems.
+Seems to me you either rely on the existing drivers or write your own.
+
+
+-- 
+Using Opera's revolutionary e-mail client: http://www.opera.com/mail/
+
+
+</pre>
+                    </article>
+                    <section class=tree>
+                     <article class=email>
+                      <h1>Re: millisecond scheduler and CPU usage</h1>
+                      <pre>
+Well, this is a very long discussion... And I'm not sure it's the place here
+to have it. 
+
+The use of API such the AudioToolbox on Mac (I already use for some task,
+for instance receive MIDI event in real time), is an option I consider
+seriously. But the concepts who manages the musical devices in general share
+all the same logic and philosophy based on an musical approach witch is
+majority, certainly, but not unique. However, my work is especially to take
+in count some considerations of a minority of composers the industry often
+forget... It is why the logic of this kind of device is not easily
+compatible with the soft I write.
+
+Also, I store all my data into lisp objects. To work with a external
+sequencer API supposes to store data in two formats with the terrific
+increase of complexity this suppose when manipulate it... (or - but this is
+a poor solution - to convert at start time, with the delay inherent and no
+possibilities of real-time editing)
+
+On the contrary, what I try to do is to convert the data from lisp to midi
+events in real time during the scheduling. So the data don't need to be
+stored two times, and it is always up to date, even when it is editing
+during the sequencing process. For this point of view, it's really simpler
+and more efficient.
+
+So my choice is between two problematic solutions, and this choice is
+difficult. It is why I ask some questions on this list before taking a
+decision.
+
+thank you for your advice !
+
+Best
+
+Denis
+
+Le 6/01/07 15:26, «&nbsp;[NOM]&nbsp;» &lt;[ADRESSE]&gt a écrit&nbsp;:
+
+&gt On Sat, 06 Jan 2007 14:08:53 +0100, Denis Pousseur
+&gt &lt;denis.pousseur@compositeurs.be&gt wrote:
+&gt 
+&gt&gt 
+&gt&gt Hi Jeff,
+&gt&gt 
+&gt&gt All this explanations are very interesting.
+&gt&gt 
+&gt&gt My approach, consisting of starting with a millisecond clock resolution,
+&gt&gt is
+&gt&gt maybe a bad idea... In fact I have to schedule two kind of events :
+&gt&gt regular
+&gt&gt events (for drawing counters and cursors) witch can really be scheduled
+&gt&gt at a
+&gt&gt 1/100sec resolution and episodic events witch need to be scheduled at a
+&gt&gt ms
+&gt&gt resolution (musical events).
+&gt 
+&gt I don't quite get it.
+&gt Why are you scheduling the musical event's yourself instead
+&gt of using the device driver? Same for the graphics really (for sprites).
+&gt Most of this is supported in hardware on most systems.
+&gt Seems to me you either rely on the existing drivers or write your own.
+&gt 
+
+
+
+-------------------------------------------------------
+Denis Pousseur
+70 rue de Wansijn
+1180 Bruxelles, Belgique
+
+Tel : 32 (0)2 219 31 09
+Mail :  denis.pousseur@compositeurs.be
+Website : http://compositeurs.be/Pousseur
+-------------------------------------------------------
+
+
+
+
+
+</pre>
+                     </article>
+                    </section>
+                   </section>
+                  </section>
+                 </section>
+                </section>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:43 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

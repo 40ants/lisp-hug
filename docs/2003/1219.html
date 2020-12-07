@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>LWL image scaling</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>LWL image scaling</h1>
+                <pre>Under LWL, if I apply a non-unity scale transform to a capi:output-pane that 
+contains an image (.bmp file), it appears that the display-callback is called 
+continuously.
+
+This appears not to happen under  LWW.
+
+Am I doing something wrong?  The docs indicate that image scaling is system 
+dependent.  I thought that this means that the image would not change in 
+size, yet still survive the scaling operation (i.e. noop).
+
+I've included a test program that appears to show this problem under LWL and 
+not LWW (check the pathname for the .bmp file in the 
+gp:register-image-translation).  
+
+"(run)" should run the program and print two lines of output.  Under LWL, it 
+prints output until you close the test pane.
+
+[The output indicates that LWL is calling display-callback once with the full 
+width and height of the pane, then continuously with the width and height of 
+the image/icon].
+
+Thanks.
+Paul Tarvydas
+
+
+
+(in-package "COMMON-LISP-USER")
+
+(defvar *out*)
+
+(gp:register-image-translation
+ 'img-code
+ #.(gp:read-external-image (current-pathname 
+"/usr/lib/LispWorks/lib/4-2-0-0/examples/capi/elements/images/toolbar-radio-images.bmp")
+                           :transparent-color-index 7))
+
+(capi:define-interface junk2 ()
+  ()
+  (:panes
+   (output-pane-1
+    capi:output-pane
+    :accessor canvas
+    :display-callback 'pane-display-callback))
+  (:layouts
+   (simple-layout-1
+    capi:simple-layout
+    '(output-pane-1)))
+  (:default-initargs
+   :best-height 300
+   :best-width 308
+   :layout 'simple-layout-1
+   :title "Junk2"))
+
+(defun pane-display-callback (pane x y w h)
+  (let ((img (gp:load-image pane 'img-code)))
+    (format *out* "~S ~S ~S ~S~%" x y w h)
+    (gp:draw-image pane img x y)))
+
+(defun run ()
+  (let ((win (make-instance 'junk2))
+        (tfm (gp:copy-transform gp::*unit-transform*)))
+    (setf *out* *standard-output*)
+    (capi:display win)
+    (gp:apply-scale tfm 2 2)
+    (gp:set-graphics-state (canvas win) :transform tfm)
+    (gp:invalidate-rectangle (canvas win))))
+
+
+________________________________________________________________________
+This email has been scanned for all viruses by the MessageLabs Email
+Security System. For more information on a proactive email security
+service working around the clock, around the globe, visit
+http://www.messagelabs.com
+________________________________________________________________________
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LWL image scaling</h1>
+                 <p>
+                  Unable to parse email body. Email id is 1223
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:56 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>What is #.(enable-meta-syntax)?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>What is #.(enable-meta-syntax)?</h1>
+                <pre>
+I'm trying to compile langutils, which is basically only supported on  
+Allegro (boo hiss). I've fixed a couple of things while trying to asdf  
+it into the system, but I think it's dying on this line:
+
+#.(enable-meta-syntax)
+
+Does anyone know what this is, exactly? I'm getting the following error:
+
+**++++ Error in (TOP-LEVEL-FORM 19):
+  Object #&lt;Function META::META-READER 215608B2&gt is of type FUNCTION  
+which is not externalizable to #&lt;STREAM::LATIN-1-FILE-STREAM /Users/ 
+paladin/dev/lisp/packages/langutils-1.0/langutils/src/t_tokenize.xfasl&gt.
+
+Or am I wrong in thinking this is the problem? Anyone?
+
+Cheers,
+John H. Doe (my real name)
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: What is #.(enable-meta-syntax)?</h1>
+                 <pre>
+Hi John,
+
+I'm not very familiar with langutils but I have seen the error you are  
+getting before. A similar error will occur in Lispworks if you try  
+something like
+
+(defun foo (x y &amp;key (fun #'identity))
+	(eq x (funcall fun y)))
+
+The issue is that you have named a function (#'identity) and told the  
+compiler to write it out to the fasl. In general, the compiler can't  
+do this because functions are not "externalizable" (I don't recall  
+when the spec says this but it is there somewhere...). The work around  
+in this silly example is to _name_ the function rather than specifying  
+it directly. E.g.,
+
+(defun foo (x y &amp;key (fun 'identity))
+	(eq x (funcall fun y)))
+
+I tried to get the meta stuff working in a similar fashion but didn't  
+have any luck. A better strategy may be to pull out anything that  
+needs to have a different readtable and compile/load those separately  
+using a special asdf component type. I can try this eventually but  
+probably not for a week or two. Let me know.
+
+On May 1, 2008, at 6:24 AM, John H. Doe wrote:
+&gt
+&gt I'm trying to compile langutils, which is basically only supported  
+&gt on Allegro (boo hiss). I've fixed a couple of things while trying to  
+&gt asdf it into the system, but I think it's dying on this line:
+&gt
+&gt #.(enable-meta-syntax)
+&gt
+&gt Does anyone know what this is, exactly? I'm getting the following  
+&gt error:
+&gt
+&gt **++++ Error in (TOP-LEVEL-FORM 19):
+&gt Object #&lt;Function META::META-READER 215608B2&gt is of type FUNCTION  
+&gt which is not externalizable to #&lt;STREAM::LATIN-1-FILE-STREAM /Users/ 
+&gt paladin/dev/lisp/packages/langutils-1.0/langutils/src/ 
+&gt t_tokenize.xfasl&gt.
+&gt
+&gt Or am I wrong in thinking this is the problem? Anyone?
+&gt
+&gt Cheers,
+&gt John H. Doe (my real name)
+&gt
+
+--
+Gary Warren King, metabang.com
+Cell: (413) 559 8738
+Fax: (206) 338-4052
+gwkkwg on Skype * garethsan on AIM
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: What is #.(enable-meta-syntax)?</h1>On Thu, May 1, 2008 at 10:48 PM, John H. Doe &lt;<a href="mailto:one@nyll.com">one@nyll.com</a>&gt; wrote:<br><div class="gmail_quote"><blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+BTW, I found (enable-meta-syntax):<br>
+<br>
+(defun enable-meta-syntax ()<br>
+ &nbsp; &nbsp; &nbsp; &nbsp;(copy-readtable *meta-readtable* *readtable*))<br>
+<br>
+Though I still don&#39;t understand what the #. does.</blockquote><div><br>The prefix #. states that the evaluation of the form must happen at read time. The return value is to be externalized (included as a literal object in the fasl file):<br>
+
+&nbsp;<a href="http://www.lisp.org/HyperSpec/Body/sec_2-4-8-6.html">http://www.lisp.org/HyperSpec/Body/sec_2-4-8-6.html</a><br><br>I have not looked at the code, but maybe the following solves the problem: replace<br>&nbsp;#.(enable-meta-syntax)<br>
+by<br>&nbsp;#.(progn (enable-meta-syntax) nil)<br><br>The return value of the form is to be externalized, which in the first case is the copied or updated readtable (perhaps not externalizable), and in the second case the value nil which is certainly externalizable. If the side effect of copying the read table is the only thing that matters (which seems to be the case if the #.(enable-meta-syntax) form is not part of another form), the latter form should work equally well.<br>
+<br>- Willem<br>
+</div></div>
+
+
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:39 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

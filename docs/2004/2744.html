@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>#&lt;Pointer to type FLI::WCHAR-T = #x003F6E70&gt cannot be converted to 
+             foreign type (:POINTER :WCHAR-T)</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>#&lt;Pointer to type FLI::WCHAR-T = #x003F6E70&gt cannot be converted to 
+                 foreign type (:POINTER :WCHAR-T)</h1>
+                <pre>If I have a foreign function FOO defined like this
+
+(fli:define-foreign-function
+    (foo "Foo")
+  ((ptr :pointer)
+   (type (:pointer :wchar-t)))
+  :result-type :void)
+
+and call it like this
+
+(defun bar (object type)
+  (fli:with-foreign-string (type-name element-count byte-count 
+                                      :external-format :unicode)
+    type
+    (declare (ignore element-count byte-count))
+    (foo (get-pointer object)
+         type-name))
+  object)
+
+with TYPE being a string I get an error message:
+
+Error: #&lt;Pointer to type FLI::WCHAR-T = #x003F6E70&gt cannot be converted to
+foreign type (:POINTER :WCHAR-T).
+
+I can circumvent this by changing the definition of FOO to 
+
+(fli:define-foreign-function
+    (foo "Foo")
+  ((ptr :pointer)
+   (type :pointer))
+  :result-type :void)
+
+but I don't understand what's wrong with the first definition. What's the
+difference between a
+
+  #&lt;Pointer to type FLI::WCHAR-T = #x003F6E70&gt
+
+and a (:POINTER :WCHAR-T)?
+
+I thought that WITH-FOREIGN-STRING with the appropriate external format is
+supposed to create a (:POINTER :WCHAR-T)...
+
+Thanks,
+Edi.
+
+PS: This is LW 4.3.6 pro on Windows XP pro SP2.
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: #&lt;Pointer to type FLI::WCHAR-T = #x003F6E70&gt cannot be converted to 
+                  foreign type (:POINTER :WCHAR-T)</h1>
+                 <p>
+                  Unable to parse email body. Email id is 2746
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: #&lt;Pointer to type FLI::WCHAR-T = #x003F6E70&gt cannot be converted to 
+                  foreign type (:POINTER :WCHAR-T)</h1>
+                 <pre>On Thu, 2 Sep 2004 15:13:11 +0100, davef@xanalys.com wrote:
+
+&gt Instead, use the foreign type :EF-WC-STRING with :REFERENCE-PASS to
+&gt pass Unicode strings via the FLI.
+
+According to the FLI docs (4.2.2) this will only work if I "can bound
+the size of the result string at compile-time." This is not the case
+for my application.
+
+It looks to me as if I have to use something like the third example
+from 4.2.2 and you use :POINTER there, too, so maybe I should just do
+it.
+
+&gt  &gt but I don't understand what's wrong with the first definition. What's the
+&gt  &gt difference between a
+&gt  &gt 
+&gt  &gt   #&lt;Pointer to type FLI::WCHAR-T = #x003F6E70&gt
+&gt  &gt 
+&gt  &gt and a (:POINTER :WCHAR-T)?
+&gt
+&gt The foreign type :WCHAR-T isa convertor between a Lisp character and
+&gt a C wchar_t, but I've never seen a use for it and the FLI does not
+&gt know how to convert it to the internal FLI::WCHAR-T type used for
+&gt strings.
+&gt
+&gt  &gt I thought that WITH-FOREIGN-STRING with the appropriate external
+&gt  &gt format is supposed to create a (:POINTER :WCHAR-T)...
+&gt
+&gt Why did you think that?
+
+The receiving C++ function expects a pointer to wchar_t and LispWorks
+creates something internally that it calls a "Pointer to
+FLI::WCHAR-T." I don't think it is too far-fetched from me to see a
+similarity between these two things and (:POINTER :WCHAR-T).
+
+Anyway, I'll just use :POINTER.
+
+Thanks,
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: #&lt;Pointer to type FLI::WCHAR-T = #x003F6E70&gt cannot be converted to 
+                  foreign type (:POINTER :WCHAR-T)</h1>
+                 <pre>
+Sorry to drag this old post up again, but I have encountered some similar 
+problems.
+I also opted for the "just use :POINTER" approach - which seems to work..
+
+I am using one of those Windows API calls where the first call tells you 
+how big the buffer needs to be to hold the answer.
+Then you call it again with the right size buffer to get the answer you 
+really wanted in the first place.
+
+The code is below.
+As in the original post, it is modeled on the third example from FLI Manual 
+4.2.2 Modifying a string in a C function.
+
+I had to use :wchar-t to get it to work with Unicode pathnames on XP.
+This does not tie up with Dave's comment that "I have never seen a use for 
+:wchar-t "
+Is this a valid use of :wchar-t ? or is there a better way to do this ?
+
+Any insights appreciated.
+
+Thanks
+
+paulm
+
+(defmacro os-external-format ()
+   '(if (string= (software-type) "Windows NT")
+        :unicode
+      win32:*multibyte-code-page-ef*))
+
+(defmacro os-character-type ()
+   '(if (string= (software-type) "Windows NT")
+        :wchar-t
+      :char))
+
+
+#|
+__declspec(dllimport) unsigned long __stdcall GetShortPathNameA(
+     constant char * lpszLongPath,
+     char * lpszShortPath,
+     unsigned long cchBuffer
+     );
+
+__declspec(dllimport) unsigned long __stdcall GetShortPathNameW(
+     constant wchar_t * lpszLongPath,
+     wchar_t * lpszShortPath,
+     unsigned long cchBuffer
+     );
+|#
+
+(fli:define-foreign-function (get-short-path-name-win32 "GetShortPathName" 
+:dbcs)
+                              ((lpszLongPath (:pointer))
+                               (lpszShortPath (:pointer))
+                               (cchBuffer (:unsigned :int)))
+                              :result-type
+                              (:unsigned :int)
+                              :language :c
+                              :calling-convention :stdcall)
+
+(defun get-short-path-name (long-path-name)
+   (fli:with-foreign-string (lp-long-path-name element-count byte-count
+                                               :external-format 
+(os-external-format))
+       long-path-name
+     (declare (ignorable element-count byte-count))
+     (fli:with-dynamic-foreign-objects ()
+       (let* ((lp-zero-buffer
+               (fli:allocate-dynamic-foreign-object :type 
+(os-character-type) :nelems 0))
+              (short-path-name-size
+               (get-short-path-name-win32 lp-long-path-name lp-zero-buffer 0))
+              (lp-short-path-name-buffer
+               (fli:allocate-dynamic-foreign-object :type 
+(os-character-type) :nelems short-path-name-size)))
+         (get-short-path-name-win32 lp-long-path-name 
+lp-short-path-name-buffer short-path-name-size)
+         (fli:convert-from-foreign-string lp-short-path-name-buffer
+                                          :external-format 
+(os-external-format))))))
+
+
+At 15:44 02/09/2004, Edi Weitz wrote:
+&gtOn Thu, 2 Sep 2004 15:13:11 +0100, davef@xanalys.com wrote:
+&gt
+&gt &gt Instead, use the foreign type :EF-WC-STRING with :REFERENCE-PASS to
+&gt &gt pass Unicode strings via the FLI.
+&gt
+&gtAccording to the FLI docs (4.2.2) this will only work if I "can bound
+&gtthe size of the result string at compile-time." This is not the case
+&gtfor my application.
+&gt
+&gtIt looks to me as if I have to use something like the third example
+&gtfrom 4.2.2 and you use :POINTER there, too, so maybe I should just do
+&gtit.
+&gt
+&gt &gt  &gt but I don't understand what's wrong with the first definition. 
+&gt What's the
+&gt &gt  &gt difference between a
+&gt &gt  &gt
+&gt &gt  &gt   #&lt;Pointer to type FLI::WCHAR-T = #x003F6E70&gt
+&gt &gt  &gt
+&gt &gt  &gt and a (:POINTER :WCHAR-T)?
+&gt &gt
+&gt &gt The foreign type :WCHAR-T isa convertor between a Lisp character and
+&gt &gt a C wchar_t, but I've never seen a use for it and the FLI does not
+&gt &gt know how to convert it to the internal FLI::WCHAR-T type used for
+&gt &gt strings.
+&gt &gt
+&gt &gt  &gt I thought that WITH-FOREIGN-STRING with the appropriate external
+&gt &gt  &gt format is supposed to create a (:POINTER :WCHAR-T)...
+&gt &gt
+&gt &gt Why did you think that?
+&gt
+&gtThe receiving C++ function expects a pointer to wchar_t and LispWorks
+&gtcreates something internally that it calls a "Pointer to
+&gtFLI::WCHAR-T." I don't think it is too far-fetched from me to see a
+&gtsimilarity between these two things and (:POINTER :WCHAR-T).
+&gt
+&gtAnyway, I'll just use :POINTER.
+&gt
+&gtThanks,
+&gtEdi.
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: #&lt;Pointer to type FLI::WCHAR-T = #x003F6E70&gt cannot be converted to 
+                  foreign type (:POINTER :WCHAR-T)</h1>
+                 <p>
+                  Unable to parse email body. Email id is 4586
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:51 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>ADD-SPECIAL-FREE-ACTION</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>ADD-SPECIAL-FREE-ACTION</h1>
+                <pre>The doc entry for ADD-SPECIAL-FREE-ACTION says that its first and only
+argument should be a function. However, after having been bitten by this
+yesterday I'm pretty sure that the desired effect will only be achieved if
+ADD-SPECIAL-FREE-ACTION is provided with a symbol denoting a function, i.e.
+
+  (add-special-free-action 'foo)
+
+will work while
+
+  (add-special-free-action #'foo)
+
+won't. I think this should be documented.
+
+Also, I can't find a place where it's documented how FOO should look like. I
+guess it takes one argument, namely the object which is about to be
+garbage-collected, but there's no clear description in the docs about this.
+
+Last point: There's a peculiar comment in opengl/vectors.lisp which says:
+
+;;; using ADD-SPECIAL-FREE-ACTION and FLAG-SPECIAL-FREE-ACTION is not
+normally
+;;; recommended when using the FLI as
+;;; 1. It can slow down the GC mechanism by adding overheads to objects to
+cleanup.
+;;; 2. Can have disastrous results if the allocated foreign object is
+;;;    not cleaned up before an image save - data allocated by
+;;;    fli:allocate-foreign-object is not persistent across image saves.
+
+I don't understand this at all. To me it looks as if the parts of my code
+dealing with external resources (like FLI stuff) are the prime candidates
+for special free actions. Where am I suppposed to use special free actions
+if not there?
+
+In particular, yes, it may slow down GC but what has that to do with the
+FLI? It will also slow down GC if the FLI is not involved, won't it?
+
+And, for the second point, I thought that adding a special free action would
+be a good measure to prevent such disastrous results from happening. Again,
+I can't see why using these tools would be specifically bad here.
+
+Comments?
+
+Cheers,
+Edi.
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: ADD-SPECIAL-FREE-ACTION</h1>
+                 <pre>On Mon, 30 Aug 2004 11:06:59 +0200, "Marc Battyani" &lt;marc.battyani@fractalconcept.com&gt wrote:
+
+&gt It's generally considered a bad thing to leave the release/cleanup
+&gt of resources to finalizers (special-free-actions) because you don't
+&gt control when they are freed. They could have been promoted to a
+&gt higher GC generation pool for instance. Also they could be freed
+&gt very late. For instance if you allocate lots of short lived objects,
+&gt you could potentially allocate a lot of them before they are freed
+&gt hence exausting your resources. It's especially true for external
+&gt resources. The lisp image does not know that some resource is going
+&gt low and that it should trigger a GC.
+&gt
+&gt This does not mean it's not useful but more as a safety measure than
+&gt a standard use.
+&gt
+&gt IIRC this have been discussed several times in c.l.l. Do a search
+&gt for finalizers for instance.
+
+Yes, now that you say it I remember these discussions. In my current
+situation this point seems to be moot, though. I'm dealing with
+objects returned from a C++ application which are supposed to be freed
+(with 'delete') by the caller when they're no longer needed. Only the
+Lisp side knows when they're no longer needed - precisely, only the
+Lisp garbage collector knows - so I think there's no other way than to
+use Lisp finalizers.
+
+But I was mainly taking issue with the remark about saving images
+(which I'm not planning to do anyway). I'd expect the user to run a
+full GC before saving an image so all finalizers should have a chance
+to run. In fact, this seems to be the default behaviour on
+Lispworks[1] and, say, CMUCL. If the user prevents the GC from running
+before he saves an image he should know what he's doing.
+
+Cheers,
+Edi.
+
+[1] Well, OK, the docs say that "there is a garbage collection before
+    the image is saved," they don't say whether it's a full one,
+    i.e. if all generations are affected.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: ADD-SPECIAL-FREE-ACTION</h1>
+                 <p>
+                  Unable to parse email body. Email id is 2737
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:51 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

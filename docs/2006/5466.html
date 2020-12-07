@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Nested drawn layouts</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Nested drawn layouts</h1>
+                <pre>
+Hello dear LispWorks users,
+
+I want to draw a diagram for a tree.  There are many ways to display
+trees, and I have a special representation I want to implement.  As an
+example I will provide a tree and how it should look like when
+displalyed.
+
+(root (foo (leaf-1))
+      (leaf-2))
+
+Eeach node is represented as a list whose FIRST element is the node
+name and REST are its children.
+
+Now, the drawing:
+
++-root-------------------+
+|                        |
+|  +-foo------+          |
+|  |          |          |
+|  |  leaf-1  |  leaf-2  |
+|  |          |          |
+|  +----------+          |
+|                        |
++------------------------+
+
+
+What we see above is:
+
+ - Leaf nodes all appear vertically aligned.
+ - For nodes with children the frames are being drawn.
+ - The frame drawing must be customizeable (i.e., the color of the
+   border and fill) and also interactable.
+
+At the moment I use PINBOARD-LAYOUT with RECTANGLES as the frames, and
+ITEM-PINBOARD-OBJECTs for the leaf nodes.  I do layouting manually --
+when the diagram is being drawn, it first needs the PANE to draw onto
+in order to have a way to determine string metrics.  The process then
+recursively walks the tree and calculates the coordinates and
+dimensions for all nodes in the tree.
+
+But this approach does not work if the tree branches are of different
+depth (in this case the rectangle for shallower branch will have
+smaller height than the next rectangle for a branch with higher
+depth).
+
+All this mess could be easily solvable by using layouts.  The only
+problem (for me) is that I don't know how to "draw the layouts".  Two
+solutions that I could come up with are:
+
+ 1. Define a class that inherits from both a LAYOUT and a RECTANGLE.
+
+   (defclass foo (capi:row-layout capi:rectangle) ())
+
+   (capi:contain
+    (make-instance
+     'capi:pinboard-layout
+     :description
+     (list
+      (make-instance
+       'foo
+       :description
+       (list
+        (make-instance 'capi:item-pinboard-object :text "foo")
+        (make-instance 'capi:item-pinboard-object :text "bar"))))))
+
+    This breaks when trying to CALCULATE-CONSTRAINTS for foo (the
+    error is "Error: NIL is not of type ARRAY.").
+
+ 2. Use a SIMPLE-LAYOUT with the first level child being something
+    that can draw itself (i.e. RECTANGLE), and then have that child
+    have the next level layout as a child.  But this I don't know how
+    to do...
+
+What would be the right way to do this?  Note that the nodes will get
+more complicated that that -- that's the reason why the layouts should
+be used to do this.  For instance, leaf nodes could be COLUMN-LAYOUTS
+with more than one thing in it.  But the nested-box nature of the
+diagram will stay.
+
+-- 
+Janis Dzerins
+
+  If million people say a stupid thing -- it's still a stupid thing.
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Nested drawn layouts</h1>
+                 <pre>
+Janis Dzerins wrote:
+
+&gt At the moment I use PINBOARD-LAYOUT with RECTANGLES as the frames, and
+&gt ITEM-PINBOARD-OBJECTs for the leaf nodes.  I do layouting manually --
+&gt when the diagram is being drawn, it first needs the PANE to draw onto
+&gt in order to have a way to determine string metrics.  The process then
+&gt recursively walks the tree and calculates the coordinates and
+&gt dimensions for all nodes in the tree.
+&gt
+&gt But this approach does not work if the tree branches are of different
+&gt depth (in this case the rectangle for shallower branch will have
+&gt smaller height than the next rectangle for a branch with higher
+&gt depth).
+
+Sounds to me like you need to 'hook into the layout protocol' more fully
+than you've done so far.  I think you'll need to define your own layout
+class with DEFINE-LAYOUT and then write your own methods for
+INTERPRET-DESCRIPTION, CALCULATE-CONSTRAINTS and CALCULATE-LAYOUT.
+
+&gt All this mess could be easily solvable by using layouts.  The only
+&gt problem (for me) is that I don't know how to "draw the layouts".
+
+I wouldn't 'draw the layouts', but have the layout contain some panes
+(or pinboard-objects) that can be drawn.
+
+&gt Note that the nodes will get more complicated that that -- that's the
+&gt reason why the layouts should be used to do this.  For instance, leaf
+&gt nodes could be COLUMN-LAYOUTS with more than one thing in it.  But the
+&gt nested-box nature of the diagram will stay.
+
+Sounds like fun.  If you need more help with this, let me know.
+
+Arthur Lemmens
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:45 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

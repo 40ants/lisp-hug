@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>[RESEND] Re: (Lisp Support Call #30692) Hanging Editor bug</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>[RESEND] Re: (Lisp Support Call #30692) Hanging Editor bug</h1>
+                <pre>[in case this email was lost due to website outage ...]
+
+----------  Forwarded Message  ----------
+
+Subject: Re: (Lisp Support Call #30692)  Hanging Editor bug
+Date: Wednesday 01 September 2004 06:26 pm
+From: tarvydas &lt;tarvydas@allstream.net&gt
+To: lisp-support@xanalys.com
+
+On Wednesday 01 September 2004 02:49 pm, you wrote:
+
+Hi Dave
+
+&gt 1. I noticed one mistake in your code: you're calling GP:DRAW-STRING
+&gt in the wrong process. Does the problem still occur for you when you
+&gt redefine FINISH-EDIT like this:
+&gt
+&gt (defun finish-edit (intf)
+&gt   (declare (ignore intf))
+&gt   (let* ((buff (editor:buffer-from-name "junk"))
+&gt          (str (editor:points-to-string
+&gt               (editor:buffers-start buff)
+&gt               (editor:buffers-end buff))))
+&gt     (hcl:clean-down)
+&gt     (capi:execute-with-interface *intf*
+&gt 				 'gp:draw-string
+&gt 				 (canvas *intf*) str 50 50)))
+
+Yes, the problem still occurs.  I've attached the modified code so that you
+might check to see that I didn't botch the modification. :-)
+
+&gt 2. What does the GC monitor show
+&gt  a) during the small pause?
+
+I believe that it says "Running".  It happens quickly, so I am not absolutely
+certain.  I've seen 3 things in that spot today - "Running", "Idle", "GC".
+During the small pause, the message is definitely of longer length than
+"Idle" (leaving "Running" as the only possibility).
+
+&gt  b) when the capi:editor-pane hangs?
+
+"Idle", but flickers to "Running" once or twice a second.
+
+This is definitely different behaviour from the normal Idle state when there
+is no hanging editor (where "Idle" appears steadily, no flicker).
+
+&gt 3. What exactly does the "Text Editor" window look like when the
+&gt    capi:editor-pane remains hanging?
+
+Exactly as "I left it" when I moved the mouse over to the "x" button, i.e.
+ the contents of the editor are still there.
+
+I can move and resize the frame, but the white inside pane does not resize
+itself.  If I resize the frame, before it hangs, then the inside pane does
+resize itself (as expected).
+
+I can continue to type characters into the hung editor.  The "x" button works
+(visually), but the window does not close.
+
+&gt 4. In the case that the "Text Editor" window closes successfully, what
+&gt    actually goes wrong when you close the "Hanging Editor Bug" window?
+
+This case happened only once today (see (7) below - suggestion to add more
+clean-downs).
+
+I got a condition where I'd spun up more than one editor (one editor for each
+key-click on the output pane).  I closed the editors while the thing was
+still GC'ing.
+
+The output pane was completely empty and would not close.  You could resize
+its frame, but the innards did not resize.
+
+&gt 5. Is there any unusual output at the terminal, such as GC messages (lines
+&gt    starting with "&lt;**&gt" ) ?
+
+Nothing in the listener.  Nothing in the Output window (tab in Listener).
+[Those are the windows you meant by "terminal", yes?].
+
+
+6. New observations:
+
+When the editor hangs, KDE in general becomes very slow.  The main menu (the
+equivalent of the Start button on Windows - don't know what they call it in
+Linux :-) takes many seconds to respond to a mouse click (whereas it is
+usually instantaneous).
+
+I ran XLoad and watched it when the editor hung.  In "idle", Xload was showig
+approx 15%.  Soon after the hang, it spiked to 30% then drifted back to about
+20%.
+
+7. AHA!
+
+I found a pattern that makes the bug quite repeatable.  I touch-type and am
+quite used to "typing ahead".
+
+If I type space-^A-^K-asdf while the GC monitor is still showing activity
+ from the previous edit, I get the hang "every time".
+
+Here's the procedure that forces a hang on the 3rd edit:
+
+a) compile-and-load ed2.lisp
+
+b) (run)
+
+c) click on output pane for focus
+
+d) hit space-bar
+
+e) editor opens, ^X^Fjunk, type in ^A^Kasdf
+
+f) click "x"
+
+g) let everything settle down and "asdf" to appear on output pane
+
+h) hit space bar, editor opens
+
+i) now move the output pane window and the edit window so that the
+ upper-right corner of the editor is over the middle of the output pane
+ window - this sets you up to quickly type ahead on the next round
+
+j) hit ^A^Kasdf in the editor
+
+k) now, do all of these in rapid succession: (i) click the "x" (close) button
+on the editor, (ii) click mouse in output pane for focus, (iii) hit space
+bar, (iv) type ^A^Kasdf
+
+l) if you were fast enough, you will have finished sequence (k) before the
+output window re-displays the previous "asdf".  When I finish (k), I can
+still see GC/Idle flicker in the GC monitor.  When it catches up to you and
+opens the editor again, you should see a slight pause before it reacts to the
+^A^K (which was typed ahead).
+
+m) Click the "x" close button of the editor.  It should do "nothing".  The
+editor hangs.
+
+The trick is to position the windows as in (i) so that you can hit the left
+mouse button twice (once to "x" the editor, once to regain focus in output
+pane), then to quickly type in the rest of the sequence.
+
+Hmm, you might be able to exacerbate the problem by doing clean-down more
+ than once.
+
+Thanks
+pt
+
+
+
+(in-package "COMMON-LISP-USER")
+
+(defparameter *intf* nil)
+
+(capi:define-interface hanging-editor-bug ()
+  ()
+  (:panes
+   (output-pane-1
+    capi:output-pane
+
+    :accessor canvas
+    :input-model   '(((:character) edit-text))))
+
+  (:layouts
+   (column-layout-1
+    capi:column-layout
+    '(output-pane-1)))
+  (:default-initargs
+
+   :best-height 300
+   :best-width 308
+   :layout 'column-layout-1
+   :title "Hanging Editor Bug"))
+
+(capi:define-interface text-editor ()
+  ()
+  (:panes
+   (edit-pane capi:editor-pane
+
+                :visible-min-width 400
+                :visible-min-height 300
+                :visible-border t
+                :accessor edit-pane
+                :echo-area-pane echo-area)
+
+   (echo-area capi:echo-area-pane
+
+              :max-height '(character 1)))
+
+  (:layouts
+   (main-layout capi:column-layout '(edit-pane echo-area)))
+  (:menu-bar file-menu)
+  (:menus
+   (file-menu "File" (("Save" :selection-callback 'save-contents))))
+  (:default-initargs
+
+   :title "Text Editor"
+   :layout 'main-layout
+   :auto-menus nil))
+
+(defun edit-text (pane x y c)
+  (declare (ignore pane x y c))
+  (let* ((dwt (make-instance
+               'text-editor
+
+               :confirm-destroy-callback #'finish-p
+               :destroy-callback #'finish-edit
+               :best-x 200
+               :best-y 200)))
+
+        (capi:display dwt)))
+
+(defun finish-p (intf)
+  (declare (ignore intf))
+  t)
+
+(defun finish-edit (intf)
+  (declare (ignore intf))
+  (let* ((buff (editor:buffer-from-name "junk"))
+         (str (editor:points-to-string
+              (editor:buffers-start buff)
+              (editor:buffers-end buff))))
+    (hcl:clean-down)
+    (capi:execute-with-interface *intf*
+                                 'gp:draw-string
+                                 (canvas *intf*) str 50 50)))
+
+(defun run ()
+  (setq *intf* (make-instance 'hanging-editor-bug))
+  (capi:display *intf*))
+
+-------------------------------------------------------
+
+
+</pre>
+               </article>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:51 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

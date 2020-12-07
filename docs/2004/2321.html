@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Input Model</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Input Model</h1>
+                <pre>Hi all,
+
+After a few hours digging into output-pane's input-model, it's still very
+confusing to me.
+I want to be able to dispatch actions directly from the input model when the
+user press different combination of keys with their associated modifiers
+(and not later in the callback).
+
+what i did :
+------------
+(defun cb (pane x y key gesture) (capi:display-message "cb called"))
+
+(capi:contain (make-instance 'capi:output-pane :input-model '(((#\r) cb))))
+==&gt OK
+
+(capi:contain (make-instance 'capi:output-pane :input-model '(((#\r
+:control) cb))))
+==&gt In LOGIOR of (#\r 1048576) arguments should be of type INTEGER.
+NOTE : According to my understanding of the doc (i'm not an english native
+speaker as you could guess...) this should be possible.
+
+(capi:contain (make-instance 'capi:output-pane :input-model
+'(((:gesture-spec #\r :control) cb))))
+==&gt OK, there is no more distinction between #\r and #\R
+
+(capi:contain (make-instance 'capi:output-pane :input-model
+'(((:gesture-spec #\r :shift) cb))))
+==&gt NOTHING HAPPENS ???
+
+
+Is there anybody that knows how all this function ?
+
+Sebastien.
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>
+                  Unable to render article 2322 because of ":DEFAULT stream decoding error on 
+                  #&lt;SB-SYS:FD-STREAM for \"socket 192.168.43.216:53331, peer: 
+                  116.202.254.214:119\" {1006760B23}&gt: the octet sequence #(233 98 97) cannot be 
+                  decoded." error</h1>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>RE: Input Model</h1>
+                  <pre>Hi,
+
+&gt If I change your definition of cb to drop the argument "gesture"
+&gt
+&gt (defun cb (pane x y key) (capi:display-message "cb called"))
+
+OK, bad cut &amp; paste from an oldier definition
+
+&gt
+&gt the following examples work for me on LWL:
+&gt
+&gt (capi:contain (make-instance 'capi:output-pane :input-model
+&gt '(((#\R :shift)
+&gt cb))))
+&gt
+
+Under LWW PRO 4.2.7 &amp; LWW PER 4.3.6  ==&gt In LOGIOR of (#\R 524288) arguments
+should be of type INTEGER.
+
+&gt (capi:contain (make-instance 'capi:output-pane :input-model
+&gt '(((#\control-\r)
+&gt cb))))
+&gt
+
+This is OK, except that there is no distinction between lower &amp; upper case
+(LWW).
+Moreover, I've read this from the example as following
+
+4.3 ==&gt OK         ((#\control-\a) ;this is the one you will see
+                    char-input-callback
+                    "Ctrl-a")
+
+4.2 ==&gt buggy      ((#\a :control) ;this is the one you will see
+                    char-input-callback
+                    "Ctrl-a")
+
+But according to the doc, the 4.2 notation is the documented one.
+
+
+&gt (capi:contain (make-instance 'capi:output-pane :input-model
+&gt '(((#\r) cb))))
+&gt
+&gt There are some examples in the Lispworks directory
+&gt ..../examples/capi/output-panes/input-model.lisp
+&gt
+&gt pt
+&gt
+
+Thanks Paul,
+
+Sebastien.
+
+
+
+</pre>
+                 </article>
+                </section>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Input Model</h1>
+                 <p>
+                  Unable to parse email body. Email id is 2327
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>
+                   Unable to render article 2329 because of ":DEFAULT stream decoding error on 
+                   #&lt;SB-SYS:FD-STREAM for \"socket 192.168.43.216:53333, peer: 
+                   116.202.254.214:119\" {1007008683}&gt: the octet sequence #(233 32 58) cannot be 
+                   decoded." error</h1>
+                 </article>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>Re: Input Model</h1>
+                   <pre>
+   One question remains open (maybe I should have asked it explicitly...):
+   How do I handle the "ALT" key under LWW ? I tried the keyword :meta without
+   any success.
+
+By default on Windows the Alt key gets used for Windows-specific
+purposes such as invoking menu shortcuts.
+
+You can override this by telling your interface to interpret Alt as a
+Meta key, see the CAPI Reference Manual entry
+CAPI:INTERFACE-KEYS-STYLE for more details of this. Quick example:
+
+(defun cb (pane x y key ) (capi:display-message "cb called"))
+
+(capi:define-interface sebastien ()
+  ()
+  (:panes
+   (output-pane 
+    capi:output-pane
+   :input-model '(((:gesture-spec #\R :meta) cb))))
+  (:default-initargs
+   :title "Sebastien"))
+
+(defmethod capi:interface-keys-style ((self sebastien))
+  :emacs)
+
+(capi:contain (make-instance 'sebastien))
+
+   Sebastien.
+
+   &gt -----Message d'origine-----
+   &gt De : owner-lisp-hug@xanalys.com [mailto:owner-lisp-hug@xanalys.com]De la
+   &gt part de davef@xanalys.com
+   &gt Envoyé : vendredi 14 mai 2004 13:52
+   &gt À : sebastien.saint-sevin@ALINEA.NET
+   &gt Cc : lisp-hug@xanalys.com
+   &gt Objet : Re: Input Model
+   &gt
+   &gt
+   &gt
+   &gt    After a few hours digging into output-pane's input-model, it's
+   &gt still very
+   &gt    confusing to me.
+   &gt    I want to be able to dispatch actions directly from the input
+   &gt model when the
+   &gt    user press different combination of keys with their associated
+   &gt modifiers
+   &gt    (and not later in the callback).
+   &gt
+   &gt    what i did :
+   &gt    ------------
+   &gt    (defun cb (pane x y key gesture) (capi:display-message "cb called"))
+   &gt
+   &gt    (capi:contain (make-instance 'capi:output-pane :input-model
+   &gt '(((#\r) cb))))
+   &gt    ==&gt OK
+   &gt
+   &gt    (capi:contain (make-instance 'capi:output-pane :input-model '(((#\r
+   &gt    :control) cb))))
+   &gt    ==&gt In LOGIOR of (#\r 1048576) arguments should be of type INTEGER.
+   &gt    NOTE : According to my understanding of the doc (i'm not an
+   &gt english native
+   &gt    speaker as you could guess...) this should be possible.
+   &gt
+   &gt Yes, the doc is not clear and your form does work on some
+   &gt platforms. Character gestures are obsolescent (see below) but FWIW the
+   &gt intent was that you put the modifiers in the character object:
+   &gt
+   &gt (capi:contain (make-instance 'capi:output-pane
+   &gt                              :input-model
+   &gt                              '((#\control-\r cb))))
+   &gt
+   &gt
+   &gt    (capi:contain (make-instance 'capi:output-pane :input-model
+   &gt    '(((:gesture-spec #\r :control) cb))))
+   &gt    ==&gt OK, there is no more distinction between #\r and #\R
+   &gt
+   &gt    (capi:contain (make-instance 'capi:output-pane :input-model
+   &gt    '(((:gesture-spec #\r :shift) cb))))
+   &gt    ==&gt NOTHING HAPPENS ???
+   &gt
+   &gt That's because for Gesture Specs representing BOTH-CASE-P characters,
+   &gt the case is expressed in the data, not the modifiers. Your form above
+   &gt will generate an error in the next release, and should instead be
+   &gt expressed like this:
+   &gt
+   &gt (capi:contain (make-instance 'capi:output-pane
+   &gt                              :input-model
+   &gt                              '(((:gesture-spec #\R) cb))))
+   &gt
+   &gt The :SHIFT modifier can be used in Gesture Specs not representing
+   &gt BOTH-CASE-P characters.
+   &gt
+   &gt    Is there anybody that knows how all this function ?
+   &gt
+   &gt Use :GESTURE-SPEC to match keyboard input in the input-model. Gesture
+   &gt Specs portably support modifier keys (unlike Common Lisp character
+   &gt objects) and will be fully documented in the next release. Hopefully
+   &gt the examples here suffice for the moment.
+   &gt
+   &gt (in-package "CL-USER")
+   &gt
+   &gt (capi:define-interface test-input-model
+   &gt     (capi:interface)
+   &gt
+   &gt   ()
+   &gt   (:panes
+   &gt    (typein-pane
+   &gt     capi:output-pane
+   &gt     :title "Input"
+   &gt     :title-position :frame
+   &gt     :background :black
+   &gt     :foreground :white
+   &gt     :input-model `((:gesture-spec
+   &gt                     gspec-input-callback
+   &gt                     "Any gspec")
+   &gt                    ((:gesture-spec #\x)
+   &gt                     gspec-input-callback
+   &gt                     "x gspec")
+   &gt                    ((:gesture-spec #\x :control)
+   &gt                     gspec-input-callback
+   &gt                     "Control-x gspec")))
+   &gt
+   &gt    (display-pane
+   &gt     capi:display-pane
+   &gt     :title "Callback Info"
+   &gt     :title-position :frame
+   &gt     :visible-max-width nil))
+   &gt   (:layouts
+   &gt    (main-layout
+   &gt     capi:column-layout
+   &gt     '(typein-pane display-pane)))
+   &gt   (:default-initargs
+   &gt    :layout 'main-layout
+   &gt    :title "Input Model Test"
+   &gt    :best-width 400
+   &gt    :best-height 400))
+   &gt
+   &gt
+   &gt (defun display-message (self message)
+   &gt   (let ((interface (capi:element-interface self)))
+   &gt     (with-slots (display-pane)
+   &gt         interface
+   &gt       (setf (capi:display-pane-text display-pane)
+   &gt             message))))
+   &gt
+   &gt (defun gspec-input-callback (self x y key type)
+   &gt   (display-message self type)
+   &gt   (gp:draw-character self (sys::gesture-spec-to-simple-char key) x y))
+   &gt
+   &gt (capi:contain (make-instance 'test-input-model))
+   &gt
+   &gt
+   &gt --
+   &gt Dave Fox
+   &gt
+   &gt Xanalys                 http://www.lispworks.com
+   &gt Compass House
+   &gt Vision Park, Chivers Way
+   &gt Histon
+   &gt Cambridge, CB4 9AD
+   &gt England
+   &gt
+   &gt
+
+--
+Dave Fox			
+
+Xanalys                 http://www.lispworks.com
+Compass House
+Vision Park, Chivers Way
+Histon
+Cambridge, CB4 9AD
+England
+
+
+</pre>
+                  </article>
+                 </section>
+                </section>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:52 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

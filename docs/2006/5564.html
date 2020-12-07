@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>micro character in LW editor</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>micro character in LW editor</h1>
+                <pre>
+Hello,
+
+If I write a "µ" character in a buffer and try to save it I get this error (LWw):
+
+Error: In a call to seq::%set-access-array: #\µ is not of type base-char.
+   1 (continue) Abort editor command.
+   2 (abort) Return to event loop.
+
+
+My Editor File encoding preferences are both Latin-1.
+
+Thanks,
+Francis
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: micro character in LW editor</h1>
+                 <pre>
+
+On May 9, 2006, at 6:38 AM, Francis Leboutte wrote:
+
+&gt If I write a "µ" character in a buffer and try to save it I get  
+&gt this error (LWw):
+&gt
+&gt Error: In a call to seq::%set-access-array: #\µ is not of type base- 
+&gt char.
+&gt   1 (continue) Abort editor command.
+&gt   2 (abort) Return to event loop.
+&gt
+&gt
+&gt My Editor File encoding preferences are both Latin-1.
+
+
+What does (char-code #\µ) return for you in the listener? Even though  
+this is a valid Latin-1 character (code 181), I'm wondering if  
+something about your settings is inserting the unicode version of  
+this character. If Latin-1 is not a specific requirement, you could  
+set your external format to UTF-8.
+
+
+
+John DeSoi, Ph.D.
+http://pgedit.com/
+Power Tools for PostgreSQL
+
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: micro character in LW editor</h1>
+                 <pre>
+Le 9/05/2006 15:24, John DeSoi écrivait :
+
+
+&gtOn May 9, 2006, at 6:38 AM, Francis Leboutte wrote:
+&gt
+&gt&gtIf I write a "µ" character in a buffer and try to save it I get
+&gt&gtthis error (LWw):
+&gt&gt
+&gt&gtError: In a call to seq::%set-access-array: #\µ is not of type base- char.
+&gt&gt   1 (continue) Abort editor command.
+&gt&gt   2 (abort) Return to event loop.
+&gt&gt
+&gt&gt
+&gt&gtMy Editor File encoding preferences are both Latin-1.
+&gt
+&gt
+&gtWhat does (char-code #\µ) return for you in the listener? Even though
+&gtthis is a valid Latin-1 character (code 181), I'm wondering if
+&gtsomething about your settings is inserting the unicode version of
+&gtthis character.
+
+You are right:
+
+USER 3 &gt (char-code #\µ)    ; your
+181
+
+USER 4 &gt (char-code #\µ)    ; mine
+956
+
+USER 5 &gt (type-of #\µ)      ; your
+base-char
+
+USER 6 &gt (type-of #\µ)
+simple-char
+
+
+I should check my Dvorak-fr keyboard driver!
+
+
+&gtIf Latin-1 is not a specific requirement, you could
+&gtset your external format to UTF-8.
+
+The Editor tool's Preferences dialog doesn't 
+offer UTF-8 (LWw). Maybe this not supported in LW for Windows ?
+
+Thank you for your help,
+
+Francis
+
+
+
+
+&gtJohn DeSoi, Ph.D.
+&gthttp://pgedit.com/
+&gtPower Tools for PostgreSQL
+&gt
+&gt
+&gt
+&gt
+&gt
+&gt
+&gt
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: micro character in LW editor</h1>
+                 <pre>
+Le 9/05/2006 17:36, John DeSoi écrivait :
+
+&gtOn May 9, 2006, at 10:23 AM, Francis Leboutte wrote:
+&gt
+&gt&gtThe Editor tool's Preferences dialog doesn't offer UTF-8 (LWw).
+&gt&gtMaybe this not supported in LW for Windows ?
+&gt
+&gtYes, I see now that the option is not in the popup menu on the Mac
+&gteither. But I believe both Mac and Windows support UTF-8 and UTF-16.
+&gtLispWorks refers to UTF-16 as "Unicode". Check out the value of
+&gt*EXTERNAL-FORMATS* in the listener for a full list.
+
+(... :utf-8 ... :unicode ... :latin-1)
+
+
+&gtIn the editor you can execute the "Set External Format" command to
+&gtchange the current buffer to UTF-8. To have your file always use this
+&gtinstead of the default setting, you can add a mode line to the top of
+&gtthe file:
+&gt
+&gt; -*- mode: Lisp; encoding: utf-8; -*-
+
+This doesn't work (according to the editor mode line).
+
+The "Set External Format" command works: I can insert the unicode version
+of the micro sign (char-code 956) and save the buffer.
+
+&gtI'm sure there is a way to make UTF-8 the default by putting
+&gtsomething in your init file, but it escapes me at the moment. If you
+&gtcan't find it, let me know and I'll dig further.
+
+I have tried:
+(setf (editor:variable-value "Output Format Default") '(:utf-8 :eol-style :lf))
+(setf (editor:variable-value "Input Format Default") '(:utf-8 :eol-style :lf))
+
+To make the change permanent, it had to:
+- first eval these 2 forms
+- save from the editor preference dialog
+(putting the forms in the init file has no effect).
+
+However, after restarting LW, I get this error when I try to open *any* lisp file :
+  Error reading file g:\pe\bugs.lisp: Undefined external format nil.
+
+A bug in the editor maybe?
+
+Francis
+
+
+
+
+&gtJohn DeSoi, Ph.D.
+&gthttp://pgedit.com/
+&gtPower Tools for PostgreSQL
+&gt
+&gt
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: [spam-di] Re: micro character in LW editor</h1>
+                 <pre>
+Le 11/05/2006 06:06, John DeSoi écrivait :
+
+&gtOn May 10, 2006, at 4:54 AM, Francis Leboutte wrote:
+&gt
+&gt&gt&gt; -*- mode: Lisp; encoding: utf-8; -*-
+&gt&gt
+&gt&gtThis doesn't work (according to the editor mode line).
+&gt
+&gt
+&gtStrange. It works for me on both Mac and Windows (LW 4.6.6).
+
+I have checked it again, it doesn't work on my PC. LW 4.4.6 too :-) , Windows XP
+
+
+
+&gt&gtI have tried:
+&gt&gt(setf (editor:variable-value "Output Format Default") '(:utf-8 :eol- style :lf))
+&gt&gt(setf (editor:variable-value "Input Format Default") '(:utf-8 :eol- style :lf))
+&gt
+&gtI have it like this (but I'm not loading it from an init file):
+&gt
+&gt(setf (editor:variable-value "Output Format Default" :global nil)
+&gt'(:utf-8 :eol-style :lf))
+&gt(setf (editor:variable-value "Input Format Default" :global nil)
+&gt'(:utf-8 :eol-style :lf))
+
+It doesn't make any difference. Idem with :global T.
+
+Thanks,
+
+Francis
+
+
+&gtJohn
+&gt
+&gt
+&gt
+&gt
+&gtJohn DeSoi, Ph.D.
+&gthttp://pgedit.com/
+&gtPower Tools for PostgreSQL
+&gt
+&gt
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: micro character in LW editor</h1>
+                 <pre>
+Le 11/05/2006 19:36, Jukka Kakko écrivait :
+
+&gt&gt&gt; -*- mode: Lisp; encoding: utf-8; -*-
+&gt&gt
+&gt&gtThis doesn't work (according to the editor mode line).
+&gtI am certainly no expert on this but I had the same problems when I switched from
+&gtLatin-1 to UTF-8. I had in the file characters 
+&gtthat are above ASCII-7, scandinavian letters.
+&gt...
+&gt
+&gt&gtHowever, after restarting LW, I get this error when I try to open *any* lisp file :
+&gt&gt  Error reading file g:\pe\bugs.lisp: Undefined external format nil.
+&gt&gt
+&gt&gtA bug in the editor maybe?
+&gtI had the same error if I remember correctly. What i did was:
+&gt
+&gtI opened the file with Emacs (NT-emacs not the Lispworks-version.).
+&gtThen I added the mode-line.
+&gtThen I changed the coding system to utf-8 and saved the file
+&gt(set-buffer-file-coding-system).
+&gtAfter that everything works with LW-editor too.
+&gt
+&gtThe error perhaps was caused because the upper-Ascii-letters were not valid
+&gtUTF-8 letters when the file was read back as UTF-8 coded.
+
+All this looks too weird to me.
+I'll wait the next release of LW and try again at that time.
+
+Thank you for your time,
+
+Francis
+
+
+&gtHTH,
+&gt
+&gtJukka Kakko
+
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:45 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

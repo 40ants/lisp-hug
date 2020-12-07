@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Providing argc and argv to a foreign function</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Providing argc and argv to a foreign function</h1>
+                <pre>
+I wish to call a foreign function whose first two arguments are argc
+and argv. The foreign function definition is as follows:
+
+(fli:define-foreign-function (|fl_initialize| "fl_initialize" :source)
+                             ((|na| (:pointer :int))
+                              (|arg| (:c-array (:pointer :char)))
+                              (|appclass| (:pointer (:const :char)))
+                              (|appopt| (:pointer |XrmOptionDescRec|))
+                              (|nappopt| :int))
+                             :result-type
+                             (:pointer |Display|)
+                             :language
+                             :ansi-c)
+
+|na| corresponds to argc which is defined as (:pointer :int). How do I
+get argc in LispWorks?
+
+|arg| corresponds to argv. How do I get that?
+|appclass| is usually given a string as value. What should I write in
+           the call to |fl_initialize|?
+|appopt| is usually given in C as NULL. Do I provide "nil" for that?
+|nappopt| is easy. It's zero (0).
+
+Any help would be appreciated.
+-- 
+Dr Sian Mountbatten
+http://www.poenikatu.co.uk/
+Associate member of the FSF no. 10888
+Asocia membro de la Libera Programara Fonduso n-ro 10888
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Providing argc and argv to a foreign function</h1>
+                 <pre>
+On 05/09/14 16:58, Sian Mountbatten wrote:
+&gt 
+&gt I wish to call a foreign function whose first two arguments are argc
+&gt and argv. The foreign function definition is as follows:
+&gt 
+&gt (fli:define-foreign-function (|fl_initialize| "fl_initialize" :source)
+&gt                              ((|na| (:pointer :int))
+&gt                               (|arg| (:c-array (:pointer :char)))
+&gt                               (|appclass| (:pointer (:const :char)))
+&gt                               (|appopt| (:pointer |XrmOptionDescRec|))
+&gt                               (|nappopt| :int))
+&gt                              :result-type
+&gt                              (:pointer |Display|)
+&gt                              :language
+&gt                              :ansi-c)
+&gt 
+&gt |na| corresponds to argc which is defined as (:pointer :int). How do I
+&gt get argc in LispWorks?
+&gt 
+&gt |arg| corresponds to argv. How do I get that?
+
+See sys:*line-arguments-list* and section 4.2.5 of the FLI reference
+manual ("Calling a C function that takes an array of strings").
+
+&gt |appclass| is usually given a string as value. What should I write in
+&gt            the call to |fl_initialize|?
+
+You could use the following in the foreign function definition:
+
+(|appclass| (:reference-pass
+              (:ef-mb-string :null-terminated-p t)))
+
+and then pass a lisp string for that argument.
+
+&gt |appopt| is usually given in C as NULL. Do I provide "nil" for that?
+
+Pretty sure that nil provided as the value for a :pointer argument is
+converted to a null pointer.  You can also use fli:*null-pointer*.
+
+&gt |nappopt| is easy. It's zero (0).
+
+If it's always 0, you could use the following definition in place of
+that argument:
+
+(:constant 0 :int)
+
+See also the :lambda-list arg to fli:define-foreign-function.
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:30 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

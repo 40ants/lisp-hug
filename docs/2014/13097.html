@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Drag and drop in tab-layouts</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Drag and drop in tab-layouts</h1><html>
+  <head>
+
+    <meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+  </head>
+  <body bgcolor="#FFFFFF" text="#000000">
+    Hi, <br>
+    <br>
+    It appears that drag and drop doesn't work in tab-layouts on linux
+    32-bit. Code below demonstrates the problem. It is based on a CAPI
+    example. In this code you can switch between a tab-layout and
+    column-layout (currently commented out).<br>
+    <br>
+    Best regards, <br>
+    &nbsp;&nbsp; Peter<br>
+    <br>
+    <br>
+    <br>
+    ;; To try it, compile and load this file and then execute:<br>
+    ;;<br>
+    ;;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (CL-USER::TEST-CHOICE-DRAG-AND-DROP)<br>
+    ;;<br>
+    ;;&nbsp; The exchangeable list allow their items to be dragged from one
+    list<br>
+    ;;&nbsp; to the other.<br>
+    <br>
+;;----------------------------------------------------------------------------<br>
+    ;; Copyright (c) 1987--2012 LispWorks Ltd. All rights reserved.<br>
+;;----------------------------------------------------------------------------<br>
+    <br>
+    <br>
+    (in-package "CL-USER")<br>
+    <br>
+    (capi:define-interface drag-and-drop-choices ()<br>
+    &nbsp; ()<br>
+    &nbsp; (:panes<br>
+    &nbsp;&nbsp; (source-list<br>
+    &nbsp;&nbsp;&nbsp; capi:list-panel<br>
+    &nbsp;&nbsp;&nbsp; :items '(:item-1 :item-2<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; :item-3 :item-4)<br>
+    &nbsp;&nbsp;&nbsp; :interaction :extended-selection<br>
+    &nbsp;&nbsp;&nbsp; :drag-callback 'drag-callback<br>
+    &nbsp;&nbsp;&nbsp; :visible-min-height '(character 8)<br>
+    &nbsp;&nbsp;&nbsp; :visible-max-width nil<br>
+    &nbsp;&nbsp;&nbsp; :vertical-scroll nil<br>
+    &nbsp;&nbsp;&nbsp; :horizontal-scroll nil)<br>
+    &nbsp;&nbsp; (target-list<br>
+    &nbsp;&nbsp;&nbsp; capi:list-panel<br>
+    &nbsp;&nbsp;&nbsp; :items '(:item-5 :item-6<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; :item-7 :item-8)<br>
+    &nbsp;&nbsp;&nbsp; :interaction :extended-selection<br>
+    &nbsp;&nbsp;&nbsp; :drop-callback 'drop-callback<br>
+    &nbsp;&nbsp;&nbsp; :visible-min-height '(character 8)<br>
+    &nbsp;&nbsp;&nbsp; :visible-max-width nil<br>
+    &nbsp;&nbsp;&nbsp; :vertical-scroll nil<br>
+    &nbsp;&nbsp;&nbsp; :horizontal-scroll nil))<br>
+    &nbsp; (:layouts<br>
+    &nbsp;&nbsp; (exchangeable-lists-layout<br>
+    &nbsp;&nbsp;&nbsp; capi:row-layout<br>
+    &nbsp;&nbsp;&nbsp; '(source-list target-list)<br>
+    &nbsp;&nbsp;&nbsp; :title "Drag items from one pane to the other"<br>
+    &nbsp;&nbsp;&nbsp; :title-position :frame<br>
+    &nbsp;&nbsp;&nbsp; :internal-border 10<br>
+    &nbsp;&nbsp;&nbsp; :gap 10)<br>
+    &nbsp;&nbsp; (main-layout<br>
+    &nbsp;&nbsp;&nbsp; capi:tab-layout ()<br>
+    &nbsp;&nbsp;&nbsp; :items '(("Layout" exchangeable-lists-layout))<br>
+    &nbsp;&nbsp;&nbsp; :visible-child-function 'second<br>
+    &nbsp;&nbsp;&nbsp; :combine-child-constraints (:initarg :combine-child-constraints)<br>
+    &nbsp;&nbsp;&nbsp; :print-function 'car))<br>
+    ;&nbsp;&nbsp;&nbsp; ;capi:column-layout<br>
+    ;&nbsp;&nbsp;&nbsp; '(exchangeable-lists-layout)))<br>
+    &nbsp; (:default-initargs<br>
+    &nbsp;&nbsp; :layout 'main-layout<br>
+    &nbsp;&nbsp;&nbsp; :title "Drag And Drop Choices"))<br>
+    <br>
+    (defun drag-callback (pane indices)<br>
+    &nbsp; (declare (ignore pane))<br>
+    &nbsp; (and indices (list :items-1 indices)))<br>
+    <br>
+    (defun drop-callback (pane drop-object stage)<br>
+    &nbsp; (case stage<br>
+    &nbsp;&nbsp;&nbsp; (:formats<br>
+    &nbsp;&nbsp;&nbsp;&nbsp; (capi:set-drop-object-supported-formats drop-object
+    '(:items-1)))<br>
+    &nbsp;&nbsp;&nbsp; ((:enter :drag)<br>
+    &nbsp;&nbsp;&nbsp;&nbsp; (when (and (capi:drop-object-provides-format drop-object
+    :items-1)<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; (capi:drop-object-allows-drop-effect-p drop-object :copy))<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (setf (capi:drop-object-drop-effect drop-object) :copy)))<br>
+    &nbsp;&nbsp;&nbsp; (:drop<br>
+    &nbsp;&nbsp;&nbsp;&nbsp; (when (and (capi:drop-object-provides-format drop-object
+    :items-1)<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; (capi:drop-object-allows-drop-effect-p drop-object :copy))<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;(capi:append-items pane '(:foo))<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;(setf (capi:drop-object-drop-effect drop-object) :copy)))))<br>
+    <br>
+    (defun test-choice-drag-and-drop ()<br>
+    &nbsp; (capi:display (make-instance 'drag-and-drop-choices)))<br>
+    <br>
+  </body>
+</html>
+
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Drag and drop in tab-layouts</h1>
+                 <p>
+                  Unable to parse email body. Email id is 13107
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:29 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

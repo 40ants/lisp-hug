@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Editor commands and errors</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Editor commands and errors</h1>
+                <pre>This is a slightly long description for a small problem, but want to
+explain what I'm trying to do so that it looks less strange, and also
+in case anyone can point at some obvious better way.
+
+I have a system which has an INTERACTIVE-PANE (with attached
+ECHO-AREA-PANE) which has in it a little command interpreter.  This
+understands various commands which expect filenames &amp;c as arguments.
+So I can say:
+
+   crs select "/project/.../Component.def"
+
+say.  If you don't give a filename argument the system prompts in a
+stylised way - by calling a prompt-for-file GF on an `interface-type'
+object, methods on which control what the actual prompt mechanism is.
+This is done because the whole system runs on a tty interface too.
+
+Until recently I was using the normal CAPI file selection dialogue for
+the CAPI version, which worked OK, except that on Motif it's horrible
+because the motif file selection dialogue just is horrible.
+
+So I thought, heh, I could use the editor file prompting function
+(EDITOR:PROMPT-FOR-FILE) and other stuff, which have much nicer
+interfaces, and also look like emacs, which is good.
+
+How to do this is not really documented - as far as I can see it's
+only documented how to call these functions from editor commands
+(where they work fine).  For various reasons - mostly to do with
+nontrivial argument conventions &amp;c - I don't want to define a lot of
+editor commands, I just want to be able to call the functions.
+
+I discovered that CAPI:CALL-EDITOR will accept a function as well as
+an editor command name, so you can say 
+
+    (capi:call-editor e #'(lambda (p) ...))
+
+And this seems to work.  However, in order for things to work you have
+to be in the right thread, which is not my command interpreter's
+thread.  So what I ended up doing is something that looks like this,
+If E is the INTERACTIVE-PANE:
+
+    (execute-with-interface
+     (element-interface e)
+     #'(lambda (editor)
+        (call-editor editor
+                     #'(lambda (prefix)
+                        (declare (ignore prefix))
+                        ... code that does PROMPT-FOR-FILE ...)))
+     e)
+
+In real life this is considerably more complicated, because you need
+to handle errors (since half this code runs in some other thread), and
+also get the function's results back to the caller (again, complicated
+by the thread change).  So there's a mailbox, into which the function
+stuffs its results, or an indication of what went wrong.  And there is
+various interlocking to make sure this all actually works.
+
+Amazingly enough this all works, and once it's wrapped in a macro it
+even looks nice.
+
+The problem is that, when prompting for a file, if you try to move
+back beyond the start of the minibuffer (or forward beyond the end, or
+many other illegal things), an error is signalled.  This doesn't (seem
+to) happen if you use PROMPT-FOR-FILE within an editor command, so
+presumably I am somehow failing to set up some needed context.  Does
+anyone know what I need to do to make it behave the same way as it
+would within an editor command?
+
+A second problem (and why I gave all this description): is there an
+easier way to do all this?  What I'm doing seems to be overcomplex,
+and involves undocumented things (CALL-EDITOR accepting a function, at
+least).  There should be an easier way...
+
+Thanks
+
+--tim
+
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Editor commands and errors</h1>
+                 <pre>possibly stupid, out-of-the-box idea:
+
+When I run tcl/tk under KDE, the file-open dialog is "better" than the 
+Motif-based dialog under LWL.  Can you simply "system" out to a small tcl 
+script?  Can you FLI to the raw C code implementation?  
+
+Recently, I've been stealing bits of Tcl/Tk by sight-reading the C source and 
+translating directly into lisp (thus far, I've got parabolic splines and 
+pretty arrow-heads this way - and - the lisp code is better documented than 
+the Tk C source :-).
+
+pt
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Editor commands and errors</h1>
+                 <pre>* Paul Tarvydas wrote:
+&gt possibly stupid, out-of-the-box idea:
+&gt When I run tcl/tk under KDE, the file-open dialog is "better" than the 
+&gt Motif-based dialog under LWL.  Can you simply "system" out to a small tcl 
+&gt script?  Can you FLI to the raw C code implementation?  
+
+No, this would be very hard - although I didn't say so the IO
+functions actually have an elaborate (over-elaborate) retry and
+defaulting protocol which would be hard to implement with a separate
+program - it's bad enough with the hopping-between threads stuff I
+have to do now.
+
+Also, actually, I *like* the emacs-style prompting.  Really what I
+want is for the thing not to have to prompt in the minibuffer at all
+but just to know what it's expecting dynamically (so you would say crs
+select &lt;TAB&gt and it would complete magically).  I could do this with
+CLIM, but then, well, I'd have to use CLIM, and it would eat my soul
+away.
+
+--tim
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Editor commands and errors</h1>
+                 <p>
+                  Unable to parse email body. Email id is 792
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:57 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

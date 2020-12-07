@@ -1,0 +1,2594 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>vm in lisp</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>vm in lisp</h1>
+                <pre>
+I have a translator from a Pascal-like trading language written in Lisp and I need the output to run as a DLL embedded in a trading platform. 
+
+An app delivered with Lispworks (my compiler) cannot write fasls so I'll have to generate bytecode and have the user pass the path to the bytecode file to the DLL during initialization. 
+
+I don't want to load source code into my runtime since I want to do a lot of error checking on it to make sure the runtime experience is smooth.
+
+I would prefer to stay with Lisp for the whole project which prompts my question... Has anyone used Lispworks to write a virtual machine?
+
+	Thanks, Joel
+
+---
+http://es.linkedin.com/in/joelreymont
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: vm in lisp</h1>
+                 <pre>
+On 3 Feb 2010, at 15:11, Joel Reymont wrote:
+
+&gt An app delivered with Lispworks (my compiler) cannot write fasls so  
+&gt I'll have to generate bytecode and have the user pass the path to  
+&gt the bytecode file to the DLL during initialization.
+&gt
+&gt I don't want to load source code into my runtime since I want to do  
+&gt a lot of error checking on it to make sure the runtime experience is  
+&gt smooth.
+&gt
+&gt I would prefer to stay with Lisp for the whole project which prompts  
+&gt my question... Has anyone used Lispworks to write a virtual machine?
+
+I did something like this, though not exactly.  I had a (SEXP-based)  
+language which I used Lisp as a target for, and what I did was compile  
+down to something I called "TLAP" (for historical reasons - it was not  
+assembler, though it sort of played the role of an assembler for the  
+language).  This compilation did some checking (and, critically for  
+the application, meant I didn't have to ship source).  I then had a  
+backend which took this TLAP, generated Lisp source from this (just by  
+macro expansion really), and compiled that on the fly in-core.
+
+I can't speak for LispWorks Ltd, of course, but I checked at the time  
+and this (calling COMPILE) was OK in a delivered image - the  
+restriction as I understood it was that the thing you delivered should  
+not be a programming environment (which this was not), and that you  
+should not obviously be trying to skate round the restrictions on  
+things.  However you should obviously check this with the LispWorks  
+folk (who were very helpful when I asked!).
+
+--tim
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: vm in lisp</h1>
+                 <p>
+                  Unable to parse email body. Email id is 9887
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: vm in lisp</h1>
+                 <pre>
+
+Tim Bradshaw writes:
+ &gt 
+ &gt On 3 Feb 2010, at 15:11, Joel Reymont wrote:
+ &gt 
+ &gt &gt An app delivered with Lispworks (my compiler) cannot write fasls so  
+ &gt &gt I'll have to generate bytecode and have the user pass the path to  
+ &gt &gt the bytecode file to the DLL during initialization.
+ &gt &gt
+ &gt &gt I don't want to load source code into my runtime since I want to do  
+ &gt &gt a lot of error checking on it to make sure the runtime experience is  
+ &gt &gt smooth.
+ &gt &gt
+ &gt &gt I would prefer to stay with Lisp for the whole project which prompts  
+ &gt &gt my question... Has anyone used Lispworks to write a virtual machine?
+ &gt 
+ &gt I did something like this, though not exactly.  I had a (SEXP-based)  
+ &gt language which I used Lisp as a target for, and what I did was compile  
+ &gt down to something I called "TLAP" (for historical reasons - it was not  
+ &gt assembler, though it sort of played the role of an assembler for the  
+ &gt language).  This compilation did some checking (and, critically for  
+ &gt the application, meant I didn't have to ship source).  I then had a  
+ &gt backend which took this TLAP, generated Lisp source from this (just by  
+ &gt macro expansion really), and compiled that on the fly in-core.
+
+Somewhat on-topic, I wrote an assembler for 8051 embedded processors in
+CL.  The idea is to create a "mini-macro language" that the user can use
+to write assembly.  Since its built on top of CL, macros and Lisp
+expressions can be used to construct more complex code.  I don't
+understand packages and symbols well enough to suppose my approach is
+good, but it does work.  Its complete enough to create a symbol table
+and link and locate the binary code, but it doesn't emit a .hex file- no
+big deal to add that since the binary data needed to generate it is
+present.
+
+Essentially, the usual 8051 assembly mnemonics are implemented as
+symbols that the assembler code knows about.  The "source" is a series
+of sexps that use some top-level macros to identify routines, which are
+filled with the mnemonics.  The assembler runs through the source sexp's
+and macroevals everything so any lisp code has a chance to run; compute
+things, maybe generate more assembly mnemonics, etc.  The *asm51-test*
+code at the top of the file shows the idea.  The idea is to use the
+reader and macro facilities of CL to do all the syntax &amp; symbol work, so
+the assembler code can work at the "grammar" layer &amp; above.  Generic
+functions were really helpful to define and implement the various
+addressing modes of the instructions.  With accumulator &amp; memory
+references being different types, a coorespondence between each 8051
+instruction form and the assembler's implementation of it can be
+maintained- I really liked how that worked out.
+
+Again I don't think the structure of this app is right, the temporary
+package and symbol business doesn't seem correct to me- I think its
+ugly, but it does work.
+
+Greg
+
+
+Code follows;
+
+
+===File /common/systems/lisp/asm51.lisp=====================
+ ;;;
+ ;;; 8051 Assembler
+ ;;;
+
+
+
+(in-package :cl-user)
+
+(proclaim '(optimize (speed 0) (safety 3) (debug 3)))
+
+
+
+
+
+
+
+
+(defparameter *asm51-test* "(defproject testproj
+                                        (:text-base  #x100
+                                         :data-base  nil
+                                         :text-align 16
+                                         :data-align 8))
+
+                            (defmacro xyzpdq (parm)
+                               `(add acc ,parm))
+
+                            (defparameter +RESERVE-DATA-LEN+   100)
+
+
+                            (defdata tst-data2 (:org #x20)
+                                     (dw '*text-start* '*text-end* '(- *text-end* *text-start*))
+                                     (dw '*data-start* '*data-end* '(- *data-end* *data-start*))
+                                     (dw '*bss-start*  '*bss-end*  '(- *bss-end*  *bss-start*))
+                                     (dw 'tst-code))
+
+                            (defbss tst-bss ()
+                                    (reserve +RESERVE-DATA-LEN+))
+                                        
+                            (defdata tst-data ()
+                                     (dw 0 1 2 3 'tst-code 'tst-bss)
+                                     (db 4 5 6 7 '(lobyte tst-data2))
+                                     (db \"hello, world\")
+                                    supercat2
+                                     (filldata +RESERVE-DATA-LEN+)
+                                     (filldata 10 #\\x)
+                                     (filldata 2 '(let ((x 1) (y 2) (z 3))
+                                                    (list x y z))) )
+
+                            (deftext tst-code ()
+                                     (nop)
+                                     (xyzpdq 10)
+                                     (nop)
+                                    supercat
+                                     (addc  a 1)
+                                     (anl   acc 15)
+                                     (inc   dptr)
+                                     (cjne  acc 3 'tst-data)
+                                     (clr   a)
+                                     (asm51symbols:push  acc)
+                                     (asm51symbols:pop   acc)
+                                     (ajmp  'supercat2)
+                                     (acall 'supercat)
+                                     (acall 'tst-data)
+                                     (acall '(+ tst-code 2)))" )
+
+
+
+
+
+#+Lispworks (defsystem asm51-system (:default-type :lisp-file)
+	      :members ("asm51")
+	      :rules ((:in-order-to :compile :all
+                       (:requires (:load :previous)))) )
+
+
+
+
+
+(defpackage "ASM51BASE"
+  (:export "_IMMEDIATE" "IMM-VALUE" 
+   "_IMM8" "_ADDRESS16" "_DIRECT" "_RAM" "_SFR" 
+   "_BIT" "BIT-ADDRESS"
+   "_RREG" 
+   "_RREGINDEX" "REG-DIRECT" 
+   "_RREGDIRECT" "RREG-NUM"
+
+   "MAKE-CODEOBJECT"
+   "MAKE-DATAOBJECT"
+   "MAKE-FILLOBJECT"
+   "MAKE-BSSOBJECT"
+   "MAKE-STOREOBJECT"
+   "MAKE-STORE-CODEOBJECT"
+   "MAKE-IMMEDIATE8"
+   "MAKE-ADDRESS16"
+   "WITH-RRREGINDEX-R0-R1"
+   "WITH-IMMEDIATE8-VALUE"
+   "WITH-ADDRESS16-VALUE"
+   "WITH-2K-PAGE-DESTINATION"
+   "WITH-RELATIVE-ADDRESS" 
+
+   "SYM-NAME" "SYM-ORG" "SYM-ALIGN" "SYM-SOURCE" "SYM-ADDRESS" "SYM-LABELS" "SYM-TOTAL-LEN" "SYM-COMPILED" "SYM-IMAGE"
+   "_TEXTSYM" "_DATASYM" "_BSSSYM"
+
+   "_FILLOBJECT" "FILL-DATA"
+
+   "NUM-BYTES" "CODE-GEN" "_TEXTOBJECT" "_DATAOBJECT" "_BSSOBJECT"
+
+   "*TEXT-START*" "*TEXT-END*" "*DATA-START*" "*DATA-END*" "*BSS-START*" "*BSS-END*"
+    ))
+
+
+
+
+
+(defpackage "ASM51SYMBOLS"
+  (:use "CL" "ASM51BASE")
+
+  (:shadow "POP" "PUSH")
+
+  (:export "SFR-ACC" "SFR-B" "SFR-DPTR" "SFR-DPL" "SFR-DPH" "SFR-AB" "SFR-PC"
+
+           "ACC" "A" "B" "PSW" "SP" "DPTR" "DPH" "DPL" "P0" "P1" "P2" "P3" "IP" "IE" "TMOD" "TCON" "T2CON" "TH0" "TL0"
+           "TH1" "TL1" "TH2" "TL2" "RCAP2H" "RCAP2L" "SCON" "SBUF" "PCON" "AB" "@R7" "@R6" "@R5" "@R4" "@R3" "@R2" "@R1" "@R0"
+           "R7" "R6" "R5" "R4" "R3" "R2" "R1" "R0" "BIT-ACC" "BIT-CARRY" "ACC-7" "ACC-6" "ACC-5" "ACC-4" "ACC-3" "ACC-2" "ACC-1" "ACC-0"
+           "B-7" "B-6" "B-5" "B-4" "B-3" "B-2" "B-1" "B-0"
+           "CY" "C" "AC" "F0" "RS1" "RS0" "OV" "PSW-1" "P"
+           "P0-7" "P0-6" "P0-5" "P0-4" "P0-3" "P0-2" "P0-1" "P0-0"
+           "P1-7" "P1-6" "P1-5" "P1-4" "P1-3" "P1-2" "P1-1" "P1-0"
+           "P2-7" "P2-6" "P2-5" "P2-4" "P2-3" "P2-2" "P2-1" "P2-0"
+           "P3-7" "P3-6" "P3-5" "P3-4" "P3-3" "P3-2" "P3-1" "P3-0"
+           "EA" "ET2" "ES" "ET1" "EX1" "ET0" "EX0"
+           "PT2" "PS" "PT1" "PX1" "PT0" "PX0"
+           "TF1" "TR1" "TF0" "TR0" "IE1" "IT1" "IE0" "IT0"
+           "TF2" "EXF2" "RCLK" "TCLK" "EXEN2" "TR2" "C_T2" "CP_RL2"
+           "SM0" "SM1" "SM2" "REN" "TB8" "RB8" "TI" "RI" "SMOD" "GF1" "GF0" "PD" "IDL"
+           "T1GATE" "T2C_T" "T1M1" "T1M0" "T0GATE" "T0C_T" "T0M1" "T0M0"
+
+           "ACALL" "ADD" "ADDC" "AJMP" "ANL" "ANL-BIT" "ANL-BITINV" "CJNE" "CLR" "CPL" "DA"
+	   "DEC" "DIV" "DJNZ" "INC" "JB" "JBC" "JC" "JMP" "JNB" "JNC" "JNZ" "JZ" "LCALL" "LJMP"
+           "MOV" "MOVC" "MOVX" "MUL" "NOP" "ORL" "ORL-BIT" "ORL-BITINV" "POP" "PUSH" "RET" "RETI" "RL" "RLC" "RR"
+           "RRC" "SETB" "SJMP" "SUBB" "SWAP" "XCH" "XCHD" "XRL" 
+
+           "DEFPROJECT" "DEFTEXT" "DEFDATA" "DEFBSS"
+
+           "DB" "DW" "FILLDATA" "RESERVE" 
+
+           "HIBYTE" "LOBYTE") )
+
+
+(defpackage "ASM51"
+  (:use "CL" "ASM51BASE")
+  (:export "ASM51COMPILE" "ASM51SUMMARY" "ASM51GENHEX"
+           "ASM51IMAGE" "OBJECTS-NAME" "OBJECTS-TEXT" "OBJECTS-DATA" "OBJECTS-BSS"))
+
+
+
+
+
+
+
+#+Lispworks (defun c ()
+              (compile-system 'asm51-system :load t))
+
+
+(defun r ()
+  (let ((rv (with-input-from-string (str *asm51-test*) 
+              (asm51:asm51compile str)) ))
+    (when (typep rv 'asm51:asm51image)
+      (asm51:asm51summary rv)
+      rv) ))
+
+
+
+
+
+
+
+
+
+
+
+
+
+;;; **********************************************************************************
+;;;
+;;;
+;;; Common symbols for compiler implementation and syntax specialization functions
+;;;
+;;;
+;;; **********************************************************************************
+
+
+
+
+(intern "TEXT-BASE"  "KEYWORD")
+(intern "DATA-BASE"  "KEYWORD")
+(intern "BSS-BASE"   "KEYWORD")
+(intern "TEXT-ALIGN" "KEYWORD")
+(intern "DATA-ALIGN" "KEYWORD")
+(intern "BSS-ALIGN"  "KEYWORD")
+
+(intern "ORG"        "KEYWORD")
+(intern "ALIGN"      "KEYWORD")
+
+
+
+(in-package :asm51base)
+
+ ;;;
+ ;;; Set up various classes we'll use to specialize instructions
+ ;;;
+
+(defclass _immediate ()
+  ((imval :initform nil :initarg :value :accessor imm-value)))
+
+(defclass _imm8      ( _immediate ) () )
+(defclass _address16 ( _immediate ) () )
+
+
+
+
+(defclass _direct () 
+  ((rdir :initform nil :initarg :reg-direct :accessor reg-direct)) )
+
+(defclass _ram (_direct) () )
+(defclass _sfr (_direct) () )
+
+
+(defclass _bit ()
+  ((bval :initform nil :initarg :bit-address :accessor bit-address)) )
+
+
+
+
+(defclass _rreg ()
+  ((rreg :initform nil :initarg :rreg-num :accessor rreg-num)) )
+
+(defclass _rregindex  (_rreg) ()) 
+(defclass _rregdirect (_rreg) ())
+
+
+
+
+
+
+
+
+
+
+;;;
+;;; compiler records for top-level symbols
+;;;
+
+(defclass _usersym ()
+  ((name     :initform nil :initarg :name     :accessor sym-name)
+   (optorg   :initform nil :initarg :optorg   :accessor sym-org)
+   (optalign :initform nil :initarg :optalign :accessor sym-align)
+   (src      :initform nil :initarg :source   :accessor sym-source)
+   (addr     :initform nil                    :accessor sym-address)
+   (labs     :initform nil                    :accessor sym-labels)
+   (tlen     :initform -1                     :accessor sym-total-len)
+   (comp     :initform nil                    :accessor sym-compiled)
+   (link     :initform nil                    :accessor sym-image) ))
+
+(defclass _textsym (_usersym) ())
+(defclass _datasym (_usersym) ())
+(defclass _bsssym  (_usersym) ())
+
+
+
+
+;;;
+;;; per instruction intermediate objects
+;;;
+(defclass _fillobject ()
+  ((data  :initform nil :initarg :fill-data :accessor fill-data)))
+
+
+(defclass _object ()
+  ((nb  :initform nil :initarg :num-bytes :accessor num-bytes)
+   (gen :initform nil :initarg :code-gen  :accessor code-gen)) )
+
+(defclass _textobject (_object) () )
+
+(defclass _dataobject (_object) () )
+
+(defclass _bssobject (_object) () )
+
+
+
+
+
+
+
+
+;;;
+;;; Code generation utility routines
+;;;
+
+
+(defun make-codeobject (&amp;rest rest)
+  (let ((ao      (apply #'make-instance (cons '_textobject rest)) ))
+    ao))
+
+(defun make-dataobject (&amp;rest rest)
+  (let ((ao      (apply #'make-instance (cons '_dataobject rest)) ))
+    ao))
+
+(defun make-fillobject (&amp;rest rest)
+  (let ((ao      (apply #'make-instance (cons '_fillobject rest)) ))
+    ao))
+
+(defun make-bssobject (&amp;rest rest)
+  (let ((ao      (apply #'make-instance (cons '_bssobject rest)) ))
+    ao))
+
+
+(defun store-object (obj)
+  obj)
+
+
+(defun make-store-codeobject (&amp;rest rest)
+  (store-object (apply #'make-codeobject rest)) )
+
+
+
+
+
+
+
+
+(defun make-immediate8 (ival)
+
+  (assert ival () "NIL supplied as immediate value")
+
+  (assert (integerp ival) (ival) "Immediate value ~A not integer" ival)
+
+  (assert (and (&gt= ival 0) (&lt;= ival 255))
+      (ival)
+    "Immediate value ~D not 0 &lt;= n &lt;= 255" ival)
+
+  (make-instance '_imm8 :value ival) )
+
+
+
+(defun make-address16 (aval)
+
+  (assert aval () "NIL supplied as address value")
+
+  (assert (integerp aval) (aval) "Address value ~A not integer" aval)
+
+  (assert (and (&gt= aval 0) (&lt;= aval 65535))
+      (aval)
+    "Address value ~D not 0 &lt;= n &lt;= 65535" aval)
+
+  (make-instance '_address16 :value aval) )
+
+
+
+
+
+
+
+
+
+
+(defmacro with-rregindex-r0-r1 ((rnum rreg) &amp;body body)
+  `(let ((,rnum   (rreg-num ,rreg)))
+     (assert (or (eq ,rnum @r0) (eq ,rnum @r1))
+         (,rnum)
+       "register not @r0 or @r1")
+     (setf ,rnum  (logand ,rnum 1))
+     ,@body))
+
+
+(defmacro with-immediate8-value ((ival rreg) &amp;body body)
+  `(let ((,ival    (imm-value ,rreg)))
+     ,@body))
+
+
+
+(defmacro with-address16-value ((aval rreg) &amp;body body)
+  `(let ((,aval    (imm-value ,rreg)))
+     ,@body))
+
+
+
+(defmacro with-2k-page-destination ((addr arg iptr) &amp;body body)
+  `(let* ((,addr   ,arg)
+          (inxt   (+ ,iptr 2))) 
+
+     (assert (integerp ,addr) (,addr) "2k Dest address ~A not numeric" ,addr)
+
+     (assert (= (logand ,addr #xf800)
+                (logand inxt #xf800))
+         (,addr inxt)
+       "same 2k page target ~4,'0X, return ip ~4,'0X not on same 2k page" ,addr inxt )
+     ,@body))
+
+
+
+(defmacro with-relative-address ((roff rval iptr) &amp;body body)
+  `(let ((addr    ,rval))
+
+     (assert (integerp addr) (addr) "Relative target offset ~A not numeric" addr)
+
+     (let ((,roff  (- addr ,iptr)))
+
+       (assert (and (&gt= ,roff -128) (&lt;= ,roff 127))
+           (,roff)
+         "relative target ~D outside range (-128 &lt;= r &lt;= 127)" ,roff)
+
+       ,@body)))
+
+
+
+
+
+
+
+
+
+
+(defmacro with-sym-setup ((sym name opts symtype rest) &amp;body body)
+  `(let* ((,sym      ',name )
+          (syminst  (make-instance ,symtype
+                                   :name     (symbol-name ,sym)
+                                   :optorg   (getf ',opts :org  nil)
+                                   :optalign (getf ',opts :align  nil)
+                                   :source   ',rest )))
+
+     (setf asm51::*cursymbol* syminst)
+
+     ;; add syminst to the symbol's prop list
+     (setf (get ,sym 'asm51base::syminst)  syminst)
+
+     (proclaim '(special ,name))
+     ;; set symbol's value to 0
+     (setf ,name nil)
+
+     ,@body ))
+
+
+
+
+(proclaim '(special *text-start* *text-end* *data-start* *data-end* *bss-start* *bss-end*))
+
+(setf *text-start*  nil)
+(setf *text-end*    nil)
+(setf *data-start*  nil)
+(setf *data-end*    nil)
+(setf *bss-start*   nil)
+(setf *bss-end*     nil)
+
+
+
+
+
+
+
+;;; **********************************************************************************
+;;;
+;;;
+;;; Compiler symbols
+;;;
+;;;
+;;; **********************************************************************************
+
+(in-package :asm51symbols)
+
+
+ ;;;
+ ;;; Special Function Registers
+ ;;;
+(defclass sfr-acc     (_sfr) ())
+(defclass sfr-b       (_sfr) ())
+(defclass sfr-dptr    (_sfr) ())
+(defclass sfr-dpl     (_sfr) ())
+(defclass sfr-dph     (_sfr) ())
+(defclass sfr-ab      (_sfr) ())
+(defclass sfr-pc      (_sfr) ())
+
+(defparameter acc     (make-instance 'sfr-acc   :reg-direct #xe0 ))
+(defparameter a       acc)
+(defparameter b       (make-instance 'sfr-b     :reg-direct #xf0 ))
+(defparameter psw     (make-instance '_sfr      :reg-direct #xd0 ))
+(defparameter sp      (make-instance '_sfr      :reg-direct #x81 ))
+(defparameter dptr    (make-instance 'sfr-dptr))
+(defparameter dpl     (make-instance 'sfr-dpl   :reg-direct #x82 ))
+(defparameter dph     (make-instance 'sfr-dph   :reg-direct #x83 ))
+(defparameter p0      (make-instance '_sfr      :reg-direct #x80 ))
+(defparameter p1      (make-instance '_sfr      :reg-direct #x90 ))
+(defparameter p2      (make-instance '_sfr      :reg-direct #xa0 ))
+(defparameter p3      (make-instance '_sfr      :reg-direct #xb0 ))
+(defparameter ip      (make-instance '_sfr      :reg-direct #xb8 ))
+(defparameter ie      (make-instance '_sfr      :reg-direct #xa8 ))
+(defparameter tmod    (make-instance '_sfr      :reg-direct #x89 ))
+(defparameter tcon    (make-instance '_sfr      :reg-direct #x88 ))
+(defparameter t2con   (make-instance '_sfr      :reg-direct #xc8 ))
+(defparameter th0     (make-instance '_sfr      :reg-direct #x8c ))
+(defparameter tl0     (make-instance '_sfr      :reg-direct #x8a ))
+(defparameter th1     (make-instance '_sfr      :reg-direct #x8d ))
+(defparameter tl1     (make-instance '_sfr      :reg-direct #x8b ))
+(defparameter th2     (make-instance '_sfr      :reg-direct #xcd ))
+(defparameter tl2     (make-instance '_sfr      :reg-direct #xcc ))
+(defparameter rcap2h  (make-instance '_sfr      :reg-direct #xcb ))
+(defparameter rcap2l  (make-instance '_sfr      :reg-direct #xca ))
+(defparameter scon    (make-instance '_sfr      :reg-direct #x98 ))
+(defparameter sbuf    (make-instance '_sfr      :reg-direct #x99 ))
+(defparameter pcon    (make-instance '_sfr      :reg-direct #x87 ))
+
+(defparameter ab      (make-instance 'sfr-ab))
+
+ ;;;
+ ;;; R registers
+ ;;;
+
+(defparameter @r7     (make-instance '_rregindex :rreg-num 7))
+(defparameter @r6     (make-instance '_rregindex :rreg-num 6))
+(defparameter @r5     (make-instance '_rregindex :rreg-num 5))
+(defparameter @r4     (make-instance '_rregindex :rreg-num 4))
+(defparameter @r3     (make-instance '_rregindex :rreg-num 3))
+(defparameter @r2     (make-instance '_rregindex :rreg-num 2))
+(defparameter @r1     (make-instance '_rregindex :rreg-num 1))
+(defparameter @r0     (make-instance '_rregindex :rreg-num 0))
+
+(defparameter r7      (make-instance '_rregdirect :rreg-num 7))
+(defparameter r6      (make-instance '_rregdirect :rreg-num 6))
+(defparameter r5      (make-instance '_rregdirect :rreg-num 5))
+(defparameter r4      (make-instance '_rregdirect :rreg-num 4))
+(defparameter r3      (make-instance '_rregdirect :rreg-num 3))
+(defparameter r2      (make-instance '_rregdirect :rreg-num 2))
+(defparameter r1      (make-instance '_rregdirect :rreg-num 1))
+(defparameter r0      (make-instance '_rregdirect :rreg-num 0))
+
+
+
+ ;;;
+ ;;; Bit-wise addressible registers
+ ;;;
+
+(defclass bit-ac        (_bit) ())
+(defclass bit-carry     (_bit) ())
+
+ ;;;
+ ;;; ACC bits
+ ;;;
+(defparameter acc-7	(make-instance '_bit   :bit-address (+ (* 8 12) 7)) )
+(defparameter acc-6	(make-instance '_bit   :bit-address (+ (* 8 12) 6)) )
+(defparameter acc-5	(make-instance '_bit   :bit-address (+ (* 8 12) 5)) )
+(defparameter acc-4	(make-instance '_bit   :bit-address (+ (* 8 12) 4)) )
+(defparameter acc-3	(make-instance '_bit   :bit-address (+ (* 8 12) 3)) )
+(defparameter acc-2	(make-instance '_bit   :bit-address (+ (* 8 12) 2)) )
+(defparameter acc-1	(make-instance '_bit   :bit-address (+ (* 8 12) 1)) )
+(defparameter acc-0	(make-instance '_bit   :bit-address (+ (* 8 12) 0)) )
+
+
+ ;;;
+ ;;; B bits
+ ;;;
+(defparameter b-7	(make-instance '_bit   :bit-address (+ (* 8 14) 7)) )
+(defparameter b-6	(make-instance '_bit   :bit-address (+ (* 8 14) 6)) )
+(defparameter b-5	(make-instance '_bit   :bit-address (+ (* 8 14) 5)) )
+(defparameter b-4	(make-instance '_bit   :bit-address (+ (* 8 14) 4)) )
+(defparameter b-3	(make-instance '_bit   :bit-address (+ (* 8 14) 3)) )
+(defparameter b-2	(make-instance '_bit   :bit-address (+ (* 8 14) 2)) )
+(defparameter b-1	(make-instance '_bit   :bit-address (+ (* 8 14) 1)) )
+(defparameter b-0	(make-instance '_bit   :bit-address (+ (* 8 14) 0)) )
+
+
+ ;;;
+ ;;; PSW bits
+ ;;;
+(defparameter cy    (make-instance 'bit-carry  :bit-address (+ (* 8 10) 7) ))
+(defparameter c     cy)
+(defparameter ac    (make-instance 'bit-ac     :bit-address (+ (* 8 10) 6) ))
+(defparameter f0    (make-instance '_bit       :bit-address (+ (* 8 10) 5) ))
+(defparameter rs1   (make-instance '_bit       :bit-address (+ (* 8 10) 4) ))
+(defparameter rs0   (make-instance '_bit       :bit-address (+ (* 8 10) 3) ))
+(defparameter ov    (make-instance '_bit       :bit-address (+ (* 8 10) 2) ))
+(defparameter psw-1 (make-instance '_bit       :bit-address (+ (* 8 10) 1) ))
+(defparameter p     (make-instance '_bit       :bit-address (+ (* 8 10) 0) ))
+
+ ;;;
+ ;;; p0,p1,p2,p3 bits
+ ;;;
+(defparameter p0-7	(make-instance '_bit   :bit-address (+ (* 8 0) 7)) )
+(defparameter p0-6	(make-instance '_bit   :bit-address (+ (* 8 0) 6)) )
+(defparameter p0-5	(make-instance '_bit   :bit-address (+ (* 8 0) 5)) )
+(defparameter p0-4	(make-instance '_bit   :bit-address (+ (* 8 0) 4)) )
+(defparameter p0-3	(make-instance '_bit   :bit-address (+ (* 8 0) 3)) )
+(defparameter p0-2	(make-instance '_bit   :bit-address (+ (* 8 0) 2)) )
+(defparameter p0-1	(make-instance '_bit   :bit-address (+ (* 8 0) 1)) )
+(defparameter p0-0	(make-instance '_bit   :bit-address (+ (* 8 0) 0)) )
+
+(defparameter p1-7	(make-instance '_bit   :bit-address (+ (* 8 2) 7)) )
+(defparameter p1-6	(make-instance '_bit   :bit-address (+ (* 8 2) 6)) )
+(defparameter p1-5	(make-instance '_bit   :bit-address (+ (* 8 2) 5)) )
+(defparameter p1-4	(make-instance '_bit   :bit-address (+ (* 8 2) 4)) )
+(defparameter p1-3	(make-instance '_bit   :bit-address (+ (* 8 2) 3)) )
+(defparameter p1-2	(make-instance '_bit   :bit-address (+ (* 8 2) 2)) )
+(defparameter p1-1	(make-instance '_bit   :bit-address (+ (* 8 2) 1)) )
+(defparameter p1-0	(make-instance '_bit   :bit-address (+ (* 8 2) 0)) )
+
+(defparameter p2-7	(make-instance '_bit   :bit-address (+ (* 8 4) 7)) )
+(defparameter p2-6	(make-instance '_bit   :bit-address (+ (* 8 4) 6)) )
+(defparameter p2-5	(make-instance '_bit   :bit-address (+ (* 8 4) 5)) )
+(defparameter p2-4	(make-instance '_bit   :bit-address (+ (* 8 4) 4)) )
+(defparameter p2-3	(make-instance '_bit   :bit-address (+ (* 8 4) 3)) )
+(defparameter p2-2	(make-instance '_bit   :bit-address (+ (* 8 4) 2)) )
+(defparameter p2-1	(make-instance '_bit   :bit-address (+ (* 8 4) 1)) )
+(defparameter p2-0	(make-instance '_bit   :bit-address (+ (* 8 4) 0)) )
+
+(defparameter p3-7	(make-instance '_bit   :bit-address (+ (* 8 4) 7)) )
+(defparameter p3-6	(make-instance '_bit   :bit-address (+ (* 8 4) 6)) )
+(defparameter p3-5	(make-instance '_bit   :bit-address (+ (* 8 4) 5)) )
+(defparameter p3-4	(make-instance '_bit   :bit-address (+ (* 8 4) 4)) )
+(defparameter p3-3	(make-instance '_bit   :bit-address (+ (* 8 4) 3)) )
+(defparameter p3-2	(make-instance '_bit   :bit-address (+ (* 8 4) 2)) )
+(defparameter p3-1	(make-instance '_bit   :bit-address (+ (* 8 4) 1)) )
+(defparameter p3-0	(make-instance '_bit   :bit-address (+ (* 8 4) 0)) )
+
+
+ ;;;
+ ;;; IE bits 
+ ;;;
+(defparameter ea     (make-instance '_bit :bit-address (+ (* 8 5) 7) ))
+
+(defparameter et2    (make-instance '_bit :bit-address (+ (* 8 5) 5) ))
+(defparameter es     (make-instance '_bit :bit-address (+ (* 8 5) 4) ))
+(defparameter et1    (make-instance '_bit :bit-address (+ (* 8 5) 3) ))
+(defparameter ex1    (make-instance '_bit :bit-address (+ (* 8 5) 2) ))
+(defparameter et0    (make-instance '_bit :bit-address (+ (* 8 5) 1) ))
+(defparameter ex0    (make-instance '_bit :bit-address (+ (* 8 5) 0) ))
+
+ ;;;
+ ;;; IP bits 
+ ;;;
+(defparameter pt2    (make-instance '_bit :bit-address (+ (* 8 7) 5) ))
+(defparameter ps     (make-instance '_bit :bit-address (+ (* 8 7) 4) ))
+(defparameter pt1    (make-instance '_bit :bit-address (+ (* 8 7) 3) ))
+(defparameter px1    (make-instance '_bit :bit-address (+ (* 8 7) 2) ))
+(defparameter pt0    (make-instance '_bit :bit-address (+ (* 8 7) 1) ))
+(defparameter px0    (make-instance '_bit :bit-address (+ (* 8 7) 0) ))
+
+ ;;;
+ ;;; TCON bits 
+ ;;;
+(defparameter tf1    (make-instance '_bit :bit-address (+ (* 8 1) 7) ))
+(defparameter tr1    (make-instance '_bit :bit-address (+ (* 8 1) 6) ))
+(defparameter tf0    (make-instance '_bit :bit-address (+ (* 8 1) 5) ))
+(defparameter tr0    (make-instance '_bit :bit-address (+ (* 8 1) 4) ))
+(defparameter ie1    (make-instance '_bit :bit-address (+ (* 8 1) 3) ))
+(defparameter it1    (make-instance '_bit :bit-address (+ (* 8 1) 2) ))
+(defparameter ie0    (make-instance '_bit :bit-address (+ (* 8 1) 1) ))
+(defparameter it0    (make-instance '_bit :bit-address (+ (* 8 1) 0) ))
+
+ ;;;
+ ;;; T2CON bits 
+ ;;;
+(defparameter tf2    (make-instance '_bit :bit-address (+ (* 8 9) 7) ))
+(defparameter exf2   (make-instance '_bit :bit-address (+ (* 8 9) 6) ))
+(defparameter rclk   (make-instance '_bit :bit-address (+ (* 8 9) 5) ))
+(defparameter tclk   (make-instance '_bit :bit-address (+ (* 8 9) 4) ))
+(defparameter exen2  (make-instance '_bit :bit-address (+ (* 8 9) 3) ))
+(defparameter tr2    (make-instance '_bit :bit-address (+ (* 8 9) 2) ))
+(defparameter c_t2   (make-instance '_bit :bit-address (+ (* 8 9) 1) ))
+(defparameter cp_rl2 (make-instance '_bit :bit-address (+ (* 8 9) 0) ))
+
+ ;;;
+ ;;; SCON bits 
+ ;;;
+(defparameter sm0    (make-instance '_bit :bit-address (+ (* 8 3) 7) ))
+(defparameter sm1    (make-instance '_bit :bit-address (+ (* 8 3) 6) ))
+(defparameter sm2    (make-instance '_bit :bit-address (+ (* 8 3) 5) ))
+(defparameter ren    (make-instance '_bit :bit-address (+ (* 8 3) 4) ))
+(defparameter tb8    (make-instance '_bit :bit-address (+ (* 8 3) 3) ))
+(defparameter rb8    (make-instance '_bit :bit-address (+ (* 8 3) 2) ))
+(defparameter ti     (make-instance '_bit :bit-address (+ (* 8 3) 1) ))
+(defparameter ri     (make-instance '_bit :bit-address (+ (* 8 3) 0) ))
+
+
+ ;;;
+ ;;; Bit labels for non-bit addressable registers
+ ;;;
+
+ ;;;
+ ;;; PCON bits
+ ;;;
+(defparameter smod   128 )
+(defparameter gf1      8 )
+(defparameter gf0      4 )
+(defparameter pd       2 )
+(defparameter idl      1 )
+
+
+ ;;;
+ ;;; TMOD bits
+ ;;;
+(defparameter t1gate  128 )
+(defparameter t1c_t    64 )
+(defparameter t1m1     32 )
+(defparameter t1m0     16 )
+(defparameter t0gate    8 )
+(defparameter t0c_t     4 )
+(defparameter t0m1      2 ) 
+(defparameter t0m0      1 )
+
+
+
+
+
+
+;;;
+;;; Directives
+;;;
+
+(defmacro defproject (name options)
+  `(progn
+     (setf asm51::*projname*  (string ',name)
+           asm51::*basetext*  (getf ',options :text-base  #x0)
+           asm51::*basedata*  (getf ',options :data-base  nil)
+           asm51::*basebss*   (getf ',options :bss-base   nil)
+           asm51::*aligntext* (getf ',options :text-align 2)
+           asm51::*aligndata* (getf ',options :data-align 2) 
+           asm51::*alignbss*  (getf ',options :bss-align  2)) ))
+
+
+
+(defmacro deftext (name opts &amp;rest rest)
+  `(asm51base::with-sym-setup (sym ,name ,opts '_textsym ,rest)
+     (cl:push sym asm51::*textsyms*)))
+
+(defmacro defdata (name opts &amp;rest rest)
+  `(asm51base::with-sym-setup (sym ,name ,opts '_datasym ,rest)
+     (cl:push sym asm51::*datasyms*)))
+
+(defmacro defbss (name opts &amp;rest rest)
+  `(asm51base::with-sym-setup (sym ,name ,opts '_bsssym ,rest)
+     (cl:push sym asm51::*bsssyms*)))
+
+
+
+
+
+
+(defun db (&amp;rest args)
+  (let ((rv  nil))
+    (loop for e in args
+	  do
+	  (assert e  (args) "NIL in DB data: ~A" args )
+
+	  (typecase e
+            (integer    (assert (and (&gt= e 0) (&lt;= e 255))
+                            (e)
+                          "Integer ~A out of range (0 &lt;= n &lt;= 255)" e)
+                        (cl:push (lobyte e) rv) )
+
+	    (character  (cl:push (char-int e) rv))
+
+            (string     (loop for ch in (coerce e 'cons)
+                              do
+                              (cl:push (char-int ch) rv)))
+
+          
+            (t
+             (cl:push 
+              (make-dataobject :num-bytes 1
+                               :code-gen `(lambda (iptr)
+                                            (let* ((sval     ,e))
+                                              (assert (and (integerp sval) (&gt= sval 0) (&lt;= sval 255))
+                                                  (sval)
+                                                "DB directive parameter ~A not integer (0 &lt;= n &lt;= 255)"
+                                                sval)
+                                              (list sval))) )
+              rv) ) ))
+                     
+    (asm51base::store-object (reverse rv)) ))
+
+
+
+
+
+
+(defun dw (&amp;rest args)
+  (let ((rv  nil))
+    (loop for e in args
+	  do
+	  (assert e  (args) "NIL in DW data: ~A" args )
+
+	  (typecase e
+            (integer     (assert (and (&gt= e 0) (&lt;= e 65535))
+                             (e)
+                           "Integer ~A out of range (0 &lt;= n &lt;= 65535)" e)
+
+                         (cl:push (lobyte e) rv)
+                         (cl:push (hibyte e) rv) )
+
+	    (character   (cl:push (char-int e) rv)
+                         (cl:push 0 rv))
+
+            (t   
+             (cl:push 
+              (make-dataobject :num-bytes 2
+                               :code-gen `(lambda (iptr)
+                                            (let* ((sval     ,e))
+                                              (assert (and (integerp sval) (&gt= sval 0) (&lt;= sval 65535))
+                                                  (sval)
+                                                "DW directive parameter ~A not integer (0 &lt;= n &lt;= 65535)"
+                                                sval)                     
+                                              (list (lobyte sval) (hibyte sval)) )) )
+              rv)) ))
+
+    (asm51base::store-object (reverse rv)) ))
+
+
+
+
+
+
+
+
+
+(defun filldata (nb &amp;optional dat)
+  (let ((fdata   nil))
+
+    (assert (numberp nb) 
+        (nb) 
+      "FILLDATA directive length ~A not numeric"
+      nb)
+
+    (when dat
+      (setf fdata (eval dat)))
+
+    ;; if fdata comes back as a sequence, turn it into a list
+    (when (and fdata (typep fdata 'sequence))
+      (setf fdata (coerce fdata 'cons)))
+
+    ;; if fdata is not a sequence, then treat fdata as an initialization char
+    (when (and fdata (not (typep fdata 'sequence)))
+      (let ((ie       0))
+        (typecase fdata
+          (character   (setf ie (char-int fdata)))
+
+          (integer     (assert (and (&gt= fdata 0) (&lt;= fdata 255))
+                           (fdata)
+                         "FILLDATA integer fill ~A is out of range (0 &lt;= n &lt;= 255)"
+                         fdata)
+                       (setf ie fdata))
+
+          (t           (error "FILLDATA unknown data element ~A type ~A, should be char or int" fdata (type-of fdata))) )
+
+        (setf fdata    (make-sequence 'list nb :initial-element ie)) ))
+
+    ;; trim fdata if its too long
+    (when (&gt (length fdata) nb)
+      (setf fdata (subseq fdata 0 nb)))
+
+    ;; pad fdata with zero chars if its too short
+    (when (&lt; (length fdata) nb)
+      (setf fdata (append 
+                   fdata 
+                   (make-sequence 'list (- nb (length fdata)) :initial-element 0))))
+
+    (asm51base::store-object 
+     (make-fillobject :fill-data fdata))) )
+
+
+
+
+
+(defun reserve (nb)
+  (assert (and (integerp nb) (&gt= nb 0))
+      (nb)
+    "RESERVE parameter ~A must be integer &gt 0"
+    nb)
+
+  (asm51base::store-object 
+   (make-bssobject :num-bytes nb)) )
+
+
+
+
+(defun hibyte (val)
+  (assert (integerp val)
+      (val)
+    "HIBYTE parameter ~A not integer"
+    val)
+
+  (let* ((tval      (logand val #xffff))
+         (hibyte    (logand (ash tval -8) #xff)))
+    hibyte))
+
+
+(defun lobyte (val)
+  (assert (integerp val)
+      (val)
+    "LOBYTE parameter ~A not integer"
+    val)
+
+  (let* ((tval     (logand val #xffff))
+         (lobyte   (logand tval #xff)))
+    lobyte))
+
+
+
+
+
+
+
+;;;
+;;; Instruction definitions
+;;;
+
+
+(defmethod acall (arg)
+  (make-store-codeobject :num-bytes 2
+		       :code-gen `(lambda ( iptr )
+				    (with-2k-page-destination (addr ,arg iptr)
+                                      (list
+                                       (logior (ash (logior 
+                                                     (ash (logand (hibyte addr) #x7) 1) 
+                                                     1)
+                                                    4)
+                                               #x1)
+                                       (lobyte addr)) )) ))
+
+
+
+
+
+(defmethod add ((accum sfr-acc) (rreg _rregdirect))
+  (make-store-codeobject :num-bytes 1
+		       :code-gen `(lambda (iptr)
+				    (list (logior #x28 (rreg-num ,rreg))) )))
+
+(defmethod add ((accum sfr-acc) (rreg _direct))
+  (make-store-codeobject :num-bytes 2
+		       :code-gen `(lambda (iptr)
+				    (list #x25 (reg-direct ,rreg))) ))
+
+(defmethod add ((accum sfr-acc) (rreg _rregindex))
+  (make-store-codeobject :num-bytes 1
+		       :code-gen `(lambda (iptr)
+				    (with-rregindex-r0-r1 (rnum ,rreg)
+                                      (list (logior #x26 rnum))) )))
+
+(defmethod add ((accum sfr-acc) (rreg _imm8))
+  (make-store-codeobject :num-bytes 2
+		       :code-gen `(lambda (iptr)
+                                    (with-immediate8-value (ival ,rreg)
+                                      (list #x24 ival)) ) ))
+
+(defmethod add ((accum sfr-acc) val)
+  (add accum (make-immediate8 val)))
+
+
+
+
+
+
+
+
+(defmethod addc ((accum sfr-acc) (rreg _rregdirect))
+  (make-store-codeobject :num-bytes 1
+                       :code-gen `(lambda (iptr)
+                                    (list (logior #x38 (rreg-num ,rreg))) )))
+
+(defmethod addc ((accum sfr-acc) (rreg _direct))
+  (make-store-codeobject :num-bytes 2
+                       :code-gen `(lambda (iptr)
+                                    (list #x35 (reg-direct ,rreg))) ))
+
+(defmethod addc ((accum sfr-acc) (rreg _rregindex))
+  (make-store-codeobject :num-bytes 1
+                       :code-gen `(lambda (iptr)
+                                    (with-rregindex-r0-r1 (rnum ,rreg)
+                                      (list (logior #x36 rnum))) )))
+
+(defmethod addc ((accum sfr-acc) (rreg _imm8))
+  (make-store-codeobject :num-bytes 2
+                       :code-gen `(lambda (iptr)
+                                    (with-immediate8-value (ival ,rreg)
+                                      (list #x34 ival)) ) ))
+
+(defmethod addc ((accum sfr-acc) val)
+  (addc accum (make-immediate8 val)))
+
+
+
+
+
+
+
+
+
+
+(defmethod ajmp (arg)
+  (make-store-codeobject :num-bytes 2
+                       :code-gen `(lambda ( iptr )
+                                    (with-2k-page-destination (addr ,arg iptr)
+                                      (list
+                                       (logior (ash (ash (logand (hibyte addr) #x7) 1) 
+                                                    4)
+                                               #x1)
+                                       (lobyte addr)) )) ))
+
+
+
+
+
+
+
+
+(defmethod anl ((accum sfr-acc) (rreg _rregdirect))
+  (make-store-codeobject :num-bytes 1
+                       :code-gen `(lambda (iptr)
+                                    (list (logior #x58 (rreg-num ,rreg))) )))
+
+(defmethod anl ((accum sfr-acc) (rreg _direct))
+  (make-store-codeobject :num-bytes 2
+                       :code-gen `(lambda (iptr)
+                                    (list #x55 (reg-direct ,rreg))) ))
+
+(defmethod anl ((accum sfr-acc) (rreg _rregindex))
+  (make-store-codeobject :num-bytes 1
+                       :code-gen `(lambda (iptr)
+                                    (with-rregindex-r0-r1 (rnum ,rreg)
+                                      (list (logior #x56 rnum))) )))
+
+(defmethod anl ((accum sfr-acc) (rreg _imm8))
+  (make-store-codeobject :num-bytes 2
+                       :code-gen `(lambda (iptr)
+                                    (with-immediate8-value (ival ,rreg)
+                                      (list #x54 ival)) ) ))
+
+(defmethod anl ((dreg _direct) (accum sfr-acc))
+  (make-store-codeobject :num-bytes 2
+                       :code-gen `(lambda (iptr)
+                                    (list #x52 (reg-direct ,dreg)) ) ))
+
+(defmethod anl ((dreg _direct) (rreg _imm8))
+  (make-store-codeobject :num-bytes 3
+                       :code-gen `(lambda (iptr)
+                                    (with-immediate8-value (ival ,rreg)
+                                      (list #x53 (reg-direct ,dreg) ival) )) ))
+
+
+(defmethod anl ((accum sfr-acc) val)
+  (anl accum (make-immediate8 val)))
+
+(defmethod anl ((dreg _direct) val)
+  (anl dreg (make-immediate8 val)))
+
+
+
+
+
+(defmethod anl-bit ((carry bit-carry) (bvar _bit))
+  (make-store-codeobject :num-bytes 2
+                       :code-gen `(lambda (iptr)
+                                    (list #x82 (bit-address ,bvar)) ) ))
+
+(defmethod anl-bitinv ((carry bit-carry) (bvar _bit))
+  (make-store-codeobject :num-bytes 2
+                       :code-gen `(lambda (iptr)
+                                    (list #xb0 (bit-address ,bvar)) ) ))
+
+
+
+
+
+
+
+
+
+
+
+
+(defmethod cjne ((accum sfr-acc) (dreg _direct) rval )
+  (make-store-codeobject :num-bytes 3
+                       :code-gen `(lambda (iptr)
+                                    (with-relative-address (roff rval iptr)
+                                      (list #xb5 (reg-direct ,dreg) roff)) ) ))
+
+
+
+(defmethod cjne ((accum sfr-acc) dval rval )
+  (make-store-codeobject :num-bytes 3
+                       :code-gen `(lambda (iptr)
+                                    (with-immediate8-value (ival (make-immediate8 ,dval))
+                                      (with-relative-address (roff ,rval iptr)
+                                        (list #xb4 ival roff))) ) ))
+
+(defmethod cjne ((rreg _rregdirect) dval rval )
+  (make-store-codeobject :num-bytes 3
+                       :code-gen `(lambda (iptr)
+                                    (with-immediate8-value (ival (make-immediate8 ,dval))
+                                      (with-relative-address (roff ,rval iptr)
+                                        (list (logior #xb8 (rreg-num ,rreg)) ival roff))) ) ))
+
+(defmethod cjne ((rreg _rregindex) dval rval )
+  (make-store-codeobject :num-bytes 3
+                       :code-gen `(lambda (iptr)
+                                    (with-rregindex-r0-r1 (rnum ,rreg)
+                                      (with-immediate8-value (ival (make-immediate8 ,dval))
+                                        (with-relative-address (roff ,rval iptr)
+                                          (list (logior #xb6 (rreg-num rnum)) ival roff)))) ) ))
+
+
+
+
+
+
+
+
+(defmethod clr ((carry bit-carry))
+  (make-store-codeobject :num-bytes 1
+                       :code-gen `(lambda (iptr)
+                                    (list #xc3) ) ))
+
+(defmethod clr ((bitdef _bit))
+  (make-store-codeobject :num-bytes 2
+                       :code-gen `(lambda (iptr)
+                                    (list #xc2 (bit-address ,bitdef)) ) ))
+
+(defmethod clr ((accum sfr-acc))
+  (make-store-codeobject :num-bytes 1
+                       :code-gen `(lambda (iptr)
+                                    (list #xe4) ) ))
+
+
+
+
+
+
+
+(defmethod cpl ((carry bit-carry))
+  (make-store-codeobject :num-bytes 1
+                       :code-gen `(lambda (iptr)
+                                    (list #xb3) ) ))
+
+(defmethod cpl ((bitdef _bit))
+  (make-store-codeobject :num-bytes 2
+                       :code-gen `(lambda (iptr)
+                                    (list #xb2 (bit-address ,bitdef)) ) ))
+
+(defmethod cpl ((accum sfr-acc))
+  (make-store-codeobject :num-bytes 1
+                       :code-gen `(lambda (iptr)
+                                    (list #xf4) ) ))
+
+
+
+
+
+
+
+(defmethod da ((accum sfr-acc))
+  (make-store-codeobject :num-bytes 1
+                       :code-gen `(lambda (iptr)
+                                    (list #xd4) ) ))
+
+
+
+
+
+
+
+(defmethod dec ((accum sfr-acc))
+  (make-store-codeobject :num-bytes 1
+                       :code-gen `(lambda (iptr)
+                                    (list #x14) ) ))
+
+(defmethod dec ((rreg _direct))
+  (make-store-codeobject :num-bytes 2
+		       :code-gen `(lambda (iptr)
+				    (list #x15 (reg-direct ,rreg))) ))
+
+(defmethod dec ((rreg _rregindex))
+  (make-store-codeobject :num-bytes 1
+                       :code-gen `(lambda (iptr)
+                                    (with-rregindex-r0-r1 (rnum ,rreg)
+				      (list (logior #x16 rnum))) )))
+
+(defmethod dec ((rreg _rregdirect))
+  (make-store-codeobject :num-bytes 1
+                       :code-gen `(lambda (iptr)
+                                    (list (logior #x18 (rreg-num ,rreg))) )))
+
+
+
+
+
+
+
+(defmethod div ((rab sfr-ab))
+  (make-store-codeobject :num-bytes 1
+                       :code-gen `(lambda (iptr)
+                                    (list #x84) ) ))
+
+
+
+
+
+
+
+
+(defmethod djnz ((rreg _direct) rval )
+  (make-store-codeobject :num-bytes 3
+                       :code-gen `(lambda (iptr)
+				    (with-relative-address (roff ,rval iptr)
+				      (list #xd5 (rreg-num rnum) roff) ))))
+
+(defmethod djnz ((rreg _rregdirect) rval )
+  (make-store-codeobject :num-bytes 2
+                       :code-gen `(lambda (iptr)
+				    (with-relative-address (roff ,rval iptr)
+				      (list (logior #xd8 (rreg-num rnum)) roff) ))))
+
+
+
+
+
+
+
+
+
+(defmethod inc ((accum sfr-acc))
+  (make-store-codeobject :num-bytes 1
+                       :code-gen `(lambda (iptr)
+                                    (list #x04) ) ))
+
+(defmethod inc ((rreg _direct))
+  (make-store-codeobject :num-bytes 2
+		       :code-gen `(lambda (iptr)
+				    (list #x05 (reg-direct ,rreg))) ))
+
+(defmethod inc ((rreg _rregindex))
+  (make-store-codeobject :num-bytes 1
+                       :code-gen `(lambda (iptr)
+                                    (with-rregindex-r0-r1 (rnum ,rreg)
+				      (list (logior #x06 rnum))) )))
+
+(defmethod inc ((rreg _rregdirect))
+  (make-store-codeobject :num-bytes 1
+                       :code-gen `(lambda (iptr)
+                                    (list (logior #x08 (rreg-num ,rreg))) )))
+
+(defmethod inc ((rdptr sfr-dptr))
+  (make-store-codeobject :num-bytes 1
+                       :code-gen `(lambda (iptr)
+                                    (list #xa3)) ))
+
+
+
+
+
+
+
+(defmethod jb ((rreg _direct) rval )
+  (make-store-codeobject :num-bytes 3
+                       :code-gen `(lambda (iptr)
+				    (with-relative-address (roff ,rval iptr)
+				       (list #x20 (rreg-num rnum) roff) ))))
+
+
+
+
+
+(defmethod jbc ((rreg _direct) rval )
+  (make-store-codeobject :num-bytes 3
+                       :code-gen `(lambda (iptr)
+				    (with-relative-address (roff ,rval iptr)
+				       (list #x10 (rreg-num rnum) roff) ))))
+
+
+
+
+(defmethod jc ( rval )
+  (make-store-codeobject :num-bytes 2
+                       :code-gen `(lambda (iptr)
+				    (with-relative-address (roff ,rval iptr)
+				       (list #x20 roff) ))))
+
+
+
+
+
+
+(defmethod jmp ((accum sfr-acc) (rdptr sfr-dptr))
+  (make-store-codeobject :num-bytes 1
+                       :code-gen `(lambda (iptr)
+                                    (list #x73)) ))
+
+
+
+
+
+
+(defmethod jnb ((rreg _direct) rval )
+  (make-store-codeobject :num-bytes 3
+                       :code-gen `(lambda (iptr)
+				    (with-relative-address (roff ,rval iptr)
+				       (list #x30 (rreg-num rnum) roff) ))))
+
+
+
+
+(defmethod jnc ( rval )
+  (make-store-codeobject :num-bytes 2
+                       :code-gen `(lambda (iptr)
+				    (with-relative-address (roff ,rval iptr)
+					(list #x50 roff) ))))
+
+
+
+(defmethod jnz ( rval )
+  (make-store-codeobject :num-bytes 2
+                       :code-gen `(lambda (iptr)
+				    (with-relative-address (roff ,rval iptr)
+					(list #x70 roff) ))))
+
+
+
+(defmethod jz ( rval )
+  (make-store-codeobject :num-bytes 2
+                       :code-gen `(lambda (iptr)
+				    (with-relative-address (roff ,rval iptr)
+					(list #x60 roff) ))))
+
+
+
+
+
+
+
+
+(defmethod lcall ( (addr _address16) )
+  (make-store-codeobject :num-bytes 3
+                       :code-gen `(lambda (iptr)
+				    (with-address16-value (aval ,addr)
+				       (list #x12 (lobyte aval) (hibyte aval))) )))
+(defmethod lcall ( addr )
+  (lcall (make-address16 addr)))
+
+
+
+
+
+(defmethod ljmp ( (addr _address16) )
+  (make-store-codeobject :num-bytes 3
+                       :code-gen `(lambda (iptr)
+				    (with-address16-value (aval ,addr)
+                                       (list #x02 (lobyte aval) (hibyte aval))) )))
+(defmethod ljmp ( addr )
+  (ljmp (make-address16 addr)))
+
+
+
+
+
+
+
+
+
+
+(defmethod mov ((rreg _rregindex) (idata _imm8)) 
+  (make-store-codeobject :num-bytes 2
+                         :code-gen `(lambda (iptr)
+                                      (with-rregindex-r0-r1 (rnum ,rreg)
+                                        (with-immediate8-value (ival ,idata)
+                                          (list (logior #x76 rnum) ival))) )))
+
+(defmethod mov ((rreg _rregindex) (accum sfr-acc)) 
+  (make-store-codeobject :num-bytes 1
+                         :code-gen `(lambda (iptr)
+                                      (with-rregindex-r0-r1 (rnum ,rreg)
+                                        (list (logior #xf6 rnum))) )))
+
+(defmethod mov ((rreg _rregindex) (dreg _direct)) 
+  (make-store-codeobject :num-bytes 2
+                         :code-gen `(lambda (iptr)
+                                      (with-rregindex-r0-r1 (rnum ,rreg)
+                                        (list (logior #xa6 rnum) (reg-direct ,dreg))) )))
+
+(defmethod mov ((accum sfr-acc) (idata _imm8)) 
+  (make-store-codeobject :num-bytes 2
+                         :code-gen `(lambda (iptr)
+                                      (with-immediate8-value (ival ,idata)
+                                        (list #x74 ival))) ))
+
+(defmethod mov ((accum sfr-acc) (rreg _rregindex)) 
+  (make-store-codeobject :num-bytes 1
+                         :code-gen `(lambda (iptr)
+                                      (with-rregindex-r0-r1 (rnum ,rreg)
+                                        (list (logior #xe6 rnum))) )))
+
+(defmethod mov ((accum sfr-acc) (rreg _rregdirect)) 
+  (make-store-codeobject :num-bytes 1
+                         :code-gen `(lambda (iptr)
+                                      (list (logior #xe8 (rreg-num ,rreg))) )))
+
+(defmethod mov ((accum sfr-acc) (dreg _direct)) 
+  (make-store-codeobject :num-bytes 2
+                         :code-gen `(lambda (iptr)
+                                      (list #xe5 (reg-direct ,dreg))) ))
+
+(defmethod mov ((carry bit-carry) (bvar _bit))
+  (make-store-codeobject :num-bytes 2
+                         :code-gen `(lambda (iptr)
+                                      (list #xa2 (bit-address ,bvar))) ))
+  
+(defmethod mov ((rdptr sfr-dptr) (adata _address16))
+  (make-store-codeobject :num-bytes 3
+                         :code-gen `(lambda (iptr)
+                                      (with-address16-value (aval ,adata)
+                                        (list #x90 (lobyte aval) (hibyte aval)))) ))
+
+(defmethod mov ((rreg _rregdirect) (idata _imm8)) 
+  (make-store-codeobject :num-bytes 2
+                         :code-gen `(lambda (iptr)
+                                      (with-immediate8-value (ival ,idata)
+                                        (list (logior #x78 (rreg-num ,rreg)) ival)) )))
+
+(defmethod mov ((rreg _rregdirect) (accum sfr-acc))
+  (make-store-codeobject :num-bytes 1
+                         :code-gen `(lambda (iptr)
+                                      (list (logior #xf8 (rreg-num ,rreg))) )))
+
+(defmethod mov ((rreg _rregdirect) (dreg _direct)) 
+  (make-store-codeobject :num-bytes 2
+                         :code-gen `(lambda (iptr)
+                                      (list (logior #xa8 (rreg-num ,rreg)) (reg-direct ,dreg))) ))
+
+(defmethod mov ((bvar _bit) (carry bit-carry))
+  (make-store-codeobject :num-bytes 2
+                         :code-gen `(lambda (iptr)
+                                      (list #x92 (bit-address ,bvar))) ))
+
+(defmethod mov ((dreg _direct) (idata _imm8)) 
+  (make-store-codeobject :num-bytes 3
+                         :code-gen `(lambda (iptr)
+                                      (with-immediate8-value (ival ,idata)
+                                        (list #x75 (reg-direct ,dreg) ival))) ))
+
+(defmethod mov ((dreg _direct) (rreg _rregindex)) 
+  (make-store-codeobject :num-bytes 2
+                         :code-gen `(lambda (iptr)
+                                      (with-rregindex-r0-r1 (rnum ,rreg)
+                                        (list (logior #x86 rnum) (reg-direct ,dreg)))) ))
+
+(defmethod mov ((dreg _direct) (rreg _rregdirect)) 
+  (make-store-codeobject :num-bytes 2
+                         :code-gen `(lambda (iptr)
+                                      (list (logior #x88 (rreg-num ,rreg) (reg-direct ,dreg)))) ))
+
+(defmethod mov ((dreg _direct) (accum sfr-acc)) 
+  (make-store-codeobject :num-bytes 2
+                         :code-gen `(lambda (iptr)
+                                      (list #xf5 (reg-direct ,dreg)))) )
+
+(defmethod mov ((dreg _direct) (dreg2 _direct)) 
+  (make-store-codeobject :num-bytes 3
+                         :code-gen `(lambda (iptr)
+                                      (list #x85 (reg-direct ,dreg) (reg-direct ,dreg2) ))) )
+
+
+(defmethod mov ((accum sfr-acc) val)
+  (mov accum (make-immediate8 val)))
+
+(defmethod mov ((rreg _rregindex) val)
+  (mov rreg (make-immediate8 val)))
+
+(defmethod mov ((rreg _rregdirect) val)
+  (mov rreg (make-immediate8 val)))
+
+(defmethod mov ((dreg _direct) val)
+  (mov dreg (make-immediate8 val)))
+
+(defmethod mov ((rdptr sfr-dptr) val)
+  (mov rdptr (make-address16 val)))
+
+
+
+
+
+
+(defmethod movc ((accum sfr-acc) (rdptr sfr-dptr)) 
+  (make-store-codeobject :num-bytes 1
+                         :code-gen `(lambda (iptr)
+                                      (list #x93))))
+
+(defmethod movc ((accum sfr-acc) (rpc sfr-pc)) 
+  (make-store-codeobject :num-bytes 1
+                         :code-gen `(lambda (iptr)
+                                      (list #x83))))
+
+
+
+
+
+
+(defmethod movx ((rdptr sfr-dptr) (accum sfr-acc)) 
+  (make-store-codeobject :num-bytes 1
+                         :code-gen `(lambda (iptr)
+                                      (list #xf0))))
+
+(defmethod movx ((rreg _rregindex) (accum sfr-acc)) 
+  (make-store-codeobject :num-bytes 1
+                         :code-gen `(lambda (iptr)
+                                      (with-rregindex-r0-r1 (rnum ,rreg)
+                                        (list (logior #xf2 rnum)))) ))
+
+(defmethod movx ((accum sfr-acc) (rdptr sfr-dptr)) 
+  (make-store-codeobject :num-bytes 1
+                         :code-gen `(lambda (iptr)
+                                      (list #xe0))))
+
+(defmethod movx ((accum sfr-acc) (rreg _rregindex)) 
+  (make-store-codeobject :num-bytes 1
+                         :code-gen `(lambda (iptr)
+                                      (with-rregindex-r0-r1 (rnum ,rreg)
+                                        (list (logior #xe2 rnum)))) ))
+
+
+
+
+
+(defmethod mul ((rab sfr-ab))
+  (make-store-codeobject :num-bytes 1
+                       :code-gen `(lambda (iptr)
+                                    (list #xa4) ) ))
+
+
+
+
+(defmethod nop ()
+  (make-store-codeobject :num-bytes 1
+                       :code-gen `(lambda (iptr)
+                                    (list 0)) ))
+
+
+
+
+
+
+
+(defmethod orl ((dreg _direct) (accum sfr-acc))
+  (make-store-codeobject :num-bytes 2
+                         :code-gen `(lambda (iptr)
+                                      (list #x42 (reg-direct ,dreg)) ) ))
+
+(defmethod orl ((dreg _direct) (rreg _imm8))
+  (make-store-codeobject :num-bytes 3
+                         :code-gen `(lambda (iptr)
+                                      (with-immediate8-value (ival ,rreg)
+                                        (list #x43 (reg-direct ,dreg) ival) )) ))
+
+(defmethod orl ((accum sfr-acc) (rreg _imm8))
+  (make-store-codeobject :num-bytes 2
+                       :code-gen `(lambda (iptr)
+                                    (with-immediate8-value (ival ,rreg)
+                                      (list #x44 ival)) ) ))
+
+(defmethod orl ((accum sfr-acc) (rreg _direct))
+  (make-store-codeobject :num-bytes 2
+                         :code-gen `(lambda (iptr)
+                                      (list #x45 (reg-direct ,rreg))) ))
+
+(defmethod orl ((accum sfr-acc) (rreg _rregindex))
+  (make-store-codeobject :num-bytes 1
+                         :code-gen `(lambda (iptr)
+                                      (with-rregindex-r0-r1 (rnum ,rreg)
+                                         (list (logior #x46 rnum))) )))
+
+(defmethod orl ((accum sfr-acc) (rreg _rregdirect))
+  (make-store-codeobject :num-bytes 1
+                         :code-gen `(lambda (iptr)
+                                      (list (logior #x48 (rreg-num ,rreg))) )))
+
+
+(defmethod orl ((accum sfr-acc) val)
+  (orl accum (make-immediate8 val)))
+
+(defmethod orl ((dreg _direct) val)
+  (orl dreg (make-immediate8 val)))
+
+
+(defmethod orl-bit ((carry bit-carry) (bvar _bit))
+  (make-store-codeobject :num-bytes 2
+                         :code-gen `(lambda (iptr)
+                                      (list #x72 (bit-address ,bvar)) ) ))
+
+(defmethod orl-bitinv ((carry bit-carry) (bvar _bit))
+  (make-store-codeobject :num-bytes 2
+                       :code-gen `(lambda (iptr)
+                                    (list #xa0 (bit-address ,bvar)) ) ))
+
+
+
+
+
+
+
+
+
+
+(defmethod pop ((dreg _direct))
+  (make-store-codeobject :num-bytes 2
+                         :code-gen `(lambda (iptr)
+                                      (list #xd0 (reg-direct ,dreg)) )) )
+
+
+
+
+
+(defmethod push ((dreg _direct))
+  (make-store-codeobject :num-bytes 2
+                         :code-gen `(lambda (iptr)
+                                      (list #xc0 (reg-direct ,dreg)) )) )
+
+
+
+
+
+
+(defmethod ret ()
+  (make-store-codeobject :num-bytes 1
+                       :code-gen `(lambda (iptr)
+                                    (list #x22)) ))
+
+(defmethod reti ()
+  (make-store-codeobject :num-bytes 1
+                       :code-gen `(lambda (iptr)
+                                    (list #x32)) ))
+
+
+
+
+
+(defmethod rl ((accum sfr-acc))
+  (make-store-codeobject :num-bytes 1
+                         :code-gen `(lambda (iptr)
+                                      (list #x23 ))))
+
+
+(defmethod rlc ((accum sfr-acc))
+  (make-store-codeobject :num-bytes 1
+                         :code-gen `(lambda (iptr)
+                                      (list #x33 ))))
+
+(defmethod rr ((accum sfr-acc))
+  (make-store-codeobject :num-bytes 1
+                         :code-gen `(lambda (iptr)
+                                      (list #x03 ))))
+
+(defmethod rrc ((accum sfr-acc))
+  (make-store-codeobject :num-bytes 1
+                         :code-gen `(lambda (iptr)
+                                      (list #x13 ))))
+
+
+
+
+
+(defmethod setb ((carry bit-carry))
+  (make-store-codeobject :num-bytes 1
+                       :code-gen `(lambda (iptr)
+                                    (list #xd3 ) ) ))
+
+(defmethod setb ((bvar _bit))
+  (make-store-codeobject :num-bytes 2
+                       :code-gen `(lambda (iptr)
+                                    (list #xd2 (bit-address ,bvar))) ))
+
+
+
+
+
+
+(defmethod sjmp ( rval )
+  (make-store-codeobject :num-bytes 2
+                       :code-gen `(lambda (iptr)
+				    (with-relative-address (roff ,rval iptr)
+                                      (list #x80 roff) ))))
+
+
+
+
+
+
+
+
+(defmethod subb ((accum sfr-acc) (rreg _imm8))
+  (make-store-codeobject :num-bytes 2
+                       :code-gen `(lambda (iptr)
+                                    (with-immediate8-value (ival ,rreg)
+                                      (list #x94 ival)) ) ))
+
+(defmethod subb ((accum sfr-acc) (rreg _direct))
+  (make-store-codeobject :num-bytes 2
+                         :code-gen `(lambda (iptr)
+                                      (list #x95 (reg-direct ,rreg))) ))
+
+(defmethod subb ((accum sfr-acc) (rreg _rregindex))
+  (make-store-codeobject :num-bytes 1
+                         :code-gen `(lambda (iptr)
+                                      (with-rregindex-r0-r1 (rnum ,rreg)
+                                        (list (logior #x96 rnum))) )))
+
+(defmethod subb ((accum sfr-acc) (rreg _rregdirect))
+  (make-store-codeobject :num-bytes 1
+                         :code-gen `(lambda (iptr)
+                                      (list (logior #x98 (rreg-num ,rreg))) )))
+
+(defmethod subb ((accum sfr-acc) val)
+  (subb accum (make-immediate8 val)))
+
+
+
+
+
+
+
+
+(defmethod swap ((accum sfr-acc))
+  (make-store-codeobject :num-bytes 1
+                         :code-gen `(lambda (iptr)
+                                      (list #xc4 ))))
+
+
+
+
+
+
+(defmethod xch ((accum sfr-acc) (rreg _rregindex))
+  (make-store-codeobject :num-bytes 1
+                         :code-gen `(lambda (iptr)
+                                      (with-rregindex-r0-r1 (rnum ,rreg)
+                                         (list (logior #xc6 rnum))) )))
+
+(defmethod xch ((accum sfr-acc) (rreg _rregdirect))
+  (make-store-codeobject :num-bytes 1
+                         :code-gen `(lambda (iptr)
+                                      (list (logior #xc8 (rreg-num ,rreg))) )))
+
+
+(defmethod xch ((accum sfr-acc) (rreg _direct))
+  (make-store-codeobject :num-bytes 2
+                         :code-gen `(lambda (iptr)
+                                      (list #xc5 (reg-direct ,rreg))) ))
+
+
+
+
+
+
+(defmethod xchd ((accum sfr-acc) (rreg _rregindex))
+  (make-store-codeobject :num-bytes 1
+                         :code-gen `(lambda (iptr)
+                                      (with-rregindex-r0-r1 (rnum ,rreg)
+                                         (list (logior #xd6 rnum))) )))
+
+
+
+
+
+
+(defmethod xrl ((dreg _direct) (accum sfr-acc))
+  (make-store-codeobject :num-bytes 2
+                         :code-gen `(lambda (iptr)
+                                      (list #x62 (reg-direct ,dreg)) ) ))
+
+(defmethod xrl ((dreg _direct) (rreg _imm8))
+  (make-store-codeobject :num-bytes 3
+                         :code-gen `(lambda (iptr)
+                                      (with-immediate8-value (ival ,rreg)
+                                        (list #x63 (reg-direct ,dreg) ival) )) ))
+
+(defmethod xrl ((accum sfr-acc) (rreg _imm8))
+  (make-store-codeobject :num-bytes 2
+                       :code-gen `(lambda (iptr)
+                                    (with-immediate8-value (ival ,rreg)
+                                      (list #x64 ival)) ) ))
+
+(defmethod xrl ((accum sfr-acc) (rreg _direct))
+  (make-store-codeobject :num-bytes 2
+                         :code-gen `(lambda (iptr)
+                                      (list #x65 (reg-direct ,rreg))) ))
+
+(defmethod xrl ((accum sfr-acc) (rreg _rregindex))
+  (make-store-codeobject :num-bytes 1
+                         :code-gen `(lambda (iptr)
+                                      (with-rregindex-r0-r1 (rnum ,rreg)
+                                         (list (logior #x66 rnum))) )))
+
+(defmethod xrl ((accum sfr-acc) (rreg _rregdirect))
+  (make-store-codeobject :num-bytes 1
+                         :code-gen `(lambda (iptr)
+                                      (list (logior #x68 (rreg-num ,rreg))) )))
+
+
+(defmethod xrl ((accum sfr-acc) val)
+  (xrl accum (make-immediate8 val)))
+
+(defmethod xrl ((dreg _direct) val)
+  (xrl dreg (make-immediate8 val)))
+
+
+
+
+
+
+
+
+
+
+;;; **********************************************************************************
+;;;
+;;;
+;;; Compiler implementation package
+;;;
+;;;
+;;; **********************************************************************************
+
+(in-package :asm51)
+
+
+
+(defparameter *textsyms*   nil)
+(defparameter *datasyms*   nil)
+(defparameter *bsssyms*    nil)
+(defparameter *projname*   nil)
+(defparameter *basetext*   nil)
+(defparameter *basedata*   nil)
+(defparameter *basebss*    nil)
+(defparameter *aligntext*  nil)
+(defparameter *aligndata*  nil)
+(defparameter *alignbss*   nil)
+
+(defparameter *cursymbol*  nil)
+
+
+
+
+
+(defmethod print-object ((r _direct) stream)
+  (format stream "{~A #x~,2X}" 
+	  (symbol-name (type-of r))
+	  (reg-direct r)))
+
+(defmethod print-object ((r _rregdirect) stream)
+  (format stream "{reg r~D}" 
+	  (rreg-num r)))
+
+(defmethod print-object ((r _rregindex) stream)
+  (format stream "{reg @r ~D}" 
+	  (rreg-num r)))
+
+(defmethod print-object ((r _bit) stream)
+  (format stream "{bit ~A #x~,2X}" 
+	  (symbol-name (type-of r))
+	  (bit-address r)))
+
+
+(defmethod print-object ((r _textobject) stream)
+  (format stream "{_tobj len:~,2D}" 
+	  (num-bytes r)))
+
+(defmethod print-object ((r _dataobject) stream)
+  (format stream "{_dobj len:~,2D}" 
+	  (num-bytes r)))
+
+(defmethod print-object ((r _bssobject) stream)
+  (format stream "{_bobj len:~,2D}" 
+	  (num-bytes r)))
+
+(defmethod print-object ((r _fillobject) stream)
+  (format stream "{_fobj len:~,2D}" 
+	  (length (fill-data r))))
+
+
+
+(defmethod print-object ((r _textsym) stream)
+  (format stream "{_text ~A len:~,2D}" 
+          (sym-name r)
+	  (sym-total-len r)))
+
+(defmethod print-object ((r _datasym) stream)
+  (format stream "{_data ~A len:~,2D}" 
+          (sym-name r)
+	  (sym-total-len r)))
+
+(defmethod print-object ((r _bsssym) stream)
+  (format stream "{_bss ~A len:~,2D}" 
+          (sym-name r)
+	  (sym-total-len r)))
+
+
+
+
+
+;;;
+;;; Compiler output is exactly 1 instance of this class
+;;;
+
+(defclass asm51image ()
+  ((name  :initform nil :initarg :name     :accessor objects-name)
+   (tobjs :initform nil :initarg :textobjs :accessor objects-text)
+   (dobjs :initform nil :initarg :dataobjs :accessor objects-data)
+   (bobjs :initform nil :initarg :bssobjs  :accessor objects-bss)) )
+
+
+;;;
+;;; Each label defined in a top-level symbol gets one of these, collected in the 
+;;; sym-labels accessor of the symbol.
+;;;
+
+(defclass _labelsym ()
+  ((name :initform nil :initarg :name    :accessor lab-name)
+   (addr :initform nil :initarg :address :accessor lab-address) ) )
+
+
+
+(defun make-label (name)
+  (let ((linst  (make-instance '_labelsym)) )
+    (setf (lab-name     linst)  name)
+    (setf (lab-address  linst)  nil)
+    linst ) )
+
+
+
+
+(defmethod asm51compile ((str stream))
+
+  (when (packagep (find-package 'a51))
+    (delete-package 'a51))
+
+  (let ((newpkg        (make-package "A51" :use nil))
+        (retval	       nil))
+
+    (use-package :asm51base newpkg)
+    (use-package :asm51symbols newpkg)
+    (shadow 'push 'a51)
+    (shadow 'pop 'a51)
+    (use-package :common-lisp newpkg)
+
+    (catch 'breakout
+
+      (with-standard-io-syntax
+
+        (let* ((*package*     newpkg)
+               (*projname*    nil)
+               (*textsyms*    nil)
+               (*datasyms*    nil)
+               (*basetext*    nil)
+               (*basedata*    nil)
+               (*aligntext*   nil)
+               (*aligndata*   nil)
+               (*cursymbol*   nil) 
+               (in-reading    nil))
+
+          (handler-bind ( (error #'(lambda (e)
+                                     (cond (*cursymbol*
+                                            (format t "~%~%asm51 compile error ~A symbol ~A:~%    ~A~%" 
+                                                    (if in-reading "after" "in")
+                                                    (sym-name *cursymbol*) e))
+
+                                           (t 
+                                            (format t "~%~%asm51 compile error outside top-level symbols~%    ~A~%" 
+                                                    e)))
+
+                                     (throw 'breakout nil)) ) )
+         
+            ;;
+            ;; reinitialize these before we do anything else
+            ;;
+
+            (setf *text-start*  nil
+                  *text-end*    nil
+                  *data-start*  nil
+                  *data-end*    nil
+                  *bss-start*   nil
+                  *bss-end*     nil)
+
+            ;;
+            ;; pass 1, collect the top-level definitions- do the first eval
+            ;; to define global symbols
+            ;;
+            (format t "Pass 1~%")
+            (setf in-reading t)
+
+            (loop for e = (read str nil nil)
+                  while e
+                  do 
+                  #+ignore (format t "evaluating: ~A~%" e)
+                  (eval e)
+                  (setf *cursymbol* nil))
+
+            (setf in-reading nil)
+
+
+            (assert *projname*
+                ()
+              "Project name not defined")
+
+            (format t "Project : ~A~%" *projname*)
+            (format t "  text base #x~4,'0X  alignment ~D~%" *basetext* *aligntext* )
+            (if *basedata*
+                (format t "  data base #x~4,'0X  alignment ~D~%" *basedata* *aligndata* )
+              ;; else
+              (format t "  data base &lt;none&gt, alignment ~D~%" *aligndata* ))
+
+
+
+            ;; pass 2, evaluate the contents of the top-level
+            ;; definitions.  This yields output "object code".
+            ;; The code consists of literal byte values for
+            ;; data &amp; _textobject instances for each
+            ;; instruction.  The _textobject instances know
+            ;; their output length, but are not translated to
+            ;; output code until the final pass because
+            ;; we have to figure out addresses first.
+            ;; 
+            (format t "Pass 2~%")
+            (loop for sym in (append *textsyms* *datasyms* *bsssyms*)
+                  for syminst = (get sym 'asm51base::syminst)
+                  do
+
+                  #+ignore (format t "evaluating symbol: ~A, syminst ~A~%" sym syminst)
+
+                  (setf *cursymbol* syminst)
+
+                  (loop for se in (sym-source syminst)
+                        for e = nil
+                        with rv = nil
+                        do
+                        ;;
+                        ;; evaluate the sexp, accumulate non-nil results in rv
+                        ;;
+                        (cond ((symbolp se)
+                               ;; se is symbol, make a label out of it
+                               (format t "   Defining label ~A in ~A~%" se sym)
+                               (setf e (make-label se))
+                               ;; save it in the labels list
+                               (push e (sym-labels syminst)) )
+
+                              (t 
+                               ;; not a symbol, eval it
+                               (setf e (eval se)) ) )
+
+
+                        ;; if e came out defined, save it
+                        (when e
+
+                          ;; make sure bss symbols only have reserve directives
+                          (when (and (typep syminst '_bsssym)
+                                     (not (typep e '_bssobject)))
+                            (error "BSS symbol contains text/data directive"))
+
+                          ;; make sure reserve directives are only in bss symbols
+                          (when (and (typep e '_bssobject)
+                                     (not (typep syminst '_bsssym)))
+                            (error "BSS object in ~A" (type-of syminst)))
+
+
+                          ;; and save the results according to type
+                          (cond ((consp e)
+                                 (setf rv (append (reverse e) rv)) )
+				
+                                (t 
+                                 (push e rv)) ))
+                           
+                        finally 
+                        (setf (sym-compiled syminst) (reverse rv)) ))
+
+
+
+            ;; pass 3, find the total length of the top-level
+            ;; definitions and the offsets to all labels
+            ;; within each
+            ;;
+            (format t "Pass 3~%")
+            (loop for sym in (append *textsyms* *datasyms* *bsssyms*)
+                  for syminst = (get sym 'asm51base::syminst)
+                  do
+
+                  (setf *cursymbol* syminst)
+
+                  (loop for e in (sym-compiled syminst)
+                        with tcount = 0
+                        do
+                        ;; if this item is a label, then store
+                        ;; the offset from the start of the
+                        ;; top-level symbol
+                        (when (typep e '_labelsym)
+                          (setf (lab-address e) tcount))
+
+                        (incf tcount 
+                              (typecase e
+                                (_textobject    (num-bytes e))
+                                (_dataobject    (num-bytes e))
+                                (_bssobject     (num-bytes e))
+                                (_fillobject    (length (fill-data e)))
+                                (_labelsym      0)
+                                (integer        1)
+                                (t              (error "pass 3, symbol ~A, value ~A, invalid type ~A" 
+                                                       (sym-name e) 
+                                                       e 
+                                                       (type-of e) )) ))
+                        
+                        finally 
+                        (setf (sym-total-len syminst) tcount) ) )
+
+
+            ;; pass 4, assign the base addresses for each
+            ;; top-level definition &amp; set the addresses for
+            ;; its labels
+            ;;
+            (format t "Pass 4~%")
+            (let ((btext	*basetext*)
+                  (bdata	*basedata*)
+                  (bbss         *basebss*) )
+
+              (macrolet ((mlocate (symlist baseaddr alignsize)
+                           `(loop for sym in ,symlist
+                                  for syminst = (get sym 'asm51base::syminst)
+                                  for sbase = (or (sym-org syminst) ,baseaddr)
+                                  for alignval = (or (sym-align syminst) ,alignsize)
+
+                                  do
+                                  #+ignore (format t "locating sym ~A, syminst ~A~% at #x~04X~%" sym syminst saddr)
+                                  (setf *cursymbol* syminst)
+                                  (setf (symbol-value sym) sbase)
+                                  (setf (sym-address syminst) sbase)
+
+                                  (loop for e in (sym-labels syminst) 
+                                        do 
+                                        (incf (lab-address e) sbase)
+                                        #+ignore (format t "locating sym ~A, label ~A at address #x~04X~%" sym (lab-name e) (lab-address e))
+                                              )
+                                  (incf sbase (sym-total-len syminst))
+                                  (incf sbase alignval)
+                                  (setf sbase (- sbase (mod sbase alignval)))
+                                  (unless (sym-org syminst) 
+                                    (setf ,baseaddr sbase))) ))
+
+
+                (mlocate *textsyms* btext  *aligntext*)
+
+                (unless bdata
+                  (setf bdata btext))
+
+                (mlocate *datasyms* bdata *aligndata*)
+
+                (unless bbss
+                  (setf bbss bdata))
+
+                (mlocate *bsssyms* bbss *alignbss*) )
+              ;;
+              ;; all symbols are located, now make sure none overlap
+              ;;
+              (loop for sym in (append *textsyms* *datasyms* *bsssyms*)
+                    for syminst = (get sym 'asm51base::syminst)
+                    for tsymstart = (sym-address syminst)
+                    for tsymstop  = (+ tsymstart (sym-total-len syminst))
+                    with smap = nil
+                    do
+
+                    (loop for me in smap
+			  for mapsymname  = (first me)
+			  for mapsymstart = (second me)
+			  for mapsymstop  = (third me)
+                          do
+                          (when (or (and (&lt;= mapsymstart tsymstart) (&gt= mapsymstop tsymstart))
+				    (and (&lt;= mapsymstart tsymstop)  (&gt= mapsymstop tsymstop))
+				    (and (&lt; tsymstart mapsymstart)  (&gt  tsymstop mapsymstop)) )
+			    ;; if tsym starts within the mapped sym or
+			    ;; ends within the mapped sym or
+			    ;; spans the mapped sym, then there is an overlap
+                            (error "symbol overlaps symbol ~A" mapsymname)) )
+                    
+                    (push (list (sym-name syminst) tsymstart tsymstop) smap) ) )
+
+
+
+
+            ;;
+            ;; pass 5, evaluate all the _textobject instances, generating the
+            ;; output code from each into the symbol's sym-image slot
+            ;;
+            (format t "Pass 5~%")
+
+            ;;
+            ;; Define symbols representing the start &amp; end of each section
+            ;;
+            (macrolet ((set-segment-bounds (segstart segend symset)
+                         `(loop for sym in ,symset
+                                for syminst = (get sym 'asm51base::syminst)
+                                for tsymstart = (sym-address syminst)
+                                for tsymstop  = (+ tsymstart (sym-total-len syminst))
+                                with tsegstart = #xffff
+                                with tsegend = 0
+                                do
+                                (when (&lt; tsymstart tsegstart) (setf tsegstart tsymstart))
+                                (when (&gt tsymstop tsegend)    (setf tsegend tsymstop))
+
+                                finally
+                                (when (and (= tsegstart #xffff) (= tsegend 0))
+                                  (setf tsegstart 0
+                                        tsegend   0))
+                                (proclaim '(special ,segstart))
+                                (setf ,segstart tsegstart)
+                                (proclaim '(special ,segend))
+                                (setf ,segend   tsegend) )) )
+
+              (set-segment-bounds *text-start* *text-end* *textsyms*)
+              (set-segment-bounds *data-start* *data-end* *datasyms*)
+              (set-segment-bounds *bss-start*  *bss-end*  *bsssyms*) )
+
+
+            ;; define all the labels in each symbol so we can eval the
+            ;; the text/data/bss objects
+            (loop for sym in (append *textsyms* *datasyms* *bsssyms*)
+                  for syminst = (get sym 'asm51base::syminst)
+                  do
+                  (loop for e in (sym-labels syminst)
+                        for name = (lab-name e)
+                        for addr = (lab-address e)
+                        do
+                        (eval `(progn
+                                 (proclaim '(special ,name))
+                                 (setf ,name ,addr) )) ) )
+
+
+
+            (loop for sym in (append *textsyms* *datasyms* *bsssyms*)
+                  for syminst = (get sym 'asm51base::syminst)
+                  do
+
+                  (setf *cursymbol* syminst)
+              
+                  ;; run thru the compiled code, evaluate all
+                  ;; the codeobject records and emit the output
+                  ;; code.  All symbols have addresses now so
+                  ;; all address arithmetic is fully defined.
+                  ;;
+                  (loop for e in (sym-compiled syminst)
+                        with ipointer = (sym-address syminst)
+                        with rval = nil
+                        do
+
+                        ;(format t "pass5, eval symbol ~A, instruction ~A~%" syminst e)
+
+                        (cond ((or (typep e '_textobject)
+                                   (typep e '_dataobject))
+                                ;; eval the code generation closures for each object
+                                (setf rval (append 
+                                            (reverse (eval (list (code-gen e) ipointer)))
+                                            rval))
+                                (incf ipointer (num-bytes e)) )
+
+
+                              ((typep e '_bssobject)
+                               ;; bss objects do not emit code but do increment the ipointer
+                               (incf ipointer (num-bytes e)) )
+
+                          
+
+                              ((typep e '_fillobject)
+                               ;; fill data is pasted in
+                               (setf rval (append 
+                                           (reverse (coerce (fill-data e) 'cons))
+                                           rval))
+                               (incf ipointer (length (fill-data e))) )
+
+
+
+                              ((typep e '_labelsym)
+                               ;; label records don't do anything
+                               nil)
+
+                              
+
+                              ((integerp e)
+                               ;; literal data is appended
+                               (assert (and (&gt= e 0) (&lt;= e 255))
+                                   (e)
+                                 "Output code byte ~A out of range (0 &lt;= n &lt;= 255)"
+                                 e)
+                               (setf rval (cons e rval))
+                               (incf ipointer))
+                              
+
+
+                              (t 
+                               (error "Invalid type ~A in output code byte ~A"
+                                      (type-of e)
+                                      e)) )
+
+                        finally 
+
+                        ;; sanity check how much code was generated for this symbol
+                        (let ((nbgen    (- ipointer (sym-address syminst))))
+                          
+                          (assert (= (sym-total-len syminst) nbgen)
+                              (nbgen syminst)
+                            "Incorrect number of output code bytes, generated ~D of ~D" 
+                            nbgen 
+                            (sym-total-len syminst)) )
+
+                        ;; save the linked object code to the symbol's image
+                        ;; record
+                        (setf (sym-image syminst) (reverse rval)) )
+
+                  ))
+          ;;
+          ;; return the compiled data
+          ;;
+          (setf retval 
+                (make-instance 'asm51image
+                               :name *projname*
+                               :textobjs (loop for sym in *textsyms* collect (get sym 'asm51base::syminst))
+                               :dataobjs (loop for sym in *datasyms* collect (get sym 'asm51base::syminst))
+                               :bssobjs  (loop for sym in *bsssyms*  collect (get sym 'asm51base::syminst)) )) ))
+
+      (format t "Compile done.~%") )
+
+    (delete-package newpkg)
+
+    retval) )
+
+
+
+
+
+
+
+
+
+
+
+
+
+(defmethod asm51summary ((objs asm51image) &amp;optional (str *standard-output*))
+  ;;
+  ;; print a summary of a compile unit
+  ;;
+  (format str "~%Symbol info for project ~A:~%" (objects-name objs))
+
+  (let ((gtotal  0)
+        (gcount  0)
+        (textsyms    (objects-text objs))
+        (datasyms    (objects-data objs))
+        (bsssyms     (objects-bss  objs)) )
+
+    (flet ((printsyms (objset)
+             (loop for syminst in objset
+                   for ocount from 0
+                   with total = 0
+                   do
+                   (format str "   ~16A     #x~4,'0X     #x~4,'0X~%" 
+                           (sym-name syminst)
+                           (sym-address syminst)
+                           (sym-total-len syminst))
+                   (incf total (sym-total-len syminst))
+                          
+                   finally 
+                   (incf ocount)
+                   (format str "     ~5D Symbol(s)         total #x~4,'0X (~D)~%" ocount total total)
+                   (incf gcount ocount)
+                   (incf gtotal total)) ))
+ 
+      (format str "   ~16A ~10@A ~10@A~%" "Name" "Address" "Length")
+
+      (format str "~%  Text:~%")
+      (printsyms textsyms)
+
+      (format str "~%  Data:~%")
+      (printsyms datasyms)
+
+      (format str "~%  BSS:~%")
+      (printsyms bsssyms)
+
+      (format str "~%     ~5D Symbol(s)    Total Size #x~4,'0X (~D)~%" gcount gtotal gtotal) )) 
+
+  nil)
+
+
+
+
+
+
+
+
+
+(defmethod asm51genhex ((objs asm51image) &amp;optional (str *standard-output*))
+  ;;
+  ;; Generate a HEX file output of the image
+  ;;
+  (format str "~%Generating HEX file for project ~A:~%" (objects-name objs))
+
+  nil)
+
+;;; eof
+============================================================
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:36 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

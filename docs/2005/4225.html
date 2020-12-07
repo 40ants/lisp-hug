@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>how to use defsys "correctly"</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>how to use defsys "correctly"</h1>
+                <pre>I'm reorganizing a project and am trying to use defsys and the System Browser.
+
+I keep running into problems, so it's obvious that I'm doing something wrong 
+and I'm not following the path of least resistance.
+
+The project has a bunch of sub-directories, each with its own defsys.lisp.
+
+I open lispworks in the parent directory.
+
+I'd like to caused all the defsys.lisp's to be loaded, then compile &amp; load the 
+system.  Out of habit, I don't want to use absolute pathnames anywhere - so 
+that some time in the future, I could just lift the whole directory structure 
+and plant it somewhere else and still have the thing load and compile.
+
+I wrote a script (in the parent directory) to load the defsys.lisp's being 
+careful to change-directory to the subdirectories and using 
+(current-pathnames) in the defsys.lisp's default-directory.
+
+This still fails - it's getting the pathnames wrong.
+
+I'm beginning to think that I'm missing the "obvious" way to use the system 
+browser to load a multi-directory project.
+
+Any advice would be appreciated.
+
+thanx
+pt
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: how to use defsys "correctly"</h1>
+                 <pre>At 26/07/2005 20:45, tarvydas wrote:
+&gtI'm reorganizing a project and am trying to use defsys and the System Browser.
+
+Here is an excerpt of what I have currently, a bit simplified. 
+Notice, the paths of all the systems are defined relatively to 2 
+main variables (*application-libs-directory* and subdirectories 
+to contain code that I normaly don't touch, 
+*application-startup-directory* to contain my code).
+
+To load and compile the whole application, just load and compile the :root system:
+(compile-system :root)
+(load-system :root)
+
+CL-USER 1 &gt *application-libs-directory*
+#P"g:/pe-libs/"
+
+CL-USER 2 &gt *application-startup-directory*
+#P"g:/pe/"
+
+
+(defsystem :foil
+   (:default-pathname
+    (merge-pathnames (make-pathname :directory (cons :relative '("foil")))
+                     *application-libs-directory*))
+   :members
+   ("foil" "patch")
+   :rules
+   ((:in-order-to :compile (:all)
+     (:caused-by (:compile :previous))
+     (:requires (:load :previous)))))
+
+
+(defsystem :cl-tools
+   (:default-pathname
+    (merge-pathnames (make-pathname :directory (cons :relative '("tools" "cl")))
+                     *application-startup-directory*))
+   :members
+   ("macros" "dev" "mvlet" "list" "string" "misc")
+   :rules
+   ((:in-order-to :compile (:all)
+     (:requires (:load "macros")))))
+
+
+;;; contains all the systems
+(defsystem :root
+   ()
+   :members (...
+             (:foil :type :system)
+             (:cl-tools :type :system)
+              ...
+             )
+   :rules
+   ((:in-order-to :compile (:all)
+     (:requires (:load
+                 "foil"
+                 "cl-tools"
+                 ...
+                 )))))
+
+Hope it helps,
+
+Francis
+
+
+&gtI keep running into problems, so it's obvious that I'm doing something wrong
+&gtand I'm not following the path of least resistance.
+&gt
+&gtThe project has a bunch of sub-directories, each with its own defsys.lisp.
+&gt
+&gtI open lispworks in the parent directory.
+&gt
+&gtI'd like to caused all the defsys.lisp's to be loaded, then compile &amp; load the
+&gtsystem.  Out of habit, I don't want to use absolute pathnames anywhere - so
+&gtthat some time in the future, I could just lift the whole directory structure
+&gtand plant it somewhere else and still have the thing load and compile.
+&gt
+&gtI wrote a script (in the parent directory) to load the defsys.lisp's being
+&gtcareful to change-directory to the subdirectories and using
+&gt(current-pathnames) in the defsys.lisp's default-directory.
+&gt
+&gtThis still fails - it's getting the pathnames wrong.
+&gt
+&gtI'm beginning to think that I'm missing the "obvious" way to use the system
+&gtbrowser to load a multi-directory project.
+&gt
+&gtAny advice would be appreciated.
+&gt
+&gtthanx
+&gtpt
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: how to use defsys "correctly"</h1>
+                 <p>
+                  Unable to parse email body. Email id is 4228
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: how to use defsys "correctly"</h1>
+                  <pre>On July 26, 2005 05:04 pm, Martin Simmons wrote:
+
+&gt because it defaults to the directory of the defsys file itself.
+
+That's what I was missing.  I was over-specifying (using :default-directory 
+when I didn't need to).
+
+Now it looks nice and simple.
+
+Thanks.
+
+pt
+
+
+</pre>
+                 </article>
+                </section>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:47 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

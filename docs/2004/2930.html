@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>[Fwd: Re: TCP timeout]</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>[Fwd: Re: TCP timeout]</h1>
+                <pre>[I accidentally sent this just to Chris, but for the benefit of the list: ]
+
+Chris R. Sims wrote:
+
+&gt Hi,
+&gt 
+&gt I'm having some trouble with getting a TCP connection to timeout on 
+&gt connect.  My understanding is that the following function should return 
+&gt Nil after 3 seconds:
+&gt 
+&gt (comm:open-tcp-stream "1.0.0.3" 3999 direction :io :read-timeout 3)
+&gt 
+&gt However, the :read-timeout keyword seems to have no effect on how long 
+&gt it attempts to connect. For me it takes somewhere around 1 minute before 
+&gt it times out. I'm using LWM.
+&gt 
+&gt Is this an error, or am I missing something about the specs for this 
+&gt function?
+&gt 
+&gt Thanks,
+&gt 
+&gt -Chris
+&gt 
+
+Another possible solution (in addition to the :timeout keyword) could using a general timeout
+construct.  I found
+
+    (defmacro with-timeout ((timeout &amp;optional result) &amp;body body)
+      (let ((proc (gensym "PROC"))
+            (blockname (gensym "BLOCKNAME")))
+        `(block ,blockname
+           (let ((,proc (mp:process-run-function
+                         (format nil "Timeout Function for ~A"
+                                 (mp:process-name mp:*current-process*))
+                         (list :priority (mp:process-priority
+                                          mp:*current-process*))
+                         (lambda (,proc)
+                           (sleep ,timeout)
+                           (mp:process-interrupt ,proc
+                                                 (lambda ()
+                                                   (return-from ,blockname
+                                                                ,result))))
+                         mp:*current-process*)))
+             (unwind-protect
+                 (progn
+                   ,@body)
+               (mp:process-kill ,proc))))))
+
+some time ago; I forget if it was on comp.lang.lisp or on this list.  Note that the code is
+LW-specific (and quite neat, I might add).
+
+best,
+
+-Klaus.
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>RE: TCP timeout</h1>
+                 <pre>&gt &gt I'm having some trouble with getting a TCP connection to timeout on 
+&gt &gt connect.  My understanding is that the following function 
+&gt should return 
+&gt &gt Nil after 3 seconds:
+&gt &gt 
+&gt &gt (comm:open-tcp-stream "1.0.0.3" 3999 direction :io :read-timeout 3)
+
+I've searched some time ago, too, for a way to set the timeout on connect,
+using C++ and Windows, but looks like it is not possible with synchronous
+sockets:
+
+http://groups.google.de/groups?selm=3emmlh%24n2k%40noao.edu
+
+But I don't know, perhaps LispWorks uses asynchronous sockets internally.
+
+Regards,
+
+Frank
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: TCP timeout</h1>
+                  <p>
+                   Unable to parse email body. Email id is 2933
+                 </article>
+                </section>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: [Fwd: Re: TCP timeout]</h1>
+                 <pre>Klaus Harbo &lt;klaus@harbo.net&gt writes:
+
+&gt Another possible solution (in addition to the :timeout keyword) could using a general timeout construct.  
+
+That can be quite neat, but in general it is a 'dirty' solution since you
+may kill the process while it's doing some cleanup operation, so imho
+it's better to use less general timeout mechanisms whenever you can.
+
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:50 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

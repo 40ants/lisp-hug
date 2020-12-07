@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>specifying number of cores to use during multiprocessing?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>specifying number of cores to use during multiprocessing?</h1><div dir="ltr"><div><div>hi, i&#39;m wondering if there is a way to specify the number of cores you want a program to use when using the multiprocessing package? <br><br></div>thanks<br></div>~sarah<br><div><br></div></div>
+
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: specifying number of cores to use during multiprocessing?</h1>
+                 <pre>
+Hi Sarah,
+
+I don't recall and after a quick search haven't found such a feature
+but wouldn't be very surprised if it did.
+
+What comes to mind is a thread worker pool which can be limited in
+size. Libraries like pcall or eager-future2 provide and manage such a
+pool, it may require a small hack to limit the pool size and then just
+be sure that you use the lib for all your multiprocessing.
+
+Cheers,
+Andy
+
+On 4 November 2015 at 05:55, Sarah Kenny &lt;skenny.uofc@gmail.com&gt wrote:
+&gt hi, i'm wondering if there is a way to specify the number of cores you want
+&gt a program to use when using the multiprocessing package?
+&gt
+&gt thanks
+&gt ~sarah
+&gt
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: specifying number of cores to use during multiprocessing?</h1><html><head><meta http-equiv="Content-Type" content="text/html charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">Hi,<div class=""><br class=""></div><div class="">There is no need to specify the number of cores you want to use. LispWorks’s multiprocessing model is based on Unix-style pthreads (and probably some equivalent on Windows). Whenever you create a new LispWorks process, it gets scheduled by the operating system. As long as you have fewer pthreads as there are cores, the operating system tries to run them in all in parallel. If you have more pthreads than cores, then they have to share the cores and will interrupt each other to each get a fair share of the cores. If a process / thread needs to block, for example to make some I/O or synchronize with some other process / thread, then as long as you use the right blocking / synchronization functions, the operating system will unschedule the blocking thread and give other threads priority until the blocked thread can continue execution, to ensure that the cores are still in use.</div><div class=""><br class=""></div><div class="">When you try to write concurrent programs, like a web server, you don’t need to pay too much attention otherwise, because the cores essentially give you a way to increase your throughput (more than one request can be processed at the same time).</div><div class=""><br class=""></div><div class="">If you try to write parallel programs, your goal should be to not oversubscribe the cores and create only as many threads as there are cores (or fewer, because LispWorks has background threads, and there are also other threads from other programs running on the same system).</div><div class=""><br class=""></div><div class="">There are ways to abstract from the details. A popular choice for Lisp is the lparallel package which makes parallel programming easier in Common Lisp (but last time I heard had some issue with LispWorks in terms of performance - don’t know if that’s still the case).</div><div class=""><br class=""></div><div class="">Charlotte Herzeel and myself came up with a simple work-stealing scheduler some time ago which primarily targets LispWorks which may also be useful depending on your use case. See <a href="https://github.com/pcostanza/claws" class="">https://github.com/pcostanza/claws</a></div><div class=""><br class=""></div><div class="">I hope this helps.</div><div class=""><br class=""></div><div class="">Pascal&nbsp;</div><div class=""><br class=""><div><blockquote type="cite" class=""><div class="">On 3 Nov 2015, at 20:25, Sarah Kenny &lt;<a href="mailto:skenny.uofc@gmail.com" class="">skenny.uofc@gmail.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><div dir="ltr" class=""><div class=""><div class="">hi, i'm wondering if there is a way to specify the number of cores you want a program to use when using the multiprocessing package? <br class=""><br class=""></div>thanks<br class=""></div>~sarah<br class=""><div class=""><br class=""></div></div>
+</div></blockquote></div><br class=""><div class="">
+<div class=""><span style="font-family: Menlo-Regular; font-size: 11px;" class="">--</span><br style="font-family: Menlo-Regular; font-size: 11px;" class=""><span style="font-family: Menlo-Regular; font-size: 11px;" class="">Pascal Costanza</span><br style="font-family: Menlo-Regular; font-size: 11px;" class=""><span style="font-family: Menlo-Regular; font-size: 11px;" class="">The views expressed in this email are my own, and not those of my employer.</span></div><div class=""><span style="font-family: Menlo-Regular; font-size: 11px;" class=""><br class=""></span></div><br class="Apple-interchange-newline">
+
+</div>
+
+
+
+<br class=""></div></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: specifying number of cores to use during multiprocessing?</h1>
+                 <p>
+                  Unable to parse email body. Email id is 13598
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: specifying number of cores to use during multiprocessing?</h1>
+                 <pre>
+Since we've devolved to anecdotes:
+
+1) When I build e.g. C++ systems, I do 'make -j &lt;num-cores * 2&gt'. It
+generally compiles noticeably faster than 'make -j &lt;num-cores&gt' for
+the systems I use. (Hyperthreading? Compiler IO?)
+
+2) Some ancient Windows version (XP? 7?) benefited more from processor
+affinity than the contemporaneous Linux versions. Linux probably was
+doing a better job of keeping each thread on a given core for a longer
+time, by default. I remember using a monitor tool and watching
+individual threads on Windows switch between CPUs every refresh cycle.
+Setting CPU affinity made a big difference on those Windows-es and
+relatively little difference on those Linux-es.
+
+Jeff
+
+
+
+On Wed, Nov 4, 2015 at 10:37 AM, Tim Bradshaw &lt;tfb@tfeb.org&gt wrote:
+&gt On 4 Nov 2015, at 07:30, Pascal Costanza &lt;pc@p-cos.net&gt wrote:
+&gt
+&gt If you try to write parallel programs, your goal should be to not
+&gt oversubscribe the cores and create only as many threads as there are cores
+&gt (or fewer, because LispWorks has background threads, and there are also
+&gt other threads from other programs running on the same system).
+&gt
+&gt
+&gt This is slightly dangerous advice, as it depends on the program a lot.  What
+&gt you really want is to keep the cores busy, but how you do that can depend a
+&gt lot on how work is spread over threads.  For instance if you have some web
+&gt server with a thread per request, then you probably want enormously more
+&gt threads than you have cores since they will spend almost all of their time
+&gt waiting for I/O.  I don't know if people still do write web applications
+&gt like that rather than by using select &amp; callbacks, but they certainly used
+&gt to (it was how you were meant to do things in Java at one point, anyway).
+&gt
+&gt Even for compute-bound HPC-type workloads which I now tend to deal with the
+&gt case is not simple, as 'compute bound' often seems to mean 'waiting for some
+&gt other node to finish its bit'.  Also, it turns out that the more you spend
+&gt on a computing resource the less time you spend on actually evaluating
+&gt performance, which is very weird.
+&gt
+&gt --tim (not trying to start a fight: sorry if this reads as aggressive)
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: specifying number of cores to use during multiprocessing?</h1>
+                 <pre>
+I must be the only one having problems with network security programs
+then, which routinely seem to take over all the processes to Œscan¹
+whatever the hell it is they¹re scanning...
+
+On 11/4/15, 7:16 PM, "David McClain" &lt;owner-lisp-hug@lispworks.com on
+behalf of dbm@refined-audiometrics.com&gt wrote:
+
+&gtI have never before seen a software system so completely occupy the
+&gtresources of a machine for its own compute bound chores.
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: specifying number of cores to use during multiprocessing?</h1>
+                 <pre>
+On Wed, Nov 4, 2015 at 2:30 AM, Pascal Costanza &lt;pc@p-cos.net&gt wrote:
+&gt There are ways to abstract from the details. A popular choice for Lisp is
+&gt the lparallel package which makes parallel programming easier in Common Lisp
+&gt (but last time I heard had some issue with LispWorks in terms of performance
+&gt - don’t know if that’s still the case).
+
+The issue is only about achieving something that is rarely achieved in
+parallel abstractions: speeding up the classic Fibonacci function as
+is, without any user hints or intervention such as creating a
+single-threaded version of the function that executes after some
+cutoff point (this is what lparallel is sort of doing through macros,
+except the cutoff is decided by the runtime algorithm and it moves
+around spontaneously). My guess is that LispWorks just doesn't switch
+fast enough, possibly having to do with its model of going through
+safe points, in contradistinction to SBCL which speeds up Fibonacci
+quite well.
+
+Fibonacci represents the absolute worst case scenario of a cheap
+parallelizable function, and it's not at all a problem that a
+particular system cannot achieve speedup in this one case. For the
+vast majority of real-world uses it won't matter.
+
+Cheers,
+lmj
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:28 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

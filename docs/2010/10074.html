@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>FLI, LWW 6.0</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>FLI, LWW 6.0</h1>Hi all,<div><br></div><div>I&#39;m using FLI to acess some native win32 functions under LWW 6.0. </div><div>Some of these functions may or may not be available depending on the Windows version. </div><div>Is there a way to inspect the standard modules loaded (kernel32.dll, user32.dll etc.) </div>
+
+<div>before actually calling the function ? Or should I rely on the failure to call the function ?</div><div><br></div><div>Thanks for any clue,</div><div><br></div><div>Fabrice</div>
+
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: FLI, LWW 6.0</h1>
+                 <p>
+                  Unable to parse email body. Email id is 10077
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: FLI, LWW 6.0</h1>
+                 <pre>
+On Mon, Mar 22, 2010 at 1:15 PM, Fabrice Popineau
+&lt;fabrice.popineau@supelec.fr&gt wrote:
+&gt Hi all,
+&gt I'm using FLI to acess some native win32 functions under LWW 6.0.
+&gt Some of these functions may or may not be available depending on the Windows
+&gt version.
+&gt Is there a way to inspect the standard modules loaded (kernel32.dll,
+&gt user32.dll etc.)
+&gt before actually calling the function ? Or should I rely on the failure to
+&gt call the function ?
+&gt Thanks for any clue,
+&gt Fabrice
+
+Hello Fabrice,
+
+the function find-symbol below might help (if the symbol is not
+exported by the dll you will get a null pointer).
+
+Your message also reminded me of the dll inspector in
+http://groups.google.ch/group/comp.lang.lisp/msg/b03e7bb580fb5b79 but
+it doesn't seem to work for kernel32 or user32. It works for example
+for Lispworks/gdiplus.dll, but I guess not all the libraries have the
+same structure (a similar problem was reported in that thread for
+msvcrt.dll).
+
+Cheers,
+
+Carlos
+
+(fli:define-c-typedef (handle (:foreign-name "HANDLE"))
+                      (:pointer :void))
+
+(fli:define-c-typedef (farproc (:foreign-name "FARPROC"))
+                      (:pointer
+                       (:function nil :int :calling-convention :stdcall)))
+
+(fli:define-foreign-function (get-proc-address "GetProcAddress")
+    ((module HANDLE)
+     (name (:pointer (:unsigned :char))))
+  :result-type farproc
+  :language :ansi-c
+  :calling-convention :stdcall)
+
+(fli:define-foreign-function (get-module-handle "GetModuleHandleA")
+    ((name (:pointer (:unsigned :char))))
+  :result-type HANDLE
+  :language :ansi-c
+  :calling-convention :stdcall)
+
+(defun find-dll (dll)
+  (fli:with-foreign-string
+      (dll-name-ptr element-count byte-count) dll
+    (declare (ignore element-count byte-count))
+    (get-module-handle dll-name-ptr)))
+
+(defun find-symbol (dll symbol)
+  (fli:with-foreign-string
+      (function-name-ptr element-count byte-count) symbol
+    (declare (ignore element-count byte-count))
+    (get-proc-address (find-dll dll) function-name-ptr)))
+
+#+NIL (find-symbol "kernel32" "GetModuleHandleA")
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: FLI, LWW 6.0</h1>
+                 <p>
+                  Unable to parse email body. Email id is 10080
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:35 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

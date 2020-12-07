@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>[Q] Unscheduling a timer in its expiry function</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>[Q] Unscheduling a timer in its expiry function</h1>
+                <pre>Hello All,
+
+Can an expiry function for a timer unschedule the timer? This is not
+clear from the documentation, but in the test code below, it doesn't
+work.
+
+----------------
+(in-package "CL-USER")
+
+(defvar *test-timer* nil)
+(defvar *test-count* 0)
+(defun test-callback (stream)
+  (princ "ding!" stream)
+  (cond ((&lt; *test-count* 5)
+         (incf *test-count*))
+        ((&gt= *test-count* 5)
+         (princ " dong! " stream)
+         (mp:unschedule-timer *test-timer*)))
+  (terpri stream))
+(progn
+  (setq *test-timer* (mp:make-timer #'test-callback *standard-output*))
+  (setq *test-count* 0)
+  (mp:schedule-timer *test-timer* 0 1))
+
+;; Use the following to unschedule the timer
+;;
+(mp:unschedule-timer *test-timer*)
+----------------
+
+Eval'ing the PROGN, ought to kick off the timer, and after five calls
+to TEST-CALLBACK, I was expecting the timer to be unscheduled.
+
+I looked in some of the CAPI examples (notably pong.lisp) and I found
+some code as follows:
+
+(defun play-game (self)
+	:
+        :
+    (setf timer (mp:make-timer 'make-a-pong-move self))
+    (mp:schedule-timer timer 0 delay))
+
+MAKE-A-PONG-MOVE is the timer expiry function.
+
+(defun make-a-pong-move (self)
+  (unless (capi-internals:representation self)
+    (with-slots (timer) self
+      (when timer 
+        (mp:unschedule-timer timer)))
+    (return-from make-a-pong-move nil))
+	:
+	:
+    )
+
+But, I'm not sure if and under what circumstances this code is
+actually exercised. There are also other places in the code where, a
+call to UNSCHEDULE-TIMER is made but within the scope of a
+CAPI:EXECUTE-WITH-INTERFACE, which presumably occurs in the CAPI
+thread and will work as expected.
+
+If it's not possible to unschedule a timer from within it's expiry
+function, then what is a recommended way to do this without
+sacrificing abstraction.
+
+Thanks,
+
+-ram
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: [Q] Unscheduling a timer in its expiry function</h1>
+                 <p>
+                  Unable to parse email body. Email id is 339
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: [Q] Unscheduling a timer in its expiry function</h1>
+                 <pre>Nick,
+
+Thanks again.  I did indeed miss the significance of the timer code
+running in the idle process.
+
+The context for this question is that I'm scheduling a timer for a
+1-second interval, so rather than forking a new process upon each call
+to the callback function, I've created a mailbox between an "observer"
+process and the timer callback as follows:
+
+----------------
+(defun seconds-timer-expire-callback ()
+  (with-lock (*seconds-timer-lock* :timeout 1)
+    (dolist (mbox *seconds-timer-mailboxes*)
+      (mailbox-send mbox 'tick))))
+
+(defvar *seconds-timer-timer* (make-timer #'seconds-timer-expire-callback))
+----------------
+
+Each observer process (there aren't too many of them) adds its mailbox
+to the *seconds-timer-mailboxes* list and listens for the 'tick
+messages. I trust this mitigates the potential for disaster in the
+idle process.
+
+Regards,
+
+-ram
+
+Nick Levine &lt;ndl@ravenbrook.com&gt writes:
+
+&gt I think I sent out warning mail about this recently. 
+&gt
+&gt TIMER CODE RUNS IN THE IDLE PROCESS. IT IS ALWAYS IN YOUR BEST
+&gt INTERESTS TO GET OUT OF THE IDLE PROCESS AS RAPIDLY AS POSSIBLE.
+&gt
+&gt I have no idea why mp:unschedule-timer doesn't work within the idle
+&gt process. I barely care. 
+&gt
+&gt However, either of the following does work. For the reasons shouted
+&gt above, I strongly recommend the latter.
+&gt
+&gt - nick
+&gt
+&gt -----------------------------------------
+&gt
+&gt (defun test-callback (stream)
+&gt   (princ "ding!" stream)
+&gt   (cond ((&lt; *test-count* 5)
+&gt          (incf *test-count*))
+&gt         ((&gt= *test-count* 5)
+&gt          (princ " dong! " stream)
+&gt          (mp:process-run-function "Unscheduling the timer" () 
+&gt                                   'mp:unschedule-timer *test-timer*)))
+&gt   (terpri stream))
+&gt
+&gt (setf *test-timer* (mp:make-timer 'test-callback *standard-output*))
+&gt (setf *test-count* 0)
+&gt (mp:schedule-timer *test-timer* 0 1)
+&gt
+&gt -----------------------------------------
+&gt
+&gt (defun test-callback (stream)
+&gt   (princ "ding!" stream)
+&gt   (cond ((&lt; *test-count* 5)
+&gt          (incf *test-count*))
+&gt         ((&gt= *test-count* 5)
+&gt          (princ " dong! " stream)
+&gt          (mp:unschedule-timer *test-timer*)))
+&gt   (terpri stream))
+&gt
+&gt (setf *test-timer* (mp:make-timer 'mp:process-run-function "Running the timer" () 
+&gt                                   'test-callback *standard-output*))
+&gt (setf *test-count* 0)
+&gt (mp:schedule-timer *test-timer* 0 1)
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:58 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Pinboard-object clipping</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Pinboard-object clipping</h1>
+                <pre>
+Hi,
+
+I get some unexpected, seemingly inconsistent behaviour from the following test
+code. The issue relates to the dimensions of the
+clip region in a pinboard-layout, as visible from a pinboard-object. On
+scrolling I would expect this to be the newly-exposed region.
+This is the case so long as :draw-pinboard-objects is set to t, but with
+buffered drawing (:buffer or :local-buffer) the scrolling
+clip region seems to correspond to the current viewport dimensions (or rather
+the section of the object visible through the viewport).
+If a region of the pane is merely obscured then redisplayed, however, clipping
+behaves as expected.
+
+This doesn't seem to relate to the pinboard itself, but only to its objects,
+since testing with actual drawing code shows the
+appropriate clipping to occur on scrolling (presumably handled by the pinboard).
+I could, of course, get the dimensions of the
+exposed region by providing the pinboard with a display-callback and explicitly
+calling draw-pinboard-object from inside it,
+with the x, y, width and height passed to the appropriate keys. I want to avoid
+this, however, because on Windows I set
+capi-internals:simple-pane-erase-background on my pinboard subclass to nil, so
+as to eliminate flicker, which means
+(as far as I can tell) that I can't provide a display-callback for that subclass
+(no clearing occurs).
+
+Is this a bug? Or should I expect this behaviour?
+
+
+(defclass po (capi:pinboard-object)
+  ()
+  (:default-initargs
+    :x 0
+    :y 0
+    :width 3000
+    :height 300))
+
+(defparameter *po-clip-rects* nil)
+	
+(defmethod capi:draw-pinboard-object (pinboard (object po)
+                                      &amp;key x y width height
+                                      &amp;allow-other-keys)
+  (declare (ignore pinboard object))
+  (push (list x y width height) *po-clip-rects*))
+
+(capi:contain (make-instance 'capi:pinboard-layout
+                             :description (list (make-instance 'po))
+                             :scroll-width 3000
+			     :horizontal-scroll t
+			     :fit-size-to-children nil ))
+		             ;:draw-pinboard-objects :buffer))
+                             ;Uncomment this then inspect *po-clip-rects*.
+
+							 
+Thanks in advance,
+Christopher
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>RE: Pinboard-object clipping</h1><html>
+<head>
+<style><!--
+..hmmessage P
+{
+margin:0px;
+padding:0px
+}
+body.hmmessage
+{
+font-size: 10pt;
+font-family:Verdana
+}
+--></style>
+</head>
+<body class='hmmessage'>
+Does anyone have a clue about this? I'm not convinced this is the behaviour I should expect.<br>
+<br>
+Thanks,<br>
+Christopher<br><br>&gt; To: lisp-hug@lispworks.com<br>&gt; From: relativeflux@hotmail.co.uk<br>&gt; Subject: Pinboard-object clipping<br>&gt; Date: Wed, 10 Mar 2010 17:24:48 +0000<br>&gt; <br>&gt; <br>&gt; Hi,<br>&gt; <br>&gt; I get some unexpected, seemingly inconsistent behaviour from the following test<br>&gt; code. The issue relates to the dimensions of the<br>&gt; clip region in a pinboard-layout, as visible from a pinboard-object. On<br>&gt; scrolling I would expect this to be the newly-exposed region.<br>&gt; This is the case so long as :draw-pinboard-objects is set to t, but with<br>&gt; buffered drawing (:buffer or :local-buffer) the scrolling<br>&gt; clip region seems to correspond to the current viewport dimensions (or rather<br>&gt; the section of the object visible through the viewport).<br>&gt; If a region of the pane is merely obscured then redisplayed, however, clipping<br>&gt; behaves as expected.<br>&gt; <br>&gt; This doesn't seem to relate to the pinboard itself, but only to its objects,<br>&gt; since testing with actual drawing code shows the<br>&gt; appropriate clipping to occur on scrolling (presumably handled by the pinboard).<br>&gt; I could, of course, get the dimensions of the<br>&gt; exposed region by providing the pinboard with a display-callback and explicitly<br>&gt; calling draw-pinboard-object from inside it,<br>&gt; with the x, y, width and height passed to the appropriate keys. I want to avoid<br>&gt; this, however, because on Windows I set<br>&gt; capi-internals:simple-pane-erase-background on my pinboard subclass to nil, so<br>&gt; as to eliminate flicker, which means<br>&gt; (as far as I can tell) that I can't provide a display-callback for that subclass<br>&gt; (no clearing occurs).<br>&gt; <br>&gt; Is this a bug? Or should I expect this behaviour?<br>&gt; <br>&gt; <br>&gt; (defclass po (capi:pinboard-object)<br>&gt;&nbsp;&nbsp;   ()<br>&gt;&nbsp;&nbsp;   (:default-initargs<br>&gt;&nbsp;&nbsp;&nbsp; :x 0<br>&gt;&nbsp;&nbsp;&nbsp;     :y 0<br>&gt;&nbsp;&nbsp;&nbsp;     :width 3000<br>&gt;&nbsp;&nbsp;&nbsp;     :height 300))<br>&gt; <br>&gt; (defparameter *po-clip-rects* nil)<br>&gt; 	<br>&gt; (defmethod capi:draw-pinboard-object (pinboard (object po)<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;                                       &amp;key x y width height<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;                                       &amp;allow-other-keys)<br>&gt;&nbsp;&nbsp;   (declare (ignore pinboard object))<br>&gt;&nbsp;&nbsp;   (push (list x y width height) *po-clip-rects*))<br>&gt; <br>&gt; (capi:contain (make-instance 'capi:pinboard-layout<br>&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;                             :description (list (make-instance 'po))<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;                              :scroll-width 3000<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 			     :horizontal-scroll t<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; :fit-size-to-children nil ))<br>&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;		             ;:draw-pinboard-objects :buffer))<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;                              ;Uncomment this then inspect *po-clip-rects*.<br>&gt; <br>&gt; 							 <br>&gt; Thanks in advance,<br>&gt; Christopher<br>&gt; <br> 		 	   		  <br /><hr />We want to hear all your funny, exciting and crazy Hotmail stories. <a href='http://clk.atdmt.com/UKM/go/195013117/direct/01/' target='_new'>Tell us now</a></body>
+</html>
+
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: Pinboard-object clipping</h1><HTML>
+<HEAD>
+<TITLE>Re: Pinboard-object clipping</TITLE>
+</HEAD>
+<BODY>
+<FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'>It&#8217;s strange... <BR>
+Maybe can you work around with a pixmap-graphic-port and do the buffering yourself ? For my experience this is the better way to have a nice result without flickering.<BR>
+Draw directly the clipping region in the pixmap (so you can use :draw-pinboard-objects t and the clipping region will be correct) then copy the pixels to the real port (so no need to clear it before) : It&#8217;s not a lot of work and the result is absolutely perfect.<BR>
+<BR>
+Best<BR>
+<BR>
+Denis<BR>
+<BR>
+Le 17/03/10 20:44, &laquo; [NOM] &raquo; &lt;[ADRESSE]&gt; a &eacute;crit :<BR>
+<BR>
+</SPAN></FONT><BLOCKQUOTE><FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'>&gt; (defclass po (capi:pinboard-object)<BR>
+&gt; &nbsp;&nbsp;&nbsp;&nbsp;()<BR>
+&gt; &nbsp;&nbsp;&nbsp;&nbsp;(:default-initargs<BR>
+&gt; &nbsp;&nbsp;&nbsp;:x 0<BR>
+&gt; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:y 0<BR>
+&gt; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:width 3000<BR>
+&gt; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:height 300))<BR>
+&gt; <BR>
+&gt; (defparameter *po-clip-rects* nil)<BR>
+&gt; <BR>
+&gt; (defmethod capi:draw-pinboard-object (pinboard (object po)<BR>
+&gt; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&amp;key x y width height<BR>
+&gt; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&amp;allow-other-keys)<BR>
+&gt; &nbsp;&nbsp;&nbsp;&nbsp;(declare (ignore pinboard object))<BR>
+&gt; &nbsp;&nbsp;&nbsp;&nbsp;(push (list x y width height) *po-clip-rects*))<BR>
+&gt; <BR>
+&gt; (capi:contain (make-instance 'capi:pinboard-layout<BR>
+&gt; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:description (list (make-instance 'po))<BR>
+&gt; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:scroll-width 3000<BR>
+&gt; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:horizontal-scroll t<BR>
+&gt; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:fit-size-to-children nil ))<BR>
+&gt; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;:draw-pinboard-objects :buffer))<BR>
+&gt; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;Uncomment this then inspect *po-clip-rects*.<BR>
+</SPAN></FONT></BLOCKQUOTE><FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'><BR>
+<BR>
+-------------------------------------------------------<BR>
+Denis Pousseur<BR>
+70 rue de Wansijn<BR>
+1180 Bruxelles, Belgique<BR>
+<BR>
+Tel : 32 (0)2 219 31 09<BR>
+Mail : &nbsp;denis.pousseur@gmail.com<BR>
+-------------------------------------------------------<BR>
+</SPAN></FONT>
+</BODY>
+</HTML>
+
+
+
+                 </article>
+                </section>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:35 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

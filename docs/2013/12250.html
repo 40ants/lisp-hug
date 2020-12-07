@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Multi-line-text-input-pane and the Return key</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Multi-line-text-input-pane and the Return key</h1>
+                <pre>
+Hi!
+
+Is there a way to catch when the user presses the Return key in 
+multi-line-text-input-pane? Then I need to remove the pane. At the same 
+time, Ctrl+Return should work as usual, i.e. a caret should go to the 
+next line.
+
+The rationale is as follows. This is a diagram editor. When double 
+clicking the mouse on a text block, a new multi-line-text-input-pane is 
+created directly in the diagram. When pressing Ctrl+Return, the caret 
+should go to the next line in the pane. When pressing Return only, the 
+multi-line-text-input-pane must be deleted and the text block must be 
+set a new value. When pressing Esc, the changes must be cancelled and 
+the pane must be removed from the diagram too.
+
+I try to define the :gesture-callbacks initarg. Pressing on the Esc 
+button is caught successfully but I cannot catch pressing the Return 
+button. I need namely a multi line text input.
+
+Thanks,
+David
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Multi-line-text-input-pane and the Return key</h1>
+                 <pre>
+This is very strange. I just tested on Windows. Before it I tested on 
+Linux. So, gesture #\Return works on Windows but doesn't work on Linux 
+in my case. At the same time, gesture #\Esc (or, #\Escape ?) works on 
+Linux but doesn't work on Windows... I only define the 
+:gesture-callbacks initarg. Here I use LW Profession 32-bit for Windows 
+and LW Personal for Linux.
+
+Thanks,
+David
+
+18.05.2013 12:30, David Sorokin пишет:
+&gt
+&gt Hi!
+&gt
+&gt Is there a way to catch when the user presses the Return key in 
+&gt multi-line-text-input-pane? Then I need to remove the pane. At the 
+&gt same time, Ctrl+Return should work as usual, i.e. a caret should go to 
+&gt the next line.
+&gt
+&gt The rationale is as follows. This is a diagram editor. When double 
+&gt clicking the mouse on a text block, a new multi-line-text-input-pane 
+&gt is created directly in the diagram. When pressing Ctrl+Return, the 
+&gt caret should go to the next line in the pane. When pressing Return 
+&gt only, the multi-line-text-input-pane must be deleted and the text 
+&gt block must be set a new value. When pressing Esc, the changes must be 
+&gt cancelled and the pane must be removed from the diagram too.
+&gt
+&gt I try to define the :gesture-callbacks initarg. Pressing on the Esc 
+&gt button is caught successfully but I cannot catch pressing the Return 
+&gt button. I need namely a multi line text input.
+&gt
+&gt Thanks,
+&gt David
+&gt
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+&gt
+&gt
+&gt
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Multi-line-text-input-pane and the Return key</h1>
+                 <pre>
+I recall doing something along these lines several years ago (probably 
+to detect loss of focus).
+
+Look at :navigation-callback and :editing-callback and build a state 
+machine that tracks the state of the widget.  FWIW, here's a note from 
+my code (LWW):
+
+(defclass text-input-pane (capi:text-input-pane)
+   ((state :initform nil)
+    (ended :initform nil)  ;; correction for inconsistent state change 
+(see states below)
+    (model-update-callback :initarg :model-update-callback)
+    (model-slot :initarg :model-slot)
+    (fmt :initarg :fmt))
+   (:default-initargs
+    :callback-type :interface-item
+    :callback 'tip-fini
+    :model-slot nil
+    :buttons '(:ok t :cancel t :cancel-function tip-cancel)
+    :fmt "~,4F"
+    :navigation-callback 'tip-editing
+    :editing-callback 'tip-editing))
+
+;; possible paths vs. callbacks
+;; edit, hit enter -&gt START, RETURN, END
+;; edit, hit TAB -&gt START, TAB-FORWARD, END
+;; edit, click to focus elsewhere -&gt START, END
+;; edit, click check-mark -&gt START, tip-fini
+;; edit, click check-mark, call do-update -&gt START, tip-fini, END
+
+pt
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:31 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

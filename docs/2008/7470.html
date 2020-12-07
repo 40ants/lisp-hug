@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>fli:define-foreign-callable</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>fli:define-foreign-callable</h1>
+                <pre>
+Hi,
+I am new to LispWorks. I am trying to define a Lisp function that will be 
+called from a C layer. Here is what my Lisp function will appear to be for 
+the C function:
+
+const char *myFunction(const char *arg1, int arg2);
+
+Can you show me how to make this a foreign callable function? I tried to 
+read the fli reference manual, but it appears quite complex!
+
+Thanks for the help.
+Regards,
+Rangarajan 
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: fli:define-foreign-callable</h1>
+                 <pre>
+On Sun, 20 Jan 2008 09:37:09 +0530, "Rangarajan Krishnamoorthy" &lt;ranga@mmsindia.com&gt wrote:
+
+&gt I am new to LispWorks. I am trying to define a Lisp function that
+&gt will be called from a C layer. Here is what my Lisp function will
+&gt appear to be for the C function:
+&gt
+&gt const char *myFunction(const char *arg1, int arg2);
+&gt
+&gt Can you show me how to make this a foreign callable function? I
+&gt tried to read the fli reference manual, but it appears quite
+&gt complex!
+
+It appears complex because the topic at hand is complex...
+
+You /probably/ want something like this:
+
+  CL-USER 1 &gt (fli:define-foreign-callable ("myFunction"
+                                            :result-type (:pointer (:unsigned :char)))
+                  ((name (:reference-return :ef-mb-string))
+                   (n :int))
+                (fli:convert-to-foreign-string (format nil "The ~:R ~A" n name)))
+  "myFunction"
+
+  CL-USER 2 &gt (fli:define-foreign-function (my-function "myFunction")
+                  ((name (:reference-pass :ef-mb-string))	
+                   (n :int))	
+                :result-type (:reference-return :ef-mb-string))
+  MY-FUNCTION
+
+  CL-USER 3 &gt (my-function "Henry" 8)
+  "The eighth Henry"
+
+Of course, you'll also have to take care of external formats and
+allocation.  (Who will de-allocate the string your function returns?)
+
+HTH,
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: fli:define-foreign-callable</h1>
+                 <pre>
+On Sun, 20 Jan 2008 18:26:29 +0530, "Rangarajan Krishnamoorthy" &lt;ranga@mmsindia.com&gt wrote:
+
+&gt After a bit of trial and error, I found that the following works:
+&gt ;;; The Lisp function takes a string and returns an integer
+&gt ;;; DLL representation =&gt int interfaceFunction(const char *arg)
+&gt (fli:define-foreign-callable ("interfaceFunction" :language :ansi-c 
+&gt :result-type :int :calling-convention :cdecl)
+&gt     ((phnum (:pointer (:unsigned :char))))
+&gt   (actualFunction (fli:convert-from-foreign-string phnum)))
+
+Please indent your Lisp code correctly when sending it to the mailing
+list.
+
+Note that the (:REFERENCE-RETURN :EF-MB-STRING) type in my example
+does the FLI:CONVERT-FROM-FOREIGN-STRING for you automatically.
+
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:40 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

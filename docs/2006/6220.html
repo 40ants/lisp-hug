@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>clsql delivery with LispWorks Windows.</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>clsql delivery with LispWorks Windows.</h1>
+                <pre>
+Not sure whether this should go here or to the clsql mailing list...
+I'm trying to deliver an app using clsql/sqlite3 as my datastore, but
+I don't think lispworks/clsql manages to pick up its dll.
+
+Again, I'm trying to run this from a thumbdrive, and dump my
+executable, sqlite3.dll and clsql_uffi.dll (and clsql_uffi.lib) in
+the same directory. The application manages to start up,
+do a text query (comparing the schema of the existing database
+with what it expects to find) and build a new database.
+So the sqlite3.dll should be fine, but when I try to do a
+query requiring the clsql uffi, it fails.
+
+Is there any specific requirements as to where the dll should
+be located, or have I missed something else? The application
+is delivered at level 0.
+
+
+Warning: Got an error 'Could not register handle for external module
+"clsql-uffi":
+ The specified procedure could not be found..'
+while executing action "Reset dll symbol addresses" in list "Reset FFI
+on startup".
+Error: Could not register handle for external module "clsql-uffi":
+ The specified module could not be found..
+  1 (abort) Quit process.
+
+Type :b for backtrace, :c &lt;option number&gt to proceed,  or :? for other options
+
+CL-USER 1 : 1 &gt :b
+
+Call to FLI::INSTALL-EXTERNAL-SYMBOL-FOR-MODULE
+Call to FLI::INSTALL-FOREIGN-SYMBOL-OR-ERROR
+Call to CLSQL-UFFI:ATOL64
+Call to CLSQL-UFFI:CONVERT-RAW-FIELD
+Call to (SUBFUNCTION CLSQL-SQLITE3::EXTRACT-ROW-DATA (METHOD
+CLSQL-SYS:DATABASE-QUERY (T CLSQL-SQLITE3:SQLITE3-DATABASE T T)))
+Call to (METHOD CLSQL-SYS:DATABASE-QUERY (T CLSQL-SQLITE3:SQLITE3-DATABASE T T))
+
+-- 
+  -asbjxrn
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: clsql delivery with LispWorks Windows.</h1>
+                 <pre>
+On Wed, 6 Dec 2006 09:59:18 +0800, "Asbjørn Bjørnstad" &lt;asbjxrn@bjxrnstad.net&gt wrote:
+
+&gt Not sure whether this should go here or to the clsql mailing list...
+&gt I'm trying to deliver an app using clsql/sqlite3 as my datastore,
+&gt but I don't think lispworks/clsql manages to pick up its dll.
+&gt
+&gt Again, I'm trying to run this from a thumbdrive, and dump my
+&gt executable, sqlite3.dll and clsql_uffi.dll (and clsql_uffi.lib) in
+&gt the same directory. The application manages to start up, do a text
+&gt query (comparing the schema of the existing database with what it
+&gt expects to find) and build a new database.  So the sqlite3.dll
+&gt should be fine, but when I try to do a query requiring the clsql
+&gt uffi, it fails.
+&gt
+&gt Is there any specific requirements as to where the dll should be
+&gt located, or have I missed something else? The application is
+&gt delivered at level 0.
+
+That's a problem with CLSQL that you should take to the CLSQL mailing
+list.  The location of the helper DLL is hard-coded at delivery time
+and thus it is not found at execution time.
+
+I sent a patch[1] to fix this behaviour last year, but it was somehow
+(unintentionally, I guess) overwritten or deactivated in a recent
+release.  I was also annoyed by this, but haven't yet found the time
+to send a new patch.
+
+Cheers,
+Edi.
+
+[1] See lengthy discussion which starts here:
+
+    http://lists.b9.com/pipermail/clsql-devel/2005-April/000288.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: clsql delivery with LispWorks Windows.</h1>
+                 <pre>
+On 12/6/06, Edi Weitz &lt;edi@agharta.de&gt wrote:
+
+&gt That's a problem with CLSQL that you should take to the CLSQL mailing
+&gt list.  The location of the helper DLL is hard-coded at delivery time
+&gt and thus it is not found at execution time.
+&gt
+&gt I sent a patch[1] to fix this behaviour last year, but it was somehow
+&gt (unintentionally, I guess) overwritten or deactivated in a recent
+&gt release.  I was also annoyed by this, but haven't yet found the time
+&gt to send a new patch.
+
+I sent an email (Through gmane) but I guess I have to subscribe for the
+email to go through. Anyway I found a solution that works for me,
+I add the directory with teh DLL to *foreign-library-search-paths* and
+calls load-uffi-foreign-library in my deliver.lisp to force clsql to search
+for the library again:
+
+(deliver (lambda ()
+           (push (make-pathname :name nil :type nil :defaults (lisp-image-name))
+                 clsql:*foreign-library-search-paths*)
+           (clsql-uffi::load-uffi-foreign-library)
+           (launch t)) "Myapp" 0 :interface :capi)
+
+-- 
+  -asbjxrn
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:43 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

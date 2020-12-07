@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>using multiple processors</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>using multiple processors</h1>Is there a means of using multiple processors for loading a lisp program (32-bit LW professional edition)?<div>On a Macintosh with 4 processors, the activity monitor indicates ~100% use of a single processor.</div><div>Since the load takes 3 days, I was hoping that using more than 1 processor might reduce this time.</div>
+<div><br></div><div>Thanks,</div><div>Sheldon</div>
+
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: using multiple processors</h1>
+                 <pre>
+Sheldon Ball &lt;sheldon.ball@gmail.com&gt writes:
+
+&gt Is there a means of using multiple processors for loading a lisp
+&gt program (32-bit LW professional edition)?  On a Macintosh with 4
+&gt processors, the activity monitor indicates ~100% use of a single
+&gt processor.  Since the load takes 3 days, I was hoping that using more
+&gt than 1 processor might reduce this time.
+
+Theorically, it would be possible to create threads and load different
+files at the same time.
+
+In practice, AFAIK, MK:DEFSYSTEM and ASDF don't parallelize loading.  
+I don't know about XCVB either, but perhaps it could be more easily be
+made to load files in parallel, from its design.
+
+Furthermore, most implementations have locks to prevent problems when
+defining things in parallel (which should not be too often a problem,
+assuming you don't load the same file twice at the same time, but
+sometimes those locks are quite coarse (eg. sbcl).
+
+
+I don't know if lispworks lock is coarse or not.  If it is not, then you
+could write a load script to load several files at once.  The question
+then is for you to know the dependencies between your files, and whether
+you have groups of files that can be loaded at the same time (not
+depending one on the other).
+
+
+-- 
+__Pascal Bourguignon__                     http://www.informatimago.com/
+A bad day in () is better than a good day in {}.
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: using multiple processors</h1>
+                 <pre>
+On 10 Sep 2012, at 22:36, Sheldon Ball wrote:
+
+&gt Is there a means of using multiple processors for loading a lisp program (32-bit LW professional edition)?
+&gt On a Macintosh with 4 processors, the activity monitor indicates ~100% use of a single processor.
+&gt Since the load takes 3 days, I was hoping that using more than 1 processor might reduce this time.
+
+If it takes 3 days then there must be some pretty extensive load-time computation going on (it can't just be a bunch of straightforward of definitions if it takes that long).  So I think the thing to do would be to understand where that is happening, and what its dependencies look like, and then to modify the thing to push that out into multiple processes, which can then run in parallel, using some kind of queue which will run up to n threads at once to keep the machine busy.
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: using multiple processors</h1>Thanks to everyone for the replies.<div><br></div><div>The algorithm finds hyperlinks for a web application through a string matching function against a set of about 80,000 terms with a variable number of string permutations. Loading the same program with the hyperlinks preset takes only about 2 hours (rather than 3 days). </div>
+<div>The program itself builds upon what it already knows as it gets larger, thus it seems, that criteria for parallel processing probably cannot be met.</div><div><br></div><div>Since I run the load over a weekend, a 2 day load time would be acceptable.</div>
+<div>It appears my best options are:</div><div>1) get a faster computer</div><div>2) get a 64 bit compiler.</div><div><br></div><div>Thanks again,</div><div>Sheldon</div><div><br><br><div class="gmail_quote">On Tue, Sep 11, 2012 at 6:24 AM, Dan Corkill <span dir="ltr">&lt;<a href="mailto:dancorkill@comcast.net" target="_blank">dancorkill@comcast.net</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div class="im"><br>
+<br>
+On Sep 11, 2012, at 2:25 AM, Tim Bradshaw &lt;<a href="mailto:tfb@cley.com">tfb@cley.com</a>&gt; wrote:<br>
+<br>
+&gt;<br>
+</div><div><div class="h5">&gt; On 10 Sep 2012, at 22:36, Sheldon Ball wrote:<br>
+&gt;<br>
+&gt;&gt; Is there a means of using multiple processors for loading a lisp program (32-bit LW professional edition)?<br>
+&gt;&gt; On a Macintosh with 4 processors, the activity monitor indicates ~100% use of a single processor.<br>
+&gt;&gt; Since the load takes 3 days, I was hoping that using more than 1 processor might reduce this time.<br>
+&gt;<br>
+&gt; If it takes 3 days then there must be some pretty extensive load-time computation going on (it can&#39;t just be a bunch of straightforward of definitions if it takes that long).  So I think the thing to do would be to understand where that is happening, and what its dependencies look like, and then to modify the thing to push that out into multiple processes, which can then run in parallel, using some kind of queue which will run up to n threads at once to keep the machine busy.<br>
+
+<br>
+</div></div><div class="im">Extensive allocation &amp; GCing could also be going on, so that possibility should be checked as well (and threads won&#39;t help that issue).  Extensive incremental growth of hash-tables (rather than creating them initially with their eventual size or at least a large growth increment) can be particularly costly.<br>
+
+<br>
+<br>
+<br>
+<br>
+<br>
+</div>_______________________________________________<br>
+Lisp Hug - the mailing list for LispWorks users<br>
+<a href="mailto:lisp-hug@lispworks.com">lisp-hug@lispworks.com</a><br>
+<a href="http://www.lispworks.com/support/lisp-hug.html" target="_blank">http://www.lispworks.com/support/lisp-hug.html</a><br>
+<br>
+</blockquote></div><br></div>
+
+
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:32 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

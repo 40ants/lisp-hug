@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>squirrely drawing with gp:draw-polygon on Mac OS X</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>squirrely drawing with gp:draw-polygon on Mac OS X</h1>
+                <pre>
+I'm getting weird results with draw-polygon. Here's a simple test case which should draw a close approximation of a circle. Instead, there are odd little bumps and divots at various points on the circle's circumference. Changing the defaut for :line-joint-style doesn't seem to rectify this. Load the following two functions, then execute:
+
+(circle-window)
+
+BTW, this code should be cross-platform compatible for all versions of LispWorks as it only uses capi and gp APIs.
+
+(defun display-true-circle (self x y width height &amp;key divisions)
+  (declare (ignore x y width height)
+           (optimize (speed 0) (safety 3) (debug 3)))
+  (let* ((vertex-list
+          (loop with arc-increment = (/ (* 2 pi) divisions)
+                for i below (* 2 pi) by arc-increment
+                with center-x = 350
+                with center-y = 350
+                with radius = 200
+                for perimeter-x = (+ center-x  (* radius (cos i)))
+                for perimeter-y = (+ center-y  (* radius (sin i)))
+                collect perimeter-x collect perimeter-y)))
+    (gp:draw-polygon 
+     self
+     vertex-list
+     :filled t 
+     :foreground :orange)))
+
+
+
+(defun circle-window (&amp;key (divisions 200))
+  (capi:contain (make-instance
+                 'capi:output-pane
+                 :display-callback (lambda (self x y width height)
+                                     (display-true-circle self x y width height
+                                                          :divisions divisions))
+                 :background :greenyellow)
+                :best-width 700 :best-height 700))
+
+warmest regards,
+
+Ralph
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: squirrely drawing with gp:draw-polygon on Mac OS X</h1>
+                 <pre>
+Don't you think this is due to the fact that there is no anti-aliasing in
+the draw functions of the CAPI ? Is you draw the circle not filled, you can
+clearly see the approximation errors.
+
+I tried also to make something with bezier curves using gp:draw-line, and
+the result was very bad, for the same reason.
+
+Best regards
+
+Denis
+
+
+Le 22/04/10 18:16, «&nbsp;[NOM]&nbsp;» &lt;[ADRESSE]&gt a écrit&nbsp;:
+
+&gt 
+&gt I'm getting weird results with draw-polygon. Here's a simple test case which
+&gt should draw a close approximation of a circle. Instead, there are odd little
+&gt bumps and divots at various points on the circle's circumference. Changing the
+&gt defaut for :line-joint-style doesn't seem to rectify this. Load the following
+&gt two functions, then execute:
+&gt 
+&gt (circle-window)
+&gt 
+&gt BTW, this code should be cross-platform compatible for all versions of
+&gt LispWorks as it only uses capi and gp APIs.
+&gt 
+&gt (defun display-true-circle (self x y width height &amp;key divisions)
+&gt   (declare (ignore x y width height)
+&gt            (optimize (speed 0) (safety 3) (debug 3)))
+&gt   (let* ((vertex-list
+&gt           (loop with arc-increment = (/ (* 2 pi) divisions)
+&gt                 for i below (* 2 pi) by arc-increment
+&gt                 with center-x = 350
+&gt                 with center-y = 350
+&gt                 with radius = 200
+&gt                 for perimeter-x = (+ center-x  (* radius (cos i)))
+&gt                 for perimeter-y = (+ center-y  (* radius (sin i)))
+&gt                 collect perimeter-x collect perimeter-y)))
+&gt     (gp:draw-polygon
+&gt      self
+&gt      vertex-list
+&gt      :filled t 
+&gt      :foreground :orange)))
+&gt 
+&gt 
+&gt 
+&gt (defun circle-window (&amp;key (divisions 200))
+&gt   (capi:contain (make-instance
+&gt                  'capi:output-pane
+&gt                  :display-callback (lambda (self x y width height)
+&gt                                      (display-true-circle self x y width
+&gt height
+&gt                                                           :divisions
+&gt divisions))
+&gt                  :background :greenyellow)
+&gt                 :best-width 700 :best-height 700))
+&gt 
+&gt warmest regards,
+&gt 
+&gt Ralph
+&gt 
+&gt Raffael Cavallaro
+&gt raffaelcavallaro@me.com
+&gt 
+&gt 
+&gt 
+&gt 
+&gt 
+
+-------------------------------------------------------
+Denis Pousseur
+70 rue de Wansijn
+1180 Bruxelles, Belgique
+
+Tel : 32 (0)2 219 31 09
+Mail :  denis.pousseur@gmail.com
+-------------------------------------------------------
+
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: squirrely drawing with gp:draw-polygon on Mac OS X</h1>
+                  <pre>
+
+On Apr 22, 2010, at 1:58 PM, Denis Pousseur wrote:
+
+&gt Don't you think this is due to the fact that there is no anti-aliasing in
+&gt the draw functions of the CAPI ?
+
+There is anti-aliasing in draw-polygon on the mac, so, no I don't think that's what's going on here. (I think it's implemented using the underlying platform's polygon drawing primitives - on the mac, things like CGContextBeginPath, CGContextMoveToPoint, CGContextAddLineToPoint, CGContextClosePath, CGContextStrokePath, CGContextFillPath, and/or CGContextDrawPath, all of which take floats btw)
+
+The drawing with gp:draw-polygon *is* antialised, it's just lumpy  - i.e., it's smooth, not pixel-jaggy-aliased, it's just that the smooth drawing has smooth lumps and smooth divots in it - it just isn't a circle.
+
+warmest regards,
+
+Ralph
+
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                 </article>
+                </section>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: squirrely drawing with gp:draw-polygon on Mac OS X</h1>
+                 <pre>
+
+On Apr 22, 2010, at 3:17 PM, Joshua TAYLOR wrote:
+
+&gt I've drawn some bézier curves using gp:draw-lines too
+
+
+Ditto. The circle example was just an attempt to provide a minimal case whose intended output is unambiguous.
+
+Clearly a number of us have tried (and failed) to use gp:draw-polygon to do cubic bezier curves (which it ought to be up to doing). Let's hope the LW guys can shed some light on this.
+
+warmest regards,
+
+Ralph
+
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: squirrely drawing with gp:draw-polygon on Mac OS X</h1>
+                 <pre>
+
+On Apr 27, 2010, at 6:43 PM, Joshua TAYLOR wrote:
+
+&gt Was there any followup on this?
+
+I sent it to support but haven't heard back yet (apart from the automated incident tracking number of course). I'll be sure to let the list know if I hear anything useful from support.
+
+warmest regards,
+
+Ralph
+
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:35 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

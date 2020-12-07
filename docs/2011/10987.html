@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Cocoa-view-pane and background-process</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Cocoa-view-pane and background-process</h1>
+                <pre>
+MacOS 10.5, LW 5.1.2
+
+Hello,
+
+I replaced several output-panes of my application with cocoa-view-panes,
+essentially to have more sophisticated drawing tools (Bezier curves,
+shadows, etc.). The result is good but now I encountered a problem when I
+call a lisp background process from a cocoa event-handling callback : There
+is is a long delay before the process start. Here is a simple example :
+
+(use-package '(:capi :mp :cocoa :objc))
+
+;defines a subclass of NSview that accepts firstResponder
+
+(define-objc-class myNSview () () (:objc-class-name "myNSview")
+(:objc-superclass-name "NSView"))
+(define-objc-method ("acceptsFirstResponder" objc-bool) ((self myNSview)) t)
+
+;receives a key down event and calls the function do-something
+
+(define-objc-method ("keyDown:" :void) ((self myNSview) (event
+objc-object-pointer)) (declare (ignore event)) (do-something))
+
+;creates a background process
+
+(defun make-background-process (process-name &amp;optional (priority 0))
+  (let ((mailbox (make-mailbox)) process)
+    (flet ((worker (mbox name)
+             (with-simple-restart (abort (format nil "Abort job known as
+~a." name))
+               (loop for task = (mailbox-read mbox)
+                     do (with-simple-restart (abort (format nil "Allow ~a to
+proceed to next job." name))
+                          (apply (car task) (cdr task)))))))
+      (setf process (process-run-function process-name (list :priority
+priority) #'worker mailbox process-name)
+            (process-mailbox process) mailbox)
+      process)))
+(defparameter *background-process* (make-background-process "myProcess"))
+
+;the function 'do-something simply calls capi:beep-pane in the background
+process 
+
+(defun do-something ()
+  (let ((form #'(lambda () (beep-pane))))
+    (process-send *background-process* (list form))))
+
+#|
+TEST =&gt open the view and press some key : the beep comes after a few
+seconds
+(contain (make-instance 'cocoa-view-pane :view-class "myNSview"
+:init-function #'(lambda (pane view) (declare (ignore pane)) (invoke view
+"init"))))
+|#
+
+Any idea to work around ?
+
+Thanks
+
+-------------------------------------------------------
+Denis Pousseur
+70 rue de Wansijn
+1180 Bruxelles, Belgium
+
+Tel : 32 (0)2 219 31 09
+Email :  denis.pousseur@gmail.com
+Website : http://www.denispousseur.com
+-------------------------------------------------------
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Cocoa-view-pane and background-process</h1>
+                 <pre>
+
+On May 13, 2011, at 4:58 AM, Denis Pousseur wrote:
+
+&gt MacOS 10.5, LW 5.1.2
+&gt 
+&gt Hello,
+&gt 
+&gt I replaced several output-panes of my application with cocoa-view-panes,
+&gt essentially to have more sophisticated drawing tools (Bezier curves,
+&gt shadows, etc.). The result is good but now I encountered a problem when I
+&gt call a lisp background process from a cocoa event-handling callback : There
+&gt is is a long delay before the process start
+
+There is no delay with your example using LWM 6.0.1, 64-bit intel, under Mac OS X 10.6.7
+
+This may be a LWM 5 specific issue.
+
+However, I see you're using mailbox-read in a loop where I think you should be using mailbox-wait-for-event.
+&gtFrom the docs:
+
+"mailbox-wait-for-event is the appropriate way to wait for an event in a mailbox in an application with a graphical user interface, because it interacts correctly with the windowing system."
+
+So you might try replacing mailbox-read with mailbox-wait-for-event in your worker loop and see if that resolves the issue.
+
+wamest regards,
+
+Ralph
+
+
+
+
+
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: Cocoa-view-pane and background-process</h1>
+                  <pre>
+Hi Ralph,
+
+Thanks for the suggestion. It's really better when using
+mailbox-wait-for-event. But it not resolves the problem completely : there
+are always some delays, even if they are completely unpredictable.
+Sometimes, it seems to be related to the focus of the window (the delay can
+be longer after changing the focus)... But it's not systematic.
+I need now to test what's happening when the application is delivered.
+
+Thanks again
+
+Best regards
+
+Denis
+
+
+Le 13/05/11 17:58, «&nbsp;[NOM]&nbsp;» &lt;[ADRESSE]&gt a écrit&nbsp;:
+
+&gt 
+&gt On May 13, 2011, at 4:58 AM, Denis Pousseur wrote:
+&gt 
+&gt&gt MacOS 10.5, LW 5.1.2
+&gt&gt 
+&gt&gt Hello,
+&gt&gt 
+&gt&gt I replaced several output-panes of my application with cocoa-view-panes,
+&gt&gt essentially to have more sophisticated drawing tools (Bezier curves,
+&gt&gt shadows, etc.). The result is good but now I encountered a problem when I
+&gt&gt call a lisp background process from a cocoa event-handling callback : There
+&gt&gt is is a long delay before the process start
+&gt 
+&gt There is no delay with your example using LWM 6.0.1, 64-bit intel, under Mac
+&gt OS X 10.6.7
+&gt 
+&gt This may be a LWM 5 specific issue.
+&gt 
+&gt However, I see you're using mailbox-read in a loop where I think you should be
+&gt using mailbox-wait-for-event.
+&gt From the docs:
+&gt 
+&gt "mailbox-wait-for-event is the appropriate way to wait for an event in a
+&gt mailbox in an application with a graphical user interface, because it
+&gt interacts correctly with the windowing system."
+&gt 
+&gt So you might try replacing mailbox-read with mailbox-wait-for-event in your
+&gt worker loop and see if that resolves the issue.
+&gt 
+&gt wamest regards,
+&gt 
+&gt Ralph
+&gt 
+&gt 
+&gt 
+&gt 
+&gt 
+&gt 
+&gt Raffael Cavallaro
+&gt raffaelcavallaro@me.com
+&gt 
+&gt 
+&gt 
+&gt 
+&gt 
+
+-------------------------------------------------------
+Denis Pousseur
+70 rue de Wansijn
+1180 Bruxelles, Belgium
+
+Tel : 32 (0)2 219 31 09
+Email :  denis.pousseur@gmail.com
+Website : http://www.denispousseur.com
+-------------------------------------------------------
+
+
+
+</pre>
+                 </article>
+                </section>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:34 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

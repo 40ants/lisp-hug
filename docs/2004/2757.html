@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Two MOP usage questions</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Two MOP usage questions</h1>
+                <pre>Hi!
+
+I'm relatively new to the MOP so my apologies if these are dumb questions. I
+have the AMOP book and have skimmed through it but I have to admit that -
+due to lack of time - I didn't read the whole stuff about how a metaobject
+protocol could be implemented. If I'm missing something obvious which can be
+found in this book just name chapter and verse and I'll read it.
+
+Question 1: I want to create classes and methods programmatically at
+runtime. It seems to me as if it's not the right thing to bury macros like
+DEFCLASS or DEFMETHOD within function bodies as these belong at the
+top-level. Is that the right approach, i.e. is it better to use the
+functions ENSURE-CLASS and ADD-METHOD instead?
+
+Question 2: I wanted to do the equivalent of
+
+  (defmethod foo ((n integer) &amp;rest other-args)
+    (apply #'+ n other-args))
+
+and my first approach was this:
+
+  (use-package :clos)
+
+  (add-method (ensure-generic-function 'foo)
+              (make-instance 'standard-method
+                             :specializers (list (find-class 'integer))
+                             :lambda-list '(n &amp;rest other-args)
+                             :function #'(lambda (n &amp;rest other-args)
+                                           (apply #'+ n other-args))))
+
+However, this doesn't work because if I call FOO like, say, (FOO 1 2 3) then
+OTHER-ARGS in the method function will be ((2 3)) instead of (2 3).
+
+This variation does work:
+
+  (use-package :clos)
+
+  (add-method (ensure-generic-function 'foo)
+              (make-instance 'standard-method
+                             :specializers (list (find-class 'integer))
+                             :lambda-list '(n &amp;rest other-args)
+                             :function #'(lambda (n other-args)
+                                           (apply #'+ n other-args))))
+
+Am I correct in assuming that the method function get its arguments kind of
+"pre-processed," i.e. with the &amp;REST, &amp;OPTIONAL, and &amp;KEY stuff already
+taken care of? Is this detailed somewhere?
+
+Thanks in advance,
+Edi.
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Two MOP usage questions</h1>
+                 <pre>
+On 7 Sep 2004, at 22:20, Edi Weitz wrote:
+
+&gt Question 1: I want to create classes and methods programmatically at
+&gt runtime. It seems to me as if it's not the right thing to bury macros 
+&gt like
+&gt DEFCLASS or DEFMETHOD within function bodies as these belong at the
+&gt top-level. Is that the right approach, i.e. is it better to use the
+&gt functions ENSURE-CLASS and ADD-METHOD instead?
+
+In general, DEFCLASS and DEFMETHOD should work when they are not at the 
+top level. However, you probably want to have their effect depend on 
+runtime properties, so this probably won't get you very far. On the 
+other hand, ENSURE-CLASS and ADD-METHOD are somewhat complicated to 
+use, so I suggest to first try the former and only switch to the latter 
+when you actually need them. In other words, as soon as you feel 
+compelled to say (EVAL `(DEFXYZ ... ,(some-runtime-property) ...)), you 
+should switch to the MOP.
+
+ANSI specifies the effects of DEFCLASS, DEFMETHOD and the likes when 
+they are not at the top level. Essentially, it specifies that there is 
+no guarantee with regard to compile-time effects.
+
+&gt Question 2: I wanted to do the equivalent of
+&gt
+&gt   (defmethod foo ((n integer) &amp;rest other-args)
+&gt     (apply #'+ n other-args))
+&gt
+&gt and my first approach was this:
+[...]
+
+&gt Am I correct in assuming that the method function get its arguments 
+&gt kind of
+&gt "pre-processed," i.e. with the &amp;REST, &amp;OPTIONAL, and &amp;KEY stuff already
+&gt taken care of? Is this detailed somewhere?
+
+Yes, this is part of the MOP specification. Usually, you don't create a 
+function directly with LAMBDA, but rather use the MOP's 
+MAKE-METHOD-LAMBDA. Check out the section about "Processing of the User 
+Interface Macros" in AMOP, especially "The defmethod Macro" and 
+"Processing Method Bodies". This gives you a pretty good idea what you 
+need to do to create your own methods at run time. LispWorks deviates 
+with regard to the parameters a method lambda receives. This is 
+documented in Section 11.1 of the LispWorks User Guide.
+
+At first, the separation into ADD-METHOD and MAKE-METHOD-LAMBDA 
+appeared strange and unnecessary to me. However, this separation is 
+necessary in order to process lexical environments correctly. In the 
+most general case, you would need something like the ENCLOSE function 
+defined in CLtL2 (but dropped in ANSI). LispWorks defines ENCLOSE - 
+it's not documented but seems to work.
+
+I hope this helps.
+
+
+Pascal
+
+P.S.: The MOP specification is available online at 
+http://www.lisp.org/mop/
+
+--
+Tyler: "How's that working out for you?"
+Jack: "Great."
+Tyler: "Keep it up, then."
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Two MOP usage questions</h1>
+                 <pre>On Wed, 8 Sep 2004 00:04:17 +0200, Pascal Costanza &lt;costanza@web.de&gt wrote:
+
+&gt In general, DEFCLASS and DEFMETHOD should work when they are not at
+&gt the top level. However, you probably want to have their effect
+&gt depend on runtime properties, so this probably won't get you very
+&gt far. On the other hand, ENSURE-CLASS and ADD-METHOD are somewhat
+&gt complicated to use, so I suggest to first try the former and only
+&gt switch to the latter when you actually need them. In other words, as
+&gt soon as you feel compelled to say (EVAL `(DEFXYZ
+&gt ... ,(some-runtime-property) ...)), you should switch to the MOP.
+
+Yes, I forgot to mention that. If I were to use the macros I would
+definitely need to use EVAL so that was another reason to investigate
+the functions instead.
+
+&gt ANSI specifies the effects of DEFCLASS, DEFMETHOD and the likes when
+&gt they are not at the top level. Essentially, it specifies that there
+&gt is no guarantee with regard to compile-time effects.
+
+What could that be? Anything to worry about?
+
+&gt Yes, this is part of the MOP specification. Usually, you don't
+&gt create a function directly with LAMBDA, but rather use the MOP's
+&gt MAKE-METHOD-LAMBDA. Check out the section about "Processing of the
+&gt User Interface Macros" in AMOP, especially "The defmethod Macro" and
+&gt "Processing Method Bodies". This gives you a pretty good idea what
+&gt you need to do to create your own methods at run time.
+
+Argh! I had read that the other day but skipped parts of it because I
+thought it wouldn't apply in my case... :(
+
+&gt LispWorks deviates with regard to the parameters a method lambda
+&gt receives. This is documented in Section 11.1 of the LispWorks User
+&gt Guide.
+
+Hmm, I wouldn't really call that "documented," though. I haven't found
+a place where it is actually specified what parameters LispWorks'
+MAKE-METHOD-LAMBDA takes and in which order. I inspected
+#'MAKE-METHOD-LAMBDA in the IDE and from what I saw there I came up
+with this (FIXNUM declaration just inserted while experimenting):
+
+  (let ((generic-function (ensure-generic-function 'foo)))
+    (make-method-lambda
+     generic-function
+     (class-prototype (generic-function-method-class generic-function))
+     '(n &amp;rest other-args)
+     '(fixnum n)
+     '(progn (print 'howdy)
+             (apply #'+ n other-args))))
+                                                 
+Does that look right?
+
+I think the last (BODY) parameter (except for the optional environment
+argument) has to be wrapped in PROGN if it's more than one form
+although LispWorks will wrap another PROGN around it anyway. Hmm...
+
+Now to get the behaviour from my original example I tried this which
+seems to work:
+
+  (let ((generic-function (ensure-generic-function 'foo)))
+    (add-method generic-function
+                (make-instance 'standard-method
+                   :specializers (list (find-class 'integer))
+                   :lambda-list '(n &amp;rest other-args)
+                   :function (compile nil (make-method-lambda
+                                           generic-function
+                                           (class-prototype
+                                            (generic-function-method-class
+                                             generic-function))
+                                           '(n &amp;rest other-args)
+                                           nil
+                                           '(apply #'+ n other-args))))))
+
+However, there's another question popping up:
+
+In the MOP book (figure 5.3) they use FUNCTION instead of COMPILE
+which doesn't seem to work. Do I have to use COMPILE (and thus invoke
+the compiler at runtime) if I want my methods to be compiled? I had
+hoped that I could create them like closures such that they are
+compiled at compile time.
+
+&gt At first, the separation into ADD-METHOD and MAKE-METHOD-LAMBDA
+&gt appeared strange and unnecessary to me. However, this separation is
+&gt necessary in order to process lexical environments correctly. In the
+&gt most general case, you would need something like the ENCLOSE
+&gt function defined in CLtL2 (but dropped in ANSI). LispWorks defines
+&gt ENCLOSE - it's not documented but seems to work.
+
+So if I don't have lexical environments to care about I can just leave
+the environment parameter out, right?
+
+&gt I hope this helps.
+
+This helped a lot, thanks! I'm still not fully getting it, though. I'd
+be happy if I could look at some working examples somewhere. How did
+you come up with this stuff, especially the parts which are specific
+to LispWorks? Did you use trial and error or am I missing something in
+the docs?
+
+Thanks again,
+Edi.
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>RE: Two MOP usage questions</h1>
+                  <pre>&gt I'd be happy if I could look at some working examples somewhere.
+
+So I thought I should look at your AspectL package. And, yes,
+MAKE-METHOD-LAMBDA is used there. I'll see if this'll enlighten me.
+
+
+</pre>
+                 </article>
+                </section>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:51 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>HOME environment-variables</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>HOME environment-variables</h1>
+                <pre>
+Hi all,
+
+I've run into some confusion with environment-variables in LW
+Enterprise 5.0.2, running on WinXP. As an example with this minimal
+startup file ...
+
+(load-all-patches)
+(setf (lw:environment-variable "HOMEDIR") "D:/")
+(setf (lw:environment-variable "HOMEPATH") "/LISP/")
+
+.... the respective environment-variables are confirmed in the Listener
+after startup. But the following suggests something is amiss (perhaps with my expectation):
+
+CL-USER 3&gt (pathname "~/test/")
+#P"C:/LISP/test"
+
+I was expecting the pathname to be prefixed with "D:", not "C:".
+
+B.Connoy
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: HOME environment-variables</h1>
+                 <pre>
+On 22 Jan 2008 10:45:56 -0500, Brian Connoy &lt;BConnoy@morrisonhershfield.com&gt wrote:
+
+&gt I've run into some confusion with environment-variables in LW
+&gt Enterprise 5.0.2, running on WinXP. As an example with this minimal
+&gt startup file ...
+&gt
+&gt (load-all-patches)
+&gt (setf (lw:environment-variable "HOMEDIR") "D:/")
+
+Try "HOMEDRIVE" instead of "HOMEDIR".
+
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: HOME environment-variables</h1>
+                 <pre>
+On Tuesday 22 January 2008 10:45:56 am Brian Connoy wrote:
+&gt Hi all,
+&gt
+&gt I've run into some confusion with environment-variables in LW
+
+Some of the non-lisp shells I use display similar behaviour - they read the 
+environment variables once at start-up and don't re-read them later.  I don't 
+know, but this may be what happened here.
+
+Maybe you want to look at hcl:change-directory and lw:current-pathname?
+
+pt
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Nested processes?</h1>
+                 <pre>
+In order to find out when the cursor leaves a pane, I am writing a 
+function which periodically compares the cursor position with the pane 
+dimensions and calls a callback function if the cursor is outside.
+
+So there is a process which is periodically invoked (as in 
+scroll-test.lisp) which will find the cursor coordinates and compare 
+them to the pane dimensions.
+
+ From this process, capi:current-pointer-position is called using 
+capi:apply-in-pane-process. In order to obtain the actual result of this 
+call, I would like to follow the example shown in this list of using 
+mp:process-wait (now there is mp:process-wait-with-timeout). When I 
+attempt to do this, I receive the error "PROCESS-WAIT called when 
+scheduling not allowed".
+
+I suspect this may be because I can't nest a process-wait inside a 
+function called with mp:process-run-function. Is that right or is 
+something else a problem? Or is there a better way to do this?
+
+Mitch
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>AW: Nested processes?</h1>
+                  <pre>
+Mitch,
+
+I don't know the perfect answer to your question, just a quick guess:
+
+I guess capi:apply-in-pane-process doesn't allow scheduling. So it is not a
+general restriction.
+
+I solved a similar problem using a timer. Here's a copy of the relevant
+Section from my source:
+
+(defmethod initialize-instance :after ((self toolbar2) &amp;rest initargs &amp;key
+&amp;allow-other-keys)
+  (setf (timer self) (mp:make-timer 'on-bar-timer self))
+....
+
+(defun ensure-hoover-off (self)
+  (when (selected-button self)
+    (display-tooltip (bar self) :text nil)
+    (with-geometry (selected-button self)
+      (gp:invalidate-rectangle (bar self) %x% %y% %width% %height%))
+    (setf (selected-button self) nil)))
+
+(defun on-bar-motion (pane x y)
+  (declare (ignore y)) ;; TODO: we should check for y as well
+  (let ((intf (element-interface pane)))
+    ;; Set hoover item
+    (let ((button (find-if (lambda (b) (and (&gt x (left b)) (&lt; x (right b))))
+                           (buttons intf))))
+      (if (and button (enabled button))
+          (unless (and (selected-button intf)
+                       (eq button (selected-button intf)))
+            (ensure-hoover-off intf)
+            (mp:unschedule-timer (timer intf))
+            (mp:schedule-timer-relative-milliseconds (timer intf) 200 200)
+            (display-tooltip (bar intf) :text nil)
+            (draw-toolbar-button2 pane button :hoover t)
+            (when (tooltip button)
+              (display-tooltip (bar intf) :x (+ 10 (left button)) :y (+ 12
+(size intf)) :text (tooltip button)))
+            (setf (selected-button intf) button))
+        (ensure-hoover-off intf)))))
+
+(defun exec-bar-timer (self)
+  (multiple-value-bind (x y) (current-pointer-position :relative-to (bar
+self))
+    (with-geometry self
+      (when (or (minusp y) 
+                (&gt y %height%)
+                (minusp x)
+                (&gt x %width%))
+        (ensure-hoover-off self)
+        (mp:unschedule-timer (timer self))))))
+
+(defun on-bar-timer (self)
+  (apply-in-pane-process self 'exec-bar-timer self))
+
+(defun on-bar-destroy (self)
+  (mp:unschedule-timer (timer self)))
+
+HTH Andreas
+
+
+-----Ursprüngliche Nachricht-----
+Von: owner-lisp-hug@lispworks.com [mailto:owner-lisp-hug@lispworks.com] Im
+Auftrag von Mitch Berkson
+Gesendet: Mittwoch, 23. Januar 2008 05:35
+An: lisp-hug@lispworks.com
+Betreff: Nested processes?
+
+
+
+In order to find out when the cursor leaves a pane, I am writing a 
+function which periodically compares the cursor position with the pane 
+dimensions and calls a callback function if the cursor is outside.
+
+So there is a process which is periodically invoked (as in 
+scroll-test.lisp) which will find the cursor coordinates and compare 
+them to the pane dimensions.
+
+ From this process, capi:current-pointer-position is called using 
+capi:apply-in-pane-process. In order to obtain the actual result of this 
+call, I would like to follow the example shown in this list of using 
+mp:process-wait (now there is mp:process-wait-with-timeout). When I 
+attempt to do this, I receive the error "PROCESS-WAIT called when 
+scheduling not allowed".
+
+I suspect this may be because I can't nest a process-wait inside a 
+function called with mp:process-run-function. Is that right or is 
+something else a problem? Or is there a better way to do this?
+
+Mitch
+
+
+</pre>
+                 </article>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>Re: AW: Nested processes?</h1>
+                   <pre>
+Andreas,
+
+Thanks for your example. Your technique of wrapping the call to 
+exec-bar-timer in an apply-in-pane-process will enable me to do what I 
+wanted.
+
+Mitch
+
+
+</pre>
+                  </article>
+                 </section>
+                </section>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:40 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

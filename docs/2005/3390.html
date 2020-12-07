@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Preparing image for OpenGL rendering</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Preparing image for OpenGL rendering</h1>
+                <pre>Folks,
+
+I understand that I can load images with LW. How do I prepare this
+image afterwards for rendering with OpenGL? Or more precisely, how do
+I convert the image into something suitable for passing to
+glu-build2-dmipmaps?
+
+I'm looking to simply render a JPEG or PNG using OpenGL.
+
+    Thanks, Joel
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Preparing image for OpenGL rendering</h1>
+                 <pre>On Tue, 11 Jan 2005 13:26:38 +0000, joel reymont &lt;joelr1@gmail.com&gt wrote:
+&gt [...]
+&gt I'm looking to simply render a JPEG or PNG using OpenGL.
+
+I can probably narrow this down a bit... The icosahedron example uses
+gl-tex-image2-d to render a gl-vector. The vector is defined in lisp
+code as a sequence of hex values.
+
+I understood from browsing the list archives that I would need to use
+some C/C++ library to extract the pixel values as RGBA and stick them
+one by one into a gl-vector. Then I could free the image itself. If I
+were to stick the RGBA data into a texture then I would need to free
+the gl-vector afterwards.
+
+I also saw the discussion about optimizing dotimes when used to copy
+the pixel values. Is there a way to get the RGBA values from CAPI? Is
+using an external library and populating a gl-vector the way to go?
+
+    Thanks, Joel
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Preparing image for OpenGL rendering</h1>
+                 <pre>Here I go answering my own questions... :-)
+
+
+On Tue, 11 Jan 2005 14:46:50 +0000, joel reymont &lt;joelr1@gmail.com&gt wrote:
+&gt [...]
+&gt I understood from browsing the list archives that I would need to use
+&gt some C/C++ library to extract the pixel values as RGBA and stick them
+&gt one by one into a gl-vector. 
+
+I suppose this cannot be avoided as OpenGL functions do expect a gl-vector.
+
+&gt I also saw the discussion about optimizing dotimes when used to copy
+&gt the pixel values. 
+
+I suppose an optimized loop will be needed to populate the vector.
+
+&gt Is there a way to get the RGBA values from CAPI? Is
+&gt using an external library and populating a gl-vector the way to go?
+
+My only requirement is to load a "skin pack" from disk so linking to
+something like Image Magick would be an overkill. I also got some
+interesting info from LispWorks tech support.
+
+Apparently, Windows does not support alpha blending and so LW needs to
+convert images to BMP for drawing and BMP does not have an alpha
+channel. Historically, images that I use were always two-part: one
+file for the image itself and one file for the mask. The mask is a
+grayscale image where the value of R, G or B is the alpha value for
+the corresponding image. It's fairly straightforward to separate an
+RGBA image into RGB and A if you are using Photoshop.
+
+You can use a sequence like this in the REPL to get the pixel value:
+
+(setf pane (make-instance 'capi:output-pane 
+			  :width 300 
+			  :height 400))
+(capi:contain pane)
+(setf external-image (gp:read-external-image "~/temp/lobby.jpg")
+      image (gp:load-image pane external-image :force-plain t))
+
+(setf access (gp:make-image-access pane image))
+(gp:image-access-transfer-from-image access)
+(setf width (gp:image-access-width access))
+(setf pixel (gp:image-access-pixel access 10 10))
+
+You can then retrieve the color like this:
+
+(setf color (color:unconvert-color pane pixel))
+
+And the individual component values like this:
+
+(setf red-byte (* (color:color-red color) 255))
+
+There are also color:color-blue, color:color-green and color:color-alpha.
+
+The values need to be truncated and made to occupy one byte which is
+something that I have to investigate as I'm new to Common Lisp. Any
+takers?
+
+    Thanks, Joel
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Preparing image for OpenGL rendering</h1>
+                 <pre>I forgot to add that to figure out your alpha value you just take
+either the red, gree or blue component of the color at matching X,Y f
+your mask image and stick that as every 4th byte into your gl-vector.
+Might be obvious but just in case... :-)
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Preparing image for OpenGL rendering</h1>
+                 <p>
+                  Unable to parse email body. Email id is 3395
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Preparing image for OpenGL rendering</h1>
+                 <pre>On Tue, 11 Jan 2005 21:26:25 GMT, davef@lispworks.com
+&lt;davef@lispworks.com&gt wrote:
+&gt [...]
+&gt  &gt The values need to be truncated and made to occupy one byte which is
+&gt  &gt something that I have to investigate as I'm new to Common Lisp. Any
+&gt  &gt takers?
+&gt
+&gt See the Common Lisp function TRUNCATE.
+
+This is taken from texture.lisp in the opengel examples:
+
+(defun get-icosahedron-texture-data ()
+  (when temp-icosahedron-texture-data
+    (setq *icosahedron-texture-data*
+          (opengl:make-gl-vector :unsigned-8 (* 64 64 4)
+                                 :contents
+                                 temp-icosahedron-texture-data)
+          temp-icosahedron-texture-data nil ;; free the data
+          )
+    )
+  *icosahedron-texture-data*)
+
+If I pass a list of short floats known to be &lt; 255 as contents would
+the floats be truncated to bytes automatically? Would there be a
+performance penalty?
+
+I would like to create a function that returns a gl-vector of RGBA
+data given either image and mask files or just the image file. I have
+high number of images set up as image/mask pairs and so I'll be using
+this routine a lot. Once the images are converted to OpenGL textures I
+won't be using the routines anymore so I'm inclined to think that
+coding this routine in Lisp would be ok.
+
+Also, my lobby JPEG is 794x538 and 264k big. It looks like I would
+need to either push the bytes into the list and then reverse it before
+passing it as :contents to make-gl-vector or set the individual
+vectore elements are I go. Which approach is best (fastest?) given
+that the lobby JPEG is my biggest image?
+
+    Thanks, Joel
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:49 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

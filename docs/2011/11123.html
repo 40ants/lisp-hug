@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Macro context</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Macro context</h1><html><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space; ">Hi!<div><br></div><div>I'm trying to do something like</div><div><br></div><div><font class="Apple-style-span" face="Courier">(debug-context *test1*</font></div><div><font class="Apple-style-span" face="Courier">&nbsp;&nbsp;...</font></div><div><font class="Apple-style-span" face="Courier">&nbsp;&nbsp;(debug-log "Log message")</font></div><div><font class="Apple-style-span" face="Courier">&nbsp;&nbsp;...</font></div><div><font class="Apple-style-span" face="Courier">)</font></div><div><br></div><div>and I want <font class="Apple-style-span" face="Courier">(debug-log "Log message")</font> to expand to</div><div><font class="Apple-style-span" face="Courier">(when *test1* (format t "Log message"))</font></div><div><br></div><div>Is this possible with ordinary macros in CL?</div><div><br></div><div>I've tried</div><div><br></div><div>(<font class="Apple-style-span" face="Courier">defvar *current-debug-context* nil)</font></div><div><font class="Apple-style-span" face="Courier"><br></font></div><div><div><font class="Apple-style-span" face="Courier">(defmacro debug-context (var &amp;body body)</font></div><div><font class="Apple-style-span" face="Courier">&nbsp;&nbsp;(let ((*current-debug-context* var))</font></div><div><font class="Apple-style-span" face="Courier">&nbsp;&nbsp; &nbsp;`(progn ,@body)))</font></div></div><div><br></div><div>but that doesn't work, as *current-debug-context* is still nil at the time body is compiled.&nbsp;setf-ing *current-debug-context* works, but then it will not be scoped correctly.</div><div><br></div><div>Any suggestions?</div><div><br></div><div>Thank you!</div><div>Erik</div><div><br></div><div><br></div></body></html>
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Macro context</h1>
+                 <pre>
+On Mon, Jul 11, 2011 at 6:41 AM, Erik Ronström
+&lt;erik.ronstrom@doremir.com&gt wrote:
+&gt Hi!
+&gt I'm trying to do something like
+&gt (debug-context *test1*
+&gt &nbsp;&nbsp;...
+&gt &nbsp;&nbsp;(debug-log "Log message")
+&gt &nbsp;&nbsp;...
+&gt )
+&gt and I want (debug-log "Log message") to expand to
+&gt (when *test1* (format t "Log message"))
+&gt Is this possible with ordinary macros in CL?
+
+As you pointed out, the evaluation of *test1* needs to happen at run
+time, and you'll need some way to keep track of that.  This seems like
+a good application for closures.  Would the following work for you?
+
+(defparameter *debug-context-thunks* '()
+  "A list of functions that take zero arguments.  When every function
+returns true, debug messages will be printed \(by debug-log\).")
+
+(defmacro debug-context (context-form &amp;body body)
+  "Debug-context arranges for the body forms to be evaluated in a
+dynamic environment where *debug-context-thunks* includes a function
+whose body is context-form."
+  `(let ((*debug-context-thunks*
+          (list* #'(lambda () ,context-form)
+                 *debug-context-thunks*)))
+     ,@body))
+
+(defun debug-log (control-string &amp;rest format-arguments)
+  "Debug-log applies format to the control-string and format-arguments
+when every function in *debug-context-thunks* returns true."
+  (when (every 'funcall *debug-context-thunks*)
+    (apply 'format t control-string format-arguments)))
+
+It would be used as follows:
+
+CL-USER 2 &gt
+(defparameter *test1* nil)
+*TEST1*
+
+CL-USER 3 &gt
+(debug-context *test1*
+  (let ((*test1* t))
+    (debug-log "~&amp;Log Message ~A" 1))
+  (let ((*test1* nil))
+    (debug-log "~&amp;Log Message ~A" 2)))
+Log Message 1
+NIL
+
+This isn't necessarily a final solution.  For instance, since
+*debug-context-thunks* is a special variable, and debug-context adds
+thunks onto it at each step, you'll end up with a whole bunch of
+combined context tests when you're in deeply nested function calls.
+This may or may not be what you want.  You could also have something
+that checks just the most recent context, e.g.,
+
+(defmacro single-debug-context (form &amp;body body)
+  `(let ((*debug-context-thunks* (list #'(lambda () ,form))))
+     ,@body))
+
+At any rate, I hope this is a useful starting point.
+
+//JT
+
+
+-- 
+Joshua Taylor, http://www.cs.rpi.edu/~tayloj/
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Macro context</h1>
+                 <pre>
+On 11 Jul 2011, at 11:41, Erik Ronström wrote:
+
+&gt Any suggestions?
+
+I'm not sure if you're after a compile-time solution (so debugging code may not be generated at all) or just a run-time switch.  For a run-time switch the solutions I use look something like this:
+
+(defvar *debug-level* 0)
+(defparameter *debug-threshold* 0)
+
+(defun debug-log (control &amp;rest args)
+  (progn
+    (when (&gt *debug-level* *debug-threshold*)
+      (apply #'format *debug-io* control args))
+    (values)))
+
+(defmacro with-debug-level ((l) &amp;body forms)
+  `(let ((*debug-level* ,l))
+     ,@forms))
+
+Then you can say, for instance:
+
+(let ((x 1))
+  (with-debug-level (x)
+    (debug-log "foo")))
+
+The compile-time approach is fiddlier to get right (or I find it so).
+
+--tim
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Macro context (continued)</h1>
+                 <pre>
+Hi!
+
+I believe, you need a local macro or symbol-macro.
+
+&gt (defmacro with-debug-context (var &amp;body body)
+     `(symbol-macrolet ((*current-debug-context* ,var))
+         ,@body))
+
+&gt (defmacro debug-log (message &amp;rest args)
+     `(when *current-debug-context*
+        (format *error-output* ,message ,@args)))
+
+&gt (let ((test t))
+    (with-debug-context test
+      (debug-log "true")))
+
+true
+
+Hope this helps!
+
+On Mon, Jul 11, 2011 at 5:00 PM, Erik Ronström
+&lt;erik.ronstrom@doremir.com&gt wrote:
+&gt Thinking about it a little bit more...
+&gt While your solution solves my problem very well, it would still be
+&gt interesting to know if my first approach is at all possible.
+&gt
+&gt As you pointed out, the evaluation of *test1* needs to happen at run
+&gt
+&gt time, and you'll need some way to keep track of that.
+&gt
+&gt But that doesn't mean that the "meta-variable"&nbsp;*current-debug-context* has
+&gt to be evaluated at run time!
+&gt Now we've been talking about debug logging, but imagining another context
+&gt where performance was important, it would be very nice to have the expansion
+&gt to be evaluated at compile time, so that
+&gt (debug-context *test1*
+&gt &nbsp;&nbsp;(debug-log "Log message")
+&gt )
+&gt would expand to
+&gt (when *test1* (do-some-logging "Log message"))
+&gt Of course, *test1* is still evauated at run time, but the expansion is made
+&gt at compile time.&nbsp;Is this possible in CL?
+&gt Regards
+&gt Erik
+&gt
+&gt
+&gt
+&gt This seems like
+&gt
+&gt a good application for closures. &nbsp;Would the following work for you?
+&gt
+&gt (defparameter *debug-context-thunks* '()
+&gt
+&gt &nbsp;"A list of functions that take zero arguments. &nbsp;When every function
+&gt
+&gt returns true, debug messages will be printed \(by debug-log\).")
+&gt
+&gt (defmacro debug-context (context-form &amp;body body)
+&gt
+&gt &nbsp;"Debug-context arranges for the body forms to be evaluated in a
+&gt
+&gt dynamic environment where *debug-context-thunks* includes a function
+&gt
+&gt whose body is context-form."
+&gt
+&gt &nbsp;`(let ((*debug-context-thunks*
+&gt
+&gt &nbsp; &nbsp; &nbsp; &nbsp; (list* #'(lambda () ,context-form)
+&gt
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;*debug-context-thunks*)))
+&gt
+&gt &nbsp; &nbsp;,@body))
+&gt
+&gt (defun debug-log (control-string &amp;rest format-arguments)
+&gt
+&gt &nbsp;"Debug-log applies format to the control-string and format-arguments
+&gt
+&gt when every function in *debug-context-thunks* returns true."
+&gt
+&gt &nbsp;(when (every 'funcall *debug-context-thunks*)
+&gt
+&gt &nbsp; (apply 'format t control-string format-arguments)))
+&gt
+&gt It would be used as follows:
+&gt
+&gt CL-USER 2 &gt
+&gt
+&gt (defparameter *test1* nil)
+&gt
+&gt *TEST1*
+&gt
+&gt CL-USER 3 &gt
+&gt
+&gt (debug-context *test1*
+&gt
+&gt &nbsp;(let ((*test1* t))
+&gt
+&gt &nbsp; (debug-log "~&amp;Log Message ~A" 1))
+&gt
+&gt &nbsp;(let ((*test1* nil))
+&gt
+&gt &nbsp; (debug-log "~&amp;Log Message ~A" 2)))
+&gt
+&gt Log Message 1
+&gt
+&gt NIL
+&gt
+&gt This isn't necessarily a final solution. &nbsp;For instance, since
+&gt
+&gt *debug-context-thunks* is a special variable, and debug-context adds
+&gt
+&gt thunks onto it at each step, you'll end up with a whole bunch of
+&gt
+&gt combined context tests when you're in deeply nested function calls.
+&gt
+&gt This may or may not be what you want. &nbsp;You could also have something
+&gt
+&gt that checks just the most recent context, e.g.,
+&gt
+&gt (defmacro single-debug-context (form &amp;body body)
+&gt
+&gt &nbsp;`(let ((*debug-context-thunks* (list #'(lambda () ,form))))
+&gt
+&gt &nbsp; &nbsp;,@body))
+&gt
+&gt At any rate, I hope this is a useful starting point.
+&gt
+&gt //JT
+&gt
+&gt
+&gt --
+&gt
+&gt Joshua Taylor, http://www.cs.rpi.edu/~tayloj/
+&gt
+&gt
+&gt
+&gt
+&gt
+&gt --
+&gt Joshua Taylor, http://www.cs.rpi.edu/~tayloj/
+&gt
+&gt
+
+
+
+-- 
+Best regards,
+&nbsp;&nbsp; Paul A. Anokhin
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Macro context (continued)</h1>
+                 <pre>
+Erik,
+
+and you probably want a gensym insteam of *current-debug-context*:
+
+(defparameter *debug-context-var* (gensym))
+
+(defmacro with-debug-context (var &amp;body body)
+  `(symbol-macrolet ((,*debug-context-var* ,var))
+     ,@body))
+
+(defmacro debug-log (message &amp;rest args)
+  `(when ,*debug-context-var*
+     (format *error-output* ,message ,@args)))
+
+CL-USER&gt  (sb-cltl2:macroexpand-all
+                     `(with-debug-context test2
+                         (debug-log "true")))
+(SYMBOL-MACROLET ((#:G1154 TEST2)) (IF TEST2 (PROGN (FORMAT
+*ERROR-OUTPUT* "true")) NIL))
+
+On Mon, Jul 11, 2011 at 5:13 PM, Paul A. Anokhin &lt;paul7@paul7.net&gt wrote:
+&gt Hi!
+&gt
+&gt I believe, you need a local macro or symbol-macro.
+&gt
+&gt&gt (defmacro with-debug-context (var &amp;body body)
+&gt &nbsp; &nbsp; `(symbol-macrolet ((*current-debug-context* ,var))
+&gt &nbsp; &nbsp; &nbsp; &nbsp; ,@body))
+&gt
+&gt&gt (defmacro debug-log (message &amp;rest args)
+&gt &nbsp; &nbsp; `(when *current-debug-context*
+&gt &nbsp; &nbsp; &nbsp; &nbsp;(format *error-output* ,message ,@args)))
+&gt
+&gt&gt (let ((test t))
+&gt &nbsp; &nbsp;(with-debug-context test
+&gt &nbsp; &nbsp; &nbsp;(debug-log "true")))
+&gt
+&gt true
+&gt
+&gt Hope this helps!
+&gt
+&gt On Mon, Jul 11, 2011 at 5:00 PM, Erik Ronström
+&gt &lt;erik.ronstrom@doremir.com&gt wrote:
+&gt&gt Thinking about it a little bit more...
+&gt&gt While your solution solves my problem very well, it would still be
+&gt&gt interesting to know if my first approach is at all possible.
+&gt&gt
+&gt&gt As you pointed out, the evaluation of *test1* needs to happen at run
+&gt&gt
+&gt&gt time, and you'll need some way to keep track of that.
+&gt&gt
+&gt&gt But that doesn't mean that the "meta-variable"&nbsp;*current-debug-context* has
+&gt&gt to be evaluated at run time!
+&gt&gt Now we've been talking about debug logging, but imagining another context
+&gt&gt where performance was important, it would be very nice to have the expansion
+&gt&gt to be evaluated at compile time, so that
+&gt&gt (debug-context *test1*
+&gt&gt &nbsp;&nbsp;(debug-log "Log message")
+&gt&gt )
+&gt&gt would expand to
+&gt&gt (when *test1* (do-some-logging "Log message"))
+&gt&gt Of course, *test1* is still evauated at run time, but the expansion is made
+&gt&gt at compile time.&nbsp;Is this possible in CL?
+&gt&gt Regards
+&gt&gt Erik
+&gt&gt
+&gt&gt
+&gt&gt
+&gt&gt This seems like
+&gt&gt
+&gt&gt a good application for closures. &nbsp;Would the following work for you?
+&gt&gt
+&gt&gt (defparameter *debug-context-thunks* '()
+&gt&gt
+&gt&gt &nbsp;"A list of functions that take zero arguments. &nbsp;When every function
+&gt&gt
+&gt&gt returns true, debug messages will be printed \(by debug-log\).")
+&gt&gt
+&gt&gt (defmacro debug-context (context-form &amp;body body)
+&gt&gt
+&gt&gt &nbsp;"Debug-context arranges for the body forms to be evaluated in a
+&gt&gt
+&gt&gt dynamic environment where *debug-context-thunks* includes a function
+&gt&gt
+&gt&gt whose body is context-form."
+&gt&gt
+&gt&gt &nbsp;`(let ((*debug-context-thunks*
+&gt&gt
+&gt&gt &nbsp; &nbsp; &nbsp; &nbsp; (list* #'(lambda () ,context-form)
+&gt&gt
+&gt&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;*debug-context-thunks*)))
+&gt&gt
+&gt&gt &nbsp; &nbsp;,@body))
+&gt&gt
+&gt&gt (defun debug-log (control-string &amp;rest format-arguments)
+&gt&gt
+&gt&gt &nbsp;"Debug-log applies format to the control-string and format-arguments
+&gt&gt
+&gt&gt when every function in *debug-context-thunks* returns true."
+&gt&gt
+&gt&gt &nbsp;(when (every 'funcall *debug-context-thunks*)
+&gt&gt
+&gt&gt &nbsp; (apply 'format t control-string format-arguments)))
+&gt&gt
+&gt&gt It would be used as follows:
+&gt&gt
+&gt&gt CL-USER 2 &gt
+&gt&gt
+&gt&gt (defparameter *test1* nil)
+&gt&gt
+&gt&gt *TEST1*
+&gt&gt
+&gt&gt CL-USER 3 &gt
+&gt&gt
+&gt&gt (debug-context *test1*
+&gt&gt
+&gt&gt &nbsp;(let ((*test1* t))
+&gt&gt
+&gt&gt &nbsp; (debug-log "~&amp;Log Message ~A" 1))
+&gt&gt
+&gt&gt &nbsp;(let ((*test1* nil))
+&gt&gt
+&gt&gt &nbsp; (debug-log "~&amp;Log Message ~A" 2)))
+&gt&gt
+&gt&gt Log Message 1
+&gt&gt
+&gt&gt NIL
+&gt&gt
+&gt&gt This isn't necessarily a final solution. &nbsp;For instance, since
+&gt&gt
+&gt&gt *debug-context-thunks* is a special variable, and debug-context adds
+&gt&gt
+&gt&gt thunks onto it at each step, you'll end up with a whole bunch of
+&gt&gt
+&gt&gt combined context tests when you're in deeply nested function calls.
+&gt&gt
+&gt&gt This may or may not be what you want. &nbsp;You could also have something
+&gt&gt
+&gt&gt that checks just the most recent context, e.g.,
+&gt&gt
+&gt&gt (defmacro single-debug-context (form &amp;body body)
+&gt&gt
+&gt&gt &nbsp;`(let ((*debug-context-thunks* (list #'(lambda () ,form))))
+&gt&gt
+&gt&gt &nbsp; &nbsp;,@body))
+&gt&gt
+&gt&gt At any rate, I hope this is a useful starting point.
+&gt&gt
+&gt&gt //JT
+&gt&gt
+&gt&gt
+&gt&gt --
+&gt&gt
+&gt&gt Joshua Taylor, http://www.cs.rpi.edu/~tayloj/
+&gt&gt
+&gt&gt
+&gt&gt
+&gt&gt
+&gt&gt
+&gt&gt --
+&gt&gt Joshua Taylor, http://www.cs.rpi.edu/~tayloj/
+&gt&gt
+&gt&gt
+&gt
+&gt
+&gt
+&gt --
+&gt Best regards,
+&gt &nbsp;&nbsp; Paul A. Anokhin
+&gt
+
+
+
+-- 
+&nbsp;&nbsp; Павел Анохин
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Macro context</h1>
+                 <pre>
+Erik Ronström &lt;erik.ronstrom@doremir.com&gt writes:
+
+&gt I'm trying to do something like
+&gt
+&gt (debug-context *test1*
+&gt   ...
+&gt   (debug-log "Log message")
+&gt   ...
+&gt )
+&gt
+&gt and I want (debug-log "Log message") to expand to
+&gt (when *test1* (format t "Log message"))
+&gt
+&gt Is this possible with ordinary macros in CL?
+&gt
+&gt I've tried
+&gt
+&gt (defvar *current-debug-context* nil)
+&gt
+&gt (defmacro debug-context (var &amp;body body)
+&gt   (let ((*current-debug-context* var))
+&gt     `(progn ,@body)))
+&gt
+&gt but that doesn't work, as *current-debug-context* is still nil at the time body is compiled. setf-ing *current-debug-context* works, but then it will not be scoped correctly.
+&gt
+&gt Any suggestions?
+
+This is typically a use case for macrolet, or flet.
+
+It seems in this case that debug-log can be defined as a function:
+
+    (defmacro debug-context (var &amp;body body)
+      (check-type var symbol "a symbol denoting a variable")
+      `(flet ((debug-log (control-string &amp;rest arguments)
+                (when ,var (format t "~?" control-string arguments))))
+         ,@body))
+
+but if it has to be a macro, you could apply the same principle, using
+macrolet instead of flet:
+
+    (defmacro debug-context (var &amp;body body)
+      (check-type var symbol "a symbol denoting a variable")
+      `(macrolet ((debug-log (control-string &amp;rest arguments)
+                   `(when ,,var (format t ,control-string ,@arguments))))
+         ,@body))
+
+
+
+-- 
+__Pascal Bourguignon__                     http://www.informatimago.com/
+A bad day in () is better than a good day in {}.
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:33 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

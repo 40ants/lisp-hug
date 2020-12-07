@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>defgeneric form causing error</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>defgeneric form causing error</h1>
+                <pre>
+
+I'm running LWW personal 4.4.6
+
+The following form seems to be causing trouble:
+
+(defgeneric jfield-name (x)
+  (:method ((field field))
+     (munge-identifier (field-name field) :camelcase))
+  (:method ((spec spec))
+     (jfield-name (spec-field spec))))
+
+I'm not sure how to provide more context short of attaching a bunch of
+lisp source code to this email.  But in any case, I get the following
+backtrace when loading the code after it's been compiled:
+
+
+Error: No applicable methods for #&lt;STANDARD-GENERIC-FUNCTION HARLEQUIN-COMMON-LISP:GENERIC-FUNCTION-NAME 203A605A&gt with args (NIL)
+  1 (continue) Call #&lt;STANDARD-GENERIC-FUNCTION HARLEQUIN-COMMON-LISP:GENERIC-FUNCTION-NAME 203A605A&gt again
+  2 (abort) Abort job 30 :(BIND-STANDARD-STREAMS-AND-EXECUTE #&lt;EDITOR::EDITOR-OUTPUT-STREAM #&lt;EDITOR:BUFFER Background Output&gt 213716FC&gt (FUNCALL-BACKGROUND-JOB-AUX #&lt;CAPI:EDITOR-PANE CAPI:EDITOR-PANE  21F5A67C&gt BACKGROUND-REGION-EVAL (#&lt;EDITOR::WM-WINDOW "code-gen-java.lisp" 21F8B23C&gt #&lt;EDITOR:BUFFER code-gen-java.lisp&gt #&lt;EDITOR::POINT "code-gen-java.lisp" 5000 offset 1734 22749934&gt #&lt;EDITOR::POINT "code-gen-java.lisp" 5000 offset 1905 22749954&gt T NIL NIL)))
+
+Type :b for backtrace, :c &lt;option number&gt to proceed,  or :? for other options
+
+ORG.CL-USER.CODE-GEN-JAVA 1 : 1 &gt :b
+Call to CERROR
+Call to (METHOD NO-APPLICABLE-METHOD (T))
+Call to CLOS::MAYBE-FLUSH-MAKE-INSTANCE-KEYWORD-CACHE
+Call to (METHOD REMOVE-METHOD (STANDARD-GENERIC-FUNCTION METHOD))
+Call to (METHOD SHARED-INITIALIZE :AFTER (STANDARD-GENERIC-FUNCTION T))
+Call to CLOS::ENSURE-GENERIC-FUNCTION-INTERNAL
+Call to ENSURE-GENERIC-FUNCTION
+Call to SPECIAL::%EVAL-NOHOOK
+Call to IV:PROCESS-TOP-LEVEL
+Call to IV::PROCESS-COMPILER-LET
+Call to IV:PROCESS-TOP-LEVEL
+Call to IV::PROCESS-COMPILER-LET
+Call to IV:PROCESS-TOP-LEVEL
+Call to EDITOR::EDITOR-EVAL
+Call to (HARLEQUIN-COMMON-LISP:SUBFUNCTION 3 (HARLEQUIN-COMMON-LISP:SUBFUNCTION 1 EDITOR::REGION-LISP-EVAL))
+Call to (HARLEQUIN-COMMON-LISP:SUBFUNCTION 1 EDITOR::REGION-LISP-EVAL)
+Call to EDITOR::WITH-COMPILATION-ENVIRONMENT-AT-POINT-FN
+Call to EDITOR::REGION-LISP-EVAL
+Call to EDITOR::BACKGROUND-REGION-EVAL
+Call to CAPI::FUNCALL-BACKGROUND-JOB-AUX
+Call to CAPI::BIND-STANDARD-STREAMS-AND-EXECUTE
+Call to MP::BACKGROUND-EXECUTE-LOOP
+Call to (HARLEQUIN-COMMON-LISP:SUBFUNCTION MP::PROCESS-SG-FUNCTION MP::INITIALIZE-PROCESS-STACK)
+
+ORG.CL-USER.CODE-GEN-JAVA 2 : 1 &gt
+
+Any ideas?  Probably something wrong with my code somehow, but I can't
+see it...
+
+-russ
+
+______________________________________________________________________
+This email has been scanned by the MessageLabs Email Security System.
+For more information please visit http://www.messagelabs.com/email 
+______________________________________________________________________
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: defgeneric form causing error</h1>
+                 <p>
+                  Unable to parse email body. Email id is 5310
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: defgeneric form causing error</h1>
+                 <pre>
+
+Martin Simmons &lt;martin@lispworks.com&gt writes:
+
+&gt&gt Any ideas?  Probably something wrong with my code somehow, but I can't
+&gt&gt see it...
+&gt
+&gt The error suggests that something has set the METHOD-GENERIC-FUNCTION of one
+&gt of those initial methods to NIL unexpectedly.  Do you have these methods on
+&gt JFIELD-NAME defined more than once?  I'm not sure how that would cause it
+&gt though.
+
+I think I narrowed the problem down.  Try compiling and loading the
+following file twice:
+
+(defpackage :minor-nit (:use :common-lisp))
+(in-package :minor-nit)
+(defclass spec () ((x)))
+(defgeneric field-name (x)
+  (:method ((spec spec)) "ouch 1")
+  (:method ((spec spec)) "ouch 2"))
+
+
+______________________________________________________________________
+This email has been scanned by the MessageLabs Email Security System.
+For more information please visit http://www.messagelabs.com/email 
+______________________________________________________________________
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: defgeneric form causing error</h1>
+                 <p>
+                  Unable to parse email body. Email id is 5338
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:45 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

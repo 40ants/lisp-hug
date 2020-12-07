@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>editor-pane, arrays of characters, simple-text-string, and errors</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>editor-pane, arrays of characters, simple-text-string, and errors</h1>
+                <pre>
+Hi,
+
+I read a file character-by-character into a (make-array 0 :element-type 
+:fill-pointer 0 :adjustable t) using vector-push-extend. What I get 
+back behaves like a string, and actually passes the stringp test.
+
+I set the text of an editor-pane using that result.
+
+I get an error and the following (edited) backtrace:
+
+Condition: Editor-Error Handler EDITOR::DEFAULT-EDITOR-ERROR-HANDLER 
+returned.
+Call to ERROR (offset 104)
+   SYSTEM::ESTRING : "Editor-Error Handler ~S returned."
+   SYSTEM::EARGS   : (EDITOR::DEFAULT-EDITOR-ERROR-HANDLER)
+
+Call to EDITOR:EDITOR-ERROR (offset 244)
+   EDITOR::ARGS : ("String ~S of wrong type for buffer ~S" "&lt;a long 
+string&gt" #&lt;EDITOR:BUFFER the-boo-editor-BUFFER&gt)
+
+Call to EDITOR::SET-BUFFER-CONTENTS (offset 764)
+   EDITOR:BUFFER : #&lt;EDITOR:BUFFER the-boo-editor-BUFFER&gt
+   STRING        : "&lt;a long string&gt"
+
+Call to CAPI:MODIFY-EDITOR-PANE-BUFFER (offset 432)
+   CAPI::PANE   : #&lt;CAPI:EDITOR-PANE BOO::EDITOR  12DC31BF&gt
+   DBG::|rest-| : (:CONTENTS "&lt;a long string&gt")
+
+Call to (METHOD (SETF CAPI:EDITOR-PANE-TEXT) (T CAPI:EDITOR-PANE)) 
+(offset 76)
+   CAPI-INTERNALS:TEXT : "&lt;a long string&gt"
+   CAPI::SELF          : #&lt;CAPI:EDITOR-PANE BOO::EDITOR  12DC31BF&gt
+
+Call to (SUBFUNCTION 8 (METHOD CAPI::INITIALIZE-INTERFACE :AFTER 
+(BOO::BOO-EDITOR))) (offset 156)
+   BOO::DATA      : #&lt;BOO::CARD 12D70BCB&gt
+   CAPI:INTERFACE : #&lt;BOO::BOO-EDITOR "Boo Editor" 12DC38BF&gt
+   ED             : #&lt;CAPI:EDITOR-PANE BOO::EDITOR  12DC31BF&gt
+   BOO::TEXT      : "&lt;a long string&gt"
+
+Now, if I do the same thing but this time set the editor pane with 
+(format nil "~A" &lt;original text&gt) everything works.
+
+If I use the inspector on the original and the formatted I see that one 
+is an array of characters, the other is a simple-text-string.
+
+So.
+
+What is a simple-text-string? I see that it is in the lispworks 
+package, but I can't see a whole lot of information about it anywhere.
+
+Why does an editor-pane care? Why should *I* care?
+
+Is format the best way to get one of these from something that is a 
+string but not a text-string?
+
+Am I reading the backtrace properly? is the editor-error method having 
+its own error?
+
+Once again, thanks for any help you can give me.
+
+Cheers,
+Bob
+
+
+----
+Bob Hutchison          -- blogs at &lt;http://www.recursive.ca/hutch/&gt
+Recursive Design Inc.  -- &lt;http://www.recursive.ca/&gt
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: editor-pane, arrays of characters, simple-text-string, and errors</h1>
+                 <pre>Hi,
+
+I didn't mean to send this -- thick fingers mailed this from my drafts 
+rather than deleting it. Sorry. It it completely covered by the 
+previous messages I've sent.
+
+Cheers,
+Bob
+
+On Nov 26, 2004, at 9:34 AM, Bob Hutchison wrote:
+
+&gt
+&gt Hi,
+&gt
+&gt I read a file character-by-character into a (make-array 0 
+&gt :element-type :fill-pointer 0 :adjustable t) using vector-push-extend. 
+&gt What I get back behaves like a string, and actually passes the stringp 
+&gt test.
+&gt
+&gt I set the text of an editor-pane using that result.
+&gt
+&gt I get an error and the following (edited) backtrace:
+&gt
+&gt Condition: Editor-Error Handler EDITOR::DEFAULT-EDITOR-ERROR-HANDLER 
+&gt returned.
+&gt Call to ERROR (offset 104)
+&gt   SYSTEM::ESTRING : "Editor-Error Handler ~S returned."
+&gt   SYSTEM::EARGS   : (EDITOR::DEFAULT-EDITOR-ERROR-HANDLER)
+&gt
+&gt Call to EDITOR:EDITOR-ERROR (offset 244)
+&gt   EDITOR::ARGS : ("String ~S of wrong type for buffer ~S" "&lt;a long 
+&gt string&gt" #&lt;EDITOR:BUFFER the-boo-editor-BUFFER&gt)
+&gt
+&gt Call to EDITOR::SET-BUFFER-CONTENTS (offset 764)
+&gt   EDITOR:BUFFER : #&lt;EDITOR:BUFFER the-boo-editor-BUFFER&gt
+&gt   STRING        : "&lt;a long string&gt"
+&gt
+&gt Call to CAPI:MODIFY-EDITOR-PANE-BUFFER (offset 432)
+&gt   CAPI::PANE   : #&lt;CAPI:EDITOR-PANE BOO::EDITOR  12DC31BF&gt
+&gt   DBG::|rest-| : (:CONTENTS "&lt;a long string&gt")
+&gt
+&gt Call to (METHOD (SETF CAPI:EDITOR-PANE-TEXT) (T CAPI:EDITOR-PANE)) 
+&gt (offset 76)
+&gt   CAPI-INTERNALS:TEXT : "&lt;a long string&gt"
+&gt   CAPI::SELF          : #&lt;CAPI:EDITOR-PANE BOO::EDITOR  12DC31BF&gt
+&gt
+&gt Call to (SUBFUNCTION 8 (METHOD CAPI::INITIALIZE-INTERFACE :AFTER 
+&gt (BOO::BOO-EDITOR))) (offset 156)
+&gt   BOO::DATA      : #&lt;BOO::CARD 12D70BCB&gt
+&gt   CAPI:INTERFACE : #&lt;BOO::BOO-EDITOR "Boo Editor" 12DC38BF&gt
+&gt   ED             : #&lt;CAPI:EDITOR-PANE BOO::EDITOR  12DC31BF&gt
+&gt   BOO::TEXT      : "&lt;a long string&gt"
+&gt
+&gt Now, if I do the same thing but this time set the editor pane with 
+&gt (format nil "~A" &lt;original text&gt) everything works.
+&gt
+&gt If I use the inspector on the original and the formatted I see that 
+&gt one is an array of characters, the other is a simple-text-string.
+&gt
+&gt So.
+&gt
+&gt What is a simple-text-string? I see that it is in the lispworks 
+&gt package, but I can't see a whole lot of information about it anywhere.
+&gt
+&gt Why does an editor-pane care? Why should *I* care?
+&gt
+&gt Is format the best way to get one of these from something that is a 
+&gt string but not a text-string?
+&gt
+&gt Am I reading the backtrace properly? is the editor-error method having 
+&gt its own error?
+&gt
+&gt Once again, thanks for any help you can give me.
+&gt
+&gt Cheers,
+&gt Bob
+&gt
+&gt
+&gt ----
+&gt Bob Hutchison          -- blogs at &lt;http://www.recursive.ca/hutch/&gt
+&gt Recursive Design Inc.  -- &lt;http://www.recursive.ca/&gt
+&gt
+&gt
+----
+Bob Hutchison          -- blogs at &lt;http://www.recursive.ca/hutch/&gt
+Recursive Design Inc.  -- &lt;http://www.recursive.ca/&gt
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: editor-pane, arrays of characters, simple-text-string, and errors</h1>
+                 <pre>Bob Hutchison wrote:
+
+&gt What is a simple-text-string? I see that it is in the lispworks package,
+&gt but I can't see a whole lot of information about it anywhere.
+
+I think this is explained in the documentation somewhere, but don't really
+have the time to look this up right now.
+
+As a simple workaround for your problem, you could try coercing your string
+to a simple-text-string before passing it to the editor-pane.
+
+Something like:
+
+  (coerce my-home-made-string 'simple-text-string)
+
+Regards,
+
+Arthur
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:50 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

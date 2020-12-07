@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>hard-copy fonts change their shape</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>hard-copy fonts change their shape</h1>
+                <p>
+                 Unable to parse email body. Email id is 10121
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: hard-copy fonts change their shape</h1>
+                 <pre>
+Hello Nick,
+
+What OS are you running? I do this myself, but mostly in OS X, and there I'm creating a PDF image of the layout, which, I presume, prints as a graphic image -- as opposed to being reconstructed in the printer port. But when reconstructing, instead of image printing, doesn't this depend on the capabilities of the printer?
+
+- DM
+
+On Mar 28, 2010, at 09:12 AM, Nick Levine wrote:
+
+&gt 
+&gt I'm trying to print a pinboard-layout. There are several carefully
+&gt positioned boxes, and there's text that fits nicely into the boxes. In
+&gt the printout, the text is typically too long for the boxes and the
+&gt whole thing looks terrible.
+&gt 
+&gt You can get a similar effect by comparing the port-string-width and
+&gt -height of a string in an output-pane and a printer-port. The heights
+&gt and widths can differ by as much as 5%. The proportions by which they
+&gt vary differ, so I can't fix this by scaling the printer-port.
+&gt 
+&gt Has anybody met this before? Can anybody explain it? Or better still,
+&gt fix the problem so that a printer font has the same shape (width to
+&gt height ratio) as an output-pane font?
+&gt 
+&gt Thanks,
+&gt 
+&gt - nick
+&gt 
+&gt (defun simple-test (&amp;key (family "Verdana") (size 10.0) (text "Hello, World"))
+&gt  (when-let (printer (capi:print-dialog))
+&gt    (let* ((pane (capi:contain (make-instance 'capi:output-pane)
+&gt                               :display-state :hidden))
+&gt           (font-description (gp:make-font-description :family family
+&gt                                                       :size size))
+&gt            pane-string-width pane-string-height
+&gt            printer-string-width printer-string-height)
+&gt      (gp:with-graphics-state (pane :font (gp:find-best-font pane font-description))
+&gt        (setf pane-string-width (gp:port-string-width pane text)
+&gt              pane-string-height (gp:port-string-height pane text)))
+&gt      (capi:destroy (capi:element-interface pane))
+&gt      (capi:with-print-job (printer-port :printer printer)
+&gt        (gp:with-graphics-state (printer-port :font (gp:find-best-font printer-port font-description))
+&gt          (setf printer-string-width (gp:port-string-width printer-port text)
+&gt                printer-string-height (gp:port-string-height printer-port text))))
+&gt      (values pane-string-width pane-string-height printer-string-width printer-string-height))))
+&gt 
+&gt CL-USER 1 &gt (simple-test :text (make-string 50 :initial-element #\W))
+&gt 650
+&gt 16
+&gt 680
+&gt 16
+&gt 
+&gt CL-USER 2 &gt (simple-test :text (make-string 50 :initial-element #\.))
+&gt 250
+&gt 16
+&gt 248
+&gt 16
+&gt 
+&gt CL-USER 3 &gt (simple-test :text (make-string 50 :initial-element #\W) :family "Arial")
+&gt 650
+&gt 16
+&gt 640
+&gt 15
+&gt 
+&gt CL-USER 4 &gt 
+&gt 
+&gt 
+
+Dr. David McClain
+dbm@refined-audiometrics.com
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: hard-copy fonts change their shape</h1>
+                 <pre>
+You are running into the difference between "screen metrics" and  
+"print metrics".
+
+If print quality isn't as important as print layout, I'd suggest  
+turning the text into a bitmap (programatically or staticly, depending  
+on your app) and printing the resulting bitmap.
+
+--Jim
+
+On Mar 28, 2010, at 12:14 PM, "Nick Levine" &lt;ndl@ravenbrook.com&gt wrote:
+
+&gt
+&gt I'm trying to print a pinboard-layout. There are several carefully
+&gt positioned boxes, and there's text that fits nicely into the boxes. In
+&gt the printout, the text is typically too long for the boxes and the
+&gt whole thing looks terrible.
+&gt
+&gt You can get a similar effect by comparing the port-string-width and
+&gt -height of a string in an output-pane and a printer-port. The heights
+&gt and widths can differ by as much as 5%. The proportions by which they
+&gt vary differ, so I can't fix this by scaling the printer-port.
+&gt
+&gt Has anybody met this before? Can anybody explain it? Or better still,
+&gt fix the problem so that a printer font has the same shape (width to
+&gt height ratio) as an output-pane font?
+&gt
+&gt Thanks,
+&gt
+&gt - nick
+&gt
+&gt (defun simple-test (&amp;key (family "Verdana") (size 10.0) (text  
+&gt "Hello, World"))
+&gt  (when-let (printer (capi:print-dialog))
+&gt    (let* ((pane (capi:contain (make-instance 'capi:output-pane)
+&gt                               :display-state :hidden))
+&gt           (font-description (gp:make-font-description :family family
+&gt                                                       :size size))
+&gt            pane-string-width pane-string-height
+&gt            printer-string-width printer-string-height)
+&gt      (gp:with-graphics-state (pane :font (gp:find-best-font pane  
+&gt font-description))
+&gt        (setf pane-string-width (gp:port-string-width pane text)
+&gt              pane-string-height (gp:port-string-height pane text)))
+&gt      (capi:destroy (capi:element-interface pane))
+&gt      (capi:with-print-job (printer-port :printer printer)
+&gt        (gp:with-graphics-state (printer-port :font (gp:find-best- 
+&gt font printer-port font-description))
+&gt          (setf printer-string-width (gp:port-string-width printer- 
+&gt port text)
+&gt                printer-string-height (gp:port-string-height printer- 
+&gt port text))))
+&gt      (values pane-string-width pane-string-height printer-string- 
+&gt width printer-string-height))))
+&gt
+&gt CL-USER 1 &gt (simple-test :text (make-string 50 :initial-element #\W))
+&gt 650
+&gt 16
+&gt 680
+&gt 16
+&gt
+&gt CL-USER 2 &gt (simple-test :text (make-string 50 :initial-element #\.))
+&gt 250
+&gt 16
+&gt 248
+&gt 16
+&gt
+&gt CL-USER 3 &gt (simple-test :text (make-string 50 :initial-element # 
+&gt \W) :family "Arial")
+&gt 650
+&gt 16
+&gt 640
+&gt 15
+&gt
+&gt CL-USER 4 &gt
+&gt
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:35 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

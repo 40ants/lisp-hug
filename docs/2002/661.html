@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Subtle problem in MP code: Are we doing this right?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Subtle problem in MP code: Are we doing this right?</h1>
+                <pre>
+Dear lisp-huggers,
+
+Consider the following piece of code:
+
+(defun invoke-with-timeout (timeout bodyfn timeoutfn)
+  (block timeout
+    (let* ((process mp:*current-process*)
+           (timer (mp:make-timer 
+                   #'(lambda () 
+                       (mp:process-interrupt process
+                                             #'(lambda ()
+                                                 (return-from timeout
+                                                   (funcall timeoutfn))))))))
+      (mp:schedule-timer-relative timer timeout)
+      (unwind-protect (funcall bodyfn)
+        (mp:unschedule-timer timer)))))
+
+This code is from the acl-compat library distributed with portable
+allegroserve.  (Thanks Jochen!)
+
+
+We have, in *very* rare circumstances, seen the following occur:
+   Condition: Uncaught throw of &lt;timeoutfn return value&gt to (NIL).
+
+   Call to (HARLEQUIN-COMMON-LISP:SUBFUNCTION 1 ACL-COMPAT-MP::INVOKE-WITH-TIMEOUT)
+   Call to MP::PROCESS-OUTSTANDING-INTERRUPTS
+   Call to MP::RESUME-PROCESS
+   Call to MP:PROCESS-WAIT
+   Call to PING-READY-MONITORS
+   Call to (HARLEQUIN-COMMON-LISP:SUBFUNCTION 1 MP::INITIALIZE-PROCESS-STACK)
+
+We believe that the following occurs:
+   a) Timer is scheduled
+   b) (funcall bodyfn) in unwind protect form runs
+   c) Timer begins running, mp:process-interrupt is called, but process
+      is not yet interrupted (in running non-safety-0 function?)
+   d) Process normally completes invoke-with-timeout
+   e) Process enters a wait-function
+   f) At this point, the interrupt is able to run, but the context in
+      which it was called has disappeared.
+   g) A condition is thrown containing the return value of timeoutfn.
+      [Because it's trying to do a RETURN-FROM to a block which is now gone]
+   
+
+Claudio and I propose the following correction:
+
+(defun invoke-with-timeout (timeout bodyfn timeoutfn)
+  (block timeout
+    (let* ((process mp:*current-process*)
+           (unsheduled? nil)
+           (timer (mp:make-timer 
+                   #'(lambda () 
+                       (mp:process-interrupt process
+                                             #'(lambda ()
+                                                 (unless unsheduled?
+                                                   (return-from timeout
+                                                     (funcall timeoutfn)))))))))
+      (mp:schedule-timer-relative timer timeout)
+      (unwind-protect (funcall bodyfn)
+        (without-interrupts
+         (mp:unschedule-timer timer)
+         (setf unsheduled? t))))))
+
+
+Does anyone know if this theory of ours is correct, and if our
+above fix will work?  
+
+--
+			Alain Picard
+			Memetrics
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Subtle problem in MP code: Are we doing this right?</h1>
+                 <pre>Am Mittwoch, 6. November 2002 03:33 schrieb Alain Picard:
+
+[snipped problem-description and fix]
+
+&gt Does anyone know if this theory of ours is correct, and if our
+&gt above fix will work?
+
+I think you are right with your problem description and your fix should work
+as far as I understand it.
+
+As already discussed on c.l.l WITH-TIMEOUT has somewhat questionable semantics
+and should be avoided in new code. I implemented it to get Portable 
+AllegroServe running and to complete the ACL compatibility layer.
+
+The main problem with WITH-TIMEOUT is that it interrupts the code at an 
+arbitrary position and it is not clear if consistency is then still 
+maintainable.
+
+Newer ACL seems to have socket-streams with inbuilt timeout-handling.
+AllegroServe makes use of this facility if it is available. If in the body of 
+WITH-TIMEOUT-LOCAL a socket-timeout occurs then a condition is thrown and
+the timeout code is run in the condition-handler. 
+
+#+(and allegro (version&gt= 6 1))
+(defmacro with-timeout-local ((time &amp;rest actions) &amp;rest body)
+  (declare (ignore time))
+  (let ((g-blocktag (gensym)))
+    `(block ,g-blocktag
+       (handler-bind ((socket-error
+                       #'(lambda (c)
+                           (if* (member (stream-error-identifier c)
+                                        '(:read-timeout :write-timeout)
+                                        :test #'eq)
+                              then ; must handle this
+                                   (return-from ,g-blocktag
+                                     (progn ,@actions))))))
+         ,@body))))
+
+Maybe it is a good idea to investigate LW4.2s read-timeouts on socket-streams 
+in this case.
+
+A straightforward (untested) translation of the above code would be:
+
+#+lispworks
+(defmacro with-timeout-local ((time &amp;rest actions) &amp;rest body)
+  (declare (ignore time))
+  (let ((g-blocktag (gensym)))
+    `(block ,g-blocktag
+       (handler-bind ((end-of-file
+                       #'(lambda (c)
+                                   (return-from ,g-blocktag
+                                     (progn ,@actions)))))
+         ,@body))))
+
+There are two things which are a bit questionable. One is that LW4.2 does 
+timeouts only for reads and not for writes like ACL. The other is that LW4.2 
+does use END-OF-FILE to signal a read-timeout so there seems to be no way to 
+explicitely check for a timeout like in ACLs case.
+
+Another ACL-COMPAT facility I implemented some time ago is the ACL function 
+WAIT-FOR-INPUT-AVAILABLE
+(defun wait-for-input-available 
+  (streams &amp;key (wait-function #'socket::stream-input-available) 
+   whostate timeout)
+  (let ((collected-fds nil))
+    (flet ((fd (stream-or-fd)
+             (typecase stream-or-fd
+               (comm:socket-stream (comm:socket-stream-socket stream-or-fd))
+               (socket::passive-socket (socket::socket-os-fd stream-or-fd))
+               (fixnum stream-or-fd)))
+           (collect-fds ()
+             (setf collected-fds
+                   (remove-if-not wait-function streams))))
+
+      #+unix
+      (unwind-protect
+          (progn
+            (dolist (stream-or-fd streams)
+              (mp:notice-fd (fd stream-or-fd)))
+            (if timeout
+                (mp:process-wait-with-timeout (or whostate "Waiting for 
+input")
+timeout #'collect-fds)
+              (mp:process-wait (or whostate "Waiting for input") 
+#'collect-fds))
+)
+        (dolist (stream-or-fd streams)
+          (mp:unnotice-fd (fd stream-or-fd))))
+      #-unix
+      (if timeout
+          (mp:process-wait-with-timeout (or whostate "Waiting for input") 
+timeou
+t #'collect-fds)
+        (mp:process-wait (or whostate "Waiting for input") #'collect-fds)))
+    collected-fds))
+
+;; In acl-socket-lw.lisp...
+(defmethod stream-input-available ((fd fixnum))
+  (comm::socket-listen fd))
+
+(defmethod stream-input-available ((stream comm:socket-stream))
+  (or (comm::socket-listen (comm:socket-stream-socket stream))
+      (listen stream)))
+
+(defmethod stream-input-available ((stream socket::passive-socket))
+  (comm::socket-listen (socket::socket-os-fd stream)))
+
+I'm not sure if this is the right way to do it. It works at least good enough 
+to run CLORB in ACL mode under LispWorks.
+It uses internal LW functions. Another problem is that NOTICE-FD seems to be 
+non-existent on the Windows platform.
+
+I really would like to see a facility to check multiple streams for input or 
+output without busy polling. Under UNIX this could be straightforwardly 
+mapped to something like select() which seems to exist already (notice-fd...)
+On Windows it seems as if WaitForMultipleObjects or something like that is a
+similar facility.
+
+ciao,
+Jochen
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:57 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

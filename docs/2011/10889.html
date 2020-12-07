@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Poor Man's GCD</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Poor Man's GCD</h1><html><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space; ">
+I have been doing some DSP programming here, and found some surprising results...<div><br></div><div>On OS X Snow Leopard, we have GCD (Grand Central Dispatch) and a very elaborate OS thread level support. But not so on OS X 10.4, or on Windows/7 (AFAIK?). So I decided to try to implement a poor-man's version of GCD for parallelizing portions of code, to run on Windows/7, written entirely in LW.</div><div><br></div><div>First the surprise... LW Mailboxes do not appear to have a queue of pending threads awaiting messages. There is a lock implemented in them, and I had always assumed that lock was for preventing multiple writers from stepping on each other. But in fact, that lock also appears to work for multiple readers. You really can allow multiple threads to read the same mailbox, and they are properly serialized in their access. I never see the same message being sent to more than one receiver thread.</div><div><br></div><div>I suppose that has much to do with the way each LW thread has a wait function, and as long as the mailbox reads are locked, the effect is much the same as having a queue of pending threads on the mailbox. In fact, the LW scheme probably offers even greater flexibility by not tying up a thread solely to a mailbox.</div><div><br></div><div>So, a poor-man's GCD can be constructed by launching a pool of LW threads performing an infinite loop of reading one specific mailbox, evaluating the message, and returning results to a reply-to mailbox included in each message.</div><div><br></div><div>In order to avoid deadlock, the thread executing a PAR operation also needs to participate in the pool by repeatedly performing a mailbox read on that same mailbox, and performing whatever code is in a message, and then only when the mailbox empties is it safe to start waiting on replies from the various reply-to mailboxes created with each job enqueue operation.</div><div><br></div><div>Parallel operation is made possible with a (PAR clause1 clause2 ... ) macro that bundles up each clause in a lambda closure, and for each clause, it creates a new reply-to mailbox and sends that reply-to along with the closure to the central GCD mailbox. The end of the PAR clause has an implicit JOIN, which makes the calling thread participate as described above, before reaping the results from each of the reply-to mailboxes.&nbsp;</div><div><br></div><div>All of this works the same way on both OS X and Windows/7. All 100% Lisp. I do not call on OS X GCD at all.</div><div><br></div><div>This works like a champ. But here's another surprise...</div><div><br></div><div>Take a simple test like the following:</div><div><br></div><div>Make two lists of a zillion integers. Two lists, so to avoid any possible penalty for SMP access to the same memory. Ask each thread to add up all the numbers in one list or the other, and return the list consisting of that sum and the MP::PROCESS-STACK-GROUP of itself (this appears to be a unique, easy way, of identifying different threads). This simple-minded tests crudely simulates some kinds of DSP processing, like FIR filtering.</div><div><br></div><div><div>;; ------------------------------------------</div><div><br></div><div>(defvar vals1 (loop for ix from 0 below 10000000 collect ix))</div><div>(defvar vals2 (loop for ix from 0 below 10000000 collect (* 2 ix)))</div><div><br></div><div>(defun doit (vals)</div><div>&nbsp;&nbsp;(list (mp::process-stack-group mp:*current-process*)</div><div>&nbsp;&nbsp; &nbsp; &nbsp; &nbsp;(loop repeat 1 collect (loop for v in vals sum v))))</div><div><br></div><div>(defun tstpar ()</div><div>&nbsp;&nbsp;(par</div><div>&nbsp;&nbsp; &nbsp;(doit vals1)</div><div>&nbsp;&nbsp; &nbsp;(doit vals2)))</div><div><br></div><div>(defun tstser ()</div><div>&nbsp;&nbsp;(list</div><div>&nbsp;&nbsp; &nbsp;(doit vals1)</div><div>&nbsp;&nbsp; &nbsp;(doit vals2)))</div><div><br></div><div>(time (tstpar))</div><div>(time (tstser))</div></div><div><br></div><div>;; ------------------------------------------</div><div><br></div><div>On LW 32-bit, regardless of OS, I usually see a performance *penalty* from parallelized code, compared to single-thread execution. This for all of OS X 10.4, OS X 10.6, Windows/7-64. You can see that PAR really does fire up the available processors to near 100% utilization, but despite that, the overall wall-clock duration is slightly worse than if you just have one thread evaluate the entire block of code, changing PAR into LIST. And there is significant, e.g., 20% System Time overhead in the parallel versions.</div><div><br></div><div>Only when I move to LW 64-bit do I actually see a speedup, and darn near linear with number of available cores and threads. And in fact, for my particular DSP-like test, LW-64 is almost 100x faster than LW-32, whether in parallel mode or in serial execution mode. In order to obtain measurable durations in the timings, I had to collect the sums 100 times over inside the DOIT routine. (change (loop repeat 1 collect ...) to (loop repeat 100 collect ....)).</div><div><br></div><div>On my 2-core machines, I see almost twice the performance in the parallel code. If I add two more clauses to the tester routines, and with a pool of 4 or 5 threads, then on my 4-core I3 processor I see a near 4x speedup.</div><div><br></div><div>So the LW-64 versions appear to have a better impedance match to the underlying 64-bit OS, for both OS X and Windows/7. Something about the LW-32 is very poorly matched and produces penalties for parallel implementations. I don't know if this is because LW-64 has a better threading model than LW-32? or because there is less OS interfacing from a 64-bit code to the OS, than for a simulated (?) 32-bit code.<br><br><div> <span class="Apple-style-span" style="font-size: 12px; "><span class="Apple-style-span" style="border-collapse: separate; -webkit-border-horizontal-spacing: 0px; -webkit-border-vertical-spacing: 0px; color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant: normal; font-weight: normal; letter-spacing: normal; line-height: normal; -webkit-text-decorations-in-effect: none; text-indent: 0px; -webkit-text-size-adjust: auto; text-transform: none; orphans: 2; white-space: normal; widows: 2; word-spacing: 0px; "><span class="Apple-style-span" style="border-collapse: separate; -webkit-border-horizontal-spacing: 0px; -webkit-border-vertical-spacing: 0px; color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant: normal; font-weight: normal; letter-spacing: normal; line-height: normal; -webkit-text-decorations-in-effect: none; text-indent: 0px; -webkit-text-size-adjust: auto; text-transform: none; orphans: 2; white-space: normal; widows: 2; word-spacing: 0px; "><span class="Apple-style-span" style="border-collapse: separate; -webkit-border-horizontal-spacing: 0px; -webkit-border-vertical-spacing: 0px; color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant: normal; font-weight: normal; letter-spacing: normal; line-height: normal; -webkit-text-decorations-in-effect: none; text-indent: 0px; -webkit-text-size-adjust: auto; text-transform: none; orphans: 2; white-space: normal; widows: 2; word-spacing: 0px; "><span class="Apple-style-span" style="border-collapse: separate; -webkit-border-horizontal-spacing: 0px; -webkit-border-vertical-spacing: 0px; color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant: normal; font-weight: normal; letter-spacing: normal; line-height: normal; -webkit-text-decorations-in-effect: none; text-indent: 0px; -webkit-text-size-adjust: auto; text-transform: none; orphans: 2; white-space: normal; widows: 2; word-spacing: 0px; "><div style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; ">Dr. David McClain</div><div style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; ">Chief Technical Officer</div><div style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; ">Refined Audiometrics Laboratory</div><div style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; ">4391 N. Camino Ferreo</div><div style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; ">Tucson, AZ&nbsp; 85750</div><div style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; font: normal normal normal 12px/normal Helvetica; min-height: 14px; "><br></div><div style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; ">email: <a href="mailto:dbm@refined-audiometrics.com">dbm@refined-audiometrics.com</a></div><div style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; ">phone: 1.520.390.3995</div><div style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; ">web: <a href="http://refined-audiometrics.com">http://refined-audiometrics.com</a></div><br class="Apple-interchange-newline"></span><span></span></span></span></span></span><br class="Apple-interchange-newline"> </div><br></div></body></html>
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Poor Man's GCD</h1>
+                 <pre>
+
+On Mar 24, 2011, at 6:43 PM, David McClain wrote:
+
+&gt So, a poor-man's GCD can be constructed by launching a pool of LW threads performing an infinite loop of reading one specific mailbox, evaluating the message, and returning results to a reply-to mailbox included in each message.
+
+Nice. Could you share some demo code with the list?
+
+warmest regards,
+
+Ralph
+
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Poor Man's GCD</h1>
+                 <p>
+                  Unable to parse email body. Email id is 10893
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:34 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

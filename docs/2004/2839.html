@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>LWM and LWW</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>LWM and LWW</h1>
+                <pre>Hello,
+
+We started to port our software from LWM to LWW. For the most part 
+this work has advanced very well.
+We have, however,  encountered some problems in LWW:
+
+
+(1) in LWW we get  an error if we call 'apply' with a list who's 
+length is greater than 255,
+Is there a way to specify the length of the argument list for 'apply' 
+(LWM seems to be
+more tolerant when calling 'apply').
+
+(2) whan a capi window is selected with a click in the window area, 
+it receives extra events (click.-down,  click-motion, and 
+click-release or for input-models: (:button-1  :press) (:button-1 
+:motion) (:button-1  :release)).  In LWM the window is only selected. 
+Is there a way to avoid these
+extra events in LWW ?
+
+Mikael
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LWM and LWW</h1>
+                 <p>
+                  Unable to parse email body. Email id is 2840
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LWM and LWW</h1>
+                 <pre>&gt
+&gt  &gt (2) whan a capi window is selected with a click in the window area,
+&gt  &gt it receives extra events (click.-down,  click-motion, and
+&gt  &gt click-release or for input-models: (:button-1  :press) (:button-1
+&gt  &gt :motion) (:button-1  :release)).  In LWM the window is only selected.
+&gt  &gt Is there a way to avoid these
+&gt  &gt extra events in LWW ?
+&gt
+&gtI'm not sure what you mean by extra events. Do you have some example
+&gtcode illustrating the issue?
+&gt
+&gt--
+&gtDave Fox
+
+Here is a simple test:
+
+(capi:define-interface test ()
+   ()
+   (:panes (opengl capi:opengl-pane
+                   :input-model
+                   '(((:button-1  :press)  testl-button1-press)
+                     ((:button-1  :motion) test-button1-press-motion)
+                     ((:button-1  :release) test-button1-release)))))
+
+(defmethod testl-button1-press (&amp;rest args)
+   (print 'press))
+(defmethod test-button1-press-motion (&amp;rest args)
+   (print 'motion))
+(defmethod test-button1-release (&amp;rest args)
+   (print 'release))
+
+(capi:find-interface 'test)
+
+If I select in LWM the window by clicking in the opengl-pane area, 
+there are no prints, as the first
+click is used only to select the window. After this any further 
+clicks in the opengl-pane area
+are printed as expected.
+
+If the same operation is carried out in LWW (i.e. a selection click 
+in the  in opengl-pane area), the window is selected AND I get all 3 
+prints: 'press', 'motion' and 'release'.
+
+We would prefer the LWM behaviour as here the selection click only 
+selects the window and does not affect the
+state of the window otherwise (like deselecting some objects, etc.).
+
+(Just as a parenthesis: This behaviour seems also to be the case with 
+the LWW text editor, as you do not loose a text selection, if you 
+select the editor window with a click in the editing area.)
+
+Mikael
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LWM and LWW</h1>
+                 <pre>Mikael Laurson &lt;laurson@siba.fi&gt writes:
+
+&gt (1) in LWW we get  an error if we call 'apply' with a list who's
+&gt length is greater than 255,
+
+The limit in LW is very low, but why do you want to call apply on
+that many arguments? 
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LWM and LWW</h1>
+                 <pre>Espen Vestre wrote:
+
+&gtMikael Laurson &lt;laurson@siba.fi&gt writes:
+&gt
+&gt&gt  (1) in LWW we get  an error if we call 'apply' with a list who's
+&gt&gt  length is greater than 255,
+&gt
+&gtThe limit in LW is very low, but why do you want to call apply on
+&gtthat many arguments?
+&gt--
+We have ported our code from MCL and for the most part the process has
+been very smooth when dealing with Common Lisp and CLOS related code.
+
+The limit is indeed much higher in MCL (at least 5000 elements, which is enough
+for our purposes). We can of course rewrite our code but occasionally 
+the 'apply'
+function is very handy. For me the LW limit seems to be very low.
+
+Mikael
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: LWM and LWW</h1>
+                  <pre>LW's backquote implementation (mis)uses apply, so you can't read certain 
+backquoted expressions in LWW.  256 is a pretty low limit for backquote...
+
+
+At 10/6/2004 04:36 AM, Espen Vestre wrote:
+&gtMikael Laurson &lt;laurson@siba.fi&gt writes:
+&gt
+&gt &gt for our purposes). We can of course rewrite our code but occasionally
+&gt &gt the 'apply'
+&gt &gt function is very handy. For me the LW limit seems to be very low.
+&gt
+&gtComing from MCL (and Allegro), I was disturbed too the first time I
+&gtencountered this, but I think it actually has helped me write better
+&gtcode: E.g.  using (apply #'+ pretty-random-list-of-numbers) is bad
+&gtstyle except maybe if the length of the number list has a very hard
+&gtand very low length limit. For more or less random lists, it's much
+&gtbetter to use (reduce #'+ pretty-random-list-of-numbers). Likewise,
+&gt(reduce #'append ...) is better style than (apply #'append ...).
+&gt
+&gtThe only case I can think of where the low call arg limit would be
+&gtreally disturbing, is a function that would take, say, 150 different
+&gtkeyword arguments (I haven't actually seen such functions :-)).
+&gt--
+&gt   (espen)
+
+
+</pre>
+                 </article>
+                </section>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: LWM and LWW</h1>
+                  <p>
+                   Unable to parse email body. Email id is 2866
+                 </article>
+                </section>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: LWM and LWW</h1>
+                  <pre>&gt  &gt LW's backquote implementation (mis)uses apply, so you can't read certain
+&gt  &gt backquoted expressions in LWW.
+&gt
+&gtCould you show us an example of that? I didn't know that the LispWorks
+&gtbackquote implementation uses (or misuses) APPLY.
+&gt
+&gt  &gt                               256 is a pretty low limit for backquote...
+&gt
+&gt
+&gt  &gt
+&gt  &gt At 10/6/2004 04:36 AM, Espen Vestre wrote:
+&gt  &gt &gtMikael Laurson &lt;laurson@siba.fi&gt writes:
+&gt  &gt &gt
+&gt  &gt &gt &gt for our purposes). We can of course rewrite our code but occasionally
+&gt  &gt &gt &gt the 'apply'
+&gt  &gt &gt &gt function is very handy. For me the LW limit seems to be very low.
+&gt  &gt &gt
+&gt  &gt &gtComing from MCL (and Allegro), I was disturbed too the first time I
+&gt  &gt &gtencountered this, but I think it actually has helped me write better
+&gt  &gt &gtcode: E.g.  using (apply #'+ pretty-random-list-of-numbers) is bad
+&gt  &gt &gtstyle except maybe if the length of the number list has a very hard
+&gt  &gt &gtand very low length limit. For more or less random lists, it's much
+&gt  &gt &gtbetter to use (reduce #'+ pretty-random-list-of-numbers). Likewise,
+&gt  &gt &gt(reduce #'append ...) is better style than (apply #'append ...).
+&gt  &gt &gt
+&gt  &gt &gtThe only case I can think of where the low call arg limit would be
+&gt  &gt &gtreally disturbing, is a function that would take, say, 150 different
+&gt  &gt &gtkeyword arguments (I haven't actually seen such functions :-)).
+&gt
+&gtFurther, Chris Reisbeck has pointed out (in mail that did not reach
+&gtthe list) that the Common Lisp standard only guarantees 50 as the
+&gtminimum for CALL-ARGUMENTS-LIMIT, so counting on anything more means
+&gtyou're writing non-portable code.
+&gt
+&gtNonetheless we will investigate raising the value of
+&gtCALL-ARGUMENTS-LIMIT for a future LispWorks release.
+&gt
+OK, thanks for this information. We should have no problems porting our code
+using 'reduce', etc.
+
+Mikael
+
+
+</pre>
+                 </article>
+                </section>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LWM and LWW</h1>
+                 <pre>Mikael Laurson &lt;laurson@siba.fi&gt writes:
+
+&gt for our purposes). We can of course rewrite our code but occasionally
+&gt the 'apply'
+&gt function is very handy. For me the LW limit seems to be very low.
+
+Coming from MCL (and Allegro), I was disturbed too the first time I
+encountered this, but I think it actually has helped me write better
+code: E.g.  using (apply #'+ pretty-random-list-of-numbers) is bad
+style except maybe if the length of the number list has a very hard
+and very low length limit. For more or less random lists, it's much
+better to use (reduce #'+ pretty-random-list-of-numbers). Likewise,
+(reduce #'append ...) is better style than (apply #'append ...).
+
+The only case I can think of where the low call arg limit would be
+really disturbing, is a function that would take, say, 150 different
+keyword arguments (I haven't actually seen such functions :-)).
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:51 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

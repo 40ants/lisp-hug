@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>CLOS object finalization</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>CLOS object finalization</h1>
+                <pre>
+Dear everyone,
+
+I am encapsulating foreign allocated objects within CLOS classes.  
+In  my case, it is okay to free the memory when the garbage collector 
+reclaims the objects.  So here is how I am finalizing my CLOS objects:
+
+
+(defgeneric finalize-object (object)
+  (:method (object)
+    (declare (ignore object))
+    nil))
+
+(hcl:add-special-free-action 'finalize-object)
+
+
+(defclass my-class ()
+  ())
+
+(defmethod initialize-instance :after ((self my-class) &amp;key)
+  (hcl:flag-special-free-action self))
+
+(defmethod finalize-object ((self my-class))
+  ;; Do whatever is needed to finalize the object here ...
+  ;; Warning: the thread in which this code is called is unknown.
+  ...)
+
+
+FLI users: and you, how do you do this?
+Do you have a different technique?
+Are there any pitfalls I have missed?
+
+I  search  for  something  already existing in LW, but I did not find 
+anything  similar.  I thought the problem wasn't so specific ...
+
+
+Cheers,
+Camille
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: CLOS object finalization</h1>
+                 <pre>
+Hi Camille,
+
+The RDNZL code also includes examples of this technique - pretty
+similar to what you are doing.
+
+Cheers,
+Edi.
+
+
+On Wed, Jan 4, 2012 at 6:14 PM, Camille Troillard &lt;camille@osculator.net&gt wrote:
+&gt
+&gt Dear everyone,
+&gt
+&gt I am encapsulating foreign allocated objects within CLOS classes.
+&gt In &nbsp;my case, it is okay to free the memory when the garbage collector
+&gt reclaims the objects. &nbsp;So here is how I am finalizing my CLOS objects:
+&gt
+&gt
+&gt (defgeneric finalize-object (object)
+&gt &nbsp;(:method (object)
+&gt &nbsp; &nbsp;(declare (ignore object))
+&gt &nbsp; &nbsp;nil))
+&gt
+&gt (hcl:add-special-free-action 'finalize-object)
+&gt
+&gt
+&gt (defclass my-class ()
+&gt &nbsp;())
+&gt
+&gt (defmethod initialize-instance :after ((self my-class) &amp;key)
+&gt &nbsp;(hcl:flag-special-free-action self))
+&gt
+&gt (defmethod finalize-object ((self my-class))
+&gt &nbsp;;; Do whatever is needed to finalize the object here ...
+&gt &nbsp;;; Warning: the thread in which this code is called is unknown.
+&gt &nbsp;...)
+&gt
+&gt
+&gt FLI users: and you, how do you do this?
+&gt Do you have a different technique?
+&gt Are there any pitfalls I have missed?
+&gt
+&gt I &nbsp;search &nbsp;for &nbsp;something &nbsp;already existing in LW, but I did not find
+&gt anything &nbsp;similar. &nbsp;I thought the problem wasn't so specific ...
+&gt
+&gt
+&gt Cheers,
+&gt Camille
+&gt
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: CLOS object finalization</h1>
+                 <p>
+                  Unable to parse email body. Email id is 11435
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:33 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

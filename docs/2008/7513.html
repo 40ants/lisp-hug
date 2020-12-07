@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>The right idiom for reading from CAPI panes</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>The right idiom for reading from CAPI panes</h1>
+                <pre>
+&gtFrom time to time I re-read parts of the LispWorks manuals to refresh
+my recollection.  (You see things you've read before in a different
+light after some years when you've used them extensively in the
+meantime...)
+
+Today, I stumbled across this sentence which is repeated in several
+places, for example in the entry for CAPI:APPLY-IN-PANE-PROCESS in the
+CAPI Reference Manual:
+
+  All accesses (reads as well as writes) on a pane should be performed
+  in the panes' process.
+
+Yes, we've all learned to love and hate CAPI:APPLY-IN-PANE-PROCESS for
+manipulating CAPI panes from another thread, but I have to admit that
+today for the first time I really thought about the "READS as well as
+writes" part of this sentence.  I don't think I ever thought about
+processes when I was just reading values from a CAPI pane and I'm
+petty sure I never had problems related to that.
+
+If I understand the part about reads correctly, one would have to code
+like I did in the example below, right?  Do you guys really do that?
+Or is there a better idiom I'm missing?
+
+Or is this really a non-issue or only relevant for very special cases?
+After all, if I look at the entry for CAPI:CHECK-BUTTON-PANEL in the
+CAPI Reference Manual, /they/ just read from the panel without using
+CAPI:APPLY-IN-PANE-PROCESS... :)
+
+Curious,
+Edi.
+
+
+  (in-package :cl-user)
+
+  (capi:define-interface test-interface ()
+    ()
+    (:panes
+     (buttons
+      capi:check-button-panel
+      :title "Select some:"
+      :items '("LispWorks" "AllegroCL" "SBCL" "OpenMCL")
+      :accessor test-interface-buttons))
+    (:layouts
+     (layout
+      capi:simple-layout
+      '(buttons))))
+
+  (defvar *interface*)
+
+  (defun start ()
+    (setq *interface* (make-instance 'test-interface))
+    (capi:display *interface*))
+
+  (defun current-selection ()
+    (let (donep selected-items)
+      (flet ((selected-items (pane)
+               (setq selected-items (capi:choice-selected-items pane)
+                     donep t)))
+        (let ((buttons (test-interface-buttons *interface*)))
+          (capi:apply-in-pane-process buttons #'selected-items buttons)))
+      (mp:process-wait "waiting for interface" (lambda () donep))
+      selected-items))
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>RE: The right idiom for reading from CAPI panes</h1>
+                 <pre>
+ 
+
+-----Original Message-----
+From: owner-lisp-hug@lispworks.com [mailto:owner-lisp-hug@lispworks.com] On Behalf Of Edi Weitz
+Sent: 25. januar 2008 00:36
+To: lisp-hug@lispworks.com
+Subject: The right idiom for reading from CAPI panes
+
+Let me guess: If one process reads from the pane, without CAPI:APPLY-IN-PANE-PROCESS, while another writes to the pane, with or without CAPI:APPLY-IN-PANE-PROCESS: What does the reader see? I believe it will be surprised, at least sometimes.
+
+
+Eivind
+
+(Sorry for the empty reply a few seconds ago.)
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: The right idiom for reading from CAPI panes</h1>
+                  <pre>
+On Fri, 25 Jan 2008 01:43:56 +0100, Eivind Midtgård &lt;eivind@autosim.no&gt wrote:
+
+&gt Let me guess: If one process reads from the pane, without
+&gt CAPI:APPLY-IN-PANE-PROCESS, while another writes to the pane, with
+&gt or without CAPI:APPLY-IN-PANE-PROCESS: What does the reader see? I
+&gt believe it will be surprised, at least sometimes.
+
+What would the difference between the reader using A-I-P-P or not be
+in my example?  It can get the list of selected items /before/ or
+/after/ the writer modifies the pane, it doesn't know either way.
+
+So, the only reasonable problem I could imagine is that it's neither
+before or after but really "at the same time" and the writer is
+interrupted in the middle of some non-atomic operation which would
+result in the reader getting invalid data.  (Of course, this
+presumably can't happen with A-I-P-P as - my understanding - reader
+and writer are queued and their requested operations are performed
+sequentially.)
+
+So, if one needs to use A-I-P-P to be guarded against a case like I
+described in the last paragraph, isn't this more a general issue of
+what's atomic and what not in MP?
+
+Trying to be more precise - in my particular example the reader
+receives ("a pointer to") a cons cell and I have a hard time imagining
+how it could end up receiving an invalid pointer, even in a scenario
+like the one Martin described here:
+
+  http://article.gmane.org/gmane.lisp.lispworks.general/7138
+
+
+</pre>
+                 </article>
+                </section>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: The right idiom for reading from CAPI panes</h1>
+                  <pre>
+Sorry for talking to myself, but after a cigarette I had some new
+ideas... :)
+
+The button panel CLOS object is of course not the real thing but, as
+the CAPI User Guide explains, only a representation of the window
+object of the underlying windowing system.  Let's call the CAPI object
+C and the windowing object W.
+
+To return the value of (CHOICE-SELECTED-ITEMS C), CAPI will under the
+hood probably perform some pseudo-machine code like this (I'm thinking
+of the translation of something like LOOP ... COLLECT):
+
+  A1.  Create a Lisp list L1.
+
+  A2.  Read status of first checkbox from W.
+  A3.  Set first element of L1 according to step A2.
+
+  A4.  Read status of second checkbox from W.
+  A5.  Set second element of L1 according to step A4.
+
+  A6.  Read status of third checkbox from W.
+  A7.  Set third element of L1 according to step A6.
+
+  A8.  Read status of fourth checkbox from W.
+  A9.  Set fourth element of L1 according to step A8.
+
+  A10. Return L1.
+
+To /set/ the value of (CHOICE-SELECTED-ITEMS C) to some new value L2,
+the operations will maybe look like this:
+
+  B1.  Get first element of L2.
+  B2.  Set status of first checkbox of W according to B1.
+
+  B3.  Get second element of L2.
+  B4.  Set status of second checkbox of W according to B3.
+
+  B5.  Get third element of L2.
+  B6.  Set status of third checkbox of W according to B5.
+
+  B7.  Get fourth element of L2.
+  B8.  Set status of fourth checkbox of W according to B7.
+
+Now, let's say the current selection is (T NIL T NIL) meaning that the
+first and the third checkbox are checked.  Due to some GUI interaction
+(user presses button elsewhere) the application wants to
+programmatically set the selection to (NIL T NIL T), i.e. second and
+fourth checkbox.  This is done via B1 to B8 and happens in the
+interface thread where it should happen.
+
+At the same time some sloppy code from Edi tries to read the selection
+from another thread and doesn't use APPLY-IN-PANE-PROCESS.  Steps A1
+to A10 are performed.  The OS decides to schedule this as follows:
+
+  A1 A2 A3          ;; L1 is (T) so far
+  B1 B2 B3 B4       ;; second checkbox marked as checked
+  A4 A5 A6 A7       ;; L1 is now (T T T)
+  B5 B6 B7 B8       ;; fourth checkbox marked as checked
+  A8 A9 A10         ;; return value for L1 is (T T T T)
+
+So, my code will receive the bogus result (T T T T) meaning all four
+checkboxes are checked which reflects a state that never happened in
+the "real world."
+
+Hmm, I think I just convinced myself.  But maybe this is also bogus.
+Does it make sense?
+
+The question remains, though, why the CAPI Reference Manual itself
+doesn't follow its own rules...
+
+
+</pre>
+                 </article>
+                </section>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: The right idiom for reading from CAPI panes</h1>
+                  <pre>
+Hi David,
+
+On Thu, 24 Jan 2008 20:06:07 -0700, David McClain &lt;dbm@refined-audiometrics.com&gt wrote:
+
+&gt But I think part of the confusion stems from our lack of knowledge
+&gt about the nature of the thread switching mechanism -- when it
+&gt occurs, and how re-entrant or not, the underlying code is.
+
+Agreed.  My /guess/ is that the "when" part is decided by the OS as
+the threads are native.
+
+&gt The LW manual states that only one Lisp thread can run at a time,
+&gt and that a lock is used to ensure this. I take that to mean that
+&gt even if the OS preempts a Lisp thread, no other Lisp thread could
+&gt possibly run until / unless the first thread releases the lock.
+
+That's not how I understand it.  I thought that the order of execution
+is more or less completely determined externally (i.e. by the OS)
+/except/ that you can rely on things happening sequentially and not in
+parallel - as if you were on a single-CPU-single-core machine.
+
+My naive picture is that the OS starts and stops the various Lisp
+threads at will and they basically do what they're told to.  But first
+they look at the "big lock" and if it says that some other Lisp thread
+from the same image is already running (which must be in another core
+or on another CPU), they refuse to run and go back to sleep.
+
+But even if my understanding is wrong, I'm still hoping that in the
+not-so-distant future LispWorks will be fully SMP-capable anyway.  At
+that point, certainly all bets are off, and my convoluted example
+would be valid.
+
+Maybe the manual just wants us to be prepared for this bright
+future... :)
+
+Cheers,
+Edi.
+
+
+</pre>
+                 </article>
+                </section>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: The right idiom for reading from CAPI panes</h1>
+                  <p>
+                   Unable to parse email body. Email id is 7533
+                 </article>
+                </section>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: The right idiom for reading from CAPI panes</h1>
+                  <p>
+                   Unable to parse email body. Email id is 7535
+                 </article>
+                </section>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: The right idiom for reading from CAPI panes</h1>
+                  <pre>
+On Fri, 25 Jan 2008 18:08:24 -0700, David McClain &lt;dbm@refined-audiometrics.com&gt wrote:
+
+&gt I just had a response, from someone watching this thread of
+&gt conversation, that he has used Erlang for such cases. I have used
+&gt Erlang in the past, but I didn't realize its kernel was fully re-
+&gt entrant. But Erlang's in-situ module update philosophy is certainly
+&gt something we are aiming for. And I think Lisp could shine in this
+&gt regard.
+
+I've just started reading Joe Armstrong's recently-released Erlang
+book and the language certainly sports a couple of interesting
+concepts.  I wouldn't really want to write large applications in it,
+being a dyed-in-the-wool Lisper, but it's probably a good idea to
+steal something from it.
+
+And, as you might remember from Klaus Harbo's talk in Hamburg, his
+CL-MUPROC library already implements a way to deal with
+multi-threading the Erlang way.  If one adheres to that, one can
+probably avoid a lot of headache.
+
+  http://common-lisp.net/project/cl-muproc/
+
+My understanding is that the main difference to Lisp that remains is
+that Erlang "processes" are a lot cheaper to create than OS threads as
+they are implemented in user land.  But that is obviously only an
+issue when you have very, very many processes.  I certainly wouldn't
+want to go back to "green" threads in CL, though, as for example you'd
+lose the ability to be called back from foreign code that LispWorks
+has.
+
+As for Erlang's "hot upgrades" it is not totally clear to me how that
+differs from modifying a running Lisp system.  Maybe someone with more
+Erlang fu can explain this.
+
+Or maybe we should stop here as this is certainly not
+LispWorks-specific anymore and might thus be in the wrong forum...
+
+
+</pre>
+                 </article>
+                </section>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: The right idiom for reading from CAPI panes</h1>
+                 <pre>
+&gt   (defun current-selection ()
+&gt     (let (donep selected-items)
+&gt       (flet ((selected-items (pane)
+&gt                (setq selected-items (capi:choice-selected-items pane)
+&gt                      donep t)))
+&gt         (let ((buttons (test-interface-buttons *interface*)))
+&gt           (capi:apply-in-pane-process buttons #'selected-items buttons)))
+&gt       (mp:process-wait "waiting for interface" (lambda () donep))
+&gt       selected-items))
+
+Is it prudent or paranoid to include a timeout in case selected-items 
+doesn't return? (as described previously in gmane) but which could now 
+use mp:process-wait-with-timeout.
+
+Mitch
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Firewall Problem: LW self modifying executable bundle on Mac?</h1>
+                 <pre>
+The Mac OS 10.5 firewall makes a hash for approved apps and then checks against it on launch.  Our LispWorks app fails the test every time after the first launch and is thus blocked by the Firewall.
+
+One suspicion is that LW is changing something.  
+
+Any ideas about what LW might be changing in the app bundle that is causing this and how to stop it from doing so?
+
+Thanks!
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Firewall Problem: LW self modifying executable bundle on Mac?</h1>
+                 <pre>
+We haven't "signed" our app for 10.5.  Could that be the problem?  If so, why does it run the first time?
+
+At 12:27 PM 10/27/2008, Denis Mashkevich wrote:
+
+&gtfslogger (http://www.kernelthread.com/software/fslogger/) is a great  
+&gttool to monitor filesystem activity. I am still using Tiger, but  
+&gthttp://googlemac.blogspot.com/2008/03/file-system-change-logger-for- leopard.html seems to indicate it has been updated for Leopard.
+&gt
+&gtOn 27 Oct 2008, at 18:10, Thomas Summerall wrote:
+&gt
+&gt&gt
+&gt&gtThe Mac OS 10.5 firewall makes a hash for approved apps and then  
+&gt&gtchecks against it on launch.  Our LispWorks app fails the test  
+&gt&gtevery time after the first launch and is thus blocked by the Firewall.
+&gt&gt
+&gt&gtOne suspicion is that LW is changing something.
+&gt&gt
+&gt&gtAny ideas about what LW might be changing in the app bundle that is  
+&gt&gtcausing this and how to stop it from doing so?
+&gt&gt
+&gt&gtThanks!
+&gt&gt
+&gt
+
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:40 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

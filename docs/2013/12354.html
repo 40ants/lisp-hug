@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>submenus in popup-menus?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>submenus in popup-menus?</h1>
+                <pre>
+Hi.  Ive got a hard time finding the errors im doing in some callbacks
+assigned to a submenu of a 'contextual' menu (popup-menu, mouse-3,
+right-click...).
+
+There are 2 interfaces set up at the bottom, one with a standard menu w.
+submenu - working as expected - and one using the same menu-elements in
+a 2-level popup-menu - where the sub-menu elements dont work.
+
+Any clues to whats going on is highly appreciated.
+
+-anders
+
+
+(defun showelem (data iface)
+  (display-message "~A" (list data iface)))
+
+(setq m1 (make-instance 'menu
+			:items '("Red" "Blue" "Green")
+			:callback 'showelem))
+
+(setq m2 (make-instance 'menu
+			:items (list 1 2 3 4 m1)
+			:callback 'showelem))
+
+(defun popup-test (pane x y)
+  (capi:display-popup-menu
+   (make-instance 'capi:menu
+		  :items (list 1 2 3 4 m1)
+		  :callback 'showelem)))
+
+(define-interface test ()
+  ()
+  (:panes
+   (viewer output-pane
+	   :visible-min-height 100
+	   :visible-min-width 100
+	   :input-model '((:post-menu popup-test)))))
+
+;; selecting the items in submenu calls the callback-func:
+
+(display (make-instance 'test))
+
+;; selecting the items in (right-click) submenu does not call the
+;; callback-func:
+
+(display (make-instance 'interface
+			:menu-bar-items (list m2)
+			:visible-min-height 100
+			:visible-min-width 100))
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: submenus in popup-menus? not on Linux Professional 6.1.1?</h1>
+                 <pre>
+
+    &gt Both "display" examples work for me on Mac 64-bit Lispworks
+    &gt 6.1.1, if by work you mean I get the popup when I select "blue"
+    &gt from the second-level menu.
+
+Thanks for checking.  Yes exactly, selecting items from the submenu
+(ie. "blue") doesn't call the callback to set up any display-message on
+this lisp.
+
+Ive got LW Professional 6.1.1 on Linux here, so i guess this suggests
+theres a bug in this distro/version, or perhaps something with gtk?.
+
+Ive got a thread going with lisp-support on this, and will follow up
+there, and post the conclusions here when they arrive.
+
+-anders
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: submenus in popup-menus? not on linux pro 6.1.1?</h1>
+                 <pre>
+&gt&gt&gt&gt&gt "a" == anders vinjar &lt;anders.vinjar@bek.no&gt writes:
+
+    a&gt Hi.  Ive got a hard time finding the errors im doing in some
+    a&gt callbacks assigned to a submenu of a 'contextual' menu
+    a&gt (popup-menu, mouse-3, right-click...).
+
+If anybody else is on linux, and could confirm or refute, i'd now if its
+me or lw.
+
+When checking directly in the IDE now (trashed ~/.lispworks-config and
+using a 'fresh' lw-image), none of the sub-menu-actions of any
+context-menu (right-click) work at all - "Expression"-&gt"Documentation",
+"Expression"-&gt"Evaluate Region" :-/
+
+Ive almost not touched the ide (working inside slime) yet myself, but if
+its a bug i cant beleive others on linux havent complained.  So im very
+much hoping its something i screwed up, and somebody's got cure.
+
+-anders
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: submenus in popup-menus? not on linux pro 6.1.1?</h1>
+                 <pre>
+&gt&gt&gt&gt&gt "P" == Paul Tarvydas &lt;paultarvydas@gmail.com&gt writes:
+
+    P&gt The right-click actions work for me in LWW.
+
+Thanks for checking.  Ive heard from others also it works on their
+installations, something weird platform-dependencies, possibly gtk+-ish
+or some such
+
+Dont know whats happening yet, but lisp-support is doing work to try to
+find out whats going on.  If other linux-users could test and send
+reports it would help.
+
+    P&gt Your code for the second window: (...)  doesn't contain an
+    P&gt :input-model
+
+I included it to compare the same menu used in 2 ways.
+
+    &gt&gt Ive almost not touched the ide
+
+    P&gt Why?  I find the debugger (etc) integration so useful, that I
+    P&gt stopped using emacs with LW...
+
+It does indeed seem very powerful.  Ive just started with lw for one
+specific project, and find the various parts of slime do what i need,
+besides being well integrated inside emacs.  I do actually setup lw's
+process-browser for developing/debugging various mp: work, occasionally
+also the class/method-browsers, and once-in-a-while been looking around
+in more of the ide - it might get more use in time.
+
+The main thing im missing is good debugging of ffi-code (mainly cffi),
+do you think the lw-ide might help here?
+
+-anders
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: submenus in popup-menus? solution: comment "EmulateWheelButton" part in 
+                  xorg.conf</h1>
+                 <pre>
+The errors went away after unsetting "EmulateWheel" for mouse-3 (lenovos
+trackpoint mouse) in one /etc/X11/xorg.conf.d/*.conf file:
+
+ 	Option		"EmulateWheel"		"true"
+     	Option		"EmulateWheelButton"	"3"
+
+Commenting the above gets the 2nd- and higer-level context-menus working
+as expected in lw.
+
+The setting above is afaik a more or less standard mapping used on many
+3-button mouse laptops.  My friend using gentoo has probably the same
+settings, perhaps also as a standard setting in his dist.
+
+Further, i cant see why this should break only lw, and only on the
+callbacks for 2nd-level (or higher) context-menus.
+
+Cheers.
+
+-anders
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:31 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>string encoding for pathnames. FSRef?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>string encoding for pathnames. FSRef?</h1>
+                <pre>
+I'm using Mac LispWorks 5 and am passing some data back and forth with 
+another process over a socket.   Both LW and the other process are 
+running on the same machine.
+
+Some of the data that is being passed are pathnames to files. I've been 
+having a bit of trouble with pathnames that contain non-ASCII 
+characters. It turns out that the other process  is using a variety of 
+string encodings (UTF8, MacRoman) and varying between precomposed and 
+decomposed unicode. So now I'm trying to make everything consistent and 
+fix it.
+
+What is the encoding LispWorks uses for its strings? Such as can be used 
+to construct a pathname object or passed to (probe-file). 
+
+
+
+Alternately, rather than the inconsistent paths I currently am 
+accessing, I have the option of getting a Mac FSRef. That really seems 
+ideal. But, I'd need to transmit it across the socket to LispWorks and 
+then get LW to make a valid pathname object.  An FSRef is an opaque 80 
+byte entity. I have no idea if it is portable across processes (both are 
+on the same machine, though).  But, if it were, is there any way I can 
+get LispWorks to embrace it?
+
+Any advice on this matter is welcome.
+
+Chris Perkins
+
+
+P.S.  I haven't worked much with string encoding in the past. If I have 
+a pathname with arabic characters in, for example, is that even 
+expressible with a string using MacRoman encoding? What about ISOLatin? 
+UTF8?  
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: string encoding for pathnames. FSRef?</h1>
+                 <pre>
+Chris,
+
+On Mar 19, 2008, at 2:22 PM, Chris Perkins wrote:
+
+&gt
+&gt I'm using Mac LispWorks 5 and am passing some data back and forth  
+&gt with another process over a socket.   Both LW and the other process  
+&gt are running on the same machine.
+&gt
+&gt Some of the data that is being passed are pathnames to files. I've  
+&gt been having a bit of trouble with pathnames that contain non-ASCII  
+&gt characters. It turns out that the other process  is using a variety  
+&gt of string encodings (UTF8, MacRoman) and varying between precomposed  
+&gt and decomposed unicode. So now I'm trying to make everything  
+&gt consistent and fix it.
+&gt
+&gt What is the encoding LispWorks uses for its strings? Such as can be  
+&gt used to construct a pathname object or passed to (probe-file).
+
+LW can decode a variety of formats, but you have to know what you are  
+decoding. If the files are all really paths on the same machine, how  
+is it that some would be UTF8 while others are MacRoman? I thought the  
+OS would represent them the same way. Unless perhaps they are stored  
+in a database or something from different OS versions.
+
+If I recall correctly, MacRoman is similar to Latin1 which is a subset  
+of UTF8. If the encodings are really different, I think there should  
+be a small number of bytes to compare to determine if you have one or  
+the other.
+
+Here is a way to convert UTF-8 byte stream to a lisp string:
+
+(defun translate-string-via-fli (string from to)
+   (fli:with-foreign-string (ptr elements bytes :external-format from)
+       string
+     (declare (ignore elements bytes))
+     (fli:convert-from-foreign-string ptr :external-format to)))
+
+
+(defun decode-external-string (string)
+   (translate-string-via-fli string :latin-1 :utf-8))
+
+
+&gt
+&gt
+&gt
+&gt Alternately, rather than the inconsistent paths I currently am  
+&gt accessing, I have the option of getting a Mac FSRef. That really  
+&gt seems ideal. But, I'd need to transmit it across the socket to  
+&gt LispWorks and then get LW to make a valid pathname object.  An FSRef  
+&gt is an opaque 80 byte entity. I have no idea if it is portable across  
+&gt processes (both are on the same machine, though).  But, if it were,  
+&gt is there any way I can get LispWorks to embrace it?
+&gt
+
+
+You can call Carbon FSRef related functions. For example,
+
+(fli:define-foreign-function (CFURLCreateFromFSRef  
+"CFURLCreateFromFSRef" :source)
+     ((allocator :pointer)
+      (fs-ref :pointer))
+   :result-type :pointer
+   :language :c)
+
+This gives you a CFURL which you can convert to a file system path.  
+Something like this:
+
+(defun cf-url-file-system-path (url &amp;optional (path-style +posix-path- 
+style+))
+   (let ((cf-string (CFURLCopyFileSystemPath url path-style)))
+     (unless (fli:null-pointer-p cf-string)
+       (prog1 (%string cf-string) ;(cf-string-to-lisp-string cf-string)
+         (CFRelease cf-string)))))
+
+
+&gt
+&gt
+&gt P.S.  I haven't worked much with string encoding in the past. If I  
+&gt have a pathname with arabic characters in, for example, is that even  
+&gt expressible with a string using MacRoman encoding? What about  
+&gt ISOLatin? UTF8?
+
+UTF8, yes, MacRoman or Latin-X, no.
+
+
+
+John DeSoi, Ph.D.
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:40 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>safearray api calls and .Net problems</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>safearray api calls and .Net problems</h1>
+                <pre>
+I've recently been updating a LispWorks DLL from LispWorks 4.1.20 (don't 
+ask) to LispWorks 5.1.2
+Another aspect of the change is the old DLL was called from a VB6 front 
+end whereas the new version is being called from a VB.Net front end.
+
+I've hit a really strange problem that has completely stymied me, and I 
+was hoping that someone here has some experience in the same area.
+
+The DLL passes arrays of floats back to the VB environment as an 
+argument to a callback routine.  The array is manually marshaled as a 
+SAFEARRAY created with a call to SafeArrayCreateVector with an element 
+type of VT_R8, and the data is populated by calling SafeArrayAccessData 
+and writing via the returned pointer.
+
+The data is transferred and read by the VB routine OK.
+
+In the .Net environment, after calling the routine between 3-6 times the 
+..Net runtime flags an allocation exception and says that memory may be 
+corrupt.
+If I change the element type to RT4 and change the related code 
+accordingly I can call the routine a larger number of times without 
+error, but then as soon as the Vb.Net code makes a call to GetFileTitleA 
+I get the same memory error from the .Net runtime.
+
+If I change the Lisp side to never free (SafeArrayDestroy) the safearray 
+then I don't get any errors.
+
+I get the same problems in both the LispWorks 4.1.20 and 5.1.2 
+environments (LW4 only tested with the original dll against the .net 
+front end, i.e. only VT_RT8 and haven't seen if the problem disappears 
+when memory not freed).
+
+Two other interesting things - Safearrays of floats are only passed in 
+one part of the code, whereas the more heavily used safearrays of BSTR 
+is not giving any problems.  The other difference is that the BSTR 
+safearrays are received ByVal, whereas the VT_R8 safearrays are 
+(required to be?) received ByRef.
+I only noticed today that even the 4.1.20 version had problems at one 
+stage where a stack fault in kernel32.dll would be signalled, and this 
+was avoided by a similarly ugly hack of making a single call to allocate 
+a single small safearray of floats at startup that is never freed.
+
+Any insights or suggestions gratefully received - although not freeing 
+the safearrays "works", I'd rather not have to rely on that as the final 
+workaround/fix.
+-- 
+Thanks
+Guy
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>RE: safearray api calls and .Net problems</h1>
+                 <pre>
+&gt From: owner-lisp-hug@lispworks.com [mailto:owner-lisp-
+&gt hug@lispworks.com] On Behalf Of Guy Footring
+
+&gt Two other interesting things - Safearrays of floats are only passed in
+&gt one part of the code, whereas the more heavily used safearrays of BSTR
+&gt is not giving any problems.  The other difference is that the BSTR
+&gt safearrays are received ByVal, whereas the VT_R8 safearrays are
+&gt (required to be?) received ByRef.
+
+Do you have some small sample, with which you can reproduce the problem?
+
+I've written an ActiveX component in C++ with ATL, which sends events to
+event sinks and it works with VB.NET and VB6 programs. I've mixed it with
+std::string for easier interfacing with the rest of my program and it is
+integrated in some other C++ classes, but the interesting part for you looks
+like this:
+
+SAFEARRAY* createSafearray(string data)
+{
+	METHOD_DEBUG;
+	SAFEARRAYBOUND aDim[1];
+	aDim[0].lLbound = 0;
+	aDim[0].cElements = (ULONG) data.size();
+	char *pActualData = NULL;
+	SAFEARRAY* pSA = SafeArrayCreate(VT_UI1, 1, aDim);
+	if (pSA == NULL) return NULL;  // out of memory
+	if (SafeArrayAccessData(pSA, (void **)&amp;pActualData)) return NULL;
+// can't lock
+	for (int j = 0; j &lt; (int) data.size(); j++) pActualData[j] =
+data[j];
+	if (SafeArrayUnaccessData(pSA)) return NULL;  // can't unlock
+	return pSA;
+}
+
+Void someFunction(string foo, string data)
+{
+	SAFEARRAY* pSA = createSafearray(data);
+	if (pSA) {
+		_bstr_t bar(foo.c_str());
+		Fire_OnFooEvent(bar, &amp;pSA);
+		SafeArrayDestroy(pSA);
+	}
+}
+
+HRESULT Fire_OnFooEvent (BSTR bar, SAFEARRAY** data)
+{
+	HRESULT hr = S_OK;
+	T * pThis = static_cast&lt;T *&gt(this);
+	int cConnections = m_vec.GetSize();
+	for (int iConnection = 0; iConnection &lt; cConnections; iConnection++)
+	{
+		pThis-&gtLock();
+		CComPtr&lt;IUnknown&gt punkConnection = m_vec.GetAt(iConnection);
+		pThis-&gtUnlock();
+
+		IDispatch * pConnection = static_cast&lt;IDispatch
+*&gt(punkConnection.p);
+
+		if (pConnection)
+		{
+			CComVariant avarParams[2];
+			avarParams[1] = bar;
+			avarParams[1].vt = VT_BSTR;
+			avarParams[0].pparray = data;
+			avarParams[0].vt = VT_ARRAY | VT_UI1 | VT_BYREF;
+			CComVariant varResult;
+
+			DISPPARAMS params = { avarParams, NULL, 2, 0 };
+			hr = pConnection-&gtInvoke(1, IID_NULL,
+LOCALE_USER_DEFAULT, DISPATCH_METHOD, &amp;params, &amp;varResult, NULL, NULL);
+		}
+	}
+	return hr;
+}
+
+The Fire_OnFooEvent was generated by the wizard from the IDL specification.
+The data parameter was specified as "[in] SAFEARRAY(BYTE)* message", but the
+brain damaged Visual Studio wizard creates non-compilable code from it, so I
+had to search some time and read a lot to find the right way how to
+implement SAFEARRAY callback parameters.
+
+Regarding your problem: Specifying VT_BYREF should work, because then the
+ownership of the object won't be transferred to the receiver, and you have
+to free the object. Same with BSTR, but in this case even if you pass it by
+value: the ownership is not transferred to the called function. In my code
+this is handled by the smart pointer class _bstr_t (part of Visual Studio
+comutil), which creates the OLECHAR object, passes a OLECHAR object to the
+OnFooEvent (I think it does this with the function "operator wchar_t*()
+const throw();") and destroys it automaticly after leaving the stack
+context. 
+
+All this wizards and C++ code generation are a mess compared to some nice
+Lisp macros. I don't know the LispWorks COM infrastructure, but maybe
+someone wants to encode all the COM rules to some simple to use macros,
+which automates marshalling, object life time etc.? It should be possible,
+because if you write a COM component within VB.NET, you don't have to do all
+the low level details yourself. And unlike in Common Lisp, where you have to
+write anything in clear to read and understandable code, operator
+overloading for typedefed variables in C++ is evil :-)
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: safearray api calls and .Net problems</h1>
+                 <p>
+                  Unable to parse email body. Email id is 8952
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: safearray api calls and .Net problems</h1>
+                 <pre>
+In message &lt;200901221513.n0MFDmOm005768@higson.cam.lispworks.com&gt, 
+Martin Simmons &lt;martin@lispworks.com&gt writes
+&gt
+&gt&gt&gt&gt&gt&gt On Wed, 21 Jan 2009 17:52:26 +0000, Guy Footring said:
+&gt&gt
+&gt&gt Two other interesting things - Safearrays of floats are only passed in
+&gt&gt one part of the code, whereas the more heavily used safearrays of BSTR
+&gt&gt is not giving any problems.  The other difference is that the BSTR
+&gt&gt safearrays are received ByVal, whereas the VT_R8 safearrays are
+&gt&gt (required to be?) received ByRef.
+&gt&gt I only noticed today that even the 4.1.20 version had problems at one
+&gt&gt stage where a stack fault in kernel32.dll would be signalled, and this
+&gt&gt was avoided by a similarly ugly hack of making a single call to allocate
+&gt&gt a single small safearray of floats at startup that is never freed.
+&gt&gt
+&gt&gt Any insights or suggestions gratefully received - although not freeing
+&gt&gt the safearrays "works", I'd rather not have to rely on that as the final
+&gt&gt workaround/fix.
+&gt
+&gtWhen using ByRef, maybe a different array is "returned" in the reference, even
+&gtfor IN parameters?  To be safe, make sure you are freeing the safearray in the
+&gtreference on return, not the one you allocated.
+&gt
+
+Thank you to Martin and Frank for the replies.
+
+It would appear, after minimal testing, that the .Net runtime is indeed 
+setting the pointer argument to a new data structure, and so far freeing 
+that (rather than the SAFEARRAY allocated in LispWorks) doesn't give me 
+any problems.
+
+-- 
+Thanks again,
+Guy
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: safearray api calls and .Net problems</h1>
+                 <pre>
+In message &lt;ud4edkikz.fsf@morrisonhershfield.com&gt, Brian Connoy 
+&lt;BConnoy@morrisonhershfield.com&gt writes
+&gt
+&gtIf you don't mind my asking, Guy.  Are you using Edi Weitz's RDNZL
+&gtpackage for your .NET machinations?
+&gt
+&gtBrian C.
+&gt
+
+No I'm not.
+The VB6&lt;-&gtLispWorks interface we wrote dates back many years and we
+simply carried over the interfaces to the .Net migration of the VB6 code
+using the .Net unmanaged code marshaling interfaces.
+
+I've not looked at RDNZL, in part because using open source s/w at the
+company I'm contracted too requires going through certain hoops that I
+didn't fancy jumping through and possibly didn't have the time too
+either.
+-- 
+Guy
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:37 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

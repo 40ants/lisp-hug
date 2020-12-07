@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>CAPI, LISP and "functional programming"</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>CAPI, LISP and "functional programming"</h1>
+                <pre>Hi,
+
+I've been getting the hang now of some of the capi stuff. I now at least 
+manage to display a calendar, forward months, years and select days. Not 
+much sofar I know, but I'm glad I've gotten this far.
+
+But, somehow I feel that I'm going the wrong way. I'm still pretty new 
+to GUI (and therefore CAPI) and also CL. First of all It takes me an 
+awfully lot of code to set state changes, for the GUI allone, i.e. 
+resetting values in this place and that place and for redisplaying, 
+basically all by hand. I've been using a lot of SETFs and I feel I 
+shouldn't.
+
+What I mean is my code doesn't look very "functionl" but rather very 
+much well "imperative". I really don't see the light yet, and I have the 
+feeling that the CAPI or rather CLOS and "functional programming" 
+exclude each other.
+
+I mean is that just the way it is or have a missed a point?
+
+Guenther
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: CAPI, LISP and "functional programming"</h1>
+                 <pre>Guenther Schmidt &lt;gue.schmidt@web.de&gt writes:
+
+&gt Hi,
+&gt 
+&gt I've been getting the hang now of some of the capi stuff. I now at
+&gt least manage to display a calendar, forward months, years and select
+&gt days. Not much sofar I know, but I'm glad I've gotten this far.
+&gt 
+&gt 
+&gt But, somehow I feel that I'm going the wrong way. I'm still pretty new
+&gt to GUI (and therefore CAPI) and also CL. First of all It takes me an
+&gt awfully lot of code to set state changes, for the GUI allone,
+&gt i.e. resetting values in this place and that place and for
+&gt redisplaying, basically all by hand. I've been using a lot of SETFs
+&gt and I feel I shouldn't.
+&gt 
+&gt 
+&gt What I mean is my code doesn't look very "functionl" but rather very
+&gt much well "imperative". I really don't see the light yet, and I have
+&gt the feeling that the CAPI or rather CLOS and "functional programming"
+&gt exclude each other.
+Well CLOS deals with Objects and you can see Objects as "history of
+frozen state". So how comes FP into play? First you can use all the
+mapping functions to change states. And second you program logic can
+be "full functional" programmes. The questions still remains, is that
+really what you want? What's wrong with using state in some area and
+getting along in other areas. 
+
+Just an example that you need "side-effects" can be seen in the
+gtk-ghc stuff! This is an Hello World written in it:
+module Main (Main.main) where
+
+import Gtk
+
+-- If you return False in the "delete_event" signal handler, GTK will
+-- emit the "destroy" signal.  
+
+
+
+deleteEvent :: Event -&gt IO Bool
+                         ^^^^^^ This is a monadict Bool. Monads are
+Hasekells way to deal with State
+
+
+deleteEvent _ = do 
+  putStrLn "delete event" 
+  -- Returning True means you don't want the window to be destroyed.
+  -- This is useful for popping up 'are you sure you want to quit?' type dialogs.
+  return False
+
+-- Another callback
+destroyEvent :: IO ()
+destroyEvent = do
+  putStrLn "destroy event"
+  mainQuit
+
+main :: IO ()
+main = do
+  initGUI
+  -- Create a new window
+  window &lt;- windowNew
+        ^^^^ this is a "sort of assignment"
+  -- When the window is given the "delete_event" signal (this is given 
+  -- by the window manager, usually by the "close" option, or on the
+  -- titlebar), we ask it to call the deleteEvent function defined above.
+  onDelete window deleteEvent
+  -- Here we connect the "destroy" event to a signal handler.
+  -- This event occurs when we call widgetDestroy on the window,
+  -- or if we return FALSE in the "delete_event" callback.
+  onDestroy window destroyEvent
+  -- Sets the border width of the window.
+  containerSetBorderWidth window 10
+  -- Creates a new button with the label "Hello World".
+  buttonHW &lt;- buttonNewWithLabel "Hello World"
+           ^^^^^ again a sort of assignment
+  -- When the button receives the "clicked" signal, it will call the
+  -- function given as the second argument
+  onClicked buttonHW (putStr "Hello World\n")
+  -- This will cause the window to be destroyed by calling
+  -- widgetDestroy when "clicked".  Again, the destroy
+  -- signal could come from here, or the window manager.
+  onClicked buttonHW $ do
+    putStrLn "A \"clicked\"-handler to say \"destroy\""
+    widgetDestroy window
+  containerAdd window buttonHW
+  -- This packs the button into the window (a gtk container).
+  widgetShow buttonHW
+  -- The final step is to display this newly created widget
+  widgetShow window
+  -- and the window
+  -- All GTK applications must have a Gtk.main. Control ends here
+  -- and waits for an event to occur (like a key press or
+  -- mouse event).
+  mainGUI 
+  putStrLn "runLoop returned"
+
+So this program written in a "pure" functional programming language
+does deal with state! 
+
+So I don't think you missed something, you should accept that CAPI is
+an OO-Framework, and therefor dealing with state is "natural"
+
+Regards
+Friedrich
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: CAPI, LISP and "functional programming"</h1>
+                 <pre>Guenther Schmidt &lt;gue.schmidt@web.de&gt writes:
+
+&gt What I mean is my code doesn't look very "functionl" but rather very
+&gt much well "imperative". I really don't see the light yet, and I have
+&gt the feeling that the CAPI or rather CLOS and "functional programming"
+&gt exclude each other.
+&gt
+&gt I mean is that just the way it is or have a missed a point?
+
+Did you come from Scheme to Common Lisp? It's important to understand
+that CL is "multi paradigm" and not "functional". And the GUI part of
+a GUI-oriented program typically involves a lot of OO and SETF stuff.
+A quick glance through the program I'm working on right now, shows
+me that the GUI-part is mostly imperative and OO in its style, but
+the interface from the GUI to the "real stuff" involves some functions
+that are more oriented towards a functional style (mapping etc.).
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:54 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Changing choice selections &amp; triggering callbacks?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Changing choice selections &amp; triggering callbacks?</h1>
+                <pre>
+Hi all,  (something of a busy weekend, it seems)
+
+Is there a way to programatically modify the selection of a
+capi:choice such that the appropriate selection-, retract-, and
+extend-callbacks get triggered?  I'm working on a UI that has a
+selection and I can avoid some plumbing by including capi:choice as a
+superclass if I can tie the input-model to selection modifying calls.
+I tried (setf (capi:choice-selection ...) ...), but that doesn't
+trigger the callbacks, as shown by the code below.  Implementing
+choice-like behavior isn't all that hard, but I'd avoid reimplementing
+if possible.  Thanks in advance,  //JT
+
+(On LWM 6.0 Intel)
+
+CL-USER 18 &gt (defun announce (&amp;rest args)
+               (capi:display-message "~A" args))
+ANNOUNCE
+
+CL-USER 19 &gt (defparameter *choice*
+               (make-instance 'capi:list-panel
+                              :interaction :extended-selection
+                              :retract-callback 'announce
+                              :selection-callback 'announce
+                              :extend-callback 'announce
+                              :items '(one two three four)
+                              :selection (list 0 1)))
+*CHOICE*
+
+CL-USER 20 &gt (capi:contain *choice*)
+#&lt;CAPI:LIST-PANEL [4 items] 226E6337&gt
+
+CL-USER 21 &gt (setf (capi:choice-selection *choice*) (list 0 2))
+(0 2) ; and no messages displayed
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Changing choice selections &amp; triggering callbacks?</h1>
+                 <pre>
+
+* Joshua TAYLOR &lt;1c3ea73c1001241443l4a09577erceea9a040e05c4d3@mail.gmail.com&gt :
+Wrote on Sun, 24 Jan 2010 17:43:20 -0500:
+
+| Is there a way to programatically modify the selection of a
+| capi:choice such that the appropriate selection-, retract-, and
+| extend-callbacks get triggered?  I'm working on a UI that has a
+| selection and I can avoid some plumbing by including capi:choice as a
+| superclass if I can tie the input-model to selection modifying calls.
+| I tried (setf (capi:choice-selection ...) ...), but that doesn't
+| trigger the callbacks, as shown by the code below.  Implementing
+| choice-like behavior isn't all that hard, but I'd avoid reimplementing
+| if possible.  Thanks in advance, //JT
+
+What would help, IMO is if CAPI exposed a general CALL-CALLBACK method,
+which would take a callbacks object, a callback-kind, and the data with
+which to call the callback.
+
+For Eg.: (CALL-CALLBACK OBJ :RETRACT-CALLBACK 'THREE)
+
+would figure out that (capi:callbacks-callback-type obj) is :FULL (say),
+and then it would evaluate
+(funcall (capi:callbacks-retract-callback obj)
+  'three obj (capi:element-interface-for-callback obj))
+as appropriate.
+
+If CALL-CALLBACK were available, you could easily write a mixin class
+with an around method on (SETF:CAPI-CHOICE-SELECTION) which could figure
+out the callback-kind (i.e. RETRACT-CALLBACK or whatever--- depending on
+what changed) and the data, and then call CALL-CALLBACK explicitly in
+your user code, rather than code up a CHOICE element from scratch.
+
+I don't think this is available as it stands, and it would probably come
+at the cost of complicating the CAPI model slightly: As I understand it,
+callbacks are only executed by CAPI in reaction to GUI events, and never
+by the user.
+
+-- 
+Madhu
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Changing choice selections &amp; triggering callbacks?</h1>
+                 <pre>
+
+* "Dmitriy Ivanov" &lt;000901ca9f3b$d0982840$8100a8c0@digo&gt :
+Wrote on Wed, 27 Jan 2010 13:21:54 +0300:
+
+| Madhu wrote on Wed, 27 Jan 2010 14:18:30 +0530 11:48:
+|
+| | What would help, IMO is if CAPI exposed a general CALL-CALLBACK method,
+| | which would take a callbacks object, a callback-kind, and the data with
+| | which to call the callback.
+| |
+| | For Eg.: (CALL-CALLBACK OBJ :RETRACT-CALLBACK 'THREE)
+| |
+| | would figure out that (capi:callbacks-callback-type obj) is :FULL
+| | (say), and then it would evaluate
+| | (funcall (capi:callbacks-retract-callback obj)
+| |   'three obj (capi:element-interface-for-callback obj))
+| | as appropriate.
+|
+| That would reduce the size of code at the first glance. IMHO, in a "serious"
+| application that would not give much benefit because of the two reasons.
+|
+| 1) The variety of callback types would force you to remember and
+| pinpoint the arguments passed anyhow.
+|
+| 2) In many situations, an action initiated by the user should have an
+| indication to tell it from the one invoked programmatically.
+
+Indeed.  [The OP's requirement actually belied an "Inversion of MVC" ---
+It would have been straightforward for his callbacks to call user
+functions XYZ , and to call the same functions XYZ from inside the
+(:around / SETF) methods, which would make changes to model
+programatically.]
+
+W.R.T. your point 1, the very reason for requesting CAPI to provide this
+method is that there is such a variety of callback types; The only place
+where I use it is where I'm writing an Interface and want to support the
+full callbacks API of CAPI for my Interface users, (and making sure the
+user callbacks get called in the right thread.)  So it is more of a
+concern of having the code in one place, and making it work as LW
+specifies.
+
+--
+Madhu
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Changing choice selections &amp; triggering callbacks?</h1>
+                 <pre>
+On Sun, Jan 24, 2010 at 5:43 PM, Joshua TAYLOR &lt;tayloj@cs.rpi.edu&gt wrote:
+&gt Is there a way to programatically modify the selection of a
+&gt capi:choice such that the appropriate selection-, retract-, and
+&gt extend-callbacks get triggered?
+&gt [snip]
+
+Thanks for the replies from Madhu and Dmitriy Ivanov!
+
+My need to have something working overrode my urge to use presumed
+existing CAPI functionality to make it happen.  My particular
+situation at hand has a (subclass of) capi:pinboard-layout with
+various capi:pinboard-objects in it.  I added a selection slot to the
+layout, and defined my own methods workspace-extend-callback and
+workspace-retract-callback that I call from selection modifying code.
+(E.g., shift-clicking (on OS X) an unselected object calls
+workspace-extend-selection which includes a call to workspace-extend
+callback.)  It's neither much code nor inconvenience;  it just seemed
+as though I was reimplementing something that must already be under
+the hood.
+
+Thanks again,  //JT
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:36 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

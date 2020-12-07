@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Oracle BLOBs with Common SQL (this time plain text)</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Oracle BLOBs with Common SQL (this time plain text)</h1>
+                <pre>I have send the email below this morning with my default Outlook
+settings, so I do it correctly as plain text.
+
+Sorry for inconvenience and duplicate mail.
+
+***
+
+Recently I have been working a bit with Common SQL (+ LispWorks 4.3.7 
+on Windows 2000, ODBC driver) and unfortunately I have to use Oracle 
+BLOBs for one of our applications. 
+
+BLOBs don't seem to be officially supported, but they paritally work. 
+So if I define the following table: 
+  
+    create table test ( 
+      id number(10) primary key, 
+      data blob 
+    ); 
+
+and insert some data with another tool I can next read the inserted BLOBs: 
+
+    (setf rows (with-connection *db-conn-spec* 
+                 (select [id] [data] :from [test]))) 
+
+The BLOB column is read as: 
+
+    (SIMPLE-ARRAY (UNSIGNED-BYTE 8) (105814)) 
+
+I can also insert some strings into the column: 
+
+    (with-connection *db-conn-spec* 
+      (insert-records :into [test] 
+                      :attributes '(id data) 
+                      :values '(1 "simple string"))) 
+
+but if the string contains null character (of code 0) then it is truncated :-( 
+If I try to insert a vector of unsigned-bytes: 
+
+    (setf v (make-array 5 :element-type '(unsigned-byte 8))) 
+    ... 
+    ; v --&gt #(72 101 108 108 111 33) 
+
+I get the following error coming from sql::execute-with-sqlbindparameter: 
+
+    CL-USER 46 &gt (with-connection *db-conn-spec* 
+                  (insert-records :into [test] 
+                                  :attributes '(id data) 
+                                  :values '(1 v))) 
+
+    Error: Failed to allocate foreign object of size 2147483648 [allocator NIL] 
+      1 (abort) Return to level 0. 
+      2 Return to top loop level 0. 
+
+And that's all I can get.  Do you have any further ideas / experiences with 
+registration of BLOB? 
+
+Kind regards, 
+
+Jaroslaw 
+
+
+
+-- 
+Jaroslaw Tomczak, Ph.D. 
+Aventis Pharma Deutschland GmbH 
+DI&amp;A Lead Generation Chemoinformatics 
+Industriepark Hoechst, H840, room 114 
+D-65926 Frankfurt / Main 
+phone: +49 (69) 305-14710 
+fax: +49 (69) 305-13068 
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Oracle BLOBs with Common SQL (this time plain text)</h1>
+                 <pre>Jaroslaw,
+
+On Sep 13, 2004, at 9:51 AM, &lt;Jaroslaw.Tomczak@aventis.com&gt wrote:
+
+&gt And that's all I can get.  Do you have any further ideas / experiences 
+&gt with
+&gt registration of BLOB?
+
+I'm not familiar with Oracle, but in PostgreSQL you need to escape 
+non-printables (including nulls) as octal values:
+
+"mystring\\000"
+
+Since inserting strings works as long as you don't have nulls, you 
+might want to check the Oracle documentation to see if there is a 
+similar convention.
+
+Best,
+
+John DeSoi, Ph.D.
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:51 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>open :element-type has no effect</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>open :element-type has no effect</h1>
+                <pre>When trying to save a buffer containing SIMPLE-TEXT-STRINGs, in the 
+Lispworks Editor, I get the error
+
+     &lt;char&gt is not of type BASE-CHAR
+
+A little experimentation led me to suspect that this is the result of a 
+more fundamental problem:
+
+(with-open-file (stream "~/whatever"
+			:direction :output
+			:if-exists :supersede
+			:element-type 'lw:simple-char)
+   (stream-element-type stream))
+
+=&gt  BASE-CHAR
+
+:element-type seems to be ignored, by OPEN (and therefore also by 
+WITH-OPEN-FILE).
+
+
+I am using LW 4.3.7 for Macintosh Personal Edition.
+
+Is this a known bug? Is it a restriction of the Personal Edition? Or am 
+I missing something?
+
+Thanks.
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: open :element-type has no effect</h1>
+                 <pre>Jacek Generowicz wrote:
+
+&gt When trying to save a buffer containing SIMPLE-TEXT-STRINGs, in the 
+&gt Lispworks Editor, I get the error
+&gt 
+&gt     &lt;char&gt is not of type BASE-CHAR
+&gt 
+&gt A little experimentation led me to suspect that this is the result of a 
+&gt more fundamental problem:
+&gt 
+&gt (with-open-file (stream "~/whatever"
+&gt             :direction :output
+&gt             :if-exists :supersede
+&gt             :element-type 'lw:simple-char)
+&gt   (stream-element-type stream))
+&gt 
+&gt =&gt  BASE-CHAR
+&gt 
+&gt :element-type seems to be ignored, by OPEN (and therefore also by 
+&gt WITH-OPEN-FILE).
+&gt 
+&gt 
+&gt I am using LW 4.3.7 for Macintosh Personal Edition.
+&gt 
+&gt Is this a known bug? Is it a restriction of the Personal Edition? Or am 
+&gt I missing something?
+&gt 
+
+On LWW I got it to work by doing this (I had to cut some of it out
+to get it into my mail client):
+
+It looks like you have to specify the :external-format of the file
+to :utf-8 (or maybe some other format).
+
+CL-USER 3 &gt (setf s (make-array 16 :element-type 'lw:simple-char))
+
+CL-USER 4 &gt (type-of (char s 0))
+BASE-CHAR
+
+CL-USER 5 &gt (loop for i from 0 below (length s)
+                   do (setf (char s i) (int-char 512)))
+NIL
+
+CL-USER 7 &gt (type-of (char s 0))
+SIMPLE-CHAR
+
+CL-USER 8 &gt (with-open-file (stream "test" :direction :output
+                                     :element-type 'lw:simple-char)
+
+               (write-string s stream))
+
+Error: In a call to SEQ::%SET-ACCESS-ARRAY: #\A is not of type BASE-CHAR.
+   1 (abort) Return to level 0.
+   2 Return to top loop level 0.
+
+Type :b for backtrace, :c &lt;option number&gt to proceed,  or :? for other options
+
+CL-USER 9 : 1 &gt :a
+
+
+CL-USER 12 &gt (with-open-file (stream "test" :direction :output
+                                     :external-format :utf-8
+                                     :element-type 'simple-char)
+                (write-string s stream))
+
+&lt;stuff deleted, text string&gt
+
+CL-USER 13 &gt (char-int (with-open-file (stream "test" :direction :input
+                                                :external-format :utf-8
+                                                :element-type 'simple-char)
+                          (read-char stream)))
+512
+
+CL-USER 22 &gt (with-open-file (stream "test" :direction :input
+                                                :external-format :utf-8
+                                                :element-type 'simple-char)
+                          (stream-external-format stream))
+(:UTF-8 :EOL-STYLE :CRLF)
+
+CL-USER 23 &gt (with-open-file (stream "test" :direction :input
+                                      :element-type 'simple-char)
+                          (stream-external-format stream))
+(:LATIN-1 :EOL-STYLE :CRLF)
+
+CL-USER 24 &gt
+
+
+Wade
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:50 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

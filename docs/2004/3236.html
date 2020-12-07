@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Change-callback in rich-text-pane on LWM4.4</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Change-callback in rich-text-pane on LWM4.4</h1>
+                <pre>Hi,
+
+I'm trying to use the rich-text-pane in LWM4.4 but cannot seem to get 
+the change-callback to work. I've appended some code.
+
+I'm assuming that this callback is supposed to be called whenever a 
+change is made to the editor. So try typing into the editor. No 
+callback is made.
+
+I had a problem with the resize callback in the editor-pane. In that 
+case there was a default resize callback that I had to ensure was 
+called, then things worked. In this case, the documentation says the 
+default callback is nil. I verified this by not setting the callback 
+and checking if it was defined.
+
+Can anybody see what I've done wrong?
+
+Some notes:
+1) I'm changing the parameter *rtf-ed-change* rather than using 
+something like format in case the IO streams are not right (see the 
+release notes for OS/X, no idea if this applies here, but just in case)
+2) there are two ways of setting the callback: by init arg, by 
+accessor. There are functions defined in the test code for both.
+
+
+Thanks,
+Bob
+
+; set this parameter in the callback in case the the IO streams are 
+wrong
+(defparameter *rtf-ed-change* "no-change-reported")
+
+(define-interface rtf-ed ()
+   ()
+   (:panes
+    (editor rich-text-pane
+            :text "The RTF Editor"
+            :reader editor
+            :horizontal-scroll nil
+            :vertical-scroll t
+            ;:change-callback #'(lambda (pane &amp;key type) (format t 
+"CHANGE ~S to ~S~%" type pane))
+            :change-callback #'(lambda (&amp;rest args)
+                                 (setf *rtf-ed-change* "changed"))
+            :visible-min-height '(:character 25)
+            :visible-min-width '(:character 80)))
+   (:layouts
+    (main-layout row-layout '(editor)
+                   :reader main-layout))
+   (:default-initargs
+    :title "RTF Editor"
+    :layout 'main-layout
+    :best-width 600
+    :best-height 400))
+
+; execute this if you want to use the callback defined in the init-arg
+(defun run-using-init-arg ()
+   (let* ((interface (make-instance 'rtf-ed))
+          (ed (editor interface)))
+     (display interface)
+     (format t "The CHANGE-CALLBACK function: ~S~%" 
+(rich-text-pane-change-callback ed))))
+
+; execute this if you want to explicitly set the callback
+(defun run-setting-callback ()
+   (let* ((interface (make-instance 'rtf-ed))
+          (ed (editor interface)))
+     (display interface)
+     (setf (rich-text-pane-change-callback ed)
+           #'(lambda (&amp;rest args) (setf *rtf-ed-change* "changed")))
+     (format t "The CHANGE-CALLBACK function: ~S~%" 
+(rich-text-pane-change-callback ed))))
+
+
+
+----
+Bob Hutchison          -- blogs at &lt;http://www.recursive.ca/hutch/&gt
+Recursive Design Inc.  -- &lt;http://www.recursive.ca/&gt
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Change-callback in rich-text-pane on LWM4.4</h1>
+                 <pre>My apologies, here is the test code that will run in the CL-USER 
+package...
+
+On Dec 15, 2004, at 9:04 AM, Bob Hutchison wrote:
+
+&gt Hi,
+&gt
+&gt I'm trying to use the rich-text-pane in LWM4.4 but cannot seem to get 
+&gt the change-callback to work. I've appended some code.
+&gt
+&gt I'm assuming that this callback is supposed to be called whenever a 
+&gt change is made to the editor. So try typing into the editor. No 
+&gt callback is made.
+&gt
+&gt I had a problem with the resize callback in the editor-pane. In that 
+&gt case there was a default resize callback that I had to ensure was 
+&gt called, then things worked. In this case, the documentation says the 
+&gt default callback is nil. I verified this by not setting the callback 
+&gt and checking if it was defined.
+&gt
+&gt Can anybody see what I've done wrong?
+&gt
+&gt Some notes:
+&gt 1) I'm changing the parameter *rtf-ed-change* rather than using 
+&gt something like format in case the IO streams are not right (see the 
+&gt release notes for OS/X, no idea if this applies here, but just in 
+&gt case)
+&gt 2) there are two ways of setting the callback: by init arg, by 
+&gt accessor. There are functions defined in the test code for both.
+&gt
+&gt
+&gt Thanks,
+&gt Bob
+&gt
+&gt
+
+; set this parameter in the callback in case the the IO streams are 
+wrong
+(defparameter *rtf-ed-change* "no-change-reported")
+
+(capi:define-interface rtf-ed ()
+   ()
+   (:panes
+    (editor capi:rich-text-pane
+            :text "The RTF Editor"
+            :reader editor
+            :horizontal-scroll nil
+            :vertical-scroll t
+            ;:change-callback #'(lambda (pane &amp;key type) (format t 
+"CHANGE ~S to ~S~%" type pane))
+            :change-callback #'(lambda (&amp;rest args)
+                                 (setf *rtf-ed-change* "changed"))
+            :visible-min-height '(:character 25)
+            :visible-min-width '(:character 80)))
+   (:layouts
+    (main-layout capi:row-layout '(editor)
+                 :reader main-layout))
+   (:default-initargs
+    :title "RTF Editor"
+    :layout 'main-layout
+    :best-width 600
+    :best-height 400))
+
+; execute this if you want to use the callback defined in the init-arg
+(defun run-using-init-arg ()
+   (let* ((interface (make-instance 'rtf-ed))
+          (ed (editor interface)))
+     (capi:display interface)
+     (format t "The CHANGE-CALLBACK function: ~S~%" 
+(capi:rich-text-pane-change-callback ed))))
+
+; execute this if you want to explicitly set the callback
+(defun run-setting-callback ()
+   (let* ((interface (make-instance 'rtf-ed))
+          (ed (editor interface)))
+     (capi:display interface)
+     (setf (capi:rich-text-pane-change-callback ed)
+           #'(lambda (&amp;rest args) (setf *rtf-ed-change* "changed")))
+     (format t "The CHANGE-CALLBACK function: ~S~%" 
+(capi:rich-text-pane-change-callback ed))))
+
+----
+Bob Hutchison          -- blogs at &lt;http://www.recursive.ca/hutch/&gt
+Recursive Design Inc.  -- &lt;http://www.recursive.ca/&gt
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:50 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

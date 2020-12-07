@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>LW 5.0 vs ACL 8.0: Optimizing heavy floating-point code</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>LW 5.0 vs ACL 8.0: Optimizing heavy floating-point code</h1>
+                <pre>
+Folks,
+
+I'm pitting LW 5.0 on Mac Intel against ACL 8.0 in a final round of  
+pre-purchase checks.
+
+I have some heavy-duty floating-point computations. The C function  
+looks like this:
+
+double digamma(double x)
+{
+     double p;
+     x=x+6;
+     p=1/(x*x);
+     p=(((0.004166666666667*p-0.003968253986254)*p+
+	0.008333333333333)*p-0.083333333333333)*p;
+     p=p+log(x)-0.5/x-1/(x-1)-1/(x-2)-1/(x-3)-1/(x-4)-1/(x-5)-1/(x-6);
+     return p;
+}
+
+GCC generates about 200 assembler instructions for the code above.
+
+This is the Lisp code I came up with using Duane Rettig's (Franz) help:
+
+(defun digamma/setq-x (x)
+   (declare (:explain :types :inlining :variables)
+            (optimize (speed 3) (safety 0) (debug 0))
+            ((double-float (0.0d0) *) x))
+   (incf x 6d0)
+   (let* ((p (/ 1d0 (* x x)))
+          (logx (log x))
+          (one 1d0))
+     (declare (double-float one p))
+     (setq p (* (- (* (+ (* p (- (* p 0.004166666666667d0)
+                                 0.003968253986254d0))
+                         0.008333333333333d0) p)
+                   0.083333333333333d0) p))
+     (+ p (- logx
+             (/ 0.5d0 x)
+             (/ one (setq x (- x one)))
+             (/ one (setq x (- x one)))
+             (/ one (setq x (- x one)))
+             (/ one (setq x (- x one)))
+             (/ one (setq x (- x one)))
+             (/ one (setq x (- x one)))))
+     ))
+
+This generates 361 instructions [1]. I tweaked the same function for  
+LispWorks like this:
+
+(defun digamma/setq-x (x)
+   (declare (optimize (speed 3) (safety 0) (debug 0) (float 0))
+            (type (double-float (0.0d0) *) x))
+   (incf x 6d0)
+   (let* ((p (/ 1d0 (* x x)))
+          (logx (log x))
+          (one 1d0))
+     (declare (type (double-float one p)))
+     (setq p (* (- (* (+ (* p (- (* p 0.004166666666667d0)
+                                 0.003968253986254d0))
+                         0.008333333333333d0) p)
+                   0.083333333333333d0) p))
+     (+ p (- logx
+             (/ 0.5d0 x)
+             (/ one (setq x (- x one)))
+             (/ one (setq x (- x one)))
+             (/ one (setq x (- x one)))
+             (/ one (setq x (- x one)))
+             (/ one (setq x (- x one)))
+             (/ one (setq x (- x one)))))
+     ))
+
+I'm not sure if (declare ((double-float (0.0d0) *) x)) is just as  
+valid for LW. Making it (declare (type (double-float (0.0d0) *) x))  
+increases instruction count to 781 from 541 and I start seeing calls  
+to SYSTEM::RAW-FAST-BOX-DOUBLE in the assembler listing which (I  
+suppose) is an improvement [2].
+
+Does the disassembly comment below say that this is a generic version  
+of the function?
+
+; #&lt;Function SYSTEM::*%+$ANY-STUB 2010FFFA&gt
+
+It seems that LW is faster (stats below) despite almost 2x the number  
+of instructions. Am I correct in this assessment? I'm no assembler  
+expert but would this be because of better pipelining, etc.?
+
+Did I get the declare above right? Did I miss any optimization  
+annotations for LW?
+
+Last but not least, the only way I was able to arrive at the code  
+above is by using   (declare (:explain :types :inlining :variables))  
+in ACL 8.0. This tells me what is being boxed and what is not, what  
+can be inlined, what is being held in registers, etc.
+
+I understand there's no such help provided by LW 5.0. How do you  
+folks approach iterative optimization without any feedback from the  
+compiler?
+
+The stats for LW 5.0 are:
+
+(time (loop for i from 10000 to 1000000 do (digamma/setq-x i)))
+Timing the evaluation of (LOOP FOR I FROM 10000 TO 1000000 DO  
+(DIGAMMA/SETQ-X 10000))
+
+User time    =        3.275
+System time  =        0.015
+Elapsed time =        4.593
+Allocation   = 403946972 bytes
+2 Page faults
+Calls to %EVAL    14850061
+
+The stats for ACL:
+
+; cpu time (non-gc) 5,470 msec user, 10 msec system
+; cpu time (gc)     520 msec user, 0 msec system
+; cpu time (total)  5,990 msec user, 10 msec system
+; real time  6,015 msec
+; space allocation:
+;  13,860,170 cons cells, 213,841,600 other bytes, 0 static bytes
+
+[1] ACL 8.0 disasssemble
+
+    0: pushl	ebp
+    1: movl	ebp,esp
+    3: pushl	esi
+    4: subl	esp,$68
+    7: movsd	xmm5,[eax-10]
+   12: movl	ebx,[esi+18]	;	6.0d0
+   15: movsd	xmm4,[ebx-10]
+   20: addsd	xmm5,xmm4
+   24: movl	ebx,[esi+22]	;	1.0d0
+   27: movsd	xmm4,[ebx-10]
+   32: movsd	xmm3,xmm5
+   36: mulsd	xmm3,xmm5
+   40: divsd	xmm4,xmm3
+   44: movsd	[ebp-32],xmm4
+   49: movsd	[ebp-40],xmm5
+   54: movsd	xmm7,xmm5
+   58: xorl	ecx,ecx
+   60: call	*[edi+531]	;	SYS::NEW-DOUBLE-FLOAT
+   66: movl	ebx,[esi+26]	;	LOG
+   69: movb	cl,$1
+   71: call	*edi
+   73: movsd	xmm5,[eax-10]
+   78: movl	ebx,[esi+22]	;	1.0d0
+   81: movsd	xmm4,[ebx-10]
+   86: movl	ebx,[esi+30]	;	0.004166666666667d0
+   89: movsd	xmm3,[ebx-10]
+   94: movsd	xmm2,[ebp-32]
+   99: mulsd	xmm3,xmm2
+103: movl	ebx,[esi+34]	;	0.003968253986254d0
+106: movsd	[ebp-48],xmm5
+111: movsd	xmm5,[ebx-10]
+116: movsd	xmm6,xmm3
+120: subsd	xmm6,xmm5
+124: movsd	xmm5,xmm6
+128: mulsd	xmm5,xmm2
+132: movl	ebx,[esi+38]	;	0.008333333333333d0
+135: movsd	xmm3,[ebx-10]
+140: addsd	xmm5,xmm3
+144: mulsd	xmm5,xmm2
+148: movl	ebx,[esi+42]	;	0.083333333333333d0
+151: movsd	xmm3,[ebx-10]
+156: subsd	xmm5,xmm3
+160: mulsd	xmm2,xmm5
+164: movl	ebx,[esi+46]	;	0.5d0
+167: movsd	xmm5,[ebx-10]
+172: movsd	xmm3,[ebp-40]
+177: divsd	xmm5,xmm3
+181: movsd	[ebp-32],xmm2
+186: movsd	xmm2,[ebp-48]
+191: movsd	xmm6,xmm2
+195: subsd	xmm6,xmm5
+199: movsd	xmm5,xmm6
+203: subsd	xmm3,xmm4
+207: movsd	xmm2,xmm3
+211: movsd	xmm6,xmm4
+215: divsd	xmm6,xmm3
+219: movsd	xmm3,xmm6
+223: subsd	xmm5,xmm3
+227: subsd	xmm2,xmm4
+231: movsd	xmm3,xmm2
+235: movsd	xmm6,xmm4
+239: divsd	xmm6,xmm2
+243: movsd	xmm2,xmm6
+247: subsd	xmm5,xmm2
+251: subsd	xmm3,xmm4
+255: movsd	xmm2,xmm3
+259: movsd	xmm6,xmm4
+263: divsd	xmm6,xmm3
+267: movsd	xmm3,xmm6
+271: subsd	xmm5,xmm3
+275: subsd	xmm2,xmm4
+279: movsd	xmm3,xmm2
+283: movsd	xmm6,xmm4
+287: divsd	xmm6,xmm2
+291: movsd	xmm2,xmm6
+295: subsd	xmm5,xmm2
+299: subsd	xmm3,xmm4
+303: movsd	xmm2,xmm3
+307: movsd	xmm6,xmm4
+311: divsd	xmm6,xmm3
+315: movsd	xmm3,xmm6
+319: subsd	xmm5,xmm3
+323: subsd	xmm2,xmm4
+327: divsd	xmm4,xmm2
+331: subsd	xmm5,xmm4
+335: movsd	xmm4,[ebp-32]
+340: addsd	xmm5,xmm4
+344: movsd	xmm7,xmm5
+348: xorl	ecx,ecx
+350: call	*[edi+531]	;	SYS::NEW-DOUBLE-FLOAT
+356: clc
+357: leave
+358: movl	esi,[ebp-4]
+361: ret
+
+[2] Disassembly for LW 5.0:
+
+200A56EA:
+        0:      55               push  ebp
+        1:      89E5             move  ebp, esp
+        3:      83EC14           sub   esp, 14
+        6:      C7042486140000   move  [esp], 1486
+       13:      50               push  eax
+       14:      89C7             move  edi, eax
+       16:      DD4705           fldl  [edi+5]
+       19:      DD5DF8           fstpl [ebp-8]
+       22:      660F126DF8       movlpd xmm5, [ebp-8]
+       27:      660F123550560A20 movlpd xmm6, [200A5650]  ; 6.0D0
+       35:      F20F58F5         addsd xmm6, xmm5
+       39:      660F1375F8       movlpd [ebp-8], xmm6
+       44:      660F1275F8       movlpd xmm6, [ebp-8]
+       49:      660F126DF8       movlpd xmm5, [ebp-8]
+       54:      F20F59EE         mulsd xmm5, xmm6
+       58:      660F123560560A20 movlpd xmm6, [200A5660]  ; 1.0D0
+       66:      F20F5EF5         divsd xmm6, xmm5
+       70:      83EC0C           sub   esp, C
+       73:      C70424860C0000   move  [esp], C86
+       80:      660F13742404     movlpd [esp+4], xmm6
+       86:      B501             moveb ch, 1
+       88:      FF1584FC1220     call  [2012FC84]       ; SYSTEM::RAW- 
+FAST-BOX-DOUBLE
+       94:      8945E8           move  [ebp-18], eax
+       97:      660F127DF8       movlpd xmm7, [ebp-8]
+      102:      660F137DF0       movlpd [ebp-10], xmm7
+      107:      D9ED             fldln2
+      109:      DD45F0           fldl  [ebp-10]
+      112:      D9F1             fyl2x
+      114:      DD5DF0           fstpl [ebp-10]
+      117:      FF75E8           push  [ebp-18]
+      120:      B8FBEB0820       move  eax, 2008EBFB    ;  
+0.004166666666667D0
+      125:      E84EA90600       call  201100BA         ; #&lt;Function  
+SYSTEM::*%*$ANY-STUB 201100BA&gt
+      130:      50               push  eax
+      131:      B8EBEB0820       move  eax, 2008EBEB    ;  
+0.003968253986254D0
+      136:      E8E3A80600       call  2011005A         ; #&lt;Function  
+SYSTEM::*%-$ANY-STUB 2011005A&gt
+      141:      8B5DE8           move  ebx, [ebp-18]
+      144:      0BD8             or    ebx, eax
+      146:      F6C303           testb bl, 3
+      149:      0F852A020000     jne   L4
+      155:      8B5DE8           move  ebx, [ebp-18]
+      158:      C1FB02           sar   ebx, 2
+      161:      89C7             move  edi, eax
+      163:      0FAFFB           imul  edi, ebx
+      166:      0F8019020000     jo    L4
+L1:  172:      57               push  edi
+      173:      B8DBEB0820       move  eax, 2008EBDB    ;  
+0.008333333333333D0
+      178:      E859A80600       call  2010FFFA         ; #&lt;Function  
+SYSTEM::*%+$ANY-STUB 2010FFFA&gt
+      183:      89C3             move  ebx, eax
+      185:      0B5DE8           or    ebx, [ebp-18]
+      188:      F6C303           testb bl, 3
+      191:      0F850F020000     jne   L5
+      197:      89C3             move  ebx, eax
+      199:      C1FB02           sar   ebx, 2
+      202:      89DF             move  edi, ebx
+      204:      0FAF7DE8         imul  edi, [ebp-18]
+      208:      0F80FE010000     jo    L5
+L2:  214:      57               push  edi
+      215:      B8CBEB0820       move  eax, 2008EBCB    ;  
+0.083333333333333D0
+      220:      E88FA80600       call  2011005A         ; #&lt;Function  
+SYSTEM::*%-$ANY-STUB 2011005A&gt
+      225:      89C3             move  ebx, eax
+      227:      0B5DE8           or    ebx, [ebp-18]
+      230:      F6C303           testb bl, 3
+      233:      0F85F5010000     jne   L6
+      239:      89C3             move  ebx, eax
+      241:      C1FB02           sar   ebx, 2
+      244:      89DF             move  edi, ebx
+      246:      0FAF7DE8         imul  edi, [ebp-18]
+      250:      0F80E4010000     jo    L6
+L3:  256:      897DE8           move  [ebp-18], edi
+      259:      660F1275F0       movlpd xmm6, [ebp-10]
+      264:      83EC0C           sub   esp, C
+      267:      C70424860C0000   move  [esp], C86
+      274:      660F13742404     movlpd [esp+4], xmm6
+      280:      B501             moveb ch, 1
+      282:      FF1584FC1220     call  [2012FC84]       ; SYSTEM::RAW- 
+FAST-BOX-DOUBLE
+      288:      50               push  eax
+      289:      660F1275F8       movlpd xmm6, [ebp-8]
+      294:      660F122DC0EB0820 movlpd xmm5, [2008EBC0]  ; 0.5D0
+      302:      F20F5EEE         divsd xmm5, xmm6
+      306:      83EC0C           sub   esp, C
+      309:      C70424860C0000   move  [esp], C86
+      316:      660F136C2404     movlpd [esp+4], xmm5
+      322:      B501             moveb ch, 1
+      324:      FF1584FC1220     call  [2012FC84]       ; SYSTEM::RAW- 
+FAST-BOX-DOUBLE
+      330:      50               push  eax
+      331:      660F1275F8       movlpd xmm6, [ebp-8]
+      336:      660F122D60560A20 movlpd xmm5, [200A5660]  ; 1.0D0
+      344:      F20F5CF5         subsd xmm6, xmm5
+      348:      660F1375F8       movlpd [ebp-8], xmm6
+      353:      660F122D60560A20 movlpd xmm5, [200A5660]  ; 1.0D0
+      361:      F20F5EEE         divsd xmm5, xmm6
+      365:      83EC0C           sub   esp, C
+      368:      C70424860C0000   move  [esp], C86
+      375:      660F136C2404     movlpd [esp+4], xmm5
+      381:      B501             moveb ch, 1
+      383:      FF1584FC1220     call  [2012FC84]       ; SYSTEM::RAW- 
+FAST-BOX-DOUBLE
+      389:      50               push  eax
+      390:      660F1275F8       movlpd xmm6, [ebp-8]
+      395:      660F122D60560A20 movlpd xmm5, [200A5660]  ; 1.0D0
+      403:      F20F5CF5         subsd xmm6, xmm5
+      407:      660F1375F8       movlpd [ebp-8], xmm6
+      412:      660F122D60560A20 movlpd xmm5, [200A5660]  ; 1.0D0
+      420:      F20F5EEE         divsd xmm5, xmm6
+      424:      83EC0C           sub   esp, C
+      427:      C70424860C0000   move  [esp], C86
+      434:      660F136C2404     movlpd [esp+4], xmm5
+      440:      B501             moveb ch, 1
+      442:      FF1584FC1220     call  [2012FC84]       ; SYSTEM::RAW- 
+FAST-BOX-DOUBLE
+      448:      50               push  eax
+      449:      660F1275F8       movlpd xmm6, [ebp-8]
+      454:      660F122D60560A20 movlpd xmm5, [200A5660]  ; 1.0D0
+      462:      F20F5CF5         subsd xmm6, xmm5
+      466:      660F1375F8       movlpd [ebp-8], xmm6
+      471:      660F122D60560A20 movlpd xmm5, [200A5660]  ; 1.0D0
+      479:      F20F5EEE         divsd xmm5, xmm6
+      483:      83EC0C           sub   esp, C
+      486:      C70424860C0000   move  [esp], C86
+      493:      660F136C2404     movlpd [esp+4], xmm5
+      499:      B501             moveb ch, 1
+      501:      FF1584FC1220     call  [2012FC84]       ; SYSTEM::RAW- 
+FAST-BOX-DOUBLE
+      507:      50               push  eax
+      508:      660F1275F8       movlpd xmm6, [ebp-8]
+      513:      660F122D60560A20 movlpd xmm5, [200A5660]  ; 1.0D0
+      521:      F20F5CF5         subsd xmm6, xmm5
+      525:      660F1375F8       movlpd [ebp-8], xmm6
+      530:      660F122D60560A20 movlpd xmm5, [200A5660]  ; 1.0D0
+      538:      F20F5EEE         divsd xmm5, xmm6
+      542:      83EC0C           sub   esp, C
+      545:      C70424860C0000   move  [esp], C86
+      552:      660F136C2404     movlpd [esp+4], xmm5
+      558:      B501             moveb ch, 1
+      560:      FF1584FC1220     call  [2012FC84]       ; SYSTEM::RAW- 
+FAST-BOX-DOUBLE
+      566:      50               push  eax
+      567:      660F1275F8       movlpd xmm6, [ebp-8]
+      572:      660F122D60560A20 movlpd xmm5, [200A5660]  ; 1.0D0
+      580:      F20F5CF5         subsd xmm6, xmm5
+      584:      660F1375F8       movlpd [ebp-8], xmm6
+      589:      660F122D60560A20 movlpd xmm5, [200A5660]  ; 1.0D0
+      597:      F20F5EEE         divsd xmm5, xmm6
+      601:      83EC0C           sub   esp, C
+      604:      C70424860C0000   move  [esp], C86
+      611:      660F136C2404     movlpd [esp+4], xmm5
+      617:      B501             moveb ch, 1
+      619:      FF1584FC1220     call  [2012FC84]       ; SYSTEM::RAW- 
+FAST-BOX-DOUBLE
+      625:      50               push  eax
+      626:      660F1275F8       movlpd xmm6, [ebp-8]
+      631:      660F122D60560A20 movlpd xmm5, [200A5660]  ; 1.0D0
+      639:      F20F5CF5         subsd xmm6, xmm5
+      643:      660F122D60560A20 movlpd xmm5, [200A5660]  ; 1.0D0
+      651:      F20F5EEE         divsd xmm5, xmm6
+      655:      83EC0C           sub   esp, C
+      658:      C70424860C0000   move  [esp], C86
+      665:      660F136C2404     movlpd [esp+4], xmm5
+      671:      B501             moveb ch, 1
+      673:      FF1584FC1220     call  [2012FC84]       ; SYSTEM::RAW- 
+FAST-BOX-DOUBLE
+      679:      B508             moveb ch, 8
+      681:      FF15E4D11220     call  [2012D1E4]       ; -
+      687:      8B5DE8           move  ebx, [ebp-18]
+      690:      0BD8             or    ebx, eax
+      692:      F6C303           testb bl, 3
+      695:      753B             jne   L7
+      697:      8B7DE8           move  edi, [ebp-18]
+      700:      03F8             add   edi, eax
+      702:      7034             jo    L7
+      704:      FD               std
+      705:      89F8             move  eax, edi
+      707:      C9               leave
+      708:      C3               ret
+L4:  709:      FF75E8           push  [ebp-18]
+      712:      E803A70600       call  201100BA         ; #&lt;Function  
+SYSTEM::*%*$ANY-STUB 201100BA&gt
+      717:      89C7             move  edi, eax
+      719:      E9D8FDFFFF       jmp   L1
+L5:  724:      50               push  eax
+      725:      8B45E8           move  eax, [ebp-18]
+      728:      E8F3A60600       call  201100BA         ; #&lt;Function  
+SYSTEM::*%*$ANY-STUB 201100BA&gt
+      733:      89C7             move  edi, eax
+      735:      E9F2FDFFFF       jmp   L2
+L6:  740:      50               push  eax
+      741:      8B45E8           move  eax, [ebp-18]
+      744:      E8E3A60600       call  201100BA         ; #&lt;Function  
+SYSTEM::*%*$ANY-STUB 201100BA&gt
+      749:      89C7             move  edi, eax
+      751:      E90CFEFFFF       jmp   L3
+L7:  756:      8B7DE8           move  edi, [ebp-18]
+      759:      83EC04           sub   esp, 4
+      762:      8B7500           move  esi, [ebp]
+      765:      8975FC           move  [ebp-4], esi
+      768:      83ED04           sub   ebp, 4
+      771:      8B7508           move  esi, [ebp+8]
+      774:      897504           move  [ebp+4], esi
+      777:      897D08           move  [ebp+8], edi
+      780:      C9               leave
+      781:      E9FEA50600       jmp   2010FFFA         ; #&lt;Function  
+SYSTEM::*%+$ANY-STUB 2010FFFA&gt
+
+--
+http://whylisp.com
+
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LW 5.0 vs ACL 8.0: Optimizing heavy floating-point code</h1>
+                 <pre>
+On Thu, 19 Oct 2006 11:52:32 +0100, Joel Reymont &lt;joel@whylisp.com&gt wrote:
+
+&gt I'm pitting LW 5.0 on Mac Intel against ACL 8.0 in a final round of
+&gt pre-purchase checks.
+
+Strange.  I could have sworn I saw an email just a couple of hours ago
+where you told us that you had already ordered LW 5.0.  Time for some
+more coffee I guess...
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LW 5.0 vs ACL 8.0: Optimizing heavy floating-point code</h1>
+                 <pre>
+Joel Reymont wrote:
+&gt 
+&gt Folks,
+&gt 
+&gt I'm pitting LW 5.0 on Mac Intel against ACL 8.0 in a final round of 
+&gt pre-purchase checks.
+&gt GCC generates about 200 assembler instructions for the code above.
+
+&gt Did I get the declare above right? Did I miss any optimization 
+&gt annotations for LW?
+
+You did miss fixnum-safety although it didn't seem to have an
+effect in this example.
+
+This is what i managed to come up with, actually i'm hoping that someone
+at Lispworks can explain this behaviour. The majority of the consing
+happens in the (- logx ... ) form but by nesting the calls slightly
+you can remove the consing (apart from boxing the return value),
+although this does run the risk of precision errors.
+
+
+(defun digamma (x)
+   (declare (optimize (speed 3) (safety 0) (debug 0) (float 0)))
+   (let* ((x (+ (the double-float x) 6.0d0))
+          (p (/ 1.0d0 (* x x)))
+          (logx (log x)))
+     (declare (type (double-float 0.0d0) x)
+              (type double-float p logx))
+     (setq p (* (- (* (+ (* p (- (* p 0.004166666666667d0)
+                                 0.003968253986254d0))
+                         0.008333333333333d0) p)
+                   0.083333333333333d0) p))
+     (- (+ p logx)
+        (/ 0.5d0 x)
+        (+ (/ 1.0d0 (- x 1.0d0))
+           (/ 1.0d0 (- x 2.0d0)))
+        (+ (/ 1.0d0 (- x 3.0d0))
+           (+ (/ 1.0d0 (- x 4.0d0))
+              (/ 1.0d0 (- x 5.0d0)))
+           (/ 1.0d0 (- x 6.0d0))))))
+
+
+&gt 
+&gt I understand there's no such help provided by LW 5.0. How do you folks 
+&gt approach iterative optimization without any feedback from the compiler?
+
+Well, we do get feedback, but indirectly via disassemble, I guess you just
+get used to noticing the BOX and $ANY functions.
+
+Cheers,
+  Sean.
+
+=======
+
+Disassembly of DIGAMMA
+216DC992:
+        0:      55               push  ebp
+        1:      89E5             move  ebp, esp
+        3:      83EC44           sub   esp, 44
+        6:      C7042486440000   move  [esp], 4486
+       13:      DD4005           fldl  [eax+5]
+       16:      DD05D8C86D21     fldl  [216DC8D8]       ; 6.0D0
+       22:      DEC1             faddp st(1), st
+       24:      DD55F8           fstl  [ebp-8]
+       27:      DCC8             fmul  st(0), st
+       29:      DD05E8C86D21     fldl  [216DC8E8]       ; 1.0D0
+       35:      DEF1             fdivrp st(1), st
+       37:      DD5DF0           fstpl [ebp-10]
+       40:      D9ED             fldln2
+       42:      DD45F8           fldl  [ebp-8]
+       45:      D9F1             fyl2x
+       47:      DD5DE8           fstpl [ebp-18]
+       50:      DD45F0           fldl  [ebp-10]
+       53:      DD05F8C86D21     fldl  [216DC8F8]       ; 0.004166666666667D0
+       59:      DEC9             fmulp st(1), st
+       61:      DD0508C96D21     fldl  [216DC908]       ; 0.003968253986254D0
+       67:      DEE9             fsubp st(1), st
+       69:      DC4DF0           fmull [ebp-10]
+       72:      DD0518C96D21     fldl  [216DC918]       ; 0.008333333333333D0
+       78:      DEC1             faddp st(1), st
+       80:      DD5DE0           fstpl [ebp-20]
+       83:      DD45F0           fldl  [ebp-10]
+       86:      DC4DE0           fmull [ebp-20]
+       89:      DD0528C96D21     fldl  [216DC928]       ; 0.083333333333333D0
+       95:      DEE9             fsubp st(1), st
+       97:      DD5DE0           fstpl [ebp-20]
+      100:      DD45F0           fldl  [ebp-10]
+      103:      DC4DE0           fmull [ebp-20]
+      106:      DC45E8           faddl [ebp-18]
+      109:      DD5DF0           fstpl [ebp-10]
+      112:      DD0538C96D21     fldl  [216DC938]       ; 0.5D0
+      118:      DC75F8           fdivl [ebp-8]
+      121:      DD5DE8           fstpl [ebp-18]
+      124:      DD05E8C86D21     fldl  [216DC8E8]       ; 1.0D0
+      130:      DC6DF8           fsubrl [ebp-8]
+      133:      DD05E8C86D21     fldl  [216DC8E8]       ; 1.0D0
+      139:      DEF1             fdivrp st(1), st
+      141:      DD5DD8           fstpl [ebp-28]
+      144:      DD0548C96D21     fldl  [216DC948]       ; 2.0D0
+      150:      DC6DF8           fsubrl [ebp-8]
+      153:      DD05E8C86D21     fldl  [216DC8E8]       ; 1.0D0
+      159:      DEF1             fdivrp st(1), st
+      161:      DC45D8           faddl [ebp-28]
+      164:      DD5DD8           fstpl [ebp-28]
+      167:      DD0558C96D21     fldl  [216DC958]       ; 3.0D0
+      173:      DC6DF8           fsubrl [ebp-8]
+      176:      DD05E8C86D21     fldl  [216DC8E8]       ; 1.0D0
+      182:      DEF1             fdivrp st(1), st
+      184:      DD5DD0           fstpl [ebp-30]
+      187:      DD0568C96D21     fldl  [216DC968]       ; 4.0D0
+      193:      DC6DF8           fsubrl [ebp-8]
+      196:      DD05E8C86D21     fldl  [216DC8E8]       ; 1.0D0
+      202:      DEF1             fdivrp st(1), st
+      204:      DD5DC8           fstpl [ebp-38]
+      207:      DD0578C96D21     fldl  [216DC978]       ; 5.0D0
+      213:      DC6DF8           fsubrl [ebp-8]
+      216:      DD05E8C86D21     fldl  [216DC8E8]       ; 1.0D0
+      222:      DEF1             fdivrp st(1), st
+      224:      DC45C8           faddl [ebp-38]
+      227:      DD5DC8           fstpl [ebp-38]
+      230:      DD05D8C86D21     fldl  [216DC8D8]       ; 6.0D0
+      236:      DC6DF8           fsubrl [ebp-8]
+      239:      DD05E8C86D21     fldl  [216DC8E8]       ; 1.0D0
+      245:      DEF1             fdivrp st(1), st
+      247:      DD5DE0           fstpl [ebp-20]
+      250:      DD45D0           fldl  [ebp-30]
+      253:      DC45C8           faddl [ebp-38]
+      256:      DC45E0           faddl [ebp-20]
+      259:      DD5DD0           fstpl [ebp-30]
+      262:      DD45F0           fldl  [ebp-10]
+      265:      DC65E8           fsubl [ebp-18]
+      268:      DC65D8           fsubl [ebp-28]
+      271:      DC65D0           fsubl [ebp-30]
+      274:      DD5DF0           fstpl [ebp-10]
+      277:      83EC0C           sub   esp, C
+      280:      8B75F0           move  esi, [ebp-10]
+      283:      8975E4           move  [ebp-1C], esi
+      286:      8B75F4           move  esi, [ebp-C]
+      289:      8975E8           move  [ebp-18], esi
+      292:      8B7500           move  esi, [ebp]
+      295:      8975F4           move  [ebp-C], esi
+      298:      83ED0C           sub   ebp, C
+      301:      8B7510           move  esi, [ebp+10]
+      304:      897504           move  [ebp+4], esi
+      307:      DD45F0           fldl  [ebp-10]
+      310:      DD5D0C           fstpl [ebp+C]
+      313:      C74508860C0000   move  [ebp+8], C86
+      320:      B501             moveb ch, 1
+      322:      C9               leave
+      323:      FF2554DB1220     jmp   [2012DB54]       ; SYSTEM::RAW-FAST-BOX-DOUBLE
+      329:      90               nop
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LW 5.0 vs ACL 8.0: Optimizing heavy floating-point code</h1>
+                 <pre>
+Joel Reymont &lt;joel@whylisp.com&gt writes:
+
+&gt (defun digamma/setq-x (x)
+&gt   (declare (optimize (speed 3) (safety 0) (debug 0) (float 0))
+&gt            (type (double-float (0.0d0) *) x))
+&gt   (incf x 6d0)
+&gt   (let* ((p (/ 1d0 (* x x)))
+&gt          (logx (log x))
+&gt          (one 1d0))
+&gt     (declare (type (double-float one p)))
+
+You forgot to declare logx, I guess?
+
+&gt (time (loop for i from 10000 to 1000000 do (digamma/setq-x i)))
+
+Hmm. This shouldn't really work at all: You declared x as a double,
+and now you're supplying a fixnum?
+
+&gt      781:      E9FEA50600       jmp   2010FFFA         ; #&lt;Function  
+&gt SYSTEM::*%+$ANY-STUB 2010FFFA&gt
+
+I haven't looked at the assembly code in detail (and I'm not very good
+at reading it), but these are lisp function calls, so the code doesn't
+seem to be properly optimized.
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LW 5.0 vs ACL 8.0: Optimizing heavy floating-point code</h1>
+                 <pre>
+Sean Ross &lt;sean@guruhut.com&gt writes:
+
+&gt This is what i managed to come up with, actually i'm hoping that someone
+&gt at Lispworks can explain this behaviour. The majority of the consing
+&gt happens in the (- logx ... ) form but by nesting the calls slightly
+&gt you can remove the consing (apart from boxing the return value),
+&gt although this does run the risk of precision errors.
+
+I think the setq's are the culprits, i.e. that you may be able to
+avoid the consing by gluing in an ugly amount of (the ...) statements.
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LW 5.0 vs ACL 8.0: Optimizing heavy floating-point code</h1>
+                 <pre>
+Sean Ross &lt;sean@guruhut.com&gt writes:
+
+&gt Espen Vestre wrote:
+&gt&gt I think the setq's are the culprits, i.e. that you may be able to
+&gt&gt avoid the consing by gluing in an ugly amount of (the ...) statements.
+&gt
+&gt funnily enough i couldn't get that to work (maybe i'm just having a slow day)
+
+Hmm. Seems to be the n-argument minus.
+
+This conses nothing (except for the box for the result):
+
+(defun test-box (x)
+  (declare (optimize (speed 3) (safety 0) (debug 0) (float 0) (fixnum-safety 0)))
+  (- (- (- (- (- (float-minus 1.0d0 x 1.0d0)
+                 (float-minus 1.0d0 x 2.0d0))
+              (float-minus 1.0d0 x 3.0d0))
+           (float-minus 1.0d0 x 4.0d0))
+        (float-minus 1.0d0 x 5.0d0))
+     (float-minus 1.0d0 x 6.0d0)))
+
+....and neither does this (which is a relief :-)):
+
+(defun test-box (x)
+  (declare (optimize (speed 3) (safety 0) (debug 0) (float 0) (fixnum-safety 0))
+           (double-float x))
+  (- (- (- (- (- (/ 1.0d0 (- x 1.0d0))
+                 (/ 1.0d0 (- x 2.0d0)))
+              (/ 1.0d0 (- x 3.0d0)))
+           (/ 1.0d0 (- x 4.0d0)))
+        (/ 1.0d0 (- x 5.0d0)))
+     (/ 1.0d0 (- x 6.0d0))))
+
+(testet with lw5.0 on linux)
+
+(I used to think that floating-point optimization was extremely
+ boring, but recently I started doing statistics on pretty large
+ datasets and was forced to stop my application from consing, so I'm
+ finally getting a half-way understanding on how this works.  Btw. I
+ use 64-bit lispworks for linux for the statistics stuff, and it's
+ really, really amazing to work with :-))
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LW 5.0 vs ACL 8.0: Optimizing heavy floating-point code</h1>
+                 <pre>
+Joel Reymont &lt;joel@whylisp.com&gt writes:
+
+&gt Still, I find this easier to deal with under ACL as it can "explain"  
+&gt what the compiler is doing, what gets inlined and not, what gets  
+&gt stored in registers or not. It also tells you what gets boxed/unboxed  
+&gt and whether it can perform tail-call optimization. This makes  
+&gt optimization almost trivial as you can come up with the optimal  
+&gt version of your function just by following the compiler.
+
+That seems really nice! But even though I'm not at all fluent in
+assembly code, it didn't take me very long to learn to read the
+important parts which indicate that the compiler is allocating floats
+or calling lisp functions, so I think disassemble is very helpful
+(especially if you keep your functions small and neat, which is the
+Lisp Way anyway, isn't it?).
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LW 5.0 vs ACL 8.0: Optimizing heavy floating-point code</h1>
+                 <pre>
+Sean Ross &lt;sean@guruhut.com&gt writes:
+
+&gt&gt Hmm. Seems to be the n-argument minus.
+&gt
+&gt Yep, before today i would never have looked at that as a possible cause
+&gt for consing.
+
+Seems like we have a compiler feature request to the lispworks guys :-)
+
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LW 5.0 vs ACL 8.0: Optimizing heavy floating-point code</h1>
+                 <pre>
+Joel Reymont &lt;joel@whylisp.com&gt writes:
+
+&gt True.
+&gt
+&gt ; #&lt;Function SYSTEM::*%*$ANY-STUB 201100BA&gt
+&gt
+&gt What is this, though?
+
+It's a lisp function call. That's the important point. 
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LW 5.0</h1>
+                 <pre>
+Lawrence Au &lt;laau@erols.com&gt writes:
+
+&gt Espen,
+&gt      I'm thinking of buying LispWorks 5.0 too now,  mostly
+&gt for the bigger address space.  I'm curious...
+&gt how was it "really,  really amazing to to work with"?
+
+The 64-bit version, you mean? 
+
+Well, I'm suprised how mature it seems to be - after all it's a
+completely new platform. And I'm amazed how fast it is: It has
+a quite different GC and memory allocation scheme than 32-bit
+LispWorks, which seems to do wonders to some heavy-consing
+applications.
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LW 5.0 vs ACL 8.0: Optimizing heavy floating-point code</h1>
+                 <p>
+                  Unable to parse email body. Email id is 6065
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LW 5.0 vs ACL 8.0: Optimizing heavy floating-point code</h1>
+                 <pre>
+Joel Reymont &lt;joel@whylisp.com&gt writes:
+
+&gt I wired my payment for LW today and don't regret it for a second.  
+&gt Still, can LW beat this or will the ACL black magic reign supreme?
+
+Huh?
+
+&gt (defun timeit ()
+&gt   (declare (optimize speed))
+&gt   (loop for i from 10000 to 1000000 do (digamma/setq-x i)))
+
+More Huh? Do you really supply the fixnum parameter here? The computation
+is probably totally bogus, then. Just pure luck you're not crashing
+in the first iteration of the loop...
+
+&gt Using a compiled version of the above:
+&gt
+&gt CL-USER(5): (time (timeit))
+&gt ; cpu time (non-gc) 260 msec user, 0 msec system
+&gt ; cpu time (gc)     0 msec user, 0 msec system
+&gt ; cpu time (total)  260 msec user, 0 msec system
+&gt ; real time  261 msec
+&gt ; space allocation:
+&gt ;  0 cons cells, 0 other bytes, 0 static bytes
+&gt NIL
+
+Which is slower than what you reported for the "Sean/Espen" version:
+
+CL-USER 8 &gt (time (test))
+Timing the evaluation of (TEST)
+
+User time    =        0.194
+System time  =        0.000
+Elapsed time =        0.211
+Allocation   = 15988776 bytes
+
+Alright, it's consing, but that's just the return value being boxed.
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LW 5.0 vs ACL 8.0: Optimizing heavy floating-point code</h1>
+                 <pre>
+Espen Vestre &lt;ev@netfonds.no&gt writes:
+
+&gt Alright, it's consing, but that's just the return value being boxed.
+
+Btw. I tried avoiding that by inlining digamma, but the compiler was
+too clever and compiled away the whole loop...
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LW 5.0 vs ACL 8.0: Optimizing heavy floating-point code</h1>
+                 <pre>
+Sean Ross &lt;sean@guruhut.com&gt writes:
+
+&gt I still believe that something along these lines should be in Lispworks by default,
+&gt ummm  Martin/Dave is there a reason why it isn't/can't/shouldn't be done?
+
+Hmm, it's not as simple as it looked yesterday.... 
+
+The lw compiler /is/ actually able to make non-consing code out of
+n-argument minus forms.
+
+Consider e.g.:
+
+(defun mypoly (x)
+  (declare (optimize (speed 3) (safety 0) (debug 0) (float 0))
+           (double-float x))
+  (- (* x x) (* 2.0d0 x) 3.0d0))
+
+(Another experiment: If you replace one of the forms here with (log x),
+ you need to elaborate with (the double-float (log x)) in order to get
+ non-consing code)
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LW 5.0 vs ACL 8.0: Optimizing heavy floating-point code</h1>
+                 <pre>
+Espen Vestre &lt;ev@netfonds.no&gt writes:
+
+&gt The lw compiler /is/ actually able to make non-consing code out of
+&gt n-argument minus forms.
+&gt
+&gt Consider e.g.:
+&gt
+&gt (defun mypoly (x)
+&gt   (declare (optimize (speed 3) (safety 0) (debug 0) (float 0))
+&gt            (double-float x))
+&gt   (- (* x x) (* 2.0d0 x) 3.0d0))
+
+....and it will work for 4-argument minus, too, but starting with
+5-argument minus, LW generates consing code ;-)
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:44 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

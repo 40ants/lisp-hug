@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Computing size of pinboard objects</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Computing size of pinboard objects</h1>
+                <pre>Hi!
+
+I want to create a couple of titled pinboard objects that'll have
+different texts in them.  I'd like to have them all the same size,
+namely they should be just big enough to hold the longest text.  The
+texts are determined at run time.
+
+I understand that I could create them, use PINBOARD-PANE-SIZE to find
+the maximum, and then set the sizes accordingly.  However, for that to
+work (i.e. in order to get at the size), I have to display them first,
+right?
+
+Is there a better way to do what I want?
+
+Thanks,
+Edi.
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Computing size of pinboard objects</h1>
+                 <pre>Hello Edi,
+
+| I want to create a couple of titled pinboard objects that'll have
+| different texts in them.  I'd like to have them all the same size,
+| namely they should be just big enough to hold the longest text.  The
+| texts are determined at run time.
+|
+| I understand that I could create them, use PINBOARD-PANE-SIZE to find
+| the maximum, and then set the sizes accordingly.  However, for that to
+| work (i.e. in order to get at the size), I have to display them first,
+| right?
+|
+| Is there a better way to do what I want?
+
+I would recommend calling gp:get-string-extent to determine the width of the
+objects beforehand, computing maximum width, and finally creating them with
+the :width argument specified.
+--
+Sincerely,
+Dmitriy Ivanov
+lisp.ystok.ru
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Computing size of pinboard objects</h1>
+                 <pre>Edi Weitz wrote:
+
+&gtHi!
+&gt
+&gtI want to create a couple of titled pinboard objects that'll have
+&gtdifferent texts in them.  I'd like to have them all the same size,
+&gtnamely they should be just big enough to hold the longest text.  The
+&gttexts are determined at run time.
+&gt
+&gtI understand that I could create them, use PINBOARD-PANE-SIZE to find
+&gtthe maximum, and then set the sizes accordingly.  However, for that to
+&gtwork (i.e. in order to get at the size), I have to display them first,
+&gtright?
+&gt
+&gtIs there a better way to do what I want?
+&gt  
+&gt
+
+You can use (gp:get-string-extent pinboard-layout string) to get the size of
+the strings (with optional font).  You still have to create a 
+pinbord-layout before
+you can do that, but it does work.
+
+http://www.lispworks.com/documentation/lw445/CAPRM/html/capiref-455.htm#pgfId-890145
+
+Wade
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: Computing size of pinboard objects -&gt GP and FONTS</h1>
+                  <pre>Le 17/06/05 14:26, «&nbsp;Wade Humeniuk&nbsp;» &lt;whumeniu@telus.net&gt a écrit&nbsp;:
+
+&gt You can use (gp:get-string-extent pinboard-layout string) to get the size of
+&gt the strings (with optional font).  You still have to create a
+&gt pinbord-layout before
+&gt you can do that, but it does work.
+
+
+I think that the creation of the interface (and thus of the graphics-port ?)
+is needed before the use of get-string-extent (as for other functions of the
+same family (get-character-extent, etc.)
+
+On LW 4.3 for Mac :
+
+(let ((layout (make-instance 'pinboard-layout))
+      (string "Hello World!"))
+ (get-string-extent layout string))
+
+=&gt ERROR "can't find a font device for #&lt;CAPI:PINBOARD-LAYOUT 100BB347&gt"
+
+Anyway, if you want to specify a font on thirst argument of
+get-string-extent, the find-best-font function (witch return a font object
+from a font-description), doesn't work neither before the creation of the
+graphics-port.
+
+A possibility to avoid this problem (other than the :creation-callback
+evoked by Dave Fox) is to keep the interface hidden until all computations
+are ok. For example :
+
+1)
+
+(setq interface (display (make-instance 'interface :display-state :hidden
+                            :best-width 200 :best-height 100)))
+
+2) 
+
+forms
+
+3) 
+
+(activate-pane interface)
+
+
+A possible problem (if the 3 points aren't directly linked up) is that
+during point 2, the interface is visible in the "Window" menu (Select it in
+this menu is equivalent to point 3).
+
+************
+
+Finally, my question to LW is:
+
+I very well understand that computation of fonts is system-dependent, but
+why is it graphics-port-dependent ? Are font objects different from a port
+to another ? For instance : If I create some font objects (using
+find-best-font) with a port (maybe hidden), and save it somewhere, are these
+font objects valid to use with another port ? This example seems to work
+normally (is it unsafe ?) :
+
+1)
+
+(defvar font-object nil)
+
+(let ((interface (display (make-instance 'interface :display-state
+                                                    :hidden))))
+   (setq font-object (find-best-font interface (make-font-description
+                                               :family "Verdana" :size 24)))
+   (destroy interface))
+
+;the variable font-object is now bounded to this object :
+      
+=&gt #S(FONT FONT-DESCRIPTION #S(FONT-DESCRIPTION GRAPHICS-PORTS::ATTRIBUTES
+(:NAME "Verdana" :FAMILY "Verdana" :SIZE 24.0 :WEIGHT :REGULAR :SLANT :ROMAN
+:PITCH :VARIABLE)) GRAPHICS-PORTS::DEVICE-FONT NIL)
+
+;strangely the font-device needed upper is bounded to NIL...
+
+2)
+
+;Now it seems that I can use the same font object with any other interfaces
+at any time. For instance :
+
+(contain (make-instance 'title-pane :text "Hello World!" :font font-object))
+
+(contain (make-instance 'text-input-pane :text "Hello World!" :font
+font-object))
+
+
+
+----------------------------------------------------
+Denis Pousseur
+34 Bd de Dixmude
+1000 Bruxelles, Belgique
+Mail :  denis.pousseur@compositeurs.be
+Website : http://compositeurs.be
+----------------------------------------------------
+
+
+
+
+</pre>
+                 </article>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>Re: Computing size of pinboard objects -&gt GP and FONTS</h1>
+                   <p>
+                    Unable to parse email body. Email id is 4070
+                  </article>
+                 </section>
+                </section>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Computing size of pinboard objects</h1>
+                 <p>
+                  Unable to parse email body. Email id is 4036
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Computing size of pinboard objects</h1>
+                 <pre>On Fri, 17 Jun 2005 15:15:55 +0100 (BST), davef@lispworks.com wrote:
+
+&gt Don't confuse create with display - you can get the size at create
+&gt time.
+&gt  
+&gt  &gt Is there a better way to do what I want?
+&gt
+&gt This example shows that you can do it with PINBOARD-PANE-SIZE:
+
+Ah, yes, the create-callback of the interface.  Thanks for reminding
+me - your example works fine.
+
+Cheers,
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:48 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

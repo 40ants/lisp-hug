@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Unexpected (for me) behaviour of bivalent streams</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Unexpected (for me) behaviour of bivalent streams</h1>
+                <pre>On Windows with this function
+
+  (defun foo (pathspec)
+    (with-open-file (out pathspec
+                         :direction :output
+                         :if-exists :supersede)
+      (write-sequence (make-array 1
+                                  :element-type '(unsigned-byte 8)
+                                  :initial-element 10)
+                      out))
+    (with-open-file (in pathspec)
+      (file-length in)))
+
+the result of, say, (FOO "/tmp/foo.txt") is 2 although only one octet
+was seemingly written to the stream.
+
+I can see how this happens - the stream is a bivalent stream and
+binary data written to the stream is treated like character data, so
+the 10 is viewed like a #\Newline character and converted to the CRLF
+combo.
+
+However, I find this kind of counter-intuitive.  Furthermore, there
+seems to be no way to write a single literal octet "10" to the string,
+so in that sense the stream isn't fully "bivalent."
+
+What do others think?
+
+And what does LispWorks think?  Is this the intended behaviour?
+
+Thanks,
+Edi.
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Unexpected (for me) behaviour of bivalent streams</h1>
+                 <p>
+                  Unable to parse email body. Email id is 4878
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Unexpected (for me) behaviour of bivalent streams</h1>
+                 <pre>Hi Dave!
+
+On Mon, 28 Nov 2005 12:34:47 GMT, davef@lispworks.com wrote:
+
+&gt LispWorks FILE-LENGTH does not take account of the external format
+&gt of its argument stream - it simply returns the number of bytes in
+&gt the file. As an alternative
+&gt
+&gt (defun foo (pathspec)
+&gt   (with-open-file (out pathspec
+&gt 		       :direction :output
+&gt 		       :if-exists :supersede)
+&gt     (write-sequence (make-array 1
+&gt 				:element-type '(unsigned-byte 8)
+&gt 				:initial-element 10)
+&gt 		    out))
+&gt   (with-open-file (in pathspec)
+&gt     (LENGTH (HCL:FILE-STRING in))))
+&gt
+&gt returns 1 as you expect.
+
+Yes, but I was already taking into account that FILE-LENGTH counts
+octets.  I was expecting the file two be one /octet/ long, not one
+/character/.
+
+But thanks for mentioning FILE-STRING.  One of the many nice utility
+functions I tend to forget (and thus have to rewrite) from time to
+time... :)
+
+&gt To do that you should use a binary stream or a character stream with
+&gt external format containing :EOL-STYLE :LF to avoid line-terminator
+&gt conversion.
+
+Yeah, I'm aware of that.  I had just hoped that regardless of the
+external format (WRITE-BYTE x) (or rather the WRITE-SEQUENCE
+equivalent) wouldn't behave like (WRITE-CHAR (CODE-CHAR x)).
+
+Thanks,
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:46 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

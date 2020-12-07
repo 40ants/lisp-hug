@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>[Possible BUG]: Iteration variables are specified to be always used.</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>[Possible BUG]: Iteration variables are specified to be always used.</h1>
+                <pre>
+The CLHS entry for IGNORE[1] says
+
+  The stream variables established by with-open-file, with-open-stream,
+  with-input-from-string, and with-output-to-string, and all /iteration
+  variables/ are, by definition, always ``used''. Using (declare (ignore
+  v)), for such a variable v has unspecified consequences.
+
+And an /iteration variable/ is a binding established by one of
+
+  do              do-external-symbols  dotimes  
+  do*             do-symbols           loop     
+  do-all-symbols  dolist                        
+
+All implementations, that I've tested, got this at least partially
+wrong, although I've not tested on all implementations that I've sent
+this mail to. (Kudos to the implementation that get this totally right!)
+
+There's even a whole issue write up about this [2] where the following
+test case was adapted from:
+
+  (DEFUN COMPILER-WARNINGS-P (BODIES &amp;OPTIONAL (FLAG NIL))
+    (MAPCAR #'(LAMBDA (BODY)
+		(FLET ((TRY (BODY)
+			 (LET ((WARNING 
+				(WITH-OUTPUT-TO-STRING (*ERROR-OUTPUT*)
+				  (COMPILE NIL `(LAMBDA ,@BODY)))))
+			   (IF FLAG WARNING (&gt (LENGTH WARNING) 0)))))
+		  (LIST (TRY BODY)
+			(TRY (LIST (CAR BODY)
+				   (REMOVE-IF
+				    #'(LAMBDA (X)
+					(AND (NOT (ATOM X))
+					     (EQ (CAR X) 'DECLARE)))
+				    (CADR BODY)))))))
+	    BODIES)))
+
+  (DEFUN TEST-CASE ()
+    (COMPILER-WARNINGS-P
+     '(((X) (DOTIMES (A X) (DECLARE (IGNORE A)) (PRINT 'FOO)))
+       ((X) (DOLIST (A X) (DECLARE (IGNORE A)) (PRINT 'FOO)))
+       ((X) (DO-SYMBOLS (S X) (DECLARE (IGNORE S)) (PRINT 'FOO)))
+       ((X) (DO-EXTERNAL-SYMBOLS (S X) (DECLARE (IGNORE S)) (PRINT 'FOO)))
+       (()  (DO-ALL-SYMBOLS (S) (DECLARE (IGNORE S)) (PRINT 'FOO)))
+       ;; Illegal DECLARE position. -TCR.
+       ; ((X) (LOOP FOR I IN X DO (DECLARE (IGNORE I)) (PRINT 'FOO)))
+       ; ((X) (LOOP FOR L ON X DO (DECLARE (IGNORE L)) (PRINT 'FOO)))
+       ((X) (DO ((L X X)) (NIL) (DECLARE (IGNORE L)) (PRINT 'FOO)))
+       ((X) (DO* ((L X X)) (NIL) (DECLARE (IGNORE L)) (PRINT 'FOO)))
+       ((x) (with-input-from-string (v x) (declare (ignore v)) (print 'foo)))
+       ((x) (with-output-to-string (v x) (declare (ignore v)) (print 'foo)))
+       ((x) (with-open-stream (v x) (declare (ignore v)) (print 'foo)))
+       ((x) (with-open-file (v x) (declare (ignore v)) (print 'foo))))))
+
+(test-case) will return a list like
+
+  ((T NIL) (NIL T) ...)
+
+where the first sublist corresponds to the first test case enumerated in
+TEST-CASE's definition. The first element of that sublist is T if a
+style-warning was emitted with the IGNORE declaration, the second
+element is T if a style-warning was emitted without the IGNORE
+declaration.
+
+I.e. the above example would mean that there was style-warning signalled for
+
+  (DOTIMES (A X) (DECLARE (IGNORE A)) (PRINT 'FOO))
+
+but not for
+
+  (DOTIMES (A X) (PRINT 'FOO))
+
+Optimally, the result an implementation should return is a list of 
+(T NIL)s.
+
+ It _must not_ return a list where any sublist is of the form (FOO T) as
+this would mean that style-warning was signalled without a IGNORE
+declaration, which is against the above quote from CLHS.
+
+(I assume that any style-warning emitted is a style-warning concerning
+good or bad use of a IGNORE declaration.)
+
+  -T.
+
+[1] http://www.lispworks.com/documentation/HyperSpec/Body/d_ignore.htm#ignore
+
+[2] http://www.lispworks.com/documentation/HyperSpec/Issues/iss137_w.htm
+
+
+-------------------------------------------------------------------------
+Check out the new SourceForge.net Marketplace.
+It's the best place to buy or sell services for
+just about anything Open Source.
+http://ad.doubleclick.net/clk;164216239;13503038;w?http://sf.net/marketplace
+</pre>
+               </article>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:41 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

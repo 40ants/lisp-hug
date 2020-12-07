@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>capi:show-pane &amp; friends</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>capi:show-pane &amp; friends</h1>
+                <pre>
+Hello all,
+
+I'm trying to implement the following behavior:
+Upon some action that may take a while, a progress bar appears within a
+given interface (and the interface already exists and is displayed). The
+progress bar progresses until completion, and when the action is done, the
+progress bar disappears. This behavior is exemplified by the progress bar
+in Firefox (on Mac OS X at least) that is shown when loading a page.
+
+Here's how I'm trying to do it:
+
+(capi:define-interface progress () ()
+  (:panes
+   (pb capi:progress-bar
+       :start 0 :end 100 :slug-start 0)))
+
+(defmethod capi:interface-display :after ((p progress))
+  "Hide the progress bar until it's needed."
+  (capi:hide-pane (slot-value p 'pb)))
+
+(let ((p (make-instance 'progress)))
+  (capi:display p)
+  ;; the pane appears with the progress bar hidden, as I would expect...
+  (capi:apply-in-pane-process
+   p #'capi:show-pane (slot-value p 'pb))
+  ;; but it still looks the same...
+  ;; (execute-with-interface doesn't help either)
+  (capi:redisplay-interface p)
+  ;; even after manually redisplaying
+  )
+
+The idea is that there is an interface with a progress bar. The progress bar
+is hidden when the interface is displayed and would be shown again when
+needed, using capi:show-pane. I can't get the thing to show up again though.
+It occurs to me that I might be misunderstanding the purpose
+of show- and hide- pane; perhaps they are meant to hide the interface containing
+pane, as show and hide interface would, but this doesn't seem to be the case
+as show-pane hides *only* the specified pane, and not the interface.
+Any thoughts?
+
+I'm working on Mac OS X 10.4.7 in Lispworks 4.4.6.
+
+Thanks!
+
+-- 
+=====================
+Joshua Taylor
+tayloj@rpi.edu
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: capi:show-pane &amp; friends</h1>
+                 <pre>
+
+On Aug 7, 2006, at 1:42 PM, Taylor, Joshua wrote:
+
+&gt The idea is that there is an interface with a progress bar. The  
+&gt progress bar
+&gt is hidden when the interface is displayed and would be shown again  
+&gt when
+&gt needed, using capi:show-pane. I can't get the thing to show up  
+&gt again though.
+&gt It occurs to me that I might be misunderstanding the purpose
+&gt of show- and hide- pane; perhaps they are meant to hide the  
+&gt interface containing
+&gt pane, as show and hide interface would, but this doesn't seem to be  
+&gt the case
+&gt as show-pane hides *only* the specified pane, and not the interface.
+&gt Any thoughts?
+&gt
+&gt I'm working on Mac OS X 10.4.7 in Lispworks 4.4.6.
+
+I'm not sure about the hide-pane part, but I think the larger problem  
+you face is getting the progress bar to update properly on OS X.  
+Search the archives for several discussions about this. I had no luck  
+getting progress bars or other CAPI elements (e.g. title pane text)  
+to update during lengthy operations on the Mac. I was using execute- 
+with-interface from a secondary process performing the operation.
+
+The good news is that everything appears to be fixed now with  
+LispWorks 5.
+
+
+John DeSoi, Ph.D.
+http://pgedit.com/
+Power Tools for PostgreSQL
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: capi:show-pane &amp; friends</h1>
+                 <pre>
+Actually, I'm having no trouble updating the progress bar. Maybe
+I'm not doing it the way I'm supposed to, but I'm scheduling a timer
+which periodically updates the progress bar. I'm only using the progress
+bar to indicate how much time something has taken of its alloted time.
+E.g., making a call to some external system which might time out. If the
+time out is in 10 seconds, the progress bar might move 10% every second
+for 10 seconds.
+
+The show and hide pane is still an issue though...
+
+On 8/7/06, John DeSoi &lt;desoi@pgedit.com&gt wrote:
+&gt
+&gt On Aug 7, 2006, at 1:42 PM, Taylor, Joshua wrote:
+&gt
+&gt &gt The idea is that there is an interface with a progress bar. The
+&gt &gt progress bar
+&gt &gt is hidden when the interface is displayed and would be shown again
+&gt &gt when
+&gt &gt needed, using capi:show-pane. I can't get the thing to show up
+&gt &gt again though.
+&gt &gt It occurs to me that I might be misunderstanding the purpose
+&gt &gt of show- and hide- pane; perhaps they are meant to hide the
+&gt &gt interface containing
+&gt &gt pane, as show and hide interface would, but this doesn't seem to be
+&gt &gt the case
+&gt &gt as show-pane hides *only* the specified pane, and not the interface.
+&gt &gt Any thoughts?
+&gt &gt
+&gt &gt I'm working on Mac OS X 10.4.7 in Lispworks 4.4.6.
+&gt
+&gt I'm not sure about the hide-pane part, but I think the larger problem
+&gt you face is getting the progress bar to update properly on OS X.
+&gt Search the archives for several discussions about this. I had no luck
+&gt getting progress bars or other CAPI elements (e.g. title pane text)
+&gt to update during lengthy operations on the Mac. I was using execute-
+&gt with-interface from a secondary process performing the operation.
+&gt
+&gt The good news is that everything appears to be fixed now with
+&gt LispWorks 5.
+&gt
+&gt
+&gt John DeSoi, Ph.D.
+&gt http://pgedit.com/
+&gt Power Tools for PostgreSQL
+&gt
+&gt
+
+
+-- 
+=====================
+Joshua Taylor
+tayloj@rpi.edu
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: capi:show-pane &amp; friends</h1>
+                 <pre>
+Sorry to repost on the same subject, but the conversation sort of
+drifted off to getting
+progress bars to work (which is good to hear about; I do have some
+recollection of the
+difficulty in that from previous discussions on the list). The issue
+in the original question,
+however, was about the use of show- and hide- pane.
+
+The condensed version of the question is:
+
+Can hide-pane and show-pane be used to make hide and show a pane
+within an interface
+while the interface is on screen? If that is not the purpose, then
+what exactly is hide pane
+doing in the following example, and would there be a way to undo and
+redo its effect?
+
+Thanks!
+
+(capi:define-interface progress () ()
+ (:panes
+  (pb capi:progress-bar
+      :start 0 :end 100 :slug-start 0)))
+
+(defmethod capi:interface-display :after ((p progress))
+ "Hide the progress bar until it's needed."
+ (capi:hide-pane (slot-value p 'pb)))
+
+(let ((p (make-instance 'progress)))
+ (capi:display p)
+ ;; the pane appears with the progress bar hidden, as I would expect...
+ (capi:apply-in-pane-process
+  p #'capi:show-pane (slot-value p 'pb))
+ ;; but it still looks the same...
+ ;; (execute-with-interface doesn't help either)
+ (capi:redisplay-interface p)
+ ;; even after manually redisplaying
+ )
+
+
+-- 
+=====================
+Joshua Taylor
+tayloj@rpi.edu
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:44 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

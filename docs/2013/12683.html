@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Summary of multi-processing...</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Summary of multi-processing...</h1>
+                <pre>
+Hi,
+
+Somebody asked me about multiprocessing in LispWorks, and I quickly wrote down a summary. The summary, as far as I can tell, is below. Anything I’m missing?
+
+- mp:process-run-function calls a function in a new process. You can pass some parameters to such a function, but that’s usually not necessary. This essentially moves a function to a different core (not exactly correct, but a good enough intuition).
+
+- 95% or more of all synchronization needs are covered my mailboxes (mp:make-mailbox, mp:mailbox-send, mp:mailbox-peek, mp:mailbox-read). You can send any lisp object from one process to other processes through such mailboxes in a safe manner. mp:process-run-function allows you to create process-specific mailboxes, but I always find that confusing. I usually set up global mailboxes that the different processes can refer to (shared in closures, or in global variables).
+
+- It’s typically not a good idea to call mp:process-run-function for short-lived functions. Better call a function that runs a loop, fetches some object from a mailbox, does something with it, and then fetches some more, until it fetches a special object / symbol that signals that the process should shut down. Shutting down a process is achieved by just returning from the process function as normal. If a process needs to know whether some other process has successfully shut down, mp:process-join is your friend.
+
+- If you need more fine-grained synchronization, you can use locks (mp:make-lock, mp:with-lock). Locks are nothing to be afraid of: Unless there is high contention, they don’t cost that much anymore in modern processors in terms of performance.
+
+- Some data structures provide locked / atomic operations by default, like hash tables and vectors with fill-pointers. In can be interesting to tell them to not use locks if you know that they are used only by one thread at a time (option :single-thread in make-array and make-hash-table). Some CLOS operations need to take locks, and it’s not possible to prevent that from happening, but that’s only for rare cases anyway (for example, for redefining classes).
+
+- LispWorks provides even more synchronization primitives, but you rarely need them. (But it’s good that they are there!) Specifically: Barriers (in package mp), semaphores (MP), condition variables (mp), atomic operations (package system), memory order synchronization (system).
+
+- Good to know: memory allocation is by default thread-local. It’s always better to allocate memory in the threads that use that memory most.
+
+- The garbage collector freezes all processes. This may or may not matter.
+
+
+Pascal
+
+--
+Pascal Costanza
+The views expressed in this email are my own, and not those of my employer.
+
+
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Summary of multi-processing...</h1>
+                 <pre>
+&gt From: Pascal Costanza &lt;pc@p-cos.net&gt
+&gt Date: Fri, 20 Dec 2013 09:35:47 +0100
+&gt 
+&gt Hi,
+&gt 
+&gt Somebody asked me about multiprocessing in LispWorks, and I quickly
+&gt wrote down a summary. The summary, as far as I can tell, is below.
+&gt Anything I’m missing?
+
+mp:process-wait (and mp:process-wait-with-...)
+mp:process-wait-local (and ditto)
+mp:process-poke
+
+mp:ensure-process-cleanup
+
+Timers
+
+Occasionally: mp:process-stop / mp:process-unstop
+
+
+-n
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Summary of multi-processing...</h1>
+                 <pre>
+Nick Levine &lt;ndl@ravenbrook.com&gt writes:
+
+&gt mp:process-wait (and mp:process-wait-with-...)
+&gt mp:process-wait-local (and ditto)
+&gt mp:process-poke
+
+But note that using e.g. mailboxes or condition variables is usually
+more efficient in LW 6 and later since they don't have to involve the
+scheduler. I've replaced most of the places I used mp:process-wait with
+mp:condition-variable-wait (and probably should have used mailboxes for
+some of those cases).
+-- 
+  (espen)
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Summary of multi-processing...</h1>
+                 <pre>
+On Fri, 20 Dec 2013 08:35:47 -0000, Pascal Costanza &lt;pc@p-cos.net&gt wrote:
+
+&gt - 95% or more of all synchronization needs are covered my mailboxes  
+&gt (mp:make-mailbox, mp:mailbox-send, mp:mailbox-peek, mp:mailbox-read).  
+&gt You can send any lisp object from one process to other processes through  
+&gt such mailboxes in a safe manner. mp:process-run-function allows you to  
+&gt create process-specific mailboxes, but I always find that confusing. I  
+&gt usually set up global mailboxes that the different processes can refer  
+&gt to (shared in closures, or in global variables).
+
+
+Hi Pascal,
+
+thanks for the summary. As a side note I never really managed to wrap my  
+head around mailboxes, if I needed to pass data around, I would use  
+closure variables (or global variables where it mattered). How is usage of  
+mailboxes distinct from simply using variables, and what are its  
+advantages?
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:30 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

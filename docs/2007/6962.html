@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>pretty printing on LWL5.0.2</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>pretty printing on LWL5.0.2</h1>
+                <pre>
+Hello all,
+
+I've got LWL 5.0.2 here on a IBM Thinkpad T22 running Ubuntu Feisty
+Fawn. Here's the function in question:
+
+(defun do-pprint-test ()
+  (let ((stream *standard-output*))
+    (pprint-logical-block (stream () :prefix "(" :suffix ")")
+      (dotimes (i 10)
+	(write '(1 2 3 4 5 6 7 8 9 10) :stream stream)
+	(unless (eql 9 i)
+	  (write-char #\space stream)
+	  (pprint-newline :mandatory stream))))))
+
+I've got SBCL on the same machine, and when I run this function under
+it, I get the following output:
+
+CL-USER&gt (do-pprint-test)
+((1 2 3 4 5 6 7 8 9 10)
+ (1 2 3 4 5 6 7 8 9 10)
+ (1 2 3 4 5 6 7 8 9 10)
+ (1 2 3 4 5 6 7 8 9 10)
+ (1 2 3 4 5 6 7 8 9 10)
+ (1 2 3 4 5 6 7 8 9 10)
+ (1 2 3 4 5 6 7 8 9 10)
+ (1 2 3 4 5 6 7 8 9 10)
+ (1 2 3 4 5 6 7 8 9 10)
+ (1 2 3 4 5 6 7 8 9 10))
+
+Under Lispworks, I get this:
+
+CL-USER 2 &gt (do-pprint-test)
+((1 2 3 4 5 6 7 8 9 10) (1 2 3 4 5 6 7 8 9 10) (1 2 3 4 5 6 7 8 9 10)
+(1 2 3 4 5 6 7 8 9 10) (1 2 3 4 5 6 7 8 9 10) (1 2 3 4 5 6 7 8 9 10)
+(1 2 3 4 5 6 7 8 9 10) (1 2 3 4 5 6 7 8 9 10) (1 2 3 4 5 6 7 8 9 10)
+(1 2 3 4 5 6 7 8 9 10))
+
+(in case Gmail wraps that, it's all on one line.)
+
+Working with the pretty printer, I was starting to think that maybe
+*print-right-margin* or other things than influence the printer might
+have been set up strangely under SLIME, but these two outputs are SBCL
+and LispWorks run from the command line in an xterm. It's my
+understanding that
+
+(pprint-newline :mandatory stream)
+
+should force a newline on stream.
+
+Is LWL doing something strange with the pretty printer, or have I (yet
+again :) ) missed something in how the language works?
+
+Thanks in advance,
+
+-- 
+=====================
+Joshua Taylor
+tayloj@rpi.edu
+
+"A lot of good things went down one time,
+     back in the goodle days."
+               John Hartford
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: pretty printing on LWL5.0.2</h1>
+                 <pre>
+Lispworks 4.3 gives the same answer as SBCL, even without the
+(write-char #\space stream).
+
+On 9/12/07, Taylor, Joshua &lt;tayloj@rpi.edu&gt wrote:
+&gt
+&gt Hello all,
+&gt
+&gt I've got LWL 5.0.2 here on a IBM Thinkpad T22 running Ubuntu Feisty
+&gt Fawn. Here's the function in question:
+&gt
+&gt (defun do-pprint-test ()
+&gt   (let ((stream *standard-output*))
+&gt     (pprint-logical-block (stream () :prefix "(" :suffix ")")
+&gt       (dotimes (i 10)
+&gt         (write '(1 2 3 4 5 6 7 8 9 10) :stream stream)
+&gt         (unless (eql 9 i)
+&gt           (write-char #\space stream)
+&gt           (pprint-newline :mandatory stream))))))
+&gt
+&gt I've got SBCL on the same machine, and when I run this function under
+&gt it, I get the following output:
+&gt
+&gt CL-USER&gt (do-pprint-test)
+&gt ((1 2 3 4 5 6 7 8 9 10)
+&gt  (1 2 3 4 5 6 7 8 9 10)
+&gt  (1 2 3 4 5 6 7 8 9 10)
+&gt  (1 2 3 4 5 6 7 8 9 10)
+&gt  (1 2 3 4 5 6 7 8 9 10)
+&gt  (1 2 3 4 5 6 7 8 9 10)
+&gt  (1 2 3 4 5 6 7 8 9 10)
+&gt  (1 2 3 4 5 6 7 8 9 10)
+&gt  (1 2 3 4 5 6 7 8 9 10)
+&gt  (1 2 3 4 5 6 7 8 9 10))
+&gt
+&gt Under Lispworks, I get this:
+&gt
+&gt CL-USER 2 &gt (do-pprint-test)
+&gt ((1 2 3 4 5 6 7 8 9 10) (1 2 3 4 5 6 7 8 9 10) (1 2 3 4 5 6 7 8 9 10)
+&gt (1 2 3 4 5 6 7 8 9 10) (1 2 3 4 5 6 7 8 9 10) (1 2 3 4 5 6 7 8 9 10)
+&gt (1 2 3 4 5 6 7 8 9 10) (1 2 3 4 5 6 7 8 9 10) (1 2 3 4 5 6 7 8 9 10)
+&gt (1 2 3 4 5 6 7 8 9 10))
+&gt
+&gt (in case Gmail wraps that, it's all on one line.)
+&gt
+&gt Working with the pretty printer, I was starting to think that maybe
+&gt *print-right-margin* or other things than influence the printer might
+&gt have been set up strangely under SLIME, but these two outputs are SBCL
+&gt and LispWorks run from the command line in an xterm. It's my
+&gt understanding that
+&gt
+&gt (pprint-newline :mandatory stream)
+&gt
+&gt should force a newline on stream.
+&gt
+&gt Is LWL doing something strange with the pretty printer, or have I (yet
+&gt again :) ) missed something in how the language works?
+&gt
+&gt Thanks in advance,
+&gt
+&gt --
+&gt =====================
+&gt Joshua Taylor
+&gt tayloj@rpi.edu
+&gt
+&gt "A lot of good things went down one time,
+&gt      back in the goodle days."
+&gt                John Hartford
+&gt
+&gt
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: pretty printing on LWL5.0.2</h1>
+                 <pre>
+&gt On 9/12/07, Taylor, Joshua &lt;tayloj@rpi.edu&gt wrote:
+&gt &gt Hello all,
+&gt &gt I've got LWL 5.0.2 here on a IBM Thinkpad T22 running Ubuntu Feisty
+&gt &gt Fawn. Here's the function in question:
+&gt &gt
+&gt &gt (defun do-pprint-test ()
+&gt &gt   (let ((stream *standard-output*))
+&gt &gt     (pprint-logical-block (stream () :prefix "(" :suffix ")")
+&gt &gt       (dotimes (i 10)
+&gt &gt         (write '(1 2 3 4 5 6 7 8 9 10) :stream stream)
+&gt &gt         (unless (eql 9 i)
+&gt &gt           (write-char #\space stream)
+&gt &gt           (pprint-newline :mandatory stream))))))
+&gt &gt
+&gt &gt I've got SBCL on the same machine, and when I run this function under
+&gt &gt it, I get the following output:
+&gt &gt
+&gt &gt CL-USER&gt (do-pprint-test)
+&gt &gt ((1 2 3 4 5 6 7 8 9 10)
+&gt &gt  (1 2 3 4 5 6 7 8 9 10)
+&gt &gt  (1 2 3 4 5 6 7 8 9 10)
+&gt &gt  (1 2 3 4 5 6 7 8 9 10)
+&gt &gt  (1 2 3 4 5 6 7 8 9 10)
+&gt &gt  (1 2 3 4 5 6 7 8 9 10)
+&gt &gt  (1 2 3 4 5 6 7 8 9 10)
+&gt &gt  (1 2 3 4 5 6 7 8 9 10)
+&gt &gt  (1 2 3 4 5 6 7 8 9 10)
+&gt &gt  (1 2 3 4 5 6 7 8 9 10))
+&gt &gt
+&gt &gt Under Lispworks, I get this:
+&gt &gt
+&gt &gt CL-USER 2 &gt (do-pprint-test)
+&gt &gt ((1 2 3 4 5 6 7 8 9 10) (1 2 3 4 5 6 7 8 9 10) (1 2 3 4 5 6 7 8 9 10)
+&gt &gt (1 2 3 4 5 6 7 8 9 10) (1 2 3 4 5 6 7 8 9 10) (1 2 3 4 5 6 7 8 9 10)
+&gt &gt (1 2 3 4 5 6 7 8 9 10) (1 2 3 4 5 6 7 8 9 10) (1 2 3 4 5 6 7 8 9 10)
+&gt &gt (1 2 3 4 5 6 7 8 9 10))
+&gt &gt
+&gt &gt (in case Gmail wraps that, it's all on one line.)
+&gt &gt
+&gt &gt Working with the pretty printer, I was starting to think that maybe
+&gt &gt *print-right-margin* or other things than influence the printer might
+&gt &gt have been set up strangely under SLIME, but these two outputs are SBCL
+&gt &gt and LispWorks run from the command line in an xterm. It's my
+&gt &gt understanding that
+&gt &gt
+&gt &gt (pprint-newline :mandatory stream)
+&gt &gt
+&gt &gt should force a newline on stream.
+&gt &gt
+&gt &gt Is LWL doing something strange with the pretty printer, or have I (yet
+&gt &gt again :) ) missed something in how the language works?
+&gt &gt
+&gt &gt Thanks in advance,
+
+On 9/12/07, Jeff Caldwell &lt;jeffrey.d.caldwell@gmail.com&gt wrote:
+&gt Lispworks 4.3 gives the same answer as SBCL, even without the
+&gt (write-char #\space stream).
+
+Ah yes, I should have mentioned, I've also got LWL 4.4.6 here, and I get:
+
+CL-USER&gt (do-pprint-test)
+((1 2 3 4 5 6 7 8 9 10)
+ (1 2 3 4 5 6 7 8 9 10)
+ (1 2 3 4 5 6 7 8 9 10)
+ (1 2 3 4 5 6 7 8 9 10)
+ (1 2 3 4 5 6 7 8 9 10)
+ (1 2 3 4 5 6 7 8 9 10)
+ (1 2 3 4 5 6 7 8 9 10)
+ (1 2 3 4 5 6 7 8 9 10)
+ (1 2 3 4 5 6 7 8 9 10)
+ (1 2 3 4 5 6 7 8 9 10))
+
+So there does seem to have been some sort of change between versions...
+
+-- 
+=====================
+Joshua Taylor
+tayloj@rpi.edu
+
+"A lot of good things went down one time,
+     back in the goodle days."
+               John Hartford
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: pretty printing on LWL5.0.2</h1>
+                 <p>
+                  Unable to parse email body. Email id is 6966
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: pretty printing on LWL5.0.2</h1>
+                 <pre>
+&gt &gt&gt&gt&gt&gt On Wed, 12 Sep 2007 16:18:50 -0400, Taylor, Joshua said:
+&gt &gt
+&gt &gt Hello all,
+&gt &gt
+&gt &gt I've got LWL 5.0.2 here on a IBM Thinkpad T22 running Ubuntu Feisty
+&gt &gt Fawn. Here's the function in question:
+&gt &gt
+&gt &gt (defun do-pprint-test ()
+&gt &gt   (let ((stream *standard-output*))
+&gt &gt     (pprint-logical-block (stream () :prefix "(" :suffix ")")
+&gt &gt       (dotimes (i 10)
+&gt &gt       (write '(1 2 3 4 5 6 7 8 9 10) :stream stream)
+&gt &gt       (unless (eql 9 i)
+&gt &gt         (write-char #\space stream)
+&gt &gt         (pprint-newline :mandatory stream))))))
+&gt &gt
+&gt &gt I've got SBCL on the same machine, and when I run this function under
+&gt &gt it, I get the following output:
+&gt &gt
+&gt &gt CL-USER&gt (do-pprint-test)
+&gt &gt ((1 2 3 4 5 6 7 8 9 10)
+&gt &gt  (1 2 3 4 5 6 7 8 9 10)
+&gt &gt  (1 2 3 4 5 6 7 8 9 10)
+&gt &gt  (1 2 3 4 5 6 7 8 9 10)
+&gt &gt  (1 2 3 4 5 6 7 8 9 10)
+&gt &gt  (1 2 3 4 5 6 7 8 9 10)
+&gt &gt  (1 2 3 4 5 6 7 8 9 10)
+&gt &gt  (1 2 3 4 5 6 7 8 9 10)
+&gt &gt  (1 2 3 4 5 6 7 8 9 10)
+&gt &gt  (1 2 3 4 5 6 7 8 9 10))
+&gt &gt
+&gt &gt Under Lispworks, I get this:
+&gt &gt
+&gt &gt CL-USER 2 &gt (do-pprint-test)
+&gt &gt ((1 2 3 4 5 6 7 8 9 10) (1 2 3 4 5 6 7 8 9 10) (1 2 3 4 5 6 7 8 9 10)
+&gt &gt (1 2 3 4 5 6 7 8 9 10) (1 2 3 4 5 6 7 8 9 10) (1 2 3 4 5 6 7 8 9 10)
+&gt &gt (1 2 3 4 5 6 7 8 9 10) (1 2 3 4 5 6 7 8 9 10) (1 2 3 4 5 6 7 8 9 10)
+&gt &gt (1 2 3 4 5 6 7 8 9 10))
+&gt &gt
+&gt &gt (in case Gmail wraps that, it's all on one line.)
+&gt &gt
+&gt &gt Working with the pretty printer, I was starting to think that maybe
+&gt &gt *print-right-margin* or other things than influence the printer might
+&gt &gt have been set up strangely under SLIME, but these two outputs are SBCL
+&gt &gt and LispWorks run from the command line in an xterm. It's my
+&gt &gt understanding that
+&gt &gt
+&gt &gt (pprint-newline :mandatory stream)
+&gt &gt
+&gt &gt should force a newline on stream.
+&gt &gt
+&gt &gt Is LWL doing something strange with the pretty printer, or have I (yet
+&gt &gt again :) ) missed something in how the language works?
+
+On 9/13/07, Martin Simmons &lt;martin@lispworks.com&gt wrote:
+&gt
+&gt I think the problem is that you have *print-pretty* bound to nil.  We changed
+&gt pprint-newline in LispWorks 5.0 to match this paragraph in the CL spec:
+&gt
+&gt "If stream is a pretty printing stream and the value of *print-pretty* is
+&gt true, a line break is inserted in the output when the appropriate condition
+&gt below is satisfied; otherwise, pprint-newline has no effect."
+&gt
+Ah, I'd thought pprint-logical-block binds *print-pretty* to t, but
+under "Notes" of pprint-logical-block, I see: "One reason for using
+the pprint-logical-block macro when the value of *print-pretty* is
+nil..." which makes it clear that it doesnt.
+
+But, it makes some pretty printing functions I've been writing more
+general which is good.
+
+It's good to see LW and my brain aligned more with the spec. I'll be
+sure to bind *print-pretty*.
+
+Thanks for the quick reply!
+-- 
+=====================
+Joshua Taylor
+tayloj@rpi.edu
+
+"A lot of good things went down one time,
+     back in the goodle days."
+               John Hartford
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:41 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

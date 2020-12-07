@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Foreign pointers and with-dynamic-foreign-objects</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Foreign pointers and with-dynamic-foreign-objects</h1>
+                <pre>
+Hello list,
+
+I was reading the man page for with-dynamic-foreign-objects 
+where it says:
+
+   "Only standard foreign types can be bound using bindings.
+   Foreign pointer types should be allocated using
+   allocate-dynamic-foreign-object."
+
+But looking through my code I see that I've ignored this and 
+allocated a pointer to a pointer in the list of bindings 
+rather than via allocate-dynamic-foreign-object, and it 
+seems to work fine (on Windows, at least): I pass my pointer 
+to a pointer to a foreign function, then dereference it and 
+return the pointed-to pointer.
+
+Is this safe, or should I modify my code to use 
+allocate-dynamic-foreign-object, (now and in the future)?
+
+Thanks,
+
+John :^P
+-- 
+John Pallister
+john@synchromesh.com
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>AW: Foreign pointers and with-dynamic-foreign-objects</h1>
+                 <pre>
+
+
+&gt -----Ursprüngliche Nachricht-----
+&gt Von: owner-lisp-hug@lispworks.com 
+&gt [mailto:owner-lisp-hug@lispworks.com] Im Auftrag von John Pallister
+&gt Gesendet: Mittwoch, 1. August 2007 12:19
+&gt An: lisp-hug@lispworks.com
+&gt Betreff: Foreign pointers and with-dynamic-foreign-objects
+&gt 
+&gt 
+&gt 
+&gt Hello list,
+&gt 
+&gt I was reading the man page for with-dynamic-foreign-objects 
+&gt where it says:
+&gt 
+&gt    "Only standard foreign types can be bound using bindings.
+&gt    Foreign pointer types should be allocated using
+&gt    allocate-dynamic-foreign-object."
+&gt 
+&gt But looking through my code I see that I've ignored this and 
+&gt allocated a pointer to a pointer in the list of bindings 
+&gt rather than via allocate-dynamic-foreign-object, and it 
+&gt seems to work fine (on Windows, at least): I pass my pointer 
+&gt to a pointer to a foreign function, then dereference it and 
+&gt return the pointed-to pointer.
+&gt 
+&gt Is this safe, or should I modify my code to use 
+&gt allocate-dynamic-foreign-object, (now and in the future)?
+&gt 
+&gt Thanks,
+&gt 
+&gt John :^P
+&gt -- 
+&gt John Pallister
+&gt john@synchromesh.com
+&gt 
+
+Hi John,
+
+If I correctly understand you, you don't use allocate-dynamic-foreign-object. So you allocate
+The pointer by 'hand' and thus you also have to deallocate it by free-foreign-object or you'd have a memory leak.
+
+Is that correct?
+
+Andreas
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: AW: Foreign pointers and with-dynamic-foreign-objects</h1>
+                  <pre>
+On Wednesday 01 August 2007 13:42:48 Andreas Thiele wrote:
+&gt &gt -----Ursprüngliche Nachricht-----
+&gt &gt Von: owner-lisp-hug@lispworks.com
+&gt &gt [mailto:owner-lisp-hug@lispworks.com] Im Auftrag von John Pallister
+&gt &gt Gesendet: Mittwoch, 1. August 2007 12:19
+&gt &gt An: lisp-hug@lispworks.com
+&gt &gt Betreff: Foreign pointers and with-dynamic-foreign-objects
+&gt &gt
+&gt &gt
+&gt &gt
+&gt &gt Hello list,
+&gt &gt
+&gt &gt I was reading the man page for with-dynamic-foreign-objects
+&gt &gt where it says:
+&gt &gt
+&gt &gt    "Only standard foreign types can be bound using bindings.
+&gt &gt    Foreign pointer types should be allocated using
+&gt &gt    allocate-dynamic-foreign-object."
+&gt &gt
+&gt &gt But looking through my code I see that I've ignored this and
+&gt &gt allocated a pointer to a pointer in the list of bindings
+&gt &gt rather than via allocate-dynamic-foreign-object, and it
+&gt &gt seems to work fine (on Windows, at least): I pass my pointer
+&gt &gt to a pointer to a foreign function, then dereference it and
+&gt &gt return the pointed-to pointer.
+&gt &gt
+&gt &gt Is this safe, or should I modify my code to use
+&gt &gt allocate-dynamic-foreign-object, (now and in the future)?
+&gt &gt
+&gt &gt Thanks,
+&gt &gt
+&gt &gt John :^P
+&gt &gt --
+&gt &gt John Pallister
+&gt &gt john@synchromesh.com
+&gt
+&gt Hi John,
+&gt
+&gt If I correctly understand you, you don't use
+&gt allocate-dynamic-foreign-object. So you allocate The pointer by 'hand' and
+&gt thus you also have to deallocate it by free-foreign-object or you'd have a
+&gt memory leak.
+&gt
+&gt Is that correct?
+
+No, he allocated a pointer to a pointer with with-dynamic-foreign-objects 
+instead of with allocate-dynamic-foreign-object.
+
+I don't know the answer to John's question, but I would like to know what the 
+documentation for with-dynamic-foreign-objects means with "standard foreign 
+types". Obviously it includes immediate types, and the example for 
+with-dynamic-foreign-objects uses an aggregate type (as defined by the FLI 
+User Guide and Reference Manual). So does it only exclude pointer types? The 
+terminology used by the FLI guide is not always clear (to me). E.g. when I 
+started with the FLI I had this question which was not answered by LispWorks 
+but I concluded the answer is immediate from examples and Paul Tarvydas' 
+answer (http://thread.gmane.org/gmane.lisp.lispworks.general/6707):
+
+I am confused about whether FLI pointers types (the pointer type itself, 
+not that what the pointer points to) are immediate or aggregate types. 
+The Lispworks documentation specifies it as both:
+immediate: 
+http://www.lispworks.com/documentation/lw50/FLI/html/fli-17.htm#pgfId-888612
+aggregate:
+http://www.lispworks.com/documentation/lw50/FLI/html/fli-23.htm#pgfId-886654
+(first sentence)
+
+Nico
+
+
+
+
+</pre>
+                 </article>
+                </section>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Foreign pointers and with-dynamic-foreign-objects</h1>
+                 <p>
+                  Unable to parse email body. Email id is 6856
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:42 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

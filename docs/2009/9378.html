@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Mostly sleeping app consuming significant CPU</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Mostly sleeping app consuming significant CPU</h1>
+                <pre>
+Hi.
+
+I have a delivered application (32 bit LWL 5.1.2, delivered at level
+0), which top(1) claims is steadily using upwards of 25% cpu.  I
+profiled the application over a 5 second period[1], and in 94% of the
+samples SYSTEM::WAIT-FOR-STACK-WITH-TIMEOUT was at the top of the
+stack.  The call tree shows that 75% of the times it was sleeping in
+my application loop[2], 19% of the times it was sleeping in my
+profiling statement.
+
+So how can something that spends over 90% of its time asleep consume
+that much CPU?
+
+This application uses bindings to a C library to read incoming data.
+Are FLI calls somehow not counted in the profiler?  The cumulative
+statistics show that FLI:BASIC-DEREFERENCE and (SETF
+FLI:BASIC-DEREFERENCE) are the clear winners in the "called" column,
+with profiling-related functions a distant second.  None of these
+functions ever appear on the stack, apparently.
+
+The function that actually reads data is only found on the stack
+once.
+
+Has anyone seen similar things?  Any clues as to how to find out what
+it's doing with its time?
+
+
+Footnotes: 
+[1]  (hcl:set-up-profiler :package (list-all-packages) :style :tree)
+     followed by (hcl:profile (sleep 5))
+
+[2]  The main loop of the application is basically
+     (loop
+       (read-and-process-all-available-data)
+       (sleep 1))
+
+-- 
+Mvh/Regards
+Peder O. Klingenberg
+Netfonds Bank ASA
+
+
+</pre>
+               </article>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:36 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

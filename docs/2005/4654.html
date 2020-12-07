@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Lispworks and SSL</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Lispworks and SSL</h1>
+                <pre>
+First of all, apologies for the inter-mailing list cross post.
+
+
+I've recently tried to upgrade our version of portableaserve
+from something totally ancient (1.2.12 ?) to the latest CVS
+version.
+
+When I did this, SSL support (i.e. HTTPS) stopped working.
+I tried with both my old version of cl-ssl, and what
+appears to be the currently available version.
+
+Does anyone have SSL (server side) support working with 
+portableaserve under Lispworks?  If so, what is your setup?
+
+
+Furthermore, I note that there is now support for client side SSL
+using LW's native ssl support, i.e. the method
+
+#+(and :lispworks4.4 (not :cl-ssl))
+(defmethod make-ssl-client-stream ((socket-stream bidirectional-binary-socket-stream) &amp;rest options)
+  (declare (ignore options))
+  (comm:attach-ssl socket-stream :ssl-ctx t :ssl-side :client)
+  socket-stream)
+
+There is however no method for MAKE-SSL-SERVER-STREAM.
+Does anyone know how to write one?  My take is you have
+to use the :CTX-CONFIGURE-CALLBACK and :SSL-CONFIGURE-CALLBACK
+methods to put in some info relating to the certificate and
+password files into the stream, but I don't know enough details
+on exactly what to do.  
+
+I tried this for kicks
+
+(defmethod make-ssl-server-stream ((socket-stream bidirectional-binary-socket-stream) &amp;rest options)
+  (declare (ignore options))
+  (flet ((ctx-configure-callback (ctx)
+	   (comm:set-ssl-ctx-options ctx :all t))
+	 (ssl-configure-callback (ssl)
+	   (comm:ssl-use-certificate-file my-ssl "/tmp/ca.crt" COMM:SSL_FILETYPE_ASN1)))
+    (comm:attach-ssl socket-stream :ssl-ctx t :ssl-side :server
+		     :ctx-configure-callback #'ctx-configure-callback
+		     :ssl-configure-callback #'ssl-configure-callback))
+  socket-stream)
+
+But that's as far as I got.  This is incomplete because it doesn't
+reference the key file "ca.key" (what aserve calls the :ssl-password
+argument).  Also, I have no idea what ctx-options I'm supposed to set.
+
+If someone's already done this, or knows exactly how to do this, we
+could remove the requirement for :cl-ssl entirely, at least under
+lispworks, to provide HTTPS support.
+
+Anyone?  Please???  :-)
+
+Thanks
+				--ap
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Lispworks and SSL</h1>
+                 <pre>On Wed, 19 Oct 2005 11:23:12 +1000, Alain.Picard@memetrics.com wrote:
+
+&gt This is incomplete because it doesn't reference the key file
+&gt "ca.key" (what aserve calls the :ssl-password argument).
+
+I'm just guessing here but there's SET-SSL-CTX-PASSWORD-CALLBACK:
+
+  &lt;http://www.lispworks.com/documentation/lw445/LWRM/html/lwref-40.htm&gt
+
+Cheers,
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Lispworks and SSL</h1>
+                 <pre>On Wed, 19 Oct 2005 11:23:12 +1000, Alain.Picard@memetrics.com wrote:
+
+&gt Also, I have no idea what ctx-options I'm supposed to set.
+
+The options are explained here:
+
+  &lt;http://www.openssl.org/docs/ssl/SSL_CTX_set_options.html&gt
+
+Cheers,
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Lispworks and SSL</h1>
+                 <pre>Alain.Picard@memetrics.com wrote:
+
+&gtFirst of all, apologies for the inter-mailing list cross post.
+&gt
+&gt
+&gtI've recently tried to upgrade our version of portableaserve
+&gtfrom something totally ancient (1.2.12 ?) to the latest CVS
+&gtversion.
+&gt
+&gtWhen I did this, SSL support (i.e. HTTPS) stopped working.
+&gtI tried with both my old version of cl-ssl, and what
+&gtappears to be the currently available version.
+&gt
+&gtDoes anyone have SSL (server side) support working with 
+&gtportableaserve under Lispworks?  If so, what is your setup?
+&gt
+&gt
+&gt  
+&gt
+
+Yes, I have SSL working under both LWW and LWL.  It takes some massaging,
+and it is not obvious as to what to do.   Give me a bit and I will pack 
+up what I
+have and post it somewhere.  The version of cl-ssl I use is (0.1.2), 
+basically
+I build/load cl-ssl before (load "INSTALL.lisp") with portable aserve.  
+But you have
+to push some ssl features into *features* before loading portableaserve 
+and then make sure
+that you force a recompile of pserve.
+
+Here is defsystem.lisp file I use to load aserve with ssl support on 
+Linux.  I think there
+is some other things you might have to change in miscellaneous files 
+somewhere.
+
+;; Westmount Charter School - School Council Web Portal
+;;
+;;
+;; Load This File First!
+
+(in-package :common-lisp-user)
+
+(setf (logical-pathname-translations "WESTMOUNT-COUNCIL")
+      `(("**;*"
+         ,(make-pathname :host (pathname-host *load-truename*)
+                         :directory (append (pathname-directory 
+*load-truename*) '(:wild-inferiors))
+                         :name :wild))))
+
+(progn
+  (unless (member :cl-ssl *features*)
+    (load "/home/wade/cl-ssl/cl-ssl.asd"))
+  (asdf:operate 'asdf:load-op :cl-ssl)
+  (pushnew :ssl-available *features*))
+
+(unless (member :aserve *features*)
+  #+cmu(load "/home/wade/portableaserve/INSTALL.lisp")
+  #+lispworks(load "/home/wade/aserve/INSTALL.lisp"))
+
+(defpackage :xhtml
+  (:use :common-lisp)
+  (:export "*XHTML-STREAM*"
+           "DEFTAG"
+       "CONTENT--&gt"))
+
+(defpackage :westmount-council
+  (:use :common-lisp :acl-compat.excl :net.aserve :xhtml)
+  (:nicknames :westmount))
+
+(asdf:defsystem :westmount-council
+    :version "04-09-2004.0"
+    :components
+    ((:file "xhtml")
+     (:file "csv-parser")
+     (:file "calendar")
+     (:file "web-base" :depends-on ("xhtml" "csv-parser" "calendar"))
+     (:file "school-calendar" :depends-on ("web-base"))
+     (:file "teachers" :depends-on ("web-base"))
+     (:file "volunteer" :depends-on ("web-base"))
+     (:file "practicum" :depends-on ("web-base" "volunteer"))
+     (:file "web-pages" :depends-on ("volunteer" "practicum" "teachers" 
+"school-calendar")))
+    :depends-on (:cl-smtp :aserve))
+
+(asdf:oos 'asdf:load-op :westmount-council)
+
+(in-package :westmount-council)
+
+(setf *volunteer-filename*
+      (translate-logical-pathname "WESTMOUNT-COUNCIL:data;volunteers.db"))
+
+
+
+Wade
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:47 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

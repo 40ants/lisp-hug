@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>dspec - finding source for method</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>dspec - finding source for method</h1>
+                <pre>hi list,
+
+i am lisp-newbie, and i already have a question ;-)
+
+i want to use simpler names for capi methods (e.g.
+instead of (option-pane-enabled x) or (button-enabled x)
+i want to write (enabled x) and have the generic
+method machinery worry about the details.
+
+(eval-when (:compile-toplevel :load-toplevel :execute)
+
+   (defun capi-fname (fn cls)
+     "computes the capi function name CLS-FN"
+     (find-symbol
+      (concatenate 'string
+                   (symbol-name cls)
+                   "-"
+                   (symbol-name fn))))
+
+   (defun capi-reader-definition (fn cls)
+     "compute defmethod for capi reader"
+     `(defmethod ,fn ((w ,cls)) (,(capi-fname fn cls) w)))
+
+   (defun capi-setf-definition (fn cls)
+     "compute defmethod for capi setf definition"
+     `(defmethod (setf ,fn) (val (w ,cls))
+        (setf (,(capi-fname fn cls) w) val))))
+
+(defmacro def-capi-accessors (fname (&amp;rest classes))
+   "define accessors for capi classes"
+   `(progn ,@(mapcan (lambda (cls)
+                       (list
+                        (capi-reader-definition fname cls)
+                        (capi-setf-definition fname cls)))
+                     classes)))
+
+(def-capi-accessors enabled (button simple-pane option-pane))
+
+so far so good, this seems to work - at least for "enabled"
+and the few other methods i wrapped so far.
+
+but i would also like to "Find Source" on these generated
+methods and be transported to the corresponding def-capi-accessors
+line in the editor.
+
+so far, no joy.
+
+for another macro
+
+(defmacro deftest (name &amp;args args) ... )
+(dspec:define-dspec-alias deftest (name)
+               `(defun ,name))
+
+works like a charm, but then that's easy.
+
+now i suppose i have to tell lispworks something like
+
+(dspec:define-dspec-alias def-capi-accessors (name &amp;rest args)
+   (mapcar (lambda (x)
+     `(defmethod ,(capi-fname 'enabled x))) ,args)
+
+except it does not work.  i suspect that
+  - the expansion is not correct
+  - i have to to use an entirely different macro/function ...
+
+
+how do i do this?
+
+regards,
+juergen
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: dspec - finding source for method</h1>
+                 <pre>Hi Juergen,
+
+For a lisp newbie, this is already quite a macro. ;-)
+
+I don't know enough about dspecs, so I cannot answer your question 
+directly. However, my recommendation would be to drop the macro you 
+have written, for the following reason.
+
+Your macro seems to work well for the simple cases that you seem to 
+have in mind. However, it is likely that at some later stage you would 
+like to add more features. For example, you may want to reorder 
+original arguments, add optional arguments, treat keyword arguments in 
+certain ways, take before/after/around methods into account, and so on. 
+This is likely to become very complex. On the other hand, Common Lisp 
+already provides a way to write method definitions in a somewhat more 
+concise way. For your example you could write this:
+
+(defgeneric enabled (thing)
+   (:method ((thing button))
+    (button-enabled thing))
+   (:method ((thing simple-pane))
+    (simple-pane-enabled thing))
+   (:method ((thing option-pane))
+    (option-pane-enabled thing)))
+
+In the beginning when I was new to Common Lisp, I have thought that 
+"default" methods in defgeneric forms are somewhat superfluous, but in 
+the meantime I tend to use them on a regular basis for similar reasons 
+that you seem to have in mind. It's a little bit more to type than your 
+def-capi-accesors but your def-capi-accessors is likely to become as 
+large in the long run.
+
+Just my 0.02€.
+
+
+Pascal
+
+On 6 Mar 2005, at 2:53, Juergen Gmeiner wrote:
+
+&gt hi list,
+&gt
+&gt i am lisp-newbie, and i already have a question ;-)
+&gt
+&gt i want to use simpler names for capi methods (e.g.
+&gt instead of (option-pane-enabled x) or (button-enabled x)
+&gt i want to write (enabled x) and have the generic
+&gt method machinery worry about the details.
+&gt
+&gt (eval-when (:compile-toplevel :load-toplevel :execute)
+&gt
+&gt   (defun capi-fname (fn cls)
+&gt     "computes the capi function name CLS-FN"
+&gt     (find-symbol
+&gt      (concatenate 'string
+&gt                   (symbol-name cls)
+&gt                   "-"
+&gt                   (symbol-name fn))))
+&gt
+&gt   (defun capi-reader-definition (fn cls)
+&gt     "compute defmethod for capi reader"
+&gt     `(defmethod ,fn ((w ,cls)) (,(capi-fname fn cls) w)))
+&gt
+&gt   (defun capi-setf-definition (fn cls)
+&gt     "compute defmethod for capi setf definition"
+&gt     `(defmethod (setf ,fn) (val (w ,cls))
+&gt        (setf (,(capi-fname fn cls) w) val))))
+&gt
+&gt (defmacro def-capi-accessors (fname (&amp;rest classes))
+&gt   "define accessors for capi classes"
+&gt   `(progn ,@(mapcan (lambda (cls)
+&gt                       (list
+&gt                        (capi-reader-definition fname cls)
+&gt                        (capi-setf-definition fname cls)))
+&gt                     classes)))
+&gt
+&gt (def-capi-accessors enabled (button simple-pane option-pane))
+&gt
+&gt so far so good, this seems to work - at least for "enabled"
+&gt and the few other methods i wrapped so far.
+&gt
+&gt but i would also like to "Find Source" on these generated
+&gt methods and be transported to the corresponding def-capi-accessors
+&gt line in the editor.
+&gt
+&gt so far, no joy.
+&gt
+&gt for another macro
+&gt
+&gt (defmacro deftest (name &amp;args args) ... )
+&gt (dspec:define-dspec-alias deftest (name)
+&gt               `(defun ,name))
+&gt
+&gt works like a charm, but then that's easy.
+&gt
+&gt now i suppose i have to tell lispworks something like
+&gt
+&gt (dspec:define-dspec-alias def-capi-accessors (name &amp;rest args)
+&gt   (mapcar (lambda (x)
+&gt     `(defmethod ,(capi-fname 'enabled x))) ,args)
+&gt
+&gt except it does not work.  i suspect that
+&gt  - the expansion is not correct
+&gt  - i have to to use an entirely different macro/function ...
+&gt
+&gt
+&gt how do i do this?
+&gt
+&gt regards,
+&gt juergen
+&gt
+&gt
+--
+So the essence of XML is this: the problem it solves is not hard, and 
+it does not solve the problem well. - Jerome Simeon and Philip Wadler
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: dspec - finding source for method</h1>
+                 <pre>Juergen Gmeiner wrote:
+
+ &gt (dspec:define-dspec-alias def-capi-accessors (name &amp;rest args)
+ &gt   (mapcar (lambda (x)
+ &gt     `(defmethod ,(capi-fname 'enabled x))) ,args)
+
+by a combination of reading through the list archives and trial &amp; error,
+i got find-source to work.
+
+(defmacro def-capi-accessors (fname (&amp;rest classes))
+   `(dspec:def (def-capi-accessors ,fname)
+      (progn ,@(mapcan (lambda (cls)
+                         (list
+                          (capi-reader-definition fname cls)
+                          (capi-setf-definition fname cls)))
+                       classes))))
+(dspec:define-form-parser def-capi-accessors (name)
+   `(,def-capi-accessors ,name))
+
+lots of interesting stuff in the archives btw
+
+cheers,
+juergen
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:49 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

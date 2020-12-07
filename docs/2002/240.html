@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Tuning GC</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Tuning GC</h1>
+                <pre>I'm going to tune GC and because this is my first time tuning GC, I
+don't know what I should do exactly.
+
+At least, I'd like to do following operations:
+
+* Examine each generation and static segment space to find what objects
+are there. So, I need some mapping functions (In LW manual there is only
+one mapping function which is for all objects of all generations -
+sweep-all-object). I found (maybe) some mapping functions with 'apropos'
+but don't know how to use them (e.g. raw::sweep-generation-objects, but
+seg violation occurs when I tried).
+
+* Prevent promotion of certain objects - e.g. leave some objects forever
+in generation 0. I have some (at the moment, one or two) objects  which
+lives for a while then can be GCed. (e.g. after a long time cunsuming
+thread finished, those objects are GCable).
+
+Also, I'd like to hear GC tuning experience of other LW Lispers.
+
+Cheers,
+
+- Jong-won
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Tuning GC</h1>
+                 <pre>* Jong-won Choi wrote:
+* Prevent promotion of certain objects - e.g. leave some objects forever
+&gt in generation 0. I have some (at the moment, one or two) objects  which
+&gt lives for a while then can be GCed. (e.g. after a long time cunsuming
+&gt thread finished, those objects are GCable).
+
+I don't think that makes sense.  Even if it's possible (I suspect it
+isn't), if you force objects to sit in the zeroth generation for ever
+then the GC has to look at them every time it runs.  Since the first
+generation is GCd frequently this will slow down GC for ever.  Better
+to let them migrate in the normal way to a higher generation and then
+the GC will pick them up in due course.  If you want to be sure that
+they are GCd when whatever long-lived process that has been hanging
+onto them lets them go then the answer I think is to trigger a GC of
+the higher generation at that point.
+
+I think the classic problem here is that the objects live long enough
+that they make it into a generation which is really big and probably
+is never normally GCd.  Manually triggering a GC of this space then
+causes really long pauses (seconds).
+
+I'm not really familiar with the LW GC, but I suspect it is possible
+to have a `really never looked at' generation which is genuinely never
+GCd (I think this is generation 3 in LW) and some `normally never
+looked at' generation just below it (I think this is generation 2 in
+LW) from which objects are not promoted except on special request.
+What should then happen is that stuff ends up in this generation,
+which you need to manually scavenge every once in a while.  The
+problem then becomes if this generation gets too big so that scavenge
+takes a long time.  I think the fix for that is either to give up, or
+to tweak how often the GC of generations below that one run to avoid
+too much promotion into it.
+
+At a meta-level, as far as I can see there are really two issues which
+typically matter with GC: one is how much the amortised cost of it is
+over the life of the program, and the other is how long you might have
+to pause.  A third possible issue is how much more memory you end up
+using because of it (and this can sometimes be traded against the
+other two).  The third issue is often not a problem nowadays except
+for *very* large applications or very space-constrained systems such
+as embedded ones.  In any case the first thing to do is to actually
+measure things to see how bad the problem is.  Every time I do this, I
+find that the amortised cost is under 10% which is low enough that I
+don't generally worry, since the biggest win I might get is probably
+only 5% of execution time.  Long GC pauses at bad times can still be a
+problem I think and, short of a concurrent GC, I think the only
+approach which works here is to look carefully at what is being
+promoted and try and be sure that the largest-GCd-generation never
+gets too large.  One approach to that is to cause it to be GCd *more
+often* which will probably cause amortised GC cost to be higher but
+reduce the worst-case pause.
+
+All this is just my experience of course.  I'd really like to hear
+from other people who have done tuning of the LW GC (or other GCs).
+
+--tim
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:58 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

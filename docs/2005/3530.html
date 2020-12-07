@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>sys:open-pipe, closing one way of :io</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>sys:open-pipe, closing one way of :io</h1>
+                <pre>Hello all, Im trying to use Argonne's otter via sys:open-pipe. I'm 
+working under LWL4.4 right now, but will also be getting to the Mac
+side of things too. I've got otter on my default path, 
+so something like
+
+ 
+&gt (let ((p (sys:open-pipe "otter" :direction :output)))
+       (loop for line in '("set(binary_res)."
+                          "formula_list(usable)."
+                          "all x (Man(x) -&gt Mortal(x))."
+                          "Man(socrates)."
+                          "end_of_list."
+                          "formula_list(sos)."
+                          "-Mortal(socrates)."
+                          "end_of_list.") do
+            (write-string line p))
+     (finish-output p)
+     (close p))
+
+will cause otter to output all the correct output to the xterm from which
+I started lispworks. If I use "otter &gt temp.otter.out" rather than "otter",
+I get the correct results in the temp file. 
+
+The problem is, rather than reading from file, I'd prefer to just read
+from a pipe. So I specify :direction :io. In that case, however, I can't
+just (close p), because I do need to read from p (to get the output). 
+Otter doesn't seem to start doing anything until its input is closed.
+(normally I invoke it as "otter &lt; input.in"). Is there a way to close just
+my output (otter's input) side of the system::pty-stream that is
+returned by sys:open-pipe ?
+
+
+=====================
+Joshua Taylor
+tayloj@rpi.edu
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: sys:open-pipe, closing one way of :io</h1>
+                 <pre>
+On Feb 9, 2005, at 10:24 AM, Joshua Taylor wrote:
+
+&gt Otter doesn't seem to start doing anything until its input is closed.
+&gt (normally I invoke it as "otter &lt; input.in"). Is there a way to close 
+&gt just
+&gt my output (otter's input) side of the system::pty-stream that is
+&gt returned by sys:open-pipe ?
+
+
+Have you tried to call FORCE-OUTPUT or FINISH-OUTPUT to flush your 
+output stream?
+
+John DeSoi, Ph.D.
+http://pgedit.com/
+Power Tools for PostgreSQL
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: sys:open-pipe, closing one way of :io</h1>
+                 <pre>Yes indeed, I have. I was hoping that as Ctrl-D works on a console, that
+sending the char #\eot and finish/force-output would get it to realize that 
+input was done. Alas though, I only get an error about an invalid input 
+char. If I were working with normal unix pipes (int array[2]), I'd just close 
+that end when I was done. I don't really see a way to do that in this
+situation.
+
+
+On Wed, 9 Feb 2005 11:03:38 -0500, John DeSoi &lt;desoi@pgedit.com&gt wrote:
+&gt 
+&gt On Feb 9, 2005, at 10:24 AM, Joshua Taylor wrote:
+&gt 
+&gt &gt Otter doesn't seem to start doing anything until its input is closed.
+&gt &gt (normally I invoke it as "otter &lt; input.in"). Is there a way to close
+&gt &gt just
+&gt &gt my output (otter's input) side of the system::pty-stream that is
+&gt &gt returned by sys:open-pipe ?
+&gt 
+&gt Have you tried to call FORCE-OUTPUT or FINISH-OUTPUT to flush your
+&gt output stream?
+&gt 
+&gt John DeSoi, Ph.D.
+&gt http://pgedit.com/
+&gt Power Tools for PostgreSQL
+&gt 
+&gt 
+
+
+-- 
+=====================
+Joshua Taylor
+tayloj@rpi.edu
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: sys:open-pipe, closing one way of :io</h1>
+                 <pre>On Wed, 9 Feb 2005 10:24:06 -0500, Joshua Taylor &lt;joshuaaaron@gmail.com&gt wrote:
+
+&gt Hello all, Im trying to use Argonne's otter via sys:open-pipe. I'm
+&gt working under LWL4.4 right now, but will also be getting to the Mac
+&gt side of things too. I've got otter on my default path, so something
+&gt like
+&gt
+&gt  
+&gt&gt (let ((p (sys:open-pipe "otter" :direction :output)))
+&gt        (loop for line in '("set(binary_res)."
+&gt                           "formula_list(usable)."
+&gt                           "all x (Man(x) -&gt Mortal(x))."
+&gt                           "Man(socrates)."
+&gt                           "end_of_list."
+&gt                           "formula_list(sos)."
+&gt                           "-Mortal(socrates)."
+&gt                           "end_of_list.") do
+&gt             (write-string line p))
+&gt      (finish-output p)
+&gt      (close p))
+&gt
+&gt will cause otter to output all the correct output to the xterm from
+&gt which I started lispworks. If I use "otter &gt temp.otter.out" rather
+&gt than "otter", I get the correct results in the temp file.
+&gt
+&gt The problem is, rather than reading from file, I'd prefer to just
+&gt read from a pipe. So I specify :direction :io. In that case,
+&gt however, I can't just (close p), because I do need to read from p
+&gt (to get the output).  Otter doesn't seem to start doing anything
+&gt until its input is closed.  (normally I invoke it as "otter &lt;
+&gt input.in"). Is there a way to close just my output (otter's input)
+&gt side of the system::pty-stream that is returned by sys:open-pipe ?
+
+I had a similar problem when porting ASDF-INSTALL to LW and came up
+with a kludge like this:
+
+  (sys:open-pipe (format nil "echo '~A' | otter"
+                             otter-commands)
+                 ...
+
+Does that help in your case?  Maybe with "echo -e" instead of "echo"
+if needed?
+
+If it works it's still a kludge, though.  I'd be very happy if
+OPEN-PIPE offered the option to get separate streams as in CMUCL,
+SBCL, or AllegroCL.
+
+Cheers,
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: sys:open-pipe, closing one way of :io</h1>
+                 <pre>It is a little kludgey, but it does work without the need for
+temporary files. I think
+that unless someone shows me a way to close the components of the pipe
+individually, This will be the method I use.
+
+
+On Wed, 09 Feb 2005 17:37:20 +0100, Edi Weitz &lt;edi@agharta.de&gt wrote:
+&gt On Wed, 9 Feb 2005 10:24:06 -0500, Joshua Taylor &lt;joshuaaaron@gmail.com&gt wrote:
+&gt 
+&gt &gt Hello all, Im trying to use Argonne's otter via sys:open-pipe. I'm
+&gt &gt working under LWL4.4 right now, but will also be getting to the Mac
+&gt &gt side of things too. I've got otter on my default path, so something
+&gt &gt like
+&gt &gt
+&gt &gt
+&gt &gt&gt (let ((p (sys:open-pipe "otter" :direction :output)))
+&gt &gt        (loop for line in '("set(binary_res)."
+&gt &gt                           "formula_list(usable)."
+&gt &gt                           "all x (Man(x) -&gt Mortal(x))."
+&gt &gt                           "Man(socrates)."
+&gt &gt                           "end_of_list."
+&gt &gt                           "formula_list(sos)."
+&gt &gt                           "-Mortal(socrates)."
+&gt &gt                           "end_of_list.") do
+&gt &gt             (write-string line p))
+&gt &gt      (finish-output p)
+&gt &gt      (close p))
+&gt &gt
+&gt &gt will cause otter to output all the correct output to the xterm from
+&gt &gt which I started lispworks. If I use "otter &gt temp.otter.out" rather
+&gt &gt than "otter", I get the correct results in the temp file.
+&gt &gt
+&gt &gt The problem is, rather than reading from file, I'd prefer to just
+&gt &gt read from a pipe. So I specify :direction :io. In that case,
+&gt &gt however, I can't just (close p), because I do need to read from p
+&gt &gt (to get the output).  Otter doesn't seem to start doing anything
+&gt &gt until its input is closed.  (normally I invoke it as "otter &lt;
+&gt &gt input.in"). Is there a way to close just my output (otter's input)
+&gt &gt side of the system::pty-stream that is returned by sys:open-pipe ?
+&gt 
+&gt I had a similar problem when porting ASDF-INSTALL to LW and came up
+&gt with a kludge like this:
+&gt 
+&gt   (sys:open-pipe (format nil "echo '~A' | otter"
+&gt                              otter-commands)
+&gt                  ...
+&gt 
+&gt Does that help in your case?  Maybe with "echo -e" instead of "echo"
+&gt if needed?
+&gt 
+&gt If it works it's still a kludge, though.  I'd be very happy if
+&gt OPEN-PIPE offered the option to get separate streams as in CMUCL,
+&gt SBCL, or AllegroCL.
+&gt 
+&gt Cheers,
+&gt Edi.
+&gt 
+&gt 
+
+
+-- 
+=====================
+Joshua Taylor
+tayloj@rpi.edu
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:49 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

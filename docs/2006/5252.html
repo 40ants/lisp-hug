@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>:DEFAULT-P vs. focus</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>:DEFAULT-P vs. focus</h1>
+                <pre>
+If I create a dialog like below, the ESC and RETURN keys cease to work
+as expected although :DEFAULT-P and :CANCEL-P are used.  This is
+obviously due to setting the focus to the pinboard layout.
+
+Is there a way to code around this?
+
+Thanks,
+Edi.
+
+
+
+(defun foo ()
+  (let* ((pinboard (make-instance 'capi:pinboard-layout))
+         (ok-button (make-instance 'capi:push-button
+                                   :default-p t
+                                   :text "OK"
+                                   :callback-type :none
+                                   :callback (lambda ()
+                                               (capi:exit-dialog :ok))))
+         (cancel-button (make-instance 'capi:push-button
+                                       :cancel-p t
+                                       :text "Cancel"
+                                       :callback #'capi:abort-dialog))
+         (layout (make-instance 'capi:row-layout
+                                :description (list pinboard ok-button cancel-button)))
+         (dialog (make-instance 'capi:interface
+                                :title "Test"
+                                :layout layout
+                                :create-callback (lambda (interface)
+                                                   (declare (ignore interface))
+                                                   (capi:set-pane-focus pinboard)))))
+    (capi:display-dialog dialog)))
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: :DEFAULT-P vs. focus</h1>
+                 <p>
+                  Unable to parse email body. Email id is 5253
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: :DEFAULT-P vs. focus</h1>
+                 <pre>
+On Tue, 24 Jan 2006 18:58:02 GMT, davef@lispworks.com wrote:
+
+&gt Perhaps I am missing something obvious but you could set the focus
+&gt to the OK button.
+
+Sure, this was just to illustrate the problem.  In my application I
+have an interface with a pinboard layout and OK and Cancel buttons.
+As soon as the user does something in the pinboard layout, the layout
+has the focus, and at that point RETURN and ESC no longer work.
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: :DEFAULT-P vs. focus</h1>
+                  <pre>
+Did you try to set the accepts-focus initarg to NIL on the pinboard-layout ?
+
+(defun foo ()
+  (let* ((pinboard (make-instance 'capi:pinboard-layout :accepts-focus-p
+nil))
+         (ok-button (make-instance 'capi:push-button
+                                   :default-p t
+                                   :text "OK"
+                                   :callback-type :none
+                                   :callback (lambda ()
+                                               (capi:exit-dialog :ok))))
+         (cancel-button (make-instance 'capi:push-button
+                                       :cancel-p t
+                                       :text "Cancel"
+                                       :callback #'capi:abort-dialog))
+         (layout (make-instance 'capi:row-layout
+                                :description (list pinboard ok-button
+cancel-button)))
+         (dialog (make-instance 'capi:interface
+                                :title "Test"
+                                :layout layout)))
+
+    ;For me the create-callback is unnecessary
+
+    (capi:display-dialog dialog :focus OK-BUTTON)))
+
+
+Denis
+
+
+Le 24/01/06 20:17, «&nbsp;Edi Weitz&nbsp;» &lt;edi@agharta.de&gt a écrit&nbsp;:
+
+&gt 
+&gt On Tue, 24 Jan 2006 18:58:02 GMT, davef@lispworks.com wrote:
+&gt 
+&gt&gt Perhaps I am missing something obvious but you could set the focus
+&gt&gt to the OK button.
+&gt 
+&gt Sure, this was just to illustrate the problem.  In my application I
+&gt have an interface with a pinboard layout and OK and Cancel buttons.
+&gt As soon as the user does something in the pinboard layout, the layout
+&gt has the focus, and at that point RETURN and ESC no longer work.
+&gt 
+&gt 
+
+
+
+----------------------------------------------------
+Denis Pousseur
+6 clos du Drossart
+1180 Bruxelles, Belgique
+
+Mail :  denis.pousseur@compositeurs.be
+Website : http://compositeurs.be
+----------------------------------------------------
+
+
+
+
+</pre>
+                 </article>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>Re: :DEFAULT-P vs. focus</h1>
+                   <pre>
+On Tue, 24 Jan 2006 20:59:30 +0100, Denis Pousseur &lt;denis.pousseur@compositeurs.be&gt wrote:
+
+&gt Did you try to set the accepts-focus initarg to NIL on the
+&gt pinboard-layout ?
+
+No, I wouldn't have thought of that because to me (from my
+understanding of the docs) it meant that the pinboard layout isn't
+usable at all.  But it works - I can still use the pinboard layout and
+the problem with the buttons is gone.  Thanks!
+
+&gt     ;For me the create-callback is unnecessary
+
+As I said to Dave, this was just to quickly illustrate the problem.
+
+Thanks,
+Edi.
+
+
+</pre>
+                  </article>
+                 </section>
+                </section>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: :DEFAULT-P vs. focus</h1>
+                 <pre>
+On Tue, 24 Jan 2006 13:44:05 -0700, Wade Humeniuk &lt;whumeniu@telus.net&gt wrote:
+
+&gt How about the brute force method?
+
+Thanks.  I thought of that but it turns out that Denis' hint solved my
+immediate problem.
+
+&gt Methinks that capi:interface has a method/function that can be
+&gt called to programmatically make it handle an UI gesture.
+
+Is it documented somewhere?
+
+Thanks,
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:45 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

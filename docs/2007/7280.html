@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>I don't understand define-method-combination</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>I don't understand define-method-combination</h1>
+                <pre>
+Lispworks appears to treat what I think should be a "short form"
+define-method-combination as a "long form".
+
+The Hyperspec says, regarding d-m-c short form:
+
+  The short form syntax of define-method-combination is recognized
+  when the second subform is a non-nil symbol or is not present.
+
+But this code gives me an error:
+
+  (defun combine (&amp;rest args)
+    (format t "combine: ~S~%" args)
+    args)
+  (define-method-combination combine)
+  (defgeneric foo (l) (:method-combination combine))
+  (defmethod foo combine ((l list))
+    (format t "l is ~S~%" l)
+    l)
+  (foo '(a list)) =&gt
+
+  Error: invalid-method-error in #&lt;STANDARD-METHOD FOO (COMBINE) (LIST) 21D56ED3&gt,
+  called with arguments ((A LIST)):
+  This method has qualifiers which are invalid for method-combination-type COMBINE.
+    1 (abort) Return to level 0.
+    2 Return to top loop level 0.
+
+  Type :b for backtrace, :c &lt;option number&gt to proceed,  or :? for other options
+
+  CL-USER 2 : 1 &gt 
+
+If I macroexpand the d-m-c call I get what looks like a "long form"
+expansion; note the COND with a single T clause that throws the error
+I got:
+
+(DSPEC:DEF (METHOD-COMBINATION COMBINE)
+  (CLOS::LOAD-METHOD-COMBINATION 'COMBINE
+                                 'NIL
+                                 #'(LAMBDA ()
+                                     (DECLARE)
+                                     #'(LAMBDA (#:G5594 #:|methods-5593|)
+                                         (LET ()
+                                           (LOOP CLOS::FOR #:|method-5592| CLOS::IN
+                                                           #:|methods-5593|
+                                                 CLOS::FOR #:|qualifiers-5591| =
+                                                           (METHOD-QUALIFIERS
+                                                            #:|method-5592|)
+                                                 DO (COND
+                                                     (T
+                                                      (INVALID-METHOD-ERROR
+                                                       #:|method-5592|
+                                                       "This method has qualifiers which are invalid for ~
+                          method-combination-type ~S."
+                                                       'COMBINE))))
+                                           (PROGN))))
+                                 :LOCATION
+                                 (DSPEC:LOCATION)))
+
+By comparison if I macroexpand
+
+  (define-method-combination combine :operator combine)
+
+I get what looks like a "short form" expansion:
+
+(DSPEC:DEF (DEFINE-METHOD-COMBINATION COMBINE)
+  (CLOS::LOAD-SIMPLE-METHOD-COMBINATION 'COMBINE 'COMBINE 'NIL 'NIL (DSPEC:LOCATION)))
+
+(And, of course, if I *use* that code, then my example code above
+works.)
+
+Have I misunderstood the Hyperspec, or is something else going on?
+
+-- Larry Clapp
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: I don't understand define-method-combination</h1>
+                 <p>
+                  Unable to parse email body. Email id is 7281
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:41 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

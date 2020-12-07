@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Initial focus in a dialog box</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Initial focus in a dialog box</h1>
+                <pre>
+I have a dialog defined as follows:
+
+------
+
+(capi:define-interface dialog-1 ()
+  ()
+  (:panes
+   (pane-1
+    capi:radio-button-panel
+    :layout-class 'capi:column-layout
+    :title "Buttons"
+    :items '("Item 1"
+             "Item 2"))
+   (buttons
+    capi:push-button-panel
+    :accessor dialog-1-buttons
+    :items '("OK" "Cancel")
+    :layout-args '(:x-uniform-size-p t)
+    :callback-type :interface
+    :callbacks '(capi:exit-dialog capi:abort-dialog)))
+  (:layouts
+   (main-layout
+    capi:column-layout
+    '(pane-1 buttons)
+    :x-adjust :centre))
+  (:default-initargs
+   :layout 'main-layout))
+
+(capi:display-dialog (make-instance 'dialog-1))
+
+------
+
+That works fine, but now I want the "OK" button to have the initial
+focus.
+
+If add the following to the default initargs ...
+
+   :create-callback
+   #'(lambda (interface)
+       (capi:set-pane-focus 
+        (first
+         (capi:layout-description
+          (capi:pane-layout
+           (dialog-1-buttons interface))))))
+
+.... then things are as I want.
+
+But is there a simpler way?
+
+I tried defining the "OK" and "Cancel" buttons separately and
+using :INITIAL-FOCUS in the interface's default initargs. That
+works, but the "OK" button is smaller than the "Cancel" button
+and I couldn't find a way to get the buttons to be the same
+size.
+
+Simon
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Initial focus in a dialog box</h1>
+                 <pre>
+Hello Simon,
+
+| I have a dialog defined as follows:
+|...snip...|
+| That works fine, but now I want the "OK" button to have the initial
+| focus.
+|...snip...| 
+| I tried defining the "OK" and "Cancel" buttons separately and
+| using :INITIAL-FOCUS in the interface's default initargs. That
+| works, but the "OK" button is smaller than the "Cancel" button
+| and I couldn't find a way to get the buttons to be the same
+| size.
+
+Have you tried the :focus argument of capi:display-dialog?
+--
+Sincerely,
+Dmitriy Ivanov
+lisp.ystok.ru
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>RE: Initial focus in a dialog box</h1>
+                  <pre>
+&gt From: Dmitriy Ivanov [mailto:divanov@aha.ru] 
+&gt 
+&gt Hello Simon,
+
+Hi Dmitriy,
+
+&gt | I have a dialog defined as follows:
+&gt |...snip...|
+&gt | That works fine, but now I want the "OK" button to have the
+initial
+&gt | focus.
+&gt |...snip...| 
+&gt | I tried defining the "OK" and "Cancel" buttons separately and
+&gt | using :INITIAL-FOCUS in the interface's default initargs. That
+&gt | works, but the "OK" button is smaller than the "Cancel" button
+&gt | and I couldn't find a way to get the buttons to be the same
+&gt | size.
+&gt 
+&gt Have you tried the :focus argument of capi:display-dialog?
+
+Ummm, are you really suggesting that will affect the size of the
+"Open" button?
+
+Simon
+
+
+
+</pre>
+                 </article>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>Re: Initial focus in a dialog box</h1>
+                   <pre>
+"Simon Katz" &lt;sk@nomistech.com&gt wrote:
+
+|&gt From: Dmitriy Ivanov [mailto:divanov@aha.ru]
+| 
+| Hi Dmitriy,
+| 
+|&gt 
+|&gt Have you tried the :focus argument of capi:display-dialog?
+| 
+| Ummm, are you really suggesting that will affect the size of the
+| "Open" button?
+
+No. And :uniform-size-p does not work here. You have to create each button
+by hand, e.g.
+
+(capi:define-interface dialog-1 ()
+()
+(:panes
+   (pane-1
+    capi:radio-button-panel
+    :layout-class 'capi:column-layout
+    :title "Buttons"
+    :items '("Item 1"  "Item 2"))
+  (ok-button  capi:push-button  :text "OK"
+   :default-p t
+   :visible-min-width #1='(:character 10)
+   :callback 'capi:exit-dialog  :callback-type :interface)
+  (cancel-button  capi:push-button  :text "Cancel"
+   :cancel-p t
+   :visible-min-width #1#
+   :callback 'capi:abort-dialog  :callback-type :interface)
+  (apply-button  capi:push-button  :text "Apply"
+   :reader apply-button :enabled t
+   :visible-min-width #1#
+   :callback '%apply-settings  :callback-type :interface)
+)
+(:layouts
+  (main-layout capi:column-layout '(pane-1 buttons) :x-adjust :center)
+  (buttons  capi:row-layout '(ok-button cancel-button apply-button)
+   :gap 10))    ;:uniform-size-p t - does not work
+(:default-initargs
+  :layout 'main-layout))
+
+(let ((dialog (make-instance 'dialog-1)))
+  (capi:display-dialog dialog :focus (apply-button dialog)))
+
+--
+Sincerely,
+Dmitriy Ivanov
+lisp.ystok.ru
+
+
+</pre>
+                  </article>
+                 </section>
+                </section>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Initial focus in a dialog box</h1>
+                 <pre>
+you can try something like this :
+
+(defvar *ok-button* nil)
+ 
+&gt (capi:define-interface dialog-1 ()
+&gt ()
+&gt (:panes
+&gt  (pane-1
+&gt   capi:radio-button-panel
+&gt   :layout-class 'capi:column-layout
+&gt   :title "Buttons"
+&gt   :items '("Item 1"
+&gt            "Item 2"))
+&gt  (buttons
+&gt   capi:push-button-panel
+&gt   :accessor dialog-1-buttons
+&gt   :items (list (setf *ok-button* (make-instance 'push-button
+                                    :default T :visible-min-size 60
+                                    :text "OK"))
+                 (make-instance 'push-button :visible-min-size 60
+                                :text "Cancel")
+&gt   :layout-args '(:x-uniform-size-p t)
+&gt   :callback-type :interface
+&gt   :callbacks '(capi:exit-dialog capi:abort-dialog)))
+&gt (:layouts
+&gt  (main-layout
+&gt   capi:column-layout
+&gt   '(pane-1 buttons)
+&gt   :x-adjust :centre))
+&gt (:default-initargs
+&gt  :layout 'main-layout))
+&gt 
+&gt (capi:display-dialog (make-instance 'dialog-1) :initial-focus *ok-button*)
+
+best
+
+Denis
+
+
+&gt 
+&gt ------
+&gt 
+&gt That works fine, but now I want the "OK" button to have the initial
+&gt focus.
+&gt 
+&gt If add the following to the default initargs ...
+&gt 
+&gt  :create-callback
+&gt  #'(lambda (interface)
+&gt      (capi:set-pane-focus
+&gt       (first
+&gt        (capi:layout-description
+&gt         (capi:pane-layout
+&gt          (dialog-1-buttons interface))))))
+&gt 
+&gt ... then things are as I want.
+&gt 
+&gt But is there a simpler way?
+&gt 
+&gt I tried defining the "OK" and "Cancel" buttons separately and
+&gt using :INITIAL-FOCUS in the interface's default initargs. That
+&gt works, but the "OK" button is smaller than the "Cancel" button
+&gt and I couldn't find a way to get the buttons to be the same
+&gt size.
+&gt 
+&gt Simon
+&gt 
+&gt 
+&gt 
+
+
+
+----------------------------------------------------
+Denis Pousseur
+6 clos du Drossart
+1180 Bruxelles, Belgique
+
+Mail :  denis.pousseur@compositeurs.be
+Website : http://compositeurs.be
+----------------------------------------------------
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>RE: Initial focus in a dialog box</h1>
+                 <pre>
+I wrote:
+&gt I have a dialog defined as follows:
+&gt 
+&gt ------
+&gt 
+&gt (capi:define-interface dialog-1 ()
+&gt   ()
+&gt   (:panes
+&gt    (pane-1
+&gt     capi:radio-button-panel
+&gt     :layout-class 'capi:column-layout
+&gt     :title "Buttons"
+&gt     :items '("Item 1"
+&gt              "Item 2"))
+&gt    (buttons
+&gt     capi:push-button-panel
+&gt     :accessor dialog-1-buttons
+&gt     :items '("OK" "Cancel")
+&gt     :layout-args '(:x-uniform-size-p t)
+&gt     :callback-type :interface
+&gt     :callbacks '(capi:exit-dialog capi:abort-dialog)))
+&gt   (:layouts
+&gt    (main-layout
+&gt     capi:column-layout
+&gt     '(pane-1 buttons)
+&gt     :x-adjust :centre))
+&gt   (:default-initargs
+&gt    :layout 'main-layout))
+&gt 
+&gt (capi:display-dialog (make-instance 'dialog-1))
+&gt 
+&gt ------
+&gt 
+&gt That works fine, but now I want the "OK" button to have the initial
+&gt focus.
+
+
+Thanks for the suggestions.
+
+I hadn't previously known there were default buttons -- I had thought
+that pressing the return key had to apply to the item with focus.
+
+I can get something better than I was asking for by having the
+following for the capi:push-button-panel:
+
+    :items '(:ok :cancel)
+    :default-button :ok
+    :cancel-button :cancel
+    :print-function #'(lambda (x)
+                        (ecase x (:ok "OK") (:cancel "Cancel")))
+    :layout-args '(:uniform-size-p t)
+
+Simon
+
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:45 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

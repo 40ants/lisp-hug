@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>REF: Re: html rendering in capi...</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>REF: Re: html rendering in capi...</h1>
+                <pre>
+Thanks for the tip Jochen, i have looked at the com example but since i don't have experience with COM i'll need to play with it before it does what i need. 
+
+-- msg. original --
+Assunto:	Re: html rendering in capi...
+De:	Jochen Schmidt &lt;jsc@crispylogics.com&gt
+Data:		31.12.2008 16:45
+
+
+Am 31.12.2008 um 17:00 schrieb Alexandre Paes:
+
+&gt
+&gt Hi everyone,
+&gt
+&gt does anyone know any way of rendering html in capi? I've gone  
+&gt through the ml archive and found a reference about embedding webkit  
+&gt webview in a cocoa capi pane but i'd need a way to render html on  
+&gt lww professional.
+
+You can embed IE via COM - I think there is also something about that  
+in the COM examples.
+
+--
+Jochen Schmidt
+CRISPYLOGICS
+Uhlandstr. 9 , 90408 Nuremberg
+
+Fon +49 (0)911 517 999 82
+Fax +49 (0)911 517 999 83
+
+mailto:info@crispylogics.com
+http://www.crispylogics.com
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: REF: Re: html rendering in capi...</h1>
+                 <pre>
+Hi, thanks for a hint. I found this example that works fine on my Mac 
+LispWorks 5 Pro.
+
+(defmacro @ (&amp;body body) `(objc:invoke ,@body))
+(defmacro @into (&amp;body body) `(objc:invoke-into ,@body))
+(defmacro @pool (&amp;body body) `(objc:with-autorelease-pool () ,@body))
+
+(defun framework-path-list ()
+   (@pool
+     (loop with framework-vector = (@into 'array "NSBundle" "allFrameworks")
+           for elt across framework-vector collect (@into 'string elt 
+"bundlePath"))))
+
+(defun load-webkit ()
+   (@pool
+     (@ (@ "NSBundle" "bundleWithPath:"
+          (@ (@ "NSString" "stringWithString:" 
+"/System/Library/Frameworks/WebKit.framework/")
+            "stringByStandardizingPath"))
+       "load")))
+
+(defun load-framework (framework-path-string)
+   (@pool
+     (@ (@ "NSBundle" "bundleWithPath:"
+          (@ (@ "NSString" "stringWithString:" framework-path- string) 
+"stringByStandardizingPath"))
+       "load")))
+
+(defun get-web-view (url)
+   (@pool
+     (let* ((request
+             (@ "NSURLRequest" "requestWithURL:" (@ "NSURL" 
+"URLWithString:" url)))
+            (web-view
+             (make-instance 'capi:cocoa-view-pane :view-class "WebView"
+                            :init-function
+                            #'(lambda (pane view)
+                                (setq view (@ view "init"))
+                                (@ (@ view "mainFrame") "loadRequest:" request)
+                                view))))
+       (capi:contain web-view)
+       web-view)))
+
+(load-webkit)
+(framework-path-list)
+(get-web-view "http://www.apple.com")
+
+---
+
+Pekka
+
+
+&gtThanks for the tip Jochen, i have looked at the com example but 
+&gtsince i don't have experience with COM i'll need to play with it 
+&gtbefore it does what i need.
+&gt
+&gt-- msg. original --
+&gtAssunto:	Re: html rendering in capi...
+&gtDe:	Jochen Schmidt &lt;jsc@crispylogics.com&gt
+&gtData:		31.12.2008 16:45
+&gt
+&gt
+&gtAm 31.12.2008 um 17:00 schrieb Alexandre Paes:
+&gt
+&gt&gt
+&gt&gt  Hi everyone,
+&gt&gt
+&gt&gt  does anyone know any way of rendering html in capi? I've gone 
+&gt&gt  through the ml archive and found a reference about embedding webkit 
+&gt&gt  webview in a cocoa capi pane but i'd need a way to render html on 
+&gt&gt  lww professional.
+&gt
+&gtYou can embed IE via COM - I think there is also something about that 
+&gtin the COM examples.
+&gt
+&gt--
+&gtJochen Schmidt
+&gtCRISPYLOGICS
+&gtUhlandstr. 9 , 90408 Nuremberg
+&gt
+&gtFon +49 (0)911 517 999 82
+&gtFax +49 (0)911 517 999 83
+&gt
+&gtmailto:info@crispylogics.com
+&gthttp://www.crispylogics.com
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: REF: Re: html rendering in capi...</h1>
+                 <pre>
+
+On Jan 2, 2009, at 11:35 AM, Jochen Schmidt wrote:
+
+&gt A Sidenote:
+&gt The Objective-C bridge in LispWorks is so incredible well done that  
+&gt it is a real pleasure to work with. There is a project called  
+&gt "Cocotron" which is a free implementation of many parts of Cocoa for  
+&gt Windows and Linux. It would be interesting to have the Objective-C  
+&gt bridge on Windows and Linux too, so that one could use libraries  
+&gt like Cocotron or perhaps GNUStep. I don't know how much effort is  
+&gt needed for this or if there is a broader interest than just me.
+
+Wow - this would be amazing. I'm not sure if the .nib file integration  
+is absolutely essential (though of course it would be really useful  
+and cool as well). But having the equivalent of a capi-cocoa-view-pane  
+on Windows would make my life a lot easier as well.
+
+Happy New Year and Warmest Regards,
+
+Ralph
+
+
+
+
+
+Raffael Cavallaro, Ph.D.
+raffaelcavallaro@mac.com
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: REF: Re: html rendering in capi...</h1>
+                 <pre>
+I have lots of documentation that could be easy to translate to HTML 
+(automatically, from the ASCII files), but would require huge work to 
+make publishing quality docs within LW. The documents need also 
+evaluation that would dynamically fill up the HTML template with 
+graphs.
+
+Also, the user should be able to evaluate selection on the HTML page 
+.... integrated LW editor &amp; listener pane with COCOA functionality 
+would be cool.
+
+I tried mixin capi:cocoa-view-pane + 
+listener-pane/interactive-pane/editor-pane in order to be able to 
+just copy text from the web-view pane --&gt error.
+
+Maybe there is another solution. Now it looks like that the best you 
+can get is to have LW menus and buttons that set up a new web page on 
+the web-view pane.
+
+Pekka
+
+&gtAm 02.01.2009 um 17:05 schrieb Pekka Tolonen:
+&gt
+&gt&gt
+&gt&gtHi, thanks for a hint. I found this example that works fine on my 
+&gt&gtMac LispWorks 5 Pro.
+&gt
+&gtYes there is also an example of using webkit in LW5 Pro for Mac OS 
+&gtX. Actually I would be happy to use webkit in LWW (and LWL) too.
+&gtSince Chrome has shown that it runs quite well on windows I think 
+&gtthat this could really be an interesting thing.
+&gt
+&gtI will need an integrated HTML browser in at least one of my 
+&gtproducts. Until now there are only some examples using COM (IE) and 
+&gtCocoa (Webkit). Having a well done and transparently integrated HTML 
+&gtview within CAPI could be very valuable. One could not only use it 
+&gtto display actual websites but also use the very sophisticated 
+&gtrendering engines to create rich user interfaces (Think iTunes 
+&gtStore). AFAIK even Apples wordprocessor "Pages" is built using 
+&gtWebkit. Often it is much easier to translate some documents into 
+&gtHTML and then just show them in an HTML view instead of creating a 
+&gtnew view from scratch.
+&gt
+&gtA Sidenote:
+&gtThe Objective-C bridge in LispWorks is so incredible well done that 
+&gtit is a real pleasure to work with. There is a project called 
+&gt"Cocotron" which is a free implementation of many parts of Cocoa for 
+&gtWindows and Linux. It would be interesting to have the Objective-C 
+&gtbridge on Windows and Linux too, so that one could use libraries 
+&gtlike Cocotron or perhaps GNUStep. I don't know how much effort is 
+&gtneeded for this or if there is a broader interest than just me. I 
+&gtthink it would be cool and useful - one could even build GUIs using 
+&gtNIB files created with the XCode Interface Builder.
+&gt
+&gtAnother Sidenote:
+&gtMy main development and product platform is Mac OS X - It would be 
+&gtreally nice to see more integration of Cocoa and CAPI in future. I 
+&gtthink it's actually quite cool to be able to use Cocoa-Views within 
+&gtCAPI-panes - but could also imagine the opposite: Using a CAPI pane 
+&gtwithin a (Interface Builder constructed) Cocoa-View. Just think 
+&gtabout embedding the LispWorks-Editor in an application that uses a 
+&gtNIB-based Cocoa-GUI.
+&gt
+&gtciao,
+&gtJochen
+&gt
+&gt&gt
+&gt&gt
+&gt&gt(defmacro @ (&amp;body body) `(objc:invoke ,@body))
+&gt&gt(defmacro @into (&amp;body body) `(objc:invoke-into ,@body))
+&gt&gt(defmacro @pool (&amp;body body) `(objc:with-autorelease-pool () ,@body))
+&gt&gt
+&gt&gt(defun framework-path-list ()
+&gt&gt  (@pool
+&gt&gt    (loop with framework-vector = (@into 'array "NSBundle" "allFrameworks")
+&gt&gt          for elt across framework-vector collect (@into 'string elt 
+&gt&gt"bundlePath"))))
+&gt&gt
+&gt&gt(defun load-webkit ()
+&gt&gt  (@pool
+&gt&gt    (@ (@ "NSBundle" "bundleWithPath:"
+&gt&gt         (@ (@ "NSString" "stringWithString:" 
+&gt&gt"/System/Library/Frameworks/WebKit.framework/")
+&gt&gt           "stringByStandardizingPath"))
+&gt&gt      "load")))
+&gt&gt
+&gt&gt(defun load-framework (framework-path-string)
+&gt&gt  (@pool
+&gt&gt    (@ (@ "NSBundle" "bundleWithPath:"
+&gt&gt         (@ (@ "NSString" "stringWithString:" framework-path- 
+&gt&gtstring) "stringByStandardizingPath"))
+&gt&gt      "load")))
+&gt&gt
+&gt&gt(defun get-web-view (url)
+&gt&gt  (@pool
+&gt&gt    (let* ((request
+&gt&gt            (@ "NSURLRequest" "requestWithURL:" (@ "NSURL" 
+&gt&gt"URLWithString:" url)))
+&gt&gt           (web-view
+&gt&gt            (make-instance 'capi:cocoa-view-pane :view-class "WebView"
+&gt&gt                           :init-function
+&gt&gt                           #'(lambda (pane view)
+&gt&gt                               (setq view (@ view "init"))
+&gt&gt                               (@ (@ view "mainFrame") "loadRequest:" request)
+&gt&gt                               view))))
+&gt&gt      (capi:contain web-view)
+&gt&gt      web-view)))
+&gt&gt
+&gt&gt(load-webkit)
+&gt&gt(framework-path-list)
+&gt&gt(get-web-view "http://www.apple.com")
+&gt&gt
+&gt&gt---
+&gt&gt
+&gt&gtPekka
+&gt&gt
+&gt&gt&gtThanks for the tip Jochen, i have looked at the com example but 
+&gt&gt&gtsince i don't have experience with COM i'll need to play with it 
+&gt&gt&gtbefore it does what i need.
+&gt&gt&gt
+&gt&gt&gt-- msg. original --
+&gt&gt&gtAssunto:	Re: html rendering in capi...
+&gt&gt&gtDe:	Jochen Schmidt &lt;jsc@crispylogics.com&gt
+&gt&gt&gtData:		31.12.2008 16:45
+&gt&gt&gt
+&gt&gt&gt
+&gt&gt&gtAm 31.12.2008 um 17:00 schrieb Alexandre Paes:
+&gt&gt&gt
+&gt&gt&gt&gt
+&gt&gt&gt&gtHi everyone,
+&gt&gt&gt&gt
+&gt&gt&gt&gtdoes anyone know any way of rendering html in capi? I've gone  
+&gt&gt&gt&gtthrough the ml archive and found a reference about embedding 
+&gt&gt&gt&gtwebkit  webview in a cocoa capi pane but i'd need a way to render 
+&gt&gt&gt&gthtml on  lww professional.
+&gt&gt&gt
+&gt&gt&gtYou can embed IE via COM - I think there is also something about 
+&gt&gt&gtthat in the COM examples.
+&gt&gt&gt
+&gt&gt&gt--
+&gt&gt&gtJochen Schmidt
+&gt&gt&gtCRISPYLOGICS
+&gt&gt&gtUhlandstr. 9 , 90408 Nuremberg
+&gt&gt&gt
+&gt&gt&gtFon +49 (0)911 517 999 82
+&gt&gt&gtFax +49 (0)911 517 999 83
+&gt&gt&gt
+&gt&gt&gtmailto:info@crispylogics.com
+&gt&gt&gthttp://www.crispylogics.com
+&gt&gt
+&gt
+&gt--
+&gtJochen Schmidt
+&gtCRISPYLOGICS
+&gtUhlandstr. 9 , 90408 Nuremberg
+&gt
+&gtFon +49 (0)911 517 999 82
+&gtFax +49 (0)911 517 999 83
+&gt
+&gtmailto:info@crispylogics.com
+&gthttp://www.crispylogics.com
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:37 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

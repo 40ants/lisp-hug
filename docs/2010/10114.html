@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Is this an expected behavior?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Is this an expected behavior?</h1>Hi,<div><br></div><div>I just spent about 30 minutes trying to figure out this behavior before i could find out how to solve it.</div><div>This might be an expected behavior (not by me) but if it is maybe someone can explain it to me?</div>
+<div><br></div><div>Take this sample code</div><div><br></div><div><div>CL-USER 151 &gt; (defun test ()</div><div>                (loop with entries = &#39;(())</div><div>                      for entry = (random 4)</div>
+<div>                      until (= entry 3)</div><div>                      do (setf (first entries)</div><div>                               (append (first entries)</div><div>                                       (list entry)))</div>
+<div>                      finally return entries))</div><div>TEST</div><div><br></div><div>CL-USER 152 &gt; (test)</div><div>(NIL)</div><div><br></div><div>CL-USER 153 &gt; (test)</div><div>((0 1 0))</div><div><br></div>
+<div>CL-USER 154 &gt; (test)</div><div>((0 1 0 2))</div><div><br></div><div>CL-USER 155 &gt; (test)</div><div>((0 1 0 2 0 2 1 1 2 2))</div><div><br></div><div>I was expecting the ENTRIES list to be reinitialized with each invocation of TEST but that doesn&#39;t seem to be happening, any idea why? I noticed that if I replace the quoted list with (LIST &#39;()) everything works as I expected. This is not specific to the LOOP, if i remove the ENTRIES declaration to a LET form it still behaves the same. Does this have to do with some compilation magic?</div>
+<div><br></div><div>Regards,</div><div><br></div><div>Alex Paes</div></div>
+
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Is this an expected behavior?</h1>I believe it is due to the spec:<br><a href="http://www.lispworks.com/documentation/lw60/CLHS/Body/26_glo_c.htm">http://www.lispworks.com/documentation/lw60/CLHS/Body/26_glo_c.htm</a><br><br><a name="constant_form"><b>constant form</b></a> <i>n.</i> any <a rel="DEFINITION" href="http://www.lispworks.com/documentation/lw60/CLHS/Body/26_glo_f.htm#form"><i>form</i></a>
+ for which <a rel="DEFINITION" href="http://www.lispworks.com/documentation/lw60/CLHS/Body/26_glo_e.htm#evaluation"><i>evaluation</i></a>
+ always <a rel="DEFINITION" href="http://www.lispworks.com/documentation/lw60/CLHS/Body/26_glo_y.htm#yield"><i>yields</i></a>
+ the same <a rel="DEFINITION" href="http://www.lispworks.com/documentation/lw60/CLHS/Body/26_glo_v.htm#value"><i>value</i></a>,
+ that neither affects nor is affected by the <a rel="DEFINITION" href="http://www.lispworks.com/documentation/lw60/CLHS/Body/26_glo_e.htm#environment"><i>environment</i></a>
+ in which it is <i>evaluated</i> (except that it is permitted to refer 
+to the names of <a rel="DEFINITION" href="http://www.lispworks.com/documentation/lw60/CLHS/Body/26_glo_c.htm#constant_variable"><i>constant
+ variables</i></a> defined in the <a rel="DEFINITION" href="http://www.lispworks.com/documentation/lw60/CLHS/Body/26_glo_e.htm#environment"><i>environment</i></a>),
+ and that neither affects nor is affected by the state of any <a rel="DEFINITION" href="http://www.lispworks.com/documentation/lw60/CLHS/Body/26_glo_o.htm#object"><i>object</i></a>
+ except those <a rel="DEFINITION" href="http://www.lispworks.com/documentation/lw60/CLHS/Body/26_glo_o.htm#object"><i>objects</i></a>
+ that are <a rel="DEFINITION" href="http://www.lispworks.com/documentation/lw60/CLHS/Body/26_glo_o.htm#otherwise_inaccessible_part"><i>otherwise
+ inaccessible parts</i></a> of <a rel="DEFINITION" href="http://www.lispworks.com/documentation/lw60/CLHS/Body/26_glo_o.htm#object"><i>objects</i></a>
+ created by the <a rel="DEFINITION" href="http://www.lispworks.com/documentation/lw60/CLHS/Body/26_glo_f.htm#form"><i>form</i></a>
+ itself. ``A <a rel="DEFINITION" href="http://www.lispworks.com/documentation/lw60/CLHS/Body/f_car_c.htm#car"><b>car</b></a>
+ form in which the argument is a <a rel="DEFINITION" href="http://www.lispworks.com/documentation/lw60/CLHS/Body/s_quote.htm#quote"><b>quote</b></a>
+ form is a constant form.&#39;&#39; <br><br>I found some discussion on it here:<br><a href="http://stackoverflow.com/questions/134887/when-to-use-quote-in-lisp">http://stackoverflow.com/questions/134887/when-to-use-quote-in-lisp</a><br>
+<br><div class="gmail_quote">On Fri, Mar 26, 2010 at 9:24 PM, Alexandre Paes <span dir="ltr">&lt;<a href="mailto:alex.paes@streetdogstudio.com">alex.paes@streetdogstudio.com</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin: 0pt 0pt 0pt 0.8ex; border-left: 1px solid rgb(204, 204, 204); padding-left: 1ex;">
+Hi,<div><br></div><div>I just spent about 30 minutes trying to figure out this behavior before i could find out how to solve it.</div><div>This might be an expected behavior (not by me) but if it is maybe someone can explain it to me?</div>
+
+<div><br></div><div>Take this sample code</div><div><br></div><div><div>CL-USER 151 &gt; (defun test ()</div><div>                (loop with entries = &#39;(())</div><div>                      for entry = (random 4)</div>
+
+<div>                      until (= entry 3)</div><div>                      do (setf (first entries)</div><div>                               (append (first entries)</div><div>                                       (list entry)))</div>
+
+<div>                      finally return entries))</div><div>TEST</div><div><br></div><div>CL-USER 152 &gt; (test)</div><div>(NIL)</div><div><br></div><div>CL-USER 153 &gt; (test)</div><div>((0 1 0))</div><div><br></div>
+
+<div>CL-USER 154 &gt; (test)</div><div>((0 1 0 2))</div><div><br></div><div>CL-USER 155 &gt; (test)</div><div>((0 1 0 2 0 2 1 1 2 2))</div><div><br></div><div>I was expecting the ENTRIES list to be reinitialized with each invocation of TEST but that doesn&#39;t seem to be happening, any idea why? I noticed that if I replace the quoted list with (LIST &#39;()) everything works as I expected. This is not specific to the LOOP, if i remove the ENTRIES declaration to a LET form it still behaves the same. Does this have to do with some compilation magic?</div>
+
+<div><br></div><div>Regards,</div><div><br></div><div>Alex Paes</div></div>
+</blockquote></div><br>
+
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Is this an expected behavior?</h1><div class="gmail_quote"><blockquote class="gmail_quote" style="margin: 0pt 0pt 0pt 0.8ex; border-left: 1px solid rgb(204, 204, 204); padding-left: 1ex;"><div><div class="h5"><div class="gmail_quote"><blockquote class="gmail_quote" style="margin: 0pt 0pt 0pt 0.8ex; border-left: 1px solid rgb(204, 204, 204); padding-left: 1ex;">
+<div>Take this sample code</div><div><br></div><div><div>CL-USER 151 &gt; (defun test ()</div><div>                (loop with entries = &#39;(())</div><div>                      for entry = (random 4)</div>
+
+<div>                      until (= entry 3)</div><div>                      do (setf (first entries)</div><div>                               (append (first entries)</div><div>                                       (list entry)))</div>
+
+
+<div>                      finally return entries))</div>
+</div></blockquote></div></div></div></blockquote></div><br>I&#39;d do this:<br><br>(defun test2 ()<br>  (list <br>   (loop for entry = (random 4)<br>         until (= entry 3)<br>         collect entry)))<br>
+
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Is this an expected behavior?</h1>
+                 <pre>
+
+Am 27.03.2010 um 03:24 schrieb Alexandre Paes:
+
+&gt Hi,
+&gt 
+&gt I just spent about 30 minutes trying to figure out this behavior before i could find out how to solve it.
+&gt This might be an expected behavior (not by me) but if it is maybe someone can explain it to me?
+&gt 
+&gt Take this sample code
+&gt 
+&gt CL-USER 151 &gt (defun test ()
+&gt                 (loop with entries = '(())
+&gt                       for entry = (random 4)
+&gt                       until (= entry 3)
+&gt                       do (setf (first entries)
+&gt                                (append (first entries)
+&gt                                        (list entry)))
+&gt                       finally return entries))
+
+Let me mention a few problems I see with your code:
+
+1)  '(()) this is a constant form that is not portably meant to be modified.
+     Here, if you use it, all invocations of TEST will use the same data.
+
+2) APPEND should not be done there, LOOP can collect values.
+    Appending to the end of a list in a LOOP is not efficient.
+
+3) Your code:
+
+     FINALLY RETURN entries
+
+    violates the standard LOOP syntax. Use instead
+
+      FINALLY (return entries)
+
+Regards,
+
+Rainer Joswig
+
+&gt TEST
+&gt 
+&gt CL-USER 152 &gt (test)
+&gt (NIL)
+&gt 
+&gt CL-USER 153 &gt (test)
+&gt ((0 1 0))
+&gt 
+&gt CL-USER 154 &gt (test)
+&gt ((0 1 0 2))
+&gt 
+&gt CL-USER 155 &gt (test)
+&gt ((0 1 0 2 0 2 1 1 2 2))
+&gt 
+&gt I was expecting the ENTRIES list to be reinitialized with each invocation of TEST but that doesn't seem to be happening, any idea why? I noticed that if I replace the quoted list with (LIST '()) everything works as I expected. This is not specific to the LOOP, if i remove the ENTRIES declaration to a LET form it still behaves the same. Does this have to do with some compilation magic?
+&gt 
+&gt Regards,
+&gt 
+&gt Alex Paes
+
+Rainer Joswig, Hamburg, Germany
+http://lispm.dyndns.org/
+mailto:joswig@lisp.de
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Is this an expected behavior?</h1>Hi everyone,<div><br></div><div>Thank you all for you help, i&#39;m perfectly aware of the COLLECT available in the LOOP construct, i was just modifying some code that i found on the web and came across this behavior.</div>
+<div><br></div><div>So, if i&#39;m understanding this correctly, whenever i need to modify a list i should *never* use a quoted list?</div>
+
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Is this an expected behavior?</h1>
+                 <pre>
+it is undefined to modify any literal constant. i.e.
+'(a b c d)
+#(1 2 3 4 5)
+"a string"
+
+regards,
+
+Ala'a (cmo-0)
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:35 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

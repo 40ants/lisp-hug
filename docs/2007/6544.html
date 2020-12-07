@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Optimization question</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Optimization question</h1>
+                <pre>
+Is it possible to speed-up this code?
+
+(defvar *global* 50)
+
+(defun test (number iteration)
+   (declare (optimize (speed 3) (safety 0) (debug 0) (space 0)))
+   (declare (type (complex double-float) number))
+   (or (&gt (the fixnum iteration) (the fixnum *global*))
+       (&gt (the double-float (abs number)) 2.0d0)))
+
+(defun test-times (iterations)
+   (time (dotimes (x iterations) (test #c(0.5d0 0.8d0) 40))))
+
+On LWM 5.0.1 Personal (Intel):
+
+(time (test-times 10000000))
+
+Timing the evaluation of (TEST-TIMES 10000000)
+
+User time    =        9.557
+System time  =        0.051
+Elapsed time =       13.963
+Allocation   = 800075272 bytes
+0 Page faults
+
+On SBCL on the same machine:
+
+Evaluation took:
+   0.803 seconds of real time
+   0.794847 seconds of user run time
+   0.0015 seconds of system run time
+   0 calls to %EVAL
+   0 page faults and
+   0 bytes consed.
+
+SBCL seems to be more than 10 times faster. Am I missing something? I  
+double-checked that the functions are compiled.
+
+Thanks,
+
+Michal
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Optimization question</h1>
+                 <pre>
+On 28/03/2007 21:19, Michal Krupka wrote:
+&gt
+&gt Is it possible to speed-up this code?
+&gt
+&gt (defvar *global* 50)
+&gt
+&gt (defun test (number iteration)
+&gt   (declare (optimize (speed 3) (safety 0) (debug 0) (space 0)))
+&gt   (declare (type (complex double-float) number))
+&gt   (or (&gt (the fixnum iteration) (the fixnum *global*))
+&gt       (&gt (the double-float (abs number)) 2.0d0)))
+&gt
+&gt (defun test-times (iterations)
+&gt   (time (dotimes (x iterations) (test #c(0.5d0 0.8d0) 40))))
+&gt
+&gt On LWM 5.0.1 Personal (Intel):
+&gt
+&gt (time (test-times 10000000))
+&gt
+&gt Timing the evaluation of (TEST-TIMES 10000000)
+&gt
+&gt User time    =        9.557
+&gt System time  =        0.051
+&gt Elapsed time =       13.963
+&gt Allocation   = 800075272 bytes
+&gt 0 Page faults
+&gt
+&gt On SBCL on the same machine:
+&gt
+&gt Evaluation took:
+&gt   0.803 seconds of real time
+&gt   0.794847 seconds of user run time
+&gt   0.0015 seconds of system run time
+&gt   0 calls to %EVAL
+&gt   0 page faults and
+&gt   0 bytes consed.
+&gt
+&gt SBCL seems to be more than 10 times faster. Am I missing something? I 
+&gt double-checked that the functions are compiled.
+&gt
+
+Erm, put the loop into the function you've optimized? At the moment the 
+loop is running in whatever the default optimization level is.
+
+__Jason
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Optimization question</h1>
+                 <pre>
+On 28 Mar 2007, at 21:19, Michal Krupka wrote:
+
+&gt
+&gt (defun test (number iteration)
+&gt   (declare (optimize (speed 3) (safety 0) (debug 0) (space 0)))
+&gt   (declare (type (complex double-float) number))
+&gt   (or (&gt (the fixnum iteration) (the fixnum *global*))
+&gt       (&gt (the double-float (abs number)) 2.0d0)))
+
+
+Other than the question of optimizing the loop, I'd be tempted to  
+rebind the special variable as I suspect that access to specials is  
+often not very fast.  Of course this only helps you is you can assume  
+the special is a constant throughout the loop.  So you end up with  
+some outer loop like:
+
+(loop with global = *global*
+       ...)
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:42 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

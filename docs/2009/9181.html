@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>SNARK, INTERN, packages, missing SETF functions</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>SNARK, INTERN, packages, missing SETF functions</h1>
+                <pre>
+Hello all,
+
+I don't know whether anyone else is using SNARK with Lispworks, but
+maybe someone is and has already run into this, or will more readily
+recognize what's going on. I've got the "Current version" of SNARK
+from
+
+http://www.ai.sri.com/~stickel/snark.html
+
+which, when downloaded, gives a directory "snark-20080805r18". SNARK
+is loaded by loading the file "snark-system" and calling the function
+MAKE-SNARK-SYSTEM.  Here's what happens in a fresh Lisp:
+
+
+CL-USER 1 &gt (load "~/Documents/Systems/snark-20080805r018/snark-system.lisp")
+; Loading text file
+/Users/tayloj/Documents/Systems/snark-20080805r018/snark-system.lisp
+#P"/Users/tayloj/Documents/Systems/snark-20080805r018/snark-system.lisp"
+
+CL-USER 2 &gt (make-snark-system)
+; [lots of files get loaded]
+; Running SNARK from
+/Users/tayloj/Documents/Systems/snark-20080805r018/snark-system.lisp
+in LispWorks 5.1.2 on Wright.local at 2009-05-09T13:33:45
+
+Error: Undefined operator (SETF DP-CLAUSE-SET-ATOMS-LAST) in form
+((SETF DP-CLAUSE-SET-ATOMS-LAST) #:G131242 #:G131243).
+  1 (continue) Try invoking (SETF DP-CLAUSE-SET-ATOMS-LAST) again.
+  2 Return some values from the form ((SETF DP-CLAUSE-SET-ATOMS-LAST)
+#:G131242 #:G131243).
+  3 Try invoking something other than (SETF DP-CLAUSE-SET-ATOMS-LAST)
+with the same arguments.
+  4 Set the symbol-function of (SETF DP-CLAUSE-SET-ATOMS-LAST) to
+another function.
+  5 Set the macro-function of (SETF DP-CLAUSE-SET-ATOMS-LAST) to
+another function.
+  6 (abort) Return to level 0.
+  7 Return to top loop level 0.
+
+Type :b for backtrace, :c &lt;option number&gt to proceed,  or :? for other options
+
+SNARK-USER 3 : 1 &gt  ;; this package is correct -- MAKE-SNARK-SYSTEM
+SETFs *PACKAGE*
+
+
+Here's what I've figured out. DP-CLAUSE-SET is a structure, defined by
+CL:DEFSTRUCT, and happens in the package SNARK-DPLL:
+
+(defstruct (dp-clause-set (:print-function print-dp-clause-set3) (:copier nil))
+  (atoms nil) ... (atoms-last nil) ...)
+
+The place where (SETF DP-CLAUSE-SET-ATOMS-LIST) is called is by a
+macroexpansion of
+
+
+(collect atom (dp-clause-set-atoms clause-set))
+
+
+where that collect form appears in a function in a file starting with
+(IN-PACKAGE :SNARK-DPLL). Collect is a macro defined in the SNARK-LISP
+package, and its definition is:
+
+
+(defmacro collect (item place)
+  ;; like (setf place (nconc place (list item)))
+  ;; except last cell of list is remembered in place-last
+  ;; so that operation is O(1)
+  ;; it can be used instead of (push item place) + (nreverse place) loop idiom
+  ;; user must declare place-last variable or slot
+  (let* ((args (if (atom place)
+		   nil
+		   (mapcar (lambda (arg) (list (gensym) arg)) (rest place))))
+         (place (if (atom place)
+		    place
+		    (cons (first place) (mapcar #'first args))))
+         (place-last (if (atom place)
+                         (intern (concatenate
+				  'string
+				  (symbol-name place)
+				  (symbol-name :-last)))
+                         (cons (intern (concatenate
+					'string
+					(symbol-name (first place))
+					(symbol-name :-last)))
+                               (rest place))))
+         (v (gensym))
+         (l (gensym)))
+    `(let* ((,v (cons ,item nil)) ,@args (,l ,place))
+       (cond
+        ((null ,l)
+         (setf ,place (setf ,place-last ,v)))
+        (t
+         (rplacd ,place-last (setf ,place-last ,v))
+         ,l)))))
+
+
+which is a bit hairy, but we can get the idea by macroexpanding the
+collect form above and getting:
+
+(IN-PACKAGE "SNARK-DPLL")
+
+(LET* ((#:G131245 (CONS ATOM NIL))
+           (#:G131244 CLAUSE-SET)
+           (#:G131246 (DP-CLAUSE-SET-ATOMS #:G131244)))
+  (COND ((NULL #:G131246)
+         (SETF (DP-CLAUSE-SET-ATOMS #:G131244)
+                    (SETF (DP-CLAUSE-SET-ATOMS-LAST #:G131244) #:G131245)))
+        (T
+         (RPLACD (DP-CLAUSE-SET-ATOMS-LAST #:G131244)
+                          (SETF (DP-CLAUSE-SET-ATOMS-LAST #:G131244) #:G131245))
+         #:G131246)))
+
+
+Now, since there we see in the above (SETF (DP-CLAUSE-SET-ATOMS-LAST
+…) …) we see why the error would arise, if the SETF function weren't
+defined. But DEFSTRUCT should have defined those functions. Let's
+apropos on "ATOMS-LAST":
+
+
+SNARK-USER 4 : 1 &gt (apropos "ATOMS-LAST")
+SETF::\"SNARK-USER\"\ \"DP-CLAUSE-SET-ATOMS-LAST\"
+SETF::\"SNARK\"\ \"DP-CLAUSE-SET-ATOMS-LAST\"
+SNARK::ATOMS-LAST
+SNARK::NEGATOMS-LAST
+SNARK::NEG-PURE-ATOMS-LAST
+SNARK::POS-PURE-ATOMS-LAST
+SNARK::POSATOMS-LAST
+SNARK::DP-CLAUSE-SET-ATOMS-LAST
+SNARK-DPLL::DP-CLAUSE-SET-ATOMS-LAST (defined)
+SNARK-DPLL::ATOMS-LAST
+SNARK-DPLL::NEG-PURE-ATOMS-LAST
+SNARK-DPLL::POS-PURE-ATOMS-LAST
+SNARK-DPLL::|set DP-CLAUSE-SET-ATOMS-LAST| (defined)
+:ATOMS-LAST, value: :ATOMS-LAST
+DP-CLAUSE-SET-ATOMS-LAST
+
+
+I think those first two are what we'd be concerned with, but they're
+not in the SNARK-DPLL package, so maybe that's where the error lies?
+Not quite sure what was going on, I modified the collect macro specify
+a package in the calls to INTERN, and this got SNARK to run for me:
+
+
+         (place-last (if (atom place)
+                         (intern (concatenate
+				  'string
+				  (symbol-name place)
+				  (symbol-name :-last))
+                                 (symbol-package place))
+                         (cons (intern (concatenate
+					'string
+					(symbol-name (first place))
+					(symbol-name :-last))
+                                       (symbol-name (first place)))
+                               (rest place))))
+
+
+I'm writing to the LISP-HUG rather than the Mark Stickel on account of
+the fact that I can load SNARK in, e.g., SBCL without a hitch. I
+wonder if some strange package things are happening based on the way
+the files are loaded and some explicit package manipulation.
+Particularly, the MAKE-SNARK-SYSTEM function is defined (in CL-USER):
+
+(defun make-snark-system (&amp;optional (*compile-me* *compile-me*))
+  (pushnew :snark *features*)
+  #+cmu (setf extensions::*gc-verbose* nil)
+  (when (eq *compile-me* :optimize)
+    (proclaim (print '(optimize (safety 1) (space 1) (speed 3) (debug 1)))))
+  (with-compilation-unit ()
+    (dolist (name *snark-files2*)
+      (let* ((dir (if (consp name)
+                      (append (pathname-directory
+*snark-system-pathname*) (butlast name))
+                      (append (pathname-directory
+*snark-system-pathname*) (list "src"))))
+             (name (if (consp name) (first (last name)) name))
+             (file (make-pathname :directory dir :name name :defaults
+*snark-system-pathname*)))
+        (load file)))
+    (setf *package* (find-package :snark))
+    #+gcl (shadow '(#:assert #:substitute #:variable))
+    (dolist (name *snark-files*)
+      (let* ((dir (if (consp name)
+                      (append (pathname-directory
+*snark-system-pathname*) (butlast name))
+                      (append (pathname-directory
+*snark-system-pathname*) (list "src"))))
+             (name (if (consp name) (first (last name)) name))
+             (file (make-pathname :directory dir :name name :defaults
+*snark-system-pathname*)))
+        (load (if *compile-me*
+                  (compile-file file)
+                  (or (probe-file (compile-file-pathname file)) file))))))
+;;#-(or symbolics mcl) (load "/home/pacific1/stickel/spice/build.lisp")
+  (setf *package* (find-package :snark-user))
+  (setf *print-pretty* nil)
+  #+openmcl (egc nil)
+  (funcall (intern (symbol-name :initialize) :snark)))
+
+
+Sorry for such a long email with so little information. I'm hoping
+that someone can more readily see what I'm missing. For the record,
+I'm on LWM, 5.1.2 PPC.
+
+Thanks in advance,
+//JT
+
+-- 
+=====================
+Joshua Taylor
+tayloj@cs.rpi.edu, jtaylor@alum.rpi.edu
+
+"A lot of good things went down one time,
+  back in the goodle days."
+    John Hartford
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: SNARK, INTERN, packages, missing SETF functions</h1>
+                 <pre>
+Joshua TAYLOR &lt;tayloj@cs.rpi.edu&gt writes:
+
+&gt I don't know whether anyone else is using SNARK with Lispworks, but
+&gt maybe someone is and has already run into this, or will more readily
+&gt recognize what's going on. I've got the "Current version" of SNARK
+&gt from
+&gt
+&gt http://www.ai.sri.com/~stickel/snark.html
+&gt
+&gt which, when downloaded, gives a directory "snark-20080805r18". SNARK
+&gt is loaded by loading the file "snark-system" and calling the function
+&gt MAKE-SNARK-SYSTEM.  Here's what happens in a fresh Lisp:
+&gt
+&gt
+&gt CL-USER 1 &gt (load "~/Documents/Systems/snark-20080805r018/snark-system.lisp")
+&gt ; Loading text file
+&gt /Users/tayloj/Documents/Systems/snark-20080805r018/snark-system.lisp
+&gt #P"/Users/tayloj/Documents/Systems/snark-20080805r018/snark-system.lisp"
+&gt
+&gt CL-USER 2 &gt (make-snark-system)
+
+In the file "compile" it says to run (make-snark-system t) and it
+works for me on Lispworks if I do that. Some dependency on compile
+versus load behaviour perhaps.
+
+HTH,
+
+Lieven
+
+-- 
+The method of "postulating" what we want has many advantages; they are 
+the same as the advantages of theft over honest toil.        - Russell
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:37 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

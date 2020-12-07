@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Video in LWW</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Video in LWW</h1>
+                <pre>
+Hi,
+
+I know this has been asked before, but I cannot find any straight answers when googling:
+
+Has anyone successfully displayed video content from a LWW/CAPI application?
+
+I've struggled with it several days now, with little success. I began with the simple solution to display html pages in a browser-pane, linking to html5 videos or simply YouTube embeds. It worked sometimes, but often the video didn't show up, or I got all kinds of error messages, sometimes from the browser and sometimes from LispWorks itself. The errors seemed to appear completely randomly.
+
+After that, I've been trying to use an ole-control-pane to embed a media player (WMPlayer.OCX). But it is very buggy, sometimes there is only sound and no video, sometimes it crashes, sometimes it freezes.
+
+As a last resort, I'm now considering building a stand-alone application in another language (such as C++) which can be opened from my LW app. But it is not very elegant, and it makes GUI integration hard or impossible.
+
+Any suggestions? Thanks in advance!
+
+Erik
+
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>(Eric) Re: Video in LWW</h1>
+                 <pre>
+Greetings Eric -
+
+I don't know if any of this might be of any real 
+help, but I just went through a vaguely similar 
+exercise in futility and frustration...
+
+I built LW/CAPI software that reads and displays 
+a real-time streaming video source -- a webcam -- 
+now working nicely and quite fluidly.
+
+
+I discovered a number of things - mostly by trial 
+and error and occasional raw thought...
+
+(a) There is no documentation about any of this - 
+video in or video out - anywhere on this planet. 
+It does not exist.  LogiTech, in my case 
+manufacturer of the webcam, was of absolutely 
+zero help. Best I can tell, that company has no 
+human employees at all - just robots building 
+webcams on a barge off the coast of China...
+
+(b) The fundamental problem, I think, is that you 
+must use windowing elements from two separate 
+worlds - CAPI and WIN32 et. al. At least in my 
+case, CAPI has no idea that the streaming video 
+window is there at all. I did FLI'd WIN32 calls 
+to setup the real-time streaming video window and 
+simply overlaid those things on top of the underlying CAPI panes etc.
+
+(c) Things improved very slightly when I finally 
+figured out to make the alien WIN32 video windows 
+child windows of the current CAPI pane - 
+(capi:simple-pane-handle    ) was helpful there, 
+once I stumbled across it. This at least stopped 
+my video window from simply vanishing from view 
+whenever CAPI decided to come to life.
+
+(d) However, I think the most important thing to 
+know is that you might need to setup your own 
+WIN32 messages dispatch code inside Lisp. Before 
+I did that, the streaming video simply refused to 
+update - nothing but static images that, of 
+course, vanished here and there as CAPI sprang back to life:
+
+                 (while (not (zerop 
+(fli-peek-message msg-pointer 0 0 0 
+pm-remove)))   ; Is there a WIN32 Message Queued Up?
+
+                        (fli-translate-message 
+msg-pointer) 
+; Yes: Well, Loop and process the Wretched Things until Exhausted...
+
+                        (fli-dispatch-message msg-pointer)))))
+
+
+(while) is a, well, while macro that I use a lot. 
+The FLI things are, of course, calls into WIN32 - 
+this is all very standard straight WIN32 
+programming stuff taught back in grade school...
+
+After some thought, I realized that the streaming 
+video window, living and controlled in C space, 
+was completely unknown to Lisp - and Lisp has its 
+own WIN32 message handling loop as above - so, 
+messages to update directed to the video window 
+simply were never handled and could not possibly 
+be handled - so, I had to do it myself from Lisp Space.
+
+I was amazed and delighted to suddenly see 15fps 
+streaming video magically appear in my CAPI 
+application once I sorted all that out mentally - 
+and after another case of Rum...
+
+(e) Be sure to have something that allows CAPI 
+messages to also be frequently handled - I use a while loop around:
+
+           (mp:mailbox-read control-mailbox "Waiting for Godot..." 0.0)
+
+So, I have a single loop with a finite state 
+machine that handles CAPI buttons and all that - 
+inside the loop is the (mp:mailbox  ) with zero 
+delay to allow CAPI message dispatching etc - and 
+also the horrible WIN32 message handling gizmo, 
+which needs to be triggered as fast as possible 
+with no delays for fluid video. If you are 
+missing one of those, then either CAPI or WIN32 
+will not update correctly - at least in my case.
+
+
+Anyway, I hope some of this might be of help in your endeavors.
+
+Regards,
+
+Jack Harper
+Secure Outcomes Inc
+Evergreen, Colorado USA
+
+
+
+
+At 05:20 PM 1/18/2014, Erik Ronström wrote:
+
+&gtHi,
+&gt
+&gtI know this has been asked before, but I cannot 
+&gtfind any straight answers when googling:
+&gt
+&gtHas anyone successfully displayed video content from a LWW/CAPI application?
+&gt
+&gtI've struggled with it several days now, with 
+&gtlittle success. I began with the simple solution 
+&gtto display html pages in a browser-pane, linking 
+&gtto html5 videos or simply YouTube embeds. It 
+&gtworked sometimes, but often the video didn't 
+&gtshow up, or I got all kinds of error messages, 
+&gtsometimes from the browser and sometimes from 
+&gtLispWorks itself. The errors seemed to appear completely randomly.
+&gt
+&gtAfter that, I've been trying to use an 
+&gtole-control-pane to embed a media player 
+&gt(WMPlayer.OCX). But it is very buggy, sometimes 
+&gtthere is only sound and no video, sometimes it crashes, sometimes it freezes.
+&gt
+&gtAs a last resort, I'm now considering building a 
+&gtstand-alone application in another language 
+&gt(such as C++) which can be opened from my LW 
+&gtapp. But it is not very elegant, and it makes 
+&gtGUI integration hard or impossible.
+&gt
+&gtAny suggestions? Thanks in advance!
+&gt
+&gtErik
+&gt
+&gt
+&gt
+&gt_______________________________________________
+&gtLisp Hug - the mailing list for LispWorks users
+&gtlisp-hug@lispworks.com
+&gthttp://www.lispworks.com/support/lisp-hug.html
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: (Eric) Re: Video in LWW</h1>
+                 <pre>
+Thank you very much for sharing your insights – it is both enlightening and encouraging! If I make any progress, I will let you know!
+
+Erik
+
+
+19 jan 2014 kl. 02:02 skrev Jack Harper:
+
+&gt Greetings Eric -
+&gt 
+&gt I don't know if any of this might be of any real help, but I just went through a vaguely similar exercise in futility and frustration...
+&gt 
+&gt I built LW/CAPI software that reads and displays a real-time streaming video source -- a webcam -- now working nicely and quite fluidly.
+&gt 
+&gt 
+&gt I discovered a number of things - mostly by trial and error and occasional raw thought...
+&gt 
+&gt (a) There is no documentation about any of this - video in or video out - anywhere on this planet. It does not exist.  LogiTech, in my case manufacturer of the webcam, was of absolutely zero help. Best I can tell, that company has no human employees at all - just robots building webcams on a barge off the coast of China...
+&gt 
+&gt (b) The fundamental problem, I think, is that you must use windowing elements from two separate worlds - CAPI and WIN32 et. al. At least in my case, CAPI has no idea that the streaming video window is there at all. I did FLI'd WIN32 calls to setup the real-time streaming video window and simply overlaid those things on top of the underlying CAPI panes etc.
+&gt 
+&gt (c) Things improved very slightly when I finally figured out to make the alien WIN32 video windows child windows of the current CAPI pane - (capi:simple-pane-handle    ) was helpful there, once I stumbled across it. This at least stopped my video window from simply vanishing from view whenever CAPI decided to come to life.
+&gt 
+&gt (d) However, I think the most important thing to know is that you might need to setup your own WIN32 messages dispatch code inside Lisp. Before I did that, the streaming video simply refused to update - nothing but static images that, of course, vanished here and there as CAPI sprang back to life:
+&gt 
+&gt                (while (not (zerop (fli-peek-message msg-pointer 0 0 0 pm-remove)))   ; Is there a WIN32 Message Queued Up?
+&gt 
+&gt                       (fli-translate-message msg-pointer) ; Yes: Well, Loop and process the Wretched Things until Exhausted...
+&gt 
+&gt                       (fli-dispatch-message msg-pointer)))))
+&gt 
+&gt 
+&gt (while) is a, well, while macro that I use a lot. The FLI things are, of course, calls into WIN32 - this is all very standard straight WIN32 programming stuff taught back in grade school...
+&gt 
+&gt After some thought, I realized that the streaming video window, living and controlled in C space, was completely unknown to Lisp - and Lisp has its own WIN32 message handling loop as above - so, messages to update directed to the video window simply were never handled and could not possibly be handled - so, I had to do it myself from Lisp Space.
+&gt 
+&gt I was amazed and delighted to suddenly see 15fps streaming video magically appear in my CAPI application once I sorted all that out mentally - and after another case of Rum...
+&gt 
+&gt (e) Be sure to have something that allows CAPI messages to also be frequently handled - I use a while loop around:
+&gt 
+&gt          (mp:mailbox-read control-mailbox "Waiting for Godot..." 0.0)
+&gt 
+&gt So, I have a single loop with a finite state machine that handles CAPI buttons and all that - inside the loop is the (mp:mailbox  ) with zero delay to allow CAPI message dispatching etc - and also the horrible WIN32 message handling gizmo, which needs to be triggered as fast as possible with no delays for fluid video. If you are missing one of those, then either CAPI or WIN32 will not update correctly - at least in my case.
+&gt 
+&gt 
+&gt Anyway, I hope some of this might be of help in your endeavors.
+&gt 
+&gt Regards,
+&gt 
+&gt Jack Harper
+&gt Secure Outcomes Inc
+&gt Evergreen, Colorado USA
+&gt 
+&gt 
+&gt 
+&gt 
+&gt At 05:20 PM 1/18/2014, Erik Ronström wrote:
+&gt 
+&gt&gt Hi,
+&gt&gt 
+&gt&gt I know this has been asked before, but I cannot find any straight answers when googling:
+&gt&gt 
+&gt&gt Has anyone successfully displayed video content from a LWW/CAPI application?
+&gt&gt 
+&gt&gt I've struggled with it several days now, with little success. I began with the simple solution to display html pages in a browser-pane, linking to html5 videos or simply YouTube embeds. It worked sometimes, but often the video didn't show up, or I got all kinds of error messages, sometimes from the browser and sometimes from LispWorks itself. The errors seemed to appear completely randomly.
+&gt&gt 
+&gt&gt After that, I've been trying to use an ole-control-pane to embed a media player (WMPlayer.OCX). But it is very buggy, sometimes there is only sound and no video, sometimes it crashes, sometimes it freezes.
+&gt&gt 
+&gt&gt As a last resort, I'm now considering building a stand-alone application in another language (such as C++) which can be opened from my LW app. But it is not very elegant, and it makes GUI integration hard or impossible.
+&gt&gt 
+&gt&gt Any suggestions? Thanks in advance!
+&gt&gt 
+&gt&gt Erik
+&gt&gt 
+&gt&gt 
+&gt&gt 
+&gt&gt _______________________________________________
+&gt&gt Lisp Hug - the mailing list for LispWorks users
+&gt&gt lisp-hug@lispworks.com
+&gt&gt http://www.lispworks.com/support/lisp-hug.html
+&gt 
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: (Eric) Re: Video in LWW</h1>
+                 <pre>
+One question though: did you use any of CAPI's wrapping functionality (such as the ole-control-pane) which you then could manipulate through Win32 API calls? Or did you create all new windows/controls "from scratch" using the Win32 API?
+
+Erik
+
+
+
+19 jan 2014 kl. 02:02 skrev Jack Harper:
+
+&gt Greetings Eric -
+&gt 
+&gt I don't know if any of this might be of any real help, but I just went through a vaguely similar exercise in futility and frustration...
+&gt 
+&gt I built LW/CAPI software that reads and displays a real-time streaming video source -- a webcam -- now working nicely and quite fluidly.
+&gt 
+&gt 
+&gt I discovered a number of things - mostly by trial and error and occasional raw thought...
+&gt 
+&gt (a) There is no documentation about any of this - video in or video out - anywhere on this planet. It does not exist.  LogiTech, in my case manufacturer of the webcam, was of absolutely zero help. Best I can tell, that company has no human employees at all - just robots building webcams on a barge off the coast of China...
+&gt 
+&gt (b) The fundamental problem, I think, is that you must use windowing elements from two separate worlds - CAPI and WIN32 et. al. At least in my case, CAPI has no idea that the streaming video window is there at all. I did FLI'd WIN32 calls to setup the real-time streaming video window and simply overlaid those things on top of the underlying CAPI panes etc.
+&gt 
+&gt (c) Things improved very slightly when I finally figured out to make the alien WIN32 video windows child windows of the current CAPI pane - (capi:simple-pane-handle    ) was helpful there, once I stumbled across it. This at least stopped my video window from simply vanishing from view whenever CAPI decided to come to life.
+&gt 
+&gt (d) However, I think the most important thing to know is that you might need to setup your own WIN32 messages dispatch code inside Lisp. Before I did that, the streaming video simply refused to update - nothing but static images that, of course, vanished here and there as CAPI sprang back to life:
+&gt 
+&gt                (while (not (zerop (fli-peek-message msg-pointer 0 0 0 pm-remove)))   ; Is there a WIN32 Message Queued Up?
+&gt 
+&gt                       (fli-translate-message msg-pointer) ; Yes: Well, Loop and process the Wretched Things until Exhausted...
+&gt 
+&gt                       (fli-dispatch-message msg-pointer)))))
+&gt 
+&gt 
+&gt (while) is a, well, while macro that I use a lot. The FLI things are, of course, calls into WIN32 - this is all very standard straight WIN32 programming stuff taught back in grade school...
+&gt 
+&gt After some thought, I realized that the streaming video window, living and controlled in C space, was completely unknown to Lisp - and Lisp has its own WIN32 message handling loop as above - so, messages to update directed to the video window simply were never handled and could not possibly be handled - so, I had to do it myself from Lisp Space.
+&gt 
+&gt I was amazed and delighted to suddenly see 15fps streaming video magically appear in my CAPI application once I sorted all that out mentally - and after another case of Rum...
+&gt 
+&gt (e) Be sure to have something that allows CAPI messages to also be frequently handled - I use a while loop around:
+&gt 
+&gt          (mp:mailbox-read control-mailbox "Waiting for Godot..." 0.0)
+&gt 
+&gt So, I have a single loop with a finite state machine that handles CAPI buttons and all that - inside the loop is the (mp:mailbox  ) with zero delay to allow CAPI message dispatching etc - and also the horrible WIN32 message handling gizmo, which needs to be triggered as fast as possible with no delays for fluid video. If you are missing one of those, then either CAPI or WIN32 will not update correctly - at least in my case.
+&gt 
+&gt 
+&gt Anyway, I hope some of this might be of help in your endeavors.
+&gt 
+&gt Regards,
+&gt 
+&gt Jack Harper
+&gt Secure Outcomes Inc
+&gt Evergreen, Colorado USA
+&gt 
+&gt 
+&gt 
+&gt 
+&gt At 05:20 PM 1/18/2014, Erik Ronström wrote:
+&gt 
+&gt&gt Hi,
+&gt&gt 
+&gt&gt I know this has been asked before, but I cannot find any straight answers when googling:
+&gt&gt 
+&gt&gt Has anyone successfully displayed video content from a LWW/CAPI application?
+&gt&gt 
+&gt&gt I've struggled with it several days now, with little success. I began with the simple solution to display html pages in a browser-pane, linking to html5 videos or simply YouTube embeds. It worked sometimes, but often the video didn't show up, or I got all kinds of error messages, sometimes from the browser and sometimes from LispWorks itself. The errors seemed to appear completely randomly.
+&gt&gt 
+&gt&gt After that, I've been trying to use an ole-control-pane to embed a media player (WMPlayer.OCX). But it is very buggy, sometimes there is only sound and no video, sometimes it crashes, sometimes it freezes.
+&gt&gt 
+&gt&gt As a last resort, I'm now considering building a stand-alone application in another language (such as C++) which can be opened from my LW app. But it is not very elegant, and it makes GUI integration hard or impossible.
+&gt&gt 
+&gt&gt Any suggestions? Thanks in advance!
+&gt&gt 
+&gt&gt Erik
+&gt&gt 
+&gt&gt 
+&gt&gt 
+&gt&gt _______________________________________________
+&gt&gt Lisp Hug - the mailing list for LispWorks users
+&gt&gt lisp-hug@lispworks.com
+&gt&gt http://www.lispworks.com/support/lisp-hug.html
+&gt 
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Video in LWW</h1>
+                 <pre>
+Erik Ronström &lt;erik.ronstrom@doremir.com&gt wrote:
+
+&gt Has anyone successfully displayed video content from a LWW/CAPI application?
+
+Have you considered using Microsoft's Media Control Interface (MCI) API?
+Playing around with 'mciSendString' looks like an easy way to get started.
+You'd probably have to write your own FLI definitions, but that shouldn't
+be too difficult.
+
+http://msdn.microsoft.com/en-us/library/windows/desktop/dd757151%28v=vs..85%29.aspx
+
+Arthur
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Video in LWW</h1>I would not qualify this as LispWorks problem<div><br></div><div>Long time ago I rewrote apple frame grabber example in Haskell for instance (minimung project on Hackage)</div><div><br></div><div>You can check that out</div>
+<div><br></div><div>It boils down to bridging some grabber apis and having way to bitblt the region (which is in LispWorks AFAIR)</div><div><br></div><div>And since you have decent language everything should run as fast as you want it to ;)<br>
+<br>On Sunday, January 19, 2014, Erik Ronström &lt;<a href="mailto:erik..ronstrom@doremir.com">erik.ronstrom@doremir.com</a>&gt; wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+<br>
+Hi,<br>
+<br>
+I know this has been asked before, but I cannot find any straight answers when googling:<br>
+<br>
+Has anyone successfully displayed video content from a LWW/CAPI application?<br>
+<br>
+I&#39;ve struggled with it several days now, with little success. I began with the simple solution to display html pages in a browser-pane, linking to html5 videos or simply YouTube embeds. It worked sometimes, but often the video didn&#39;t show up, or I got all kinds of error messages, sometimes from the browser and sometimes from LispWorks itself. The errors seemed to appear completely randomly.<br>
+
+<br>
+After that, I&#39;ve been trying to use an ole-control-pane to embed a media player (WMPlayer.OCX). But it is very buggy, sometimes there is only sound and no video, sometimes it crashes, sometimes it freezes.<br>
+<br>
+As a last resort, I&#39;m now considering building a stand-alone application in another language (such as C++) which can be opened from my LW app. But it is not very elegant, and it makes GUI integration hard or impossible.<br>
+
+<br>
+Any suggestions? Thanks in advance!<br>
+<br>
+Erik<br>
+<br>
+<br>
+<br>
+_______________________________________________<br>
+Lisp Hug - the mailing list for LispWorks users<br>
+<a href="javascript:;" onclick="_e(event, &#39;cvml&#39;, &#39;lisp-hug@lispworks.com&#39;)">lisp-hug@lispworks.com</a><br>
+<a href="http://www.lispworks.com/support/lisp-hug.html" target="_blank">http://www.lispworks.com/support/lisp-hug.html</a><br>
+<br>
+</blockquote></div>
+
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: (Eric) Re: Video in LWW</h1><html>
+<body>
+Tja! Erik -<br><br>
+No, I kept the thing absolutely as simple as I could - plus, I have never
+really worked with the ole-control-panel &amp; friends.<br><br>
+What I have is not very pretty Lisp at all - Looks, of course, like C
+written in Lisp. Sort of like writing C in FORTRAN-style 30-years ago
+:(<br><br>
+But, it works! :)<br><br>
+Everything directly related to the real-time streaming video is built
+&quot;from scratch&quot; using FLI'd calls into the WIN32
+morass.<br><br>
+Regards,<br><br>
+Jack<br><br>
+ps - &quot;An exercise for the student...&quot;&nbsp; It would be useful
+for someone to, somehow, add such video things to CAPI as a new pane
+class etc. However, I really don't see exactly how to do that as, at
+least in my case, the streaming video window is, in fact, just that - a
+new WIN32 window. Perhaps, that is what a pane is - not sure - but, that
+would make sense. Perhaps doing that would not be as difficult as I might
+think. I was not able to spend any time on that as I have seventy
+customers out in the wild clamoring for the webcam addition... <br><br>
+<br><br>
+At 02:24 AM 1/19/2014, Erik Ronström wrote:<br><br>
+<blockquote type=cite class=cite cite="">One question though: did you use
+any of CAPI's wrapping functionality (such as the ole-control-pane) which
+you then could manipulate through Win32 API calls? Or did you create all
+new windows/controls &quot;from scratch&quot; using the Win32
+API?<br><br>
+Erik<br><br>
+<br><br>
+19 jan 2014 kl. 02:02 skrev Jack Harper:<br><br>
+&gt; Greetings Eric -<br>
+&gt; <br>
+&gt; I don't know if any of this might be of any real help, but I just
+went through a vaguely similar exercise in futility and
+frustration...<br>
+&gt; <br>
+&gt; I built LW/CAPI software that reads and displays a real-time
+streaming video source -- a webcam -- now working nicely and quite
+fluidly.<br>
+&gt; <br>
+&gt; <br>
+&gt; I discovered a number of things - mostly by trial and error and
+occasional raw thought...<br>
+&gt; <br>
+&gt; (a) There is no documentation about any of this - video in or video
+out - anywhere on this planet. It does not exist.&nbsp; LogiTech, in my
+case manufacturer of the webcam, was of absolutely zero help. Best I can
+tell, that company has no human employees at all - just robots building
+webcams on a barge off the coast of China...<br>
+&gt; <br>
+&gt; (b) The fundamental problem, I think, is that you must use windowing
+elements from two separate worlds - CAPI and WIN32 et. al. At least in my
+case, CAPI has no idea that the streaming video window is there at all. I
+did FLI'd WIN32 calls to setup the real-time streaming video window and
+simply overlaid those things on top of the underlying CAPI panes
+etc.<br>
+&gt; <br>
+&gt; (c) Things improved very slightly when I finally figured out to make
+the alien WIN32 video windows child windows of the current CAPI pane -
+(capi:simple-pane-handle&nbsp;&nbsp;&nbsp; ) was helpful there, once I
+stumbled across it. This at least stopped my video window from simply
+vanishing from view whenever CAPI decided to come to life.<br>
+&gt; <br>
+&gt; (d) However, I think the most important thing to know is that you
+might need to setup your own WIN32 messages dispatch code inside Lisp.
+Before I did that, the streaming video simply refused to update - nothing
+but static images that, of course, vanished here and there as CAPI sprang
+back to life:<br>
+&gt; <br>
+&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+(while (not (zerop (fli-peek-message msg-pointer 0 0 0
+pm-remove)))&nbsp;&nbsp; ; Is there a WIN32 Message Queued Up?<br>
+&gt; <br>
+&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+(fli-translate-message msg-pointer) ; Yes: Well, Loop and process the
+Wretched Things until Exhausted...<br>
+&gt; <br>
+&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+(fli-dispatch-message msg-pointer)))))<br>
+&gt; <br>
+&gt; <br>
+&gt; (while) is a, well, while macro that I use a lot. The FLI things
+are, of course, calls into WIN32 - this is all very standard straight
+WIN32 programming stuff taught back in grade school...<br>
+&gt; <br>
+&gt; After some thought, I realized that the streaming video window,
+living and controlled in C space, was completely unknown to Lisp - and
+Lisp has its own WIN32 message handling loop as above - so, messages to
+update directed to the video window simply were never handled and could
+not possibly be handled - so, I had to do it myself from Lisp Space.<br>
+&gt; <br>
+&gt; I was amazed and delighted to suddenly see 15fps streaming video
+magically appear in my CAPI application once I sorted all that out
+mentally - and after another case of Rum...<br>
+&gt; <br>
+&gt; (e) Be sure to have something that allows CAPI messages to also be
+frequently handled - I use a while loop around:<br>
+&gt; <br>
+&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+(mp:mailbox-read control-mailbox &quot;Waiting for Godot...&quot;
+0.0)<br>
+&gt; <br>
+&gt; So, I have a single loop with a finite state machine that handles
+CAPI buttons and all that - inside the loop is the (mp:mailbox&nbsp; )
+with zero delay to allow CAPI message dispatching etc - and also the
+horrible WIN32 message handling gizmo, which needs to be triggered as
+fast as possible with no delays for fluid video. If you are missing one
+of those, then either CAPI or WIN32 will not update correctly - at least
+in my case.<br>
+&gt; <br>
+&gt; <br>
+&gt; Anyway, I hope some of this might be of help in your endeavors.<br>
+&gt; <br>
+&gt; Regards,<br>
+&gt; <br>
+&gt; Jack Harper<br>
+&gt; Secure Outcomes Inc<br>
+&gt; Evergreen, Colorado USA<br>
+&gt; <br>
+&gt; <br>
+&gt; <br>
+&gt; <br>
+&gt; At 05:20 PM 1/18/2014, Erik Ronström wrote:<br>
+&gt; <br>
+&gt;&gt; Hi,<br>
+&gt;&gt; <br>
+&gt;&gt; I know this has been asked before, but I cannot find any
+straight answers when googling:<br>
+&gt;&gt; <br>
+&gt;&gt; Has anyone successfully displayed video content from a LWW/CAPI
+application?<br>
+&gt;&gt; <br>
+&gt;&gt; I've struggled with it several days now, with little success. I
+began with the simple solution to display html pages in a browser-pane,
+linking to html5 videos or simply YouTube embeds. It worked sometimes,
+but often the video didn't show up, or I got all kinds of error messages,
+sometimes from the browser and sometimes from LispWorks itself. The
+errors seemed to appear completely randomly.<br>
+&gt;&gt; <br>
+&gt;&gt; After that, I've been trying to use an ole-control-pane to embed
+a media player (WMPlayer.OCX). But it is very buggy, sometimes there is
+only sound and no video, sometimes it crashes, sometimes it freezes.<br>
+&gt;&gt; <br>
+&gt;&gt; As a last resort, I'm now considering building a stand-alone
+application in another language (such as C++) which can be opened from my
+LW app. But it is not very elegant, and it makes GUI integration hard or
+impossible.<br>
+&gt;&gt; <br>
+&gt;&gt; Any suggestions? Thanks in advance!<br>
+&gt;&gt; <br>
+&gt;&gt; Erik<br>
+&gt;&gt; <br>
+&gt;&gt; <br>
+&gt;&gt; <br>
+&gt;&gt; _______________________________________________<br>
+&gt;&gt; Lisp Hug - the mailing list for LispWorks users<br>
+&gt;&gt; lisp-hug@lispworks.com<br>
+&gt;&gt;
+<a href="http://www.lispworks.com/support/lisp-hug.html" eudora="autourl">
+http://www.lispworks.com/support/lisp-hug.html</a><br>
+&gt; <br><br>
+<br>
+_______________________________________________<br>
+Lisp Hug - the mailing list for LispWorks users<br>
+lisp-hug@lispworks.com<br>
+<a href="http://www.lispworks.com/support/lisp-hug.html" eudora="autourl">
+http://www.lispworks.com/support/lisp-hug.html</a></blockquote></body>
+</html>
+
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Video in LWW</h1>
+                 <pre>
+At 04:52 AM 1/19/2014, Yakov Zaytsev wrote:
+&gt&lt;snip&gt
+&gt
+&gtIt boils down to bridging some grabber apis and having way to bitblt 
+&gtthe region (which is in LispWorks AFAIR)
+&lt;snip&gt
+
+
+....and, the common bits path is/can be the clipboard...
+
+Regards,
+
+Jack Harper
+Secure Outcomes Inc
+Evergreen, Colorado USA
+
+ps - In my webcam case, the WIN32 video routines include one that 
+displays the real-time streaming video in a separate alien WIN32 
+window - unknown to CAPI - and so I do not have to copy the streaming 
+image into Lisp Space for fast fluid updates. I only copy the frozen 
+single frame image that I am interested to mangle inside CAPI.
+
+
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:30 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

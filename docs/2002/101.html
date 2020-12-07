@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>copy-object</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>copy-object</h1>
+                <pre>Given a simple CLOS object with just a few slots, I
+want to make a copy of it, such that each slot of the
+copy is EQ the corresponding slot of the original.  Is
+there a copy-object function or equivalent?
+
+
+__________________________________________________
+Do You Yahoo!?
+Yahoo! Sports - Coverage of the 2002 Olympic Games
+http://sports.yahoo.com
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: copy-object</h1>
+                 <pre>Eric Smith &lt;eric3057@yahoo.com&gt writes:
+
+&gt Given a simple CLOS object with just a few slots, I want to make a
+&gt copy of it, such that each slot of the copy is EQ the corresponding
+&gt slot of the original.  Is there a copy-object function or
+&gt equivalent?
+
+You might want to read this article:
+
+  &lt;http://world.std.com/~pitman/PS/EQUAL.html&gt
+
+Edi.
+
+-- 
+
+Dr. Edmund Weitz
+Hamburg
+Germany
+
+The Common Lisp Cookbook
+&lt;http://cl-cookbook.sourceforge.net/&gt
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: copy-object</h1>
+                  <pre>* Eric Smith wrote:
+&gt That article is about the ambiguity of words such as
+&gt copy, equal, etc.  The copy operation I want is
+&gt basically the same operation as copy-structure, but
+&gt applied to objects instead of structures.  Since
+&gt copy-structure is in the hyperspec, it doesn't make
+&gt sense to me to omit copy-object just because of the
+&gt concerns in that article.  How do those concerns apply
+&gt to objects differently than to structures?  Here is
+&gt what happens when I try using copy-structure to copy
+&gt an object:
+
+There are really two points. One is that this kind of trivial shallow
+copy is rather seldom useful: instead you typically need to do
+something with the slots which respects the semantics of copying you
+want to get.  Without the MOP you can do this using some some protocol
+like this:
+
+(defun semantically-copy-object (o)		;really bad name
+  (let ((new (allocate-instance (class-of o))))
+    (semantically-copy-slots o new)
+    new))
+
+(defgeneric semantically-copy-slots (o copy)	;likewise
+  ;; users define methods on this.
+  (:method-combination progn))
+
+(defmethod semantically-copy-slots progn (o new)
+  (declare (ignore o new)))
+
+The second is that you can't do this for structures - you can't get a
+new blank structure from an old one because MAKE-INSTANCE doesn't work
+there.  So you need to get a toehold somehow, and COPY-STRUCTURE gives
+you that toehold.  It would (I think) be better to have provided
+ALLOCATE-STRUCTURE which would have created a `blank' structure
+instance.  But then again, before there were methods it is not quite
+so easy to implement the protocol above.
+
+I had a paper which was even more explicitly about this than KMP's at
+some Lisp conference, although likely not so well written.
+
+--tim
+
+
+
+	    
+
+
+</pre>
+                 </article>
+                </section>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:59 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

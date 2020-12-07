@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Random useful thing: BROWSE-WC</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Random useful thing: BROWSE-WC</h1>
+                <pre>This function makes little windows with the results of the various
+who-calls type functions in, from which you can edit things, or click
+right to further browse.  
+
+Does anyone know how to make CONTAIN choose a sensible height for
+list-panels?  The default is tiny...
+
+--tim
+
+(defun browse-wc (thing &amp;rest types)
+  ;; Now less trivial than it was...
+  "Browse who-calls, or in fact browse any of the *-WHO or WHO-* functions"
+  (setf types (or types '(:who-calls)))
+  (let ((selections (loop for type in types
+                          appending 
+                          (ecase type
+                            ((:who-calls) (who-calls thing))
+                            ((:calls-who) (calls-who thing))
+                            ((:who-binds) (who-binds thing))
+                            ((:binds-who) (binds-who thing))
+                            ((:who-sets) (who-sets thing))
+                            ((:sets-who) (sets-who thing))
+                            ((:who-references) (who-references thing))
+                            ((:references-who) (references-who thing)))))
+        panel)
+    (when selections
+      (setf panel
+            (make-instance 'capi:list-panel
+                            :items selections
+                            :print-function #'prin1-to-string
+                            :callback-type :data
+                            :action-callback #'ed
+                            :pane-menu 
+                            (make-instance 
+                             'capi:menu
+                             :title "Browse selection"
+                             :items '(:who-calls :calls-who
+                                      :who-binds :binds-who
+                                      :who-sets :sets-who
+                                      :who-references :references-who)
+                             :print-function
+                             #'(lambda (s)
+                                   (format nil "~A ~S"
+                                           (nstring-capitalize
+                                            (substitute 
+                                             #\Space #\-
+                                             (symbol-name s)))
+                                           (capi:choice-selected-item panel)))
+                             :callback-type :data
+                             :callback
+                             #'(lambda (type)
+                                 (browse-wc (capi:choice-selected-item panel)
+                                            type)))))
+      (capi:contain 
+       panel
+       ;; why is default size all wrong?
+       :best-height 120
+       :best-width 200
+       :title (format nil "~S: ~{~A~^, ~}" 
+                      thing
+                      (mapcar #'(lambda (type)
+                                  (string-downcase
+                                   (substitute #\Space #\- 
+                                               (symbol-name type))))
+                              types))))
+    selections))
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Random useful thing: BROWSE-WC</h1>
+                 <pre>Hello Tim,
+
+| This function makes little windows with the results of the various
+| who-calls type functions in, from which you can edit things, or click
+| right to further browse.  
+| 
+| Does anyone know how to make CONTAIN choose a sensible height for
+| list-panels?  The default is tiny...
+|...snip...| 
+
+My recommendation is either something like
+    (make-instance 'capi:list-panel
+        :visible-min-height `(character ,(min 20 (length selections)))
+        ...)
+or 
+      (capi:contain 
+       panel
+       :best-height `(character ,(min 20 (length selections)))
+        ...)
+--
+Sincerely,
+Dmitri Ivanov
+www.aha.ru/~divanov
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Random useful thing: BROWSE-WC</h1>
+                 <pre>* Dmitri Ivanov wrote:
+
+&gt My recommendation is either something like
+&gt     (make-instance 'capi:list-panel
+&gt         :visible-min-height `(character ,(min 20 (length selections)))
+&gt         ...)
+
+
+Thanks, that works, although it seems to leave whitespace for some
+reason at the bottom.  I wish I understood constraints...
+
+--tim
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Random useful thing: BROWSE-WC</h1>
+                 <pre>* Simon Katz wrote:
+
+&gt If you remove the :best-height argument to CAPI:CONTAIN, the
+&gt whitespace at the bottom should disappear.
+
+No.  Not sure why.
+
+--tim
+
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:56 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>writing text to capi output pane</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>writing text to capi output pane</h1>
+                <pre>
+I have found a frustrating problem that shows up with this simple test code.
+I define an interface with this code:
+
+(capi:define-interface test1 ()
+;; ----- slots ----
+  ()
+;; ----- panes ----
+  (:panes
+    (screen-out capi:output-pane
+      :internal-border nil  :visible-border nil
+      :font (gp:make-font-description :family "Eurostile Regular/Black" :size 12)
+      :min-height 600
+      :max-height 600
+      :min-width  800
+      :max-width  800
+      :background :white 
+      :foreground :black ))
+;; ----- layouts ----
+  (:layouts
+      (main-layout capi:simple-layout '(screen-out)))
+;; ----- defaults ----
+  (:default-initargs  :layout 'main-layout
+     :destroy-callback #'(lambda (interface) 
+         (capi:destroy interface))))
+
+And with this test function, the window is displayed, but the text is not
+output to the pane:
+
+(defun exec-test ()
+  (let ((intf))
+    (setq intf (capi:display (make-instance 'test1)))
+      (with-slots (screen-out) intf
+          (gp:draw-string screen-out "test string out"  15 30 :foreground :blue))))
+
+Here is another test function which also does not display the text:
+
+(defvar *interface*)
+
+(defun disp-test ()
+  (setq *interface* (capi:display (make-instance 'test1)))
+  (with-slots (screen-out) *interface*
+    (gp:draw-string screen-out "test string out" 15 30 :foreground :red)))
+
+
+However, if the define-interface is run and I run the follow commands through
+the REPL, the text is displayed
+
+(setq interface (capi:display (make-instance 'test1)))
+
+(with-slots (screen-out) interface (gp:draw-string screen-out "test string out"
+15 30 :foreground :blue))
+
+Anyone with some understanding of why the simple functions aren't working but
+will run directly from the listener??
+
+Thanks
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>RE: writing text to capi output pane</h1><html>
+<head>
+<style><!--
+..hmmessage P
+{
+margin:0px;
+padding:0px
+}
+body.hmmessage
+{
+font-size: 10pt;
+font-family:Tahoma
+}
+--></style>
+</head>
+<body class='hmmessage'>
+<br>&gt; (defun exec-test ()<br>&gt;   (let ((intf))<br>&gt;     (setq intf (capi:display (make-instance 'test1)))<br>&gt;       (with-slots (screen-out) intf<br>&gt;           (gp:draw-string screen-out "test string out"  15 30 :foreground :blue))))<br>&gt; <br>&gt; Here is another test function which also does not display the text:<br>&gt; <br>&gt; (defvar *interface*)<br>&gt; <br>&gt; (defun disp-test ()<br>&gt;   (setq *interface* (capi:display (make-instance 'test1)))<br>&gt;   (with-slots (screen-out) *interface*<br>&gt;     (gp:draw-string screen-out "test string out" 15 30 :foreground :red)))<br><br>Hi Ron,<br><br>What platform are you working on? Both these functions work on my XP machine, LW 6. Maybe on a Mac or Linux you might need to wrap the drawing code in apply-in-pane-process.<br><br>Chris<br> 		 	   		  </body>
+</html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>RE: writing text to capi output pane</h1><html>
+<head>
+<style><!--
+..hmmessage P
+{
+margin:0px;
+padding:0px
+}
+body.hmmessage
+{
+font-size: 10pt;
+font-family:Tahoma
+}
+--></style>
+</head>
+<body class='hmmessage'>
+Indeed on my old LW 5.1 the functions do fail after a few runs. But on 
+LW I get no failures. Even wrapping the drawing code in 
+apply-in-pane-process didn't fix it. So it looks like a 5.1 issue.<br><br>Having
+ said that, it's always best to put any drawing code inside the pane's 
+display-callback. Unless you have a special reason for not doing so?<br><br>Best,<br>Chris<br><br><hr id="stopSpelling">Date: Mon, 13 Dec 2010 14:54:38 -0700<br>From: rlund@secureoutcomes.net<br>To: relativeflux@hotmail..co.uk<br>Subject: Re: writing text to capi output pane<br><br>
+
+  
+<meta http-equiv="Content-Type" content="text/html; charset=unicode">
+<meta name="Generator" content="Microsoft SafeHTML">
+    
+  
+  
+    On 12/13/2010 2:48 PM, Christopher Melen wrote:
+    <blockquote cite="mid:SNT136-w146AAC61636DCC27D6299881120@phx.gbl">
+      <style>
+..ExternalClass .ecxhmmessage P
+{padding:0px;}
+..ExternalClass body.ecxhmmessage
+{font-size:10pt;font-family:Tahoma;}
+
+</style>
+      <br>
+      &gt; (defun exec-test ()<br>
+      &gt; (let ((intf))<br>
+      &gt; (setq intf (capi:display (make-instance 'test1)))<br>
+      &gt; (with-slots (screen-out) intf<br>
+      &gt; (gp:draw-string screen-out "test string out" 15 30
+      :foreground :blue))))<br>
+      &gt; <br>
+      &gt; Here is another test function which also does not display the
+      text:<br>
+      &gt; <br>
+      &gt; (defvar *interface*)<br>
+      &gt; <br>
+      &gt; (defun disp-test ()<br>
+      &gt; (setq *interface* (capi:display (make-instance 'test1)))<br>
+      &gt; (with-slots (screen-out) *interface*<br>
+      &gt; (gp:draw-string screen-out "test string out" 15 30
+      :foreground :red)))<br>
+      <br>
+      Hi Ron,<br>
+      <br>
+      What platform are you working on? Both these functions work on my
+      XP machine, LW 6. Maybe on a Mac or Linux you might need to wrap
+      the drawing code in apply-in-pane-process.<br>
+      <br>
+      Chris<br>
+    </blockquote>
+    <br>
+    Sorry, I neglected that in my post.&nbsp; <br>
+    Running XP,&nbsp;&nbsp; Lispworks 5.1.2&nbsp; with patches.<br>
+    <br>
+    I've had the functions work once or twice, then stopped working
+    without modifying the code.<br>
+    Try running them multiple times and see if they stop working.<br>
+    <br>
+    Thanks for your repy<br> 		 	   		  </body>
+</html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: writing text to capi output pane</h1>
+                 <pre>
+Ron Lund wrote on Mon, 13 Dec 2010 20:35:09 +0000 (UTC) 23:35:
+
+| I have found a frustrating problem that shows up with this simple test
+| code. I define an interface with this code:
+| 
+| (capi:define-interface test1 ()
+| ;; ----- slots ----
+|   ()
+| ;; ----- panes ----
+|   (:panes
+|     (screen-out capi:output-pane
+|       :internal-border nil  :visible-border nil
+|       :font (gp:make-font-description :family "Eurostile Regular/Black"
+| :size 12)
+|       :min-height 600
+|       :max-height 600
+|       :min-width  800
+|       :max-width  800
+|       :background :white
+|       :foreground :black ))
+| ;; ----- layouts ----
+|   (:layouts
+|       (main-layout capi:simple-layout '(screen-out)))
+| ;; ----- defaults ----
+|   (:default-initargs  :layout 'main-layout
+|      :destroy-callback #'(lambda (interface)
+|          (capi:destroy interface))))
+| 
+| And with this test function, the window is displayed, but the text is
+| not output to the pane:
+| 
+| (defun exec-test ()
+|   (let ((intf))
+|     (setq intf (capi:display (make-instance 'test1)))
+|       (with-slots (screen-out) intf
+|           (gp:draw-string screen-out "test string out"  15 30
+| :foreground :blue))))
+
+You should do this kind of drawing within a display-callback for the
+screen-out pane.
+--
+Sincerely,
+Dmitriy Ivanov
+lisp.ystok.ru
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: writing text to capi output pane</h1>
+                 <p>
+                  Unable to parse email body. Email id is 10810
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: writing text to capi output pane</h1>
+                 <pre>
+
+On Dec 14, 2010, at 8:53 AM, Martin Simmons wrote:
+
+&gt As others have mentioned, it is better to put the drawing code in a
+&gt display-callback rather than drawing directly.
+
+Also, Ron Lund's original interface definition has a destroy-callback that calls capi:destroy on itself. This will lead to an infinite recursion.
+
+warmest regards,
+
+Ralph
+
+
+
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: writing text to capi output pane</h1>
+                 <pre>
+
+On Dec 14, 2010, at 11:58 AM, Ron Lund wrote:
+
+&gt Curious about your post Raffael. My intent with the destroy-callback is to
+&gt destroy the interface process and all associated with the interface. Are you
+&gt saying this isn't necessary?
+
+LispWorks will take care of this. The destroy-callback is for any additional cleanup necessary - for example, disposing of other resources that your interface might use, such as freeing an image used by your interface by calling gp:free-image.
+
+The docs for capi:destroy are clear on the potential infinite loop though:
+
+"The generic function destroy closes the window associated with interface , and then calls the interface's destroy-callback if it has one."
+
+so if the destroy-callback itself calls destroy on the interface, you'll get an infinite loop.
+
+warmest regards,
+
+Ralph
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: writing text to capi output pane</h1>
+                 <pre>
+
+On Dec 14, 2010, at 11:58 AM, Ron Lund wrote:
+
+&gt Curious about your post Raffael.
+
+Just for completeness, here's a version of your test that does the string drawing in a display-callback:
+
+(capi:define-interface test1 ()
+  ;; ----- slots ----
+  ((display-text :accessor display-text :initform "default text"))
+  ;; ----- panes ----
+  (:panes
+   (screen-out
+    capi:output-pane
+    :accessor screen-out
+    :internal-border nil
+    :visible-border nil
+    :font (gp:make-font-description
+           :family "Eurostile Regular/Black" :size 18)
+    :min-height 600
+    :max-height 600
+    :min-width  800
+    :max-width  800
+    :background :white 
+    :foreground :black
+    :display-callback
+    (lambda (self x y width height)
+      (declare (ignorable x y width height))
+      (gp:draw-string
+       self
+       (display-text (capi:element-interface self))
+       15 30 :foreground :blue))))
+  ;; ----- layouts ----
+  (:layouts
+   (main-layout capi:simple-layout '(screen-out)))
+  ;; ----- defaults ----
+  (:default-initargs
+   :layout 'main-layout))
+
+
+(defun test-my-test1 ()
+  (let* ((my-test1 (capi:display (make-instance 'test1))))
+    (mp:process-run-function
+     "my-test1 process" '()
+     (lambda ()
+       (sleep .5)
+       (dotimes (n 10 (capi:execute-with-interface
+                       my-test1 (lambda () (capi:destroy my-test1))))
+         (capi:execute-with-interface
+          my-test1
+          (lambda ()                           
+            (setf (display-text my-test1)
+                  (format nil "this is the ~:r new text" (1+ n)))
+            (gp:invalidate-rectangle (screen-out my-test1))))
+         (sleep .5))))))
+
+warmest regards,
+
+Ralph
+
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:34 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

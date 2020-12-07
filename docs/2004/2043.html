@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Range input of non-integers</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Range input of non-integers</h1>
+                <pre>
+[sorry if this is a duplicate, I tried posting from gmane but it
+didn't show up]
+
+Is there a way to use text-input-range (or something else) to accept 
+non-integers?  Something with a spin wheel that takes both a range and an 
+increment/decrement (say 0.5 to 9.7 by 0.1).  Same goes for the slider: is 
+there a way to have the range there be non-integer and have it display the 
+value at the same time?  
+
+thanks,
+
+BM
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Range input of non-integers</h1>
+                 <pre>Bulent Murtezaoglu wrote:
+
+&gt Is there a way to use text-input-range (or something else) to
+&gt accept non-integers?  Something with a spin wheel that takes
+&gt both a range and an increment/decrement (say 0.5 to 9.7 by 0.1).
+
+That's funny: I had the same problem a few days ago. I got the
+impression that it's impossible (and used an ugly work-around),
+but I'd love to be contradicted.
+
+Arthur Lemmens
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Range input of non-integers</h1>
+                 <pre>----- Original Message ----- 
+From: "Bulent Murtezaoglu" &lt;bm@acm.org&gt
+To: &lt;lisp-hug@xanalys.com&gt
+Sent: Tuesday, March 16, 2004 4:22 PM
+Subject: Range input of non-integers
+
+
+&gt
+&gt [sorry if this is a duplicate, I tried posting from gmane but it
+&gt didn't show up]
+&gt
+&gt Is there a way to use text-input-range (or something else) to accept
+&gt non-integers?  Something with a spin wheel that takes both a range and an
+&gt increment/decrement (say 0.5 to 9.7 by 0.1).  Same goes for the slider: is
+&gt there a way to have the range there be non-integer and have it display the
+&gt value at the same time?
+&gt
+&gt thanks,
+&gt
+&gt BM
+&gt
+I have such a thing. It is an interface built on text-input-range and a
+display-pane. It seems
+to work fine. You're welcome to use and modify it at will.
+
+Jim Bushnell
+
+;; note that the callback must be called on interface two levels up
+;; because the first interface is just the spinner itself
+
+(capi:define-interface spinner ()
+  ((start :initarg :start :initform 0)
+   (end :initarg :end :initform 10)
+   (value :reader spinner-value ; not sure if a problem with the setf method
+below
+          :initarg :value :initform 0)
+   (step :initarg :step :initform 1 :reader spinner-step)
+   (callback :initarg :callback :initform nil))
+  (:panes
+   (value-pane
+    capi:display-pane
+    :text (format nil "~D" value))
+   (tir
+    capi:text-input-range
+    :accessor tir
+    :end (round end step)
+    :start (round start step)
+    :value (round value step)
+    :callback (lambda (item data)
+                (let ((val (* data step)))
+                  (setf (capi:display-pane-text value-pane) (format nil "~D"
+val)
+                        value val)
+                  (when callback (funcall callback (capi:element-interface
+                                                    (capi:element-interface
+item))))))
+    :visible-max-width 15
+    :visible-min-width 15))
+  (:layouts
+   (sp-layout
+    capi:row-layout
+    '(value-pane tir)))
+  (:default-initargs
+   :best-height 20
+   :best-width 104
+   :layout 'sp-layout
+   :title "Spinner"))
+
+
+(defmethod initialize-instance :after ((self spinner) &amp;rest initargs)
+  (with-slots (value value-pane) self
+    (setf (capi:display-pane-text value-pane)
+          (format nil "~D" value))))
+
+(defmethod (setf spinner-start) (start-value (self spinner))
+  (with-slots (start step tir) self
+    (setf start start-value
+          (capi:text-input-range-start tir) (round start step))))
+
+(defmethod (setf spinner-end) (end-value (self spinner))
+  (with-slots (end step tir) self
+    (setf end end-value
+          (capi:text-input-range-end tir) (round end step))))
+
+(defmethod (setf spinner-step) (new-step (self spinner))
+  (with-slots (end start step tir) self
+    (setf step new-step
+          (capi:text-input-range-end tir) (round end step)
+          (capi:text-input-range-start tir) (round start step))))
+
+(defmethod (setf spinner-value) (this-value (self spinner))
+  (with-slots (value step tir value-pane) self
+    (setf value this-value
+          (capi:display-pane-text value-pane) (format nil "~D" this-value)
+          (capi:text-input-range-value tir) (round value step))))
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Range input of non-integers</h1>
+                 <p>
+                  Unable to parse email body. Email id is 2049
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:53 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

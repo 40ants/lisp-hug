@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Pathname vs Make-pathname?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Pathname vs Make-pathname?</h1>
+                <pre>
+Hi,
+
+I was just sitting down to do some pathname matching on directory scans and noticed a persistent problem on the Mac with .DS_Store files peppered all over the place. And despite my filter, I could not see them removed from my lists.
+
+I traced it down to the following: My filter is a list containing the result of (PATHNAME “.DS_Store”), while I was comparing against the incoming pathname with 
+
+(pathname-match-p
+	(make-pathname  ;; compare sans directory
+		:name (pathname-name path)
+		:type   (pathname-type path))
+	(pathname “.DS_Store”))
+
+The result is NIL (!!). Looking at the inspected components, (PATHNAME “.DS_Store”) shows a SYSTEM::NAME component of “” (the empty string). While make-pathname produces a SYSTEM::NAME component of NIL. Hence the comparison failure.
+
+Is this a bug?
+
+- DM
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Pathname vs Make-pathname?</h1><html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+</head>
+<body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">
+<div class="">I take this to be asking why</div>
+<div class=""><br class="">
+</div>
+<div class="">(pathname-name (make-pathname :name &quot;”))</div>
+<div class=""><br class="">
+</div>
+<div class="">returns NIL. This happens in Lispworks on both MacOS and Windows, but not in Allegro or SBCL.</div>
+<div class=""><br class="">
+</div>
+<div class=""><br class="">
+</div>
+<br class="">
+<div>
+<blockquote type="cite" class="">
+<div class="">On Sep 8, 2016, at 1:59 PM, David McClain &lt;<a href="mailto:dbm@refined-audiometrics.com" class="">dbm@refined-audiometrics.com</a>&gt; wrote:</div>
+<br class="Apple-interchange-newline">
+<div class="">
+<div class=""><br class="">
+Hi,<br class="">
+<br class="">
+I was just sitting down to do some pathname matching on directory scans and noticed a persistent problem on the Mac with .DS_Store files peppered all over the place. And despite my filter, I could not see them removed from my lists.<br class="">
+<br class="">
+I traced it down to the following: My filter is a list containing the result of (PATHNAME “.DS_Store”), while I was comparing against the incoming pathname with
+<br class="">
+<br class="">
+(pathname-match-p<br class="">
+<span class="Apple-tab-span" style="white-space:pre"></span>(make-pathname &nbsp;;; compare sans directory<br class="">
+<span class="Apple-tab-span" style="white-space:pre"></span><span class="Apple-tab-span" style="white-space:pre"></span>:name (pathname-name path)<br class="">
+<span class="Apple-tab-span" style="white-space:pre"></span><span class="Apple-tab-span" style="white-space:pre"></span>:type &nbsp;&nbsp;(pathname-type path))<br class="">
+<span class="Apple-tab-span" style="white-space:pre"></span>(pathname “.DS_Store”))<br class="">
+<br class="">
+The result is NIL (!!). Looking at the inspected components, (PATHNAME “.DS_Store”) shows a SYSTEM::NAME component of “” (the empty string). While make-pathname produces a SYSTEM::NAME component of NIL. Hence the comparison failure.<br class="">
+<br class="">
+Is this a bug?<br class="">
+<br class="">
+- DM<br class="">
+<br class="">
+_______________________________________________<br class="">
+Lisp Hug - the mailing list for LispWorks users<br class="">
+<a href="mailto:lisp-hug@lispworks.com" class="">lisp-hug@lispworks.com</a><br class="">
+https://urldefense.proofpoint.com/v2/url?u=http-3A__www.lispworks.com_support_lisp-2Dhug.html&amp;d=CwIDaQ&amp;c=yHlS04HhBraes5BQ9ueu5zKhE7rtNXt_d012z2PA6ws&amp;r=rYww9Ur1WoBi28j2XhN4rwFLo31INs66FdFiX_Ro7pI&amp;m=dWJaSWXHm1eAxitKFlYXgorJ0uWwAdES7jSy3cerhpY&amp;s=eOpyYTiGfJ9wveKx-l_Vz48Auc0x0zGa5BeTEfIfbzw&amp;e=
+<br class="">
+<br class="">
+</div>
+</div>
+</blockquote>
+</div>
+<br class="">
+<div class=""><span class="Apple-style-span" style="border-collapse: separate; font-variant-ligatures: normal; font-variant-position: normal; font-variant-numeric: normal; font-variant-alternates: normal; font-variant-east-asian: normal; line-height: normal; border-spacing: 0px;"><span class="Apple-style-span" style="border-collapse: separate; color: rgb(0, 0, 0); font-family: Helvetica; font-style: normal; font-variant: normal; font-weight: normal; letter-spacing: normal; line-height: normal; orphans: 2; text-align: -webkit-auto; text-indent: 0px; text-transform: none; white-space: normal; widows: 2; word-spacing: 0px; -webkit-border-horizontal-spacing: 0px; -webkit-border-vertical-spacing: 0px; -webkit-text-decorations-in-effect: none; -webkit-text-size-adjust: auto; -webkit-text-stroke-width: 0px;  ">
+<div style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space; " class="">
+<span class="Apple-style-span" style="border-collapse: separate; color: rgb(0, 0, 0); font-family: Helvetica; font-style: normal; font-variant: normal; font-weight: normal; letter-spacing: normal; line-height: normal; orphans: 2; text-align: -webkit-auto; text-indent: 0px; text-transform: none; white-space: normal; widows: 2; word-spacing: 0px; -webkit-border-horizontal-spacing: 0px; -webkit-border-vertical-spacing: 0px; -webkit-text-decorations-in-effect: none; -webkit-text-size-adjust: auto; -webkit-text-stroke-width: 0px;  ">
+<div style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space; " class="">
+------------------<br class="">
+Christopher Riesbeck<br class="">
+Home page:&nbsp;<a href="http://www.cs.northwestern.edu/~riesbeck" class="">http://www.cs.northwestern.edu/~riesbeck</a><br class="">
+Calendar: <a href="http://www.cs.northwestern.edu/~riesbeck/calendar.html" class="">
+http://www.cs.northwestern.edu/~riesbeck/calendar.html</a><br class="">
+<br class="">
+</div>
+</span></div>
+</span></span></div>
+<br class="">
+</body>
+</html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Pathname vs Make-pathname?</h1>
+                 <p>
+                  Unable to parse email body. Email id is 14046
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Pathname vs Make-pathname?</h1><html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+</head>
+<body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">
+<br class="">
+<div>
+<blockquote type="cite" class="">
+<div class="">On Sep 9, 2016, at 12:17 AM, Madhu &lt;<a href="mailto:enometh@meer.net" class="">enometh@meer.net</a>&gt; wrote:</div>
+<br class="Apple-interchange-newline">
+<div class="">
+<div class=""><br class="">
+* Chris Riesbeck Wrote on Thu, 8 Sep 2016 19:33:44 &#43;0000:<br class="">
+<br class="">
+| I take this to be asking why<br class="">
+|<br class="">
+| (pathname-name (make-pathname :name &quot;&quot;))<br class="">
+|<br class="">
+| returns NIL. This happens in Lispworks on both MacOS and Windows, but<br class="">
+| not in Allegro or SBCL.<br class="">
+<br class="">
+But notice that (pathname-name (pathname &quot;&quot;)) is also NIL<br class="">
+</div>
+</div>
+</blockquote>
+<div><br class="">
+</div>
+I don’t see the relevance of this example. Presumably (PATHNAME “”) calls (MAKE-PATHNAME) or the internal equivalent. NILs everywhere are to be expected.</div>
+<div><br class="">
+</div>
+<div>The issue here is what does (MAKE-PATHNAME :NAME &nbsp;“”) do.</div>
+<div><br class="">
+<blockquote type="cite" class="">
+<div class="">
+<div class=""><br class="">
+No, I do not think David is asking this. &nbsp;Phrasing the question this<br class="">
+way may confuse the issue, which about PARSE-NAMESTRING.<br class="">
+<br class="">
+The question is about (pathname &quot;.DS_Store&quot;)<br class="">
+<br class="">
+&quot;.DS_Store&quot; is ambiguous. How is it to be parsed?<br class="">
+</div>
+</div>
+</blockquote>
+<div><br class="">
+</div>
+<div>It’s certainly implementation-defined but behavior should be consistent within one implementation.</div>
+<div><br class="">
+</div>
+<div>[snipping]</div>
+<div class=""><br class="">
+</div>
+<blockquote type="cite" class="">
+<div class="">
+<div class=""><br class="">
+But the question remains why does LW's MAKE-PATHNAME use NIL to<br class="">
+represent an empty name component instead of an empty string (or<br class="">
+alternatively why does PARSE-NAMESTRING an empty string instead of<br class="">
+NIL)<br class="">
+<br class="">
+(pathname-name (make-pathname :name &quot;&quot; :type &quot;DS_Store&quot;)) ;=&gt; NIL<br class="">
+(pathname-name (pathname &quot;.DS_Store&quot;)) ;=&gt; “&quot;<br class="">
+</div>
+</div>
+</blockquote>
+<div><br class="">
+</div>
+I agree this is the question, but it’s not just PATHNAME and PARSE-NAMESTRING that do this. Most critically for David’s case is that DIRECTORY returns file objects with “” names. Only MAKE-PATHNAME seems unable to create empty string file names.</div>
+<div><br class="">
+<blockquote type="cite" class="">
+<div class="">
+<div class=""><br class="">
+My guess is NIL is a better choice when merging. </div>
+</div>
+</blockquote>
+<div><br class="">
+</div>
+<div><br class="">
+</div>
+Better why? It’s different. Where would this be better than in Allegro and SBCL, where (MAKE-PATHNAME :NAME “”) &nbsp;puts “” in the name field?</div>
+<div><br class="">
+</div>
+<div><br class="">
+<blockquote type="cite" class="">
+<div class="">
+<div class="">&nbsp;It is also<br class="">
+potentially a wildcard for PATHNAME-MATCH-P with benefits precisely in<br class="">
+use cases such as David's case here!<br class="">
+<br class="">
+(pathname-match-p &quot;/dev/shm/.DS_Store&quot; &nbsp;&quot;.DS_Store&quot;) ; =&gt; T<br class="">
+</div>
+</div>
+</blockquote>
+<div><br class="">
+</div>
+I’m confused. How does this show the benefit of MAKE-PATHNAME’s behavior? There’s probably no MAKE-PATHNAME call here, just implicit PATHNAME calls on both arguments. We already know PATHNAME will generate “” names.</div>
+<div><br class="">
+<blockquote type="cite" class="">
+<div class="">
+<div class=""><br class="">
+The second argument to PATHNAME-MATCH-P is always a constant. &nbsp;You<br class="">
+should be using MAKE-PATHNAME here instead of the first argument.<br class="">
+<br class="">
+(pathname-match-p path &quot;.DS_Store&quot;) already works<br class="">
+</div>
+</div>
+</blockquote>
+<div><br class="">
+</div>
+Yes, but precisely because it avoids MAKE-PATHNAME<br class="">
+<blockquote type="cite" class="">
+<div class="">
+<div class=""><br class="">
+or<br class="">
+<br class="">
+(pathname-match-p path (make-pathname :name nil :type &quot;DS_Store&quot;))<br class="">
+<br class="">
+would work in LispWorks<br class="">
+</div>
+</div>
+</blockquote>
+<div><br class="">
+</div>
+This is not portable. It would not work in Allegro or SBLC where the correct wildcard is (MAKE-PATHNAME :name “.DS_Store”)</div>
+<div><br class="">
+</div>
+<div><br class="">
+<blockquote type="cite" class="">
+<div class="">
+<div class="">Comparing PATHNAMES is usually problematic because it depends on who is<br class="">
+creating the pathnames. &nbsp;I remember in 2013 I had a problem with<br class="">
+DIRECTORY filling in some pathname components as :UNSPECIFIC. Martin<br class="">
+pointed out to me that the most reliable way to compare pathnames is<br class="">
+with namestrings, there are incompatibilities in how other lisps quote<br class="">
+characters in creating lisp namestring strings for files on the same<br class="">
+operating system<br class="">
+<br class="">
+— Madhu<br class="">
+</div>
+</div>
+</blockquote>
+</div>
+<div class=""><br class="">
+</div>
+We certainly agree here.
+<div class=""><br class="">
+</div>
+<div class="">But I still would like to see Lispworks explain the rationale for why MAKE-PATHNAME behaves the way it does, in the context of how they chose to make pathname parsing work with dot-files.</div>
+<div class=""><br class="">
+</div>
+<div class=""><br class="">
+<div class=""><span class="Apple-style-span" style="border-collapse: separate; font-variant-ligatures: normal; font-variant-position: normal; font-variant-numeric: normal; font-variant-alternates: normal; font-variant-east-asian: normal; line-height: normal; border-spacing: 0px;"><span class="Apple-style-span" style="border-collapse: separate; color: rgb(0, 0, 0); font-family: Helvetica; font-style: normal; font-variant: normal; font-weight: normal; letter-spacing: normal; line-height: normal; orphans: 2; text-align: -webkit-auto; text-indent: 0px; text-transform: none; white-space: normal; widows: 2; word-spacing: 0px; -webkit-border-horizontal-spacing: 0px; -webkit-border-vertical-spacing: 0px; -webkit-text-decorations-in-effect: none; -webkit-text-size-adjust: auto; -webkit-text-stroke-width: 0px;  ">
+<div style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space; " class="">
+<span class="Apple-style-span" style="border-collapse: separate; color: rgb(0, 0, 0); font-family: Helvetica; font-style: normal; font-variant: normal; font-weight: normal; letter-spacing: normal; line-height: normal; orphans: 2; text-align: -webkit-auto; text-indent: 0px; text-transform: none; white-space: normal; widows: 2; word-spacing: 0px; -webkit-border-horizontal-spacing: 0px; -webkit-border-vertical-spacing: 0px; -webkit-text-decorations-in-effect: none; -webkit-text-size-adjust: auto; -webkit-text-stroke-width: 0px;  ">
+<div style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space; " class="">
+------------------<br class="">
+Christopher Riesbeck<br class="">
+Home page:&nbsp;<a href="http://www.cs.northwestern.edu/~riesbeck" class="">http://www.cs.northwestern.edu/~riesbeck</a><br class="">
+Calendar: <a href="http://www.cs.northwestern.edu/~riesbeck/calendar.html" class="">
+http://www.cs.northwestern.edu/~riesbeck/calendar.html</a><br class="">
+<br class="">
+</div>
+</span></div>
+</span></span></div>
+<br class="">
+</div>
+</body>
+</html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Pathname vs Make-pathname?</h1>
+                 <pre>
+Christopher K Riesbeck &lt;c-riesbeck@northwestern.edu&gt writes:
+
+&gt I take this to be asking why
+&gt
+&gt (pathname-name (make-pathname :name "”))
+&gt
+&gt returns NIL. This happens in Lispworks on both MacOS and Windows, but
+&gt not in Allegro or SBCL.
+
+Cf. 19.2.2.5:
+
+    * The host, device, directory, name, and type can be strings. There
+      are implementation-dependent limits on the number and type of
+      characters in these strings.
+
+Therefore you should be very conservative on the length of the strings
+you pass to make-pathname.  An empty string is probably not a valid
+pathname component on at least some implementations.  A string longuer
+than 5 or 7 for the name component is probably out of bounds on some
+implementations too.
+
+For the type you will have even stronger limitations.
+
+
+Furthermore:
+
+    19.3.2.2 Null Strings as Components of a Logical Pathname
+
+    The null string, "", is not a valid value for any component of a
+    logical pathname.
+
+
+
+So since I would advice to always use logical pathnames, an empty string
+is definitely something you should not use.
+
+
+-- 
+__Pascal Bourguignon__                 http://www.informatimago.com/
+“The factory of the future will have only two employees, a man and a
+dog. The man will be there to feed the dog. The dog will be there to
+keep the man from touching the equipment.” -- Carl Bass CEO Autodesk
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Pathname vs Make-pathname?</h1>
+                 <pre>
+On 9/10/16 Sep 10 -2:31 PM, Pascal J. Bourguignon wrote:
+&gt 
+&gt Christopher K Riesbeck &lt;c-riesbeck@northwestern.edu&gt writes:
+&gt 
+&gt&gt I take this to be asking why
+&gt&gt
+&gt&gt (pathname-name (make-pathname :name "”))
+&gt&gt
+&gt&gt returns NIL. This happens in Lispworks on both MacOS and Windows, but
+&gt&gt not in Allegro or SBCL.
+&gt 
+&gt Cf. 19.2.2.5:
+&gt 
+&gt     * The host, device, directory, name, and type can be strings. There
+&gt       are implementation-dependent limits on the number and type of
+&gt       characters in these strings.
+&gt 
+&gt Therefore you should be very conservative on the length of the strings
+&gt you pass to make-pathname.  An empty string is probably not a valid
+&gt pathname component on at least some implementations.  A string longuer
+&gt than 5 or 7 for the name component is probably out of bounds on some
+&gt implementations too.
+&gt 
+&gt For the type you will have even stronger limitations.
+&gt 
+&gt 
+&gt Furthermore:
+&gt 
+&gt     19.3.2.2 Null Strings as Components of a Logical Pathname
+&gt 
+&gt     The null string, "", is not a valid value for any component of a
+&gt     logical pathname.
+&gt 
+&gt 
+&gt 
+&gt So since I would advice to always use logical pathnames, an empty string
+&gt is definitely something you should not use.
+&gt 
+&gt 
+
+I'm surprised to hear this advice.  Our experience in ASDF has been
+precisely the opposite: because of their limitations, we *avoid* logical
+pathnames (although ASDF does support them).  Their behavior with
+commonly used pathname constituents (mixed-case, underscores) is either
+failure, or inconsistent behavior across implementations.  E.g., if you
+provide a system that will load files relative to a logical pathname in
+your configuration, and a user enters a pathname containing an
+underscore.... bad things will happen.
+
+Logical pathnames were a reasonable approach for a time when filesystems
+(and operating systems) were much more diverse than they are today.
+Today they are simply too constraining.
+
+One of the challenges Faré addressed in UIOP was to make file system
+interaction as consistent as possible across platforms (and even so,
+results are still inconsistent).
+
+Best,
+R
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Pathname vs Make-pathname?</h1><html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+</head>
+<body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">
+<br class="">
+<div>
+<blockquote type="cite" class="">
+<div class="">On Sep 10, 2016, at 2:31 PM, Pascal J. Bourguignon &lt;<a href="mailto:pjb@informatimago.com" class="">pjb@informatimago.com</a>&gt; wrote:</div>
+<br class="Apple-interchange-newline">
+<div class="">
+<div class=""><br class="">
+Christopher K Riesbeck &lt;<a href="mailto:c-riesbeck@northwestern.edu" class="">c-riesbeck@northwestern.edu</a>&gt; writes:<br class="">
+<br class="">
+<blockquote type="cite" class="">I take this to be asking why<br class="">
+<br class="">
+(pathname-name (make-pathname :name &quot;”))<br class="">
+<br class="">
+returns NIL. This happens in Lispworks on both MacOS and Windows, but<br class="">
+not in Allegro or SBCL.<br class="">
+</blockquote>
+<br class="">
+Cf. 19.2.2.5:<br class="">
+<br class="">
+&nbsp;&nbsp;&nbsp;* The host, device, directory, name, and type can be strings. There<br class="">
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;are implementation-dependent limits on the number and type of<br class="">
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;characters in these strings.<br class="">
+<br class="">
+Therefore you should be very conservative on the length of the strings<br class="">
+you pass to make-pathname. &nbsp;An empty string is probably not a valid<br class="">
+pathname component on at least some implementations. &nbsp;A string longuer<br class="">
+than 5 or 7 for the name component is probably out of bounds on some<br class="">
+implementations too.<br class="">
+</div>
+</div>
+</blockquote>
+<br class="">
+</div>
+<div>Sure. But David wasn’t generating the empty string names to begin with. Lispworks was, with DIRECTORY, and also it turns out PATHNAME and PARSE-NAMESTRING. &nbsp;</div>
+<div><br class="">
+</div>
+<div>No problem would have arisen if Lispworks’ DIRECTORY had return an object for “.DS_Store” with NIL for the name in the first place.</div>
+<div><br class="">
+</div>
+<div>It’s this apparently inconsistent behavior that caused the problem.&nbsp;</div>
+<br class="">
+<div class=""><span class="Apple-style-span" style="border-collapse: separate; color: rgb(0, 0, 0); font-family: Helvetica; font-style: normal; font-variant: normal; font-weight: normal; letter-spacing: normal; line-height: normal; orphans: 2; text-align: -webkit-auto; text-indent: 0px; text-transform: none; white-space: normal; widows: 2; word-spacing: 0px; -webkit-border-horizontal-spacing: 0px; -webkit-border-vertical-spacing: 0px; -webkit-text-decorations-in-effect: none; -webkit-text-size-adjust: auto; -webkit-text-stroke-width: 0px;  "><span class="Apple-style-span" style="border-collapse: separate; color: rgb(0, 0, 0); font-family: Helvetica; font-style: normal; font-variant: normal; font-weight: normal; letter-spacing: normal; line-height: normal; orphans: 2; text-align: -webkit-auto; text-indent: 0px; text-transform: none; white-space: normal; widows: 2; word-spacing: 0px; -webkit-border-horizontal-spacing: 0px; -webkit-border-vertical-spacing: 0px; -webkit-text-decorations-in-effect: none; -webkit-text-size-adjust: auto; -webkit-text-stroke-width: 0px;  ">
+<div style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space; " class="">
+<span class="Apple-style-span" style="border-collapse: separate; color: rgb(0, 0, 0); font-family: Helvetica; font-style: normal; font-variant: normal; font-weight: normal; letter-spacing: normal; line-height: normal; orphans: 2; text-align: -webkit-auto; text-indent: 0px; text-transform: none; white-space: normal; widows: 2; word-spacing: 0px; -webkit-border-horizontal-spacing: 0px; -webkit-border-vertical-spacing: 0px; -webkit-text-decorations-in-effect: none; -webkit-text-size-adjust: auto; -webkit-text-stroke-width: 0px;  ">
+<div style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space; " class="">
+------------------<br class="">
+Christopher Riesbeck<br class="">
+Home page:&nbsp;<a href="http://www.cs.northwestern.edu/~riesbeck" class="">http://www.cs.northwestern.edu/~riesbeck</a><br class="">
+Calendar: <a href="http://www.cs.northwestern.edu/~riesbeck/calendar.html" class="">
+http://www.cs.northwestern.edu/~riesbeck/calendar.html</a><br class="">
+<br class="">
+</div>
+</span></div>
+</span></span></div>
+<br class="">
+</body>
+</html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Pathname vs Make-pathname?</h1>
+                 <pre>
+David McClain &lt;dbm@refined-audiometrics.com&gt writes:
+
+&gt Hi Pascal,
+&gt
+&gt Logical pathnames are a huge inconvenience, at best, and perhaps
+&gt impossible in general. I’m scanning arbitrary directories across
+&gt networks of LAN machines.
+&gt
+&gt But it turns out that just using plain strings in pathname-match-p
+&gt works just fine after all. It was my mistake, early on, thinking that
+&gt I needed a pathname as the second argument to pathname-match-p.
+
+
+Indeed.
+
+
+The set of POSIX paths representable as Common Lisp STRING is a strict
+subset of the set of all POSIX paths.
+
+The set of POSIX paths representable as physical pathnames is a subset of
+the set of POSIX paths representable as Common Lisp STRING
+
+The set of POSIX paths representable as logical pathname is a subset of
+the set of POSIX paths representable as physical pathnames.
+
+
+So if you want to work with POSIX paths, ALL of them, you cannot even
+use Common Lisp strings!!!
+
+You will have to use vectors of octets (excluding 0 and 47).
+
+
+If you try to use Common Lisp STRING to represent POSIX paths, then you
+will have a lot of problems with character encodings. 
+
+If you're happy with those encoding problems, then go ahead, use Common
+Lisp STRING, this will cover a lot of paths, notably if you avoid server
+sharing files with heterogeneous systems, if you avoid mounting file
+systems coming from heterogeneous systems, and if you avoid having
+multiple users using different languages and different terminals on your
+POSIX system.
+
+(Granted, nowadays, a lot of computer systems match those conditions, so
+it's a little less probable to find such encoding errors than earlier).
+
+
+Using logical pathnames or physical pathnames (eg. as returned by
+DIRECTORY), implies indeed that you will be able to access only a subset
+of the paths in a POSIX system.  Here lies the sanity when using
+PATHNAMEs!
+
+
+Otherwise, use vectors of octets, but I'm afraid, few CL POSIX library
+provide API using this type for "char*" data…
+
+
+&gt&gt On Sep 10, 2016, at 12:31, Pascal J. Bourguignon &lt;pjb@informatimago.com&gt wrote:
+&gt&gt 
+&gt&gt 
+&gt&gt Christopher K Riesbeck &lt;c-riesbeck@northwestern.edu&gt writes:
+&gt&gt 
+&gt&gt&gt I take this to be asking why
+&gt&gt&gt 
+&gt&gt&gt (pathname-name (make-pathname :name "”))
+&gt&gt&gt 
+&gt&gt&gt returns NIL. This happens in Lispworks on both MacOS and Windows, but
+&gt&gt&gt not in Allegro or SBCL.
+&gt&gt 
+&gt&gt Cf. 19.2.2.5:
+&gt&gt 
+&gt&gt    * The host, device, directory, name, and type can be strings. There
+&gt&gt      are implementation-dependent limits on the number and type of
+&gt&gt      characters in these strings.
+&gt&gt 
+&gt&gt Therefore you should be very conservative on the length of the strings
+&gt&gt you pass to make-pathname.  An empty string is probably not a valid
+&gt&gt pathname component on at least some implementations.  A string longuer
+&gt&gt than 5 or 7 for the name component is probably out of bounds on some
+&gt&gt implementations too.
+&gt&gt 
+&gt&gt For the type you will have even stronger limitations.
+&gt&gt 
+&gt&gt 
+&gt&gt Furthermore:
+&gt&gt 
+&gt&gt    19.3.2.2 Null Strings as Components of a Logical Pathname
+&gt&gt 
+&gt&gt    The null string, "", is not a valid value for any component of a
+&gt&gt    logical pathname.
+&gt&gt 
+&gt&gt 
+&gt&gt 
+&gt&gt So since I would advice to always use logical pathnames, an empty string
+&gt&gt is definitely something you should not use.
+&gt&gt 
+&gt&gt 
+&gt&gt -- 
+&gt&gt __Pascal Bourguignon__                 http://www.informatimago.com/
+
+-- 
+__Pascal Bourguignon__                 http://www.informatimago.com/
+“The factory of the future will have only two employees, a man and a
+dog. The man will be there to feed the dog. The dog will be there to
+keep the man from touching the equipment.” -- Carl Bass CEO Autodesk
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Pathname vs Make-pathname?</h1>
+                 <pre>
+Robert Goldman &lt;rpgoldman@sift.net&gt writes:
+
+&gt On 9/10/16 Sep 10 -2:31 PM, Pascal J. Bourguignon wrote:
+&gt&gt 
+&gt&gt Christopher K Riesbeck &lt;c-riesbeck@northwestern.edu&gt writes:
+&gt&gt 
+&gt&gt&gt I take this to be asking why
+&gt&gt&gt
+&gt&gt&gt (pathname-name (make-pathname :name "”))
+&gt&gt&gt
+&gt&gt&gt returns NIL. This happens in Lispworks on both MacOS and Windows, but
+&gt&gt&gt not in Allegro or SBCL.
+&gt&gt 
+&gt&gt Cf. 19.2.2.5:
+&gt&gt 
+&gt&gt     * The host, device, directory, name, and type can be strings. There
+&gt&gt       are implementation-dependent limits on the number and type of
+&gt&gt       characters in these strings.
+&gt&gt 
+&gt&gt Therefore you should be very conservative on the length of the strings
+&gt&gt you pass to make-pathname.  An empty string is probably not a valid
+&gt&gt pathname component on at least some implementations.  A string longuer
+&gt&gt than 5 or 7 for the name component is probably out of bounds on some
+&gt&gt implementations too.
+&gt&gt 
+&gt&gt For the type you will have even stronger limitations.
+&gt&gt 
+&gt&gt 
+&gt&gt Furthermore:
+&gt&gt 
+&gt&gt     19.3.2.2 Null Strings as Components of a Logical Pathname
+&gt&gt 
+&gt&gt     The null string, "", is not a valid value for any component of a
+&gt&gt     logical pathname.
+&gt&gt 
+&gt&gt 
+&gt&gt 
+&gt&gt So since I would advice to always use logical pathnames, an empty string
+&gt&gt is definitely something you should not use.
+&gt&gt 
+&gt&gt 
+&gt
+&gt I'm surprised to hear this advice.  Our experience in ASDF has been
+&gt precisely the opposite: because of their limitations, we *avoid* logical
+&gt pathnames (although ASDF does support them).  Their behavior with
+&gt commonly used pathname constituents (mixed-case, underscores) is either
+&gt failure, or inconsistent behavior across implementations.
+
+
+Logical pathname components cannot have mixed-case or underscores, etc.
+The only valid (conforming) characters in logical pathname components
+are A-Z 0-9, #\. and #\-.
+cf. 19.3.1: word---one or more uppercase letters, digits, and hyphens.
+
+And indeed, since physical pathnames are purely implementation
+dependant, the "automatic" mapping between logical pathnames and
+physical pathnames is purely implementation dependent.
+
+The only conforming thing you can do here, is starting from a list of
+physical pathnames, to build logical pathnames, establishing an explicit
+mapping thru logical pathname translations (therefore with absolutely no
+wild card).
+
+When you do that, everything is bliss! :-)
+
+
+&gt E.g., if you
+&gt provide a system that will load files relative to a logical pathname in
+&gt your configuration, and a user enters a pathname containing an
+&gt underscore.... bad things will happen.
+
+Of course.  Why would you accept an underscore?  Only uppercase letters,
+digits, dot and dash.
+
+
+&gt Logical pathnames were a reasonable approach for a time when filesystems
+&gt (and operating systems) were much more diverse than they are today.
+&gt Today they are simply too constraining.
+
+While logical pathnames might be overkill to deal with POSIX paths,
+neither physical pathnames nor CL STRING are adapted to them.  The
+semantics of POSIX paths, and file system mounting is such that the only
+safe way to deal with POSIX paths, is to deal with them as what they
+are: vectors of octets (excluding 0, 47 being the component separator).
+
+
+&gt One of the challenges Faré addressed in UIOP was to make file system
+&gt interaction as consistent as possible across platforms (and even so,
+&gt results are still inconsistent).
+
+And then, MS-Windows and MS-DOS paths are not POSIX paths since instead
+of using 47, they use 92, and there's this device prefix (that while it
+could be mapped to CL pathname-device, is often not, in anycase it's
+implementation dependent).
+
+Notice also that MacOSX also deals with MacOS paths (components
+separated with ":", but I'm not sure if the unix layer does, or if it's
+only in the Cocoa layer and the user interface).
+
+In any case, there's still space for logical pathnames in the
+contemporaneous environment.
+
+
+(For example, iolib/syscall which should know better, converts vectors
+of octets into lisp strings using a utf-8 encoding (escaping with a
+#\Nul the octets that are not valid utf-8 sequences).  What about file
+systems using iso-8859-1, windows-1250, or cp830?
+You may get botched components.  )
+
+-- 
+__Pascal Bourguignon__                 http://www.informatimago.com/
+“The factory of the future will have only two employees, a man and a
+dog. The man will be there to feed the dog. The dog will be there to
+keep the man from touching the equipment.” -- Carl Bass CEO Autodesk
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:27 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

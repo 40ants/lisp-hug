@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>How to test if option or control key is pressed?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>How to test if option or control key is pressed?</h1>
+                <pre>
+Hi, this is probably very easy to do in LW - but I did not find a solution from Google.
+
+- How to test if option or  control key is pressed in the LW Mac?
+
+It should be easy-callable, for  example:
+
+… happening anywhere in the code
+
+(if (option-key-down)
+  …)
+
+…
+
+Does anybody have any ideas how to make it?
+
+Pekka
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: How to test if option or control key is pressed?</h1><HTML>
+<HEAD>
+<TITLE>Re: How to test if option or control key is pressed?</TITLE>
+</HEAD>
+<BODY>
+<FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'>Hi Pekka,<BR>
+<BR>
+Please, note that this solution is not &#8220;standard&#8221; and that this is not possible without an interface opened <BR>
+<BR>
+Best regards<BR>
+<BR>
+Denis<BR>
+<BR>
+(in-package :capi)<BR>
+<BR>
+(defconstant _capsLock_key (byte 1 0))<BR>
+(defconstant _shift_key (byte 1 1))<BR>
+(defconstant _control_key (byte 1 2))<BR>
+(defconstant _option_key (byte 1 3))<BR>
+(defconstant _command_key (byte 1 4))<BR>
+<BR>
+(defun get-modifiers (pane) <BR>
+&nbsp;&nbsp;(let* ((interface (top-level-interface pane))<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(wptr (slot-value (representation interface) 'capi-cocoa-library::window))) <FONT COLOR="#FF0000">;===&gt; this sentence use non external symbols<BR>
+</FONT> &nbsp;&nbsp;&nbsp;(if wptr<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(let* ((event (objc:invoke wptr &quot;currentEvent&quot;)) <BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(flags (objc:invoke event &quot;modifierFlags&quot;)))<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(ldb (byte 5 16) flags))<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0)))<BR>
+<BR>
+(defun command-key-p (pane-or-modifiers) <BR>
+&nbsp;&nbsp;(unless (numberp pane-or-modifiers) (setf pane-or-modifiers (get-modifiers pane-or-modifiers)))<BR>
+&nbsp;&nbsp;(ldb-test _command_key pane-or-modifiers))<BR>
+<BR>
+;etc. (same thing for other modifiers)<BR>
+<BR>
+<BR>
+;=============TEST<BR>
+(defparameter mypane (contain (make-instance 'output-pane)))<BR>
+(command-key-p mypane)<BR>
+OR<BR>
+(let ((modifiers (get-modifiers &nbsp;mypane)))<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;(command-key-p modifiers)) ;Which is more efficient if you need several calls in a single function<BR>
+;=============<BR>
+<BR>
+Le 7/10/11 9:11, &laquo; [NOM] &raquo; &lt;[ADRESSE]&gt; a &eacute;crit :<BR>
+<BR>
+<FONT COLOR="#000098">&gt; <BR>
+&gt; Hi, this is probably very easy to do in LW - but I did not find a solution <BR>
+&gt; from Google.<BR>
+&gt; <BR>
+&gt; - How to test if option or &nbsp;control key is pressed in the LW Mac?<BR>
+&gt; <BR>
+&gt; It should be easy-callable, for &nbsp;example:<BR>
+&gt; <BR>
+&gt; &#8230; happening anywhere in the code<BR>
+&gt; <BR>
+&gt; (if (option-key-down)<BR>
+&gt; &nbsp;&nbsp;&#8230;)<BR>
+&gt; <BR>
+&gt; &#8230;<BR>
+&gt; <BR>
+&gt; Does anybody have any ideas how to make it?<BR>
+&gt; <BR>
+&gt; Pekka<BR>
+&gt; <BR>
+</FONT><BR>
+-------------------------------------------------------<BR>
+Denis Pousseur<BR>
+70 rue de Wansijn<BR>
+1180 Bruxelles, Belgium<BR>
+<BR>
+Tel : 32 (0)2 219 31 09<BR>
+Email : &nbsp;denis.pousseur@gmail.com<BR>
+Website : <a href="http://www.denispousseur.com">http://www.denispousseur.com</a><BR>
+-------------------------------------------------------<BR>
+</SPAN></FONT>
+</BODY>
+</HTML>
+
+
+
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: How to test if option or control key is pressed?</h1><html><body bgcolor="#FFFFFF"><div>Hi Denis,</div><div><br></div><div>You can also call currentEvent on the singleton instance NSApplication. All you need is an application initialized with NSApplicationMain().<br><br><div><br></div><div>--</div><div>Camille</div><div><br></div></div><div><br>On 8 oct. 2011, at 19:40, Denis Pousseur &lt;<a href="mailto:denis.pousseur@gmail.com">denis.pousseur@gmail.com</a>&gt; wrote:<br><br></div><div></div><blockquote type="cite"><div>
+<font face="Verdana, Helvetica, Arial"><span style="font-size:12.0px">Hi Pekka,<br>
+<br>
+Please, note that this solution is not “standard” and that this is not possible without an interface opened <br>
+<br>
+Best regards<br>
+<br>
+Denis<br>
+<br>
+(in-package :capi)<br>
+<br>
+(defconstant _capsLock_key (byte 1 0))<br>
+(defconstant _shift_key (byte 1 1))<br>
+(defconstant _control_key (byte 1 2))<br>
+(defconstant _option_key (byte 1 3))<br>
+(defconstant _command_key (byte 1 4))<br>
+<br>
+(defun get-modifiers (pane) <br>
+&nbsp;&nbsp;(let* ((interface (top-level-interface pane))<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(wptr (slot-value (representation interface) 'capi-cocoa-library::window))) <font color="#FF0000">;===&gt; this sentence use non external symbols<br>
+</font> &nbsp;&nbsp;&nbsp;(if wptr<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(let* ((event (objc:invoke wptr "currentEvent")) <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(flags (objc:invoke event "modifierFlags")))<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(ldb (byte 5 16) flags))<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0)))<br>
+<br>
+(defun command-key-p (pane-or-modifiers) <br>
+&nbsp;&nbsp;(unless (numberp pane-or-modifiers) (setf pane-or-modifiers (get-modifiers pane-or-modifiers)))<br>
+&nbsp;&nbsp;(ldb-test _command_key pane-or-modifiers))<br>
+<br>
+;etc. (same thing for other modifiers)<br>
+<br>
+<br>
+;=============TEST<br>
+(defparameter mypane (contain (make-instance 'output-pane)))<br>
+(command-key-p mypane)<br>
+OR<br>
+(let ((modifiers (get-modifiers &nbsp;mypane)))<br>
+&nbsp;&nbsp;&nbsp;&nbsp;(command-key-p modifiers)) ;Which is more efficient if you need several calls in a single function<br>
+;=============<br>
+<br>
+Le 7/10/11 9:11, «&nbsp;[NOM]&nbsp;» &lt;[ADRESSE]&gt; a écrit&nbsp;:<br>
+<br>
+<font color="#000098">&gt; <br>
+&gt; Hi, this is probably very easy to do in LW - but I did not find a solution <br>
+&gt; from Google.<br>
+&gt; <br>
+&gt; - How to test if option or &nbsp;control key is pressed in the LW Mac?<br>
+&gt; <br>
+&gt; It should be easy-callable, for &nbsp;example:<br>
+&gt; <br>
+&gt; … happening anywhere in the code<br>
+&gt; <br>
+&gt; (if (option-key-down)<br>
+&gt; &nbsp;&nbsp;…)<br>
+&gt; <br>
+&gt; …<br>
+&gt; <br>
+&gt; Does anybody have any ideas how to make it?<br>
+&gt; <br>
+&gt; Pekka<br>
+&gt; <br>
+</font><br>
+-------------------------------------------------------<br>
+Denis Pousseur<br>
+70 rue de Wansijn<br>
+1180 Bruxelles, Belgium<br>
+<br>
+Tel : 32 (0)2 219 31 09<br>
+Email : &nbsp;<a href="mailto:denis.pousseur@gmail.com"><a href="mailto:denis.pousseur@gmail.com">denis.pousseur@gmail.com</a></a><br>
+Website : <a href="http://www.denispousseur.com"><a href="http://www.denispousseur.com">http://www.denispousseur.com</a></a><br>
+-------------------------------------------------------<br>
+</span></font>
+
+
+
+</div></blockquote></body></html>
+
+                 </article>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>Re: How to test if option or control key is pressed?</h1><HTML>
+<HEAD>
+<TITLE>Re: How to test if option or control key is pressed?</TITLE>
+</HEAD>
+<BODY>
+<FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'>You&#8217;re right, it&#8217;s possible to avoid interned symbols. The current application can also be found with (objc:invoke &#8220;NSApplication&#8221; &#8220;sharedApplication&#8221;) which points to the LW application in a development environment and to your application in a delivery environment.<BR>
+<BR>
+Best regards<BR>
+<BR>
+Denis<BR>
+<BR>
+Le 8/10/11 19:50, &laquo; [NOM] &raquo; &lt;[ADRESSE]&gt; a &eacute;crit :<BR>
+<BR>
+</SPAN></FONT><BLOCKQUOTE><FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'>Hi Denis,<BR>
+<BR>
+You can also call currentEvent on the singleton instance NSApplication. All you need is an application initialized with NSApplicationMain().<BR>
+<BR>
+<BR>
+--<BR>
+Camille<BR>
+<BR>
+<BR>
+On 8 oct. 2011, at 19:40, Denis Pousseur &lt;denis.pousseur@gmail.com&gt; wrote:<BR>
+<BR>
+</SPAN></FONT><BLOCKQUOTE><FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'>Hi Pekka,<BR>
+<BR>
+Please, note that this solution is not &#8220;standard&#8221; and that this is not possible without an interface opened <BR>
+<BR>
+Best regards<BR>
+<BR>
+Denis<BR>
+<BR>
+(in-package :capi)<BR>
+<BR>
+(defconstant _capsLock_key (byte 1 0))<BR>
+(defconstant _shift_key (byte 1 1))<BR>
+(defconstant _control_key (byte 1 2))<BR>
+(defconstant _option_key (byte 1 3))<BR>
+(defconstant _command_key (byte 1 4))<BR>
+<BR>
+(defun get-modifiers (pane) <BR>
+&nbsp;&nbsp;(let* ((interface (top-level-interface pane))<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(wptr (slot-value (representation interface) 'capi-cocoa-library::window))) <FONT COLOR="#FF0000">;===&gt; this sentence use non external symbols<BR>
+</FONT> &nbsp;&nbsp;&nbsp;(if wptr<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(let* ((event (objc:invoke wptr &quot;currentEvent&quot;)) <BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(flags (objc:invoke event &quot;modifierFlags&quot;)))<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(ldb (byte 5 16) flags))<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0)))<BR>
+<BR>
+(defun command-key-p (pane-or-modifiers) <BR>
+&nbsp;&nbsp;(unless (numberp pane-or-modifiers) (setf pane-or-modifiers (get-modifiers pane-or-modifiers)))<BR>
+&nbsp;&nbsp;(ldb-test _command_key pane-or-modifiers))<BR>
+<BR>
+;etc. (same thing for other modifiers)<BR>
+<BR>
+<BR>
+;=============TEST<BR>
+(defparameter mypane (contain (make-instance 'output-pane)))<BR>
+(command-key-p mypane)<BR>
+OR<BR>
+(let ((modifiers (get-modifiers &nbsp;mypane)))<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;(command-key-p modifiers)) ;Which is more efficient if you need several calls in a single function<BR>
+;=============<BR>
+<BR>
+Le 7/10/11 9:11, &laquo; [NOM] &raquo; &lt;[ADRESSE]&gt; a &eacute;crit :<BR>
+<BR>
+<FONT COLOR="#000098">&gt; <BR>
+&gt; Hi, this is probably very easy to do in LW - but I did not find a solution <BR>
+&gt; from Google.<BR>
+&gt; <BR>
+&gt; - How to test if option or &nbsp;control key is pressed in the LW Mac?<BR>
+&gt; <BR>
+&gt; It should be easy-callable, for &nbsp;example:<BR>
+&gt; <BR>
+&gt; &#8230; happening anywhere in the code<BR>
+&gt; <BR>
+&gt; (if (option-key-down)<BR>
+&gt; &nbsp;&nbsp;&#8230;)<BR>
+&gt; <BR>
+&gt; &#8230;<BR>
+&gt; <BR>
+&gt; Does anybody have any ideas how to make it?<BR>
+&gt; <BR>
+&gt; Pekka<BR>
+&gt; <BR>
+</FONT><BR>
+-------------------------------------------------------<BR>
+Denis Pousseur<BR>
+70 rue de Wansijn<BR>
+1180 Bruxelles, Belgium<BR>
+<BR>
+Tel : 32 (0)2 219 31 09<BR>
+Email : &nbsp;denis.pousseur@gmail.com <a href="mailto:denis.pousseur@gmail..com">&lt;mailto:denis.pousseur@gmail.com&gt;</a> <BR>
+Website : <a href="http://www.denispousseur.com">http://www.denispousseur.com</a> <a href="http://www.denispousseur.com">&lt;http://www.denispousseur.com&gt;</a> <BR>
+-------------------------------------------------------<BR>
+</SPAN></FONT></BLOCKQUOTE><FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'><BR>
+</SPAN></FONT></BLOCKQUOTE><FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'><BR>
+<BR>
+-------------------------------------------------------<BR>
+Denis Pousseur<BR>
+70 rue de Wansijn<BR>
+1180 Bruxelles, Belgium<BR>
+<BR>
+Tel : 32 (0)2 219 31 09<BR>
+Email : &nbsp;denis.pousseur@gmail.com<BR>
+Website : <a href="http://www.denispousseur.com">http://www.denispousseur.com</a><BR>
+-------------------------------------------------------<BR>
+</SPAN></FONT>
+</BODY>
+</HTML>
+
+
+
+                  </article>
+                 </section>
+                </section>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:33 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Drawing diagrams: CAPI or OpenGL?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Drawing diagrams: CAPI or OpenGL?</h1>
+                <pre>
+I would like to draw diagrams like http://gojs.net.
+
+I would need to be able to pan and zoom the canvas, as well as drag
+and drop the elements.
+
+Should I go with OpenGL or use CAPI's draw-path?
+
+    Thanks, Joel
+
+-- 
+for hire: iOS apps&amp;servers
+http://wagerlabs.com/about
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Drawing diagrams: CAPI or OpenGL?</h1><html><head>
+<meta content="text/html; charset=ISO-8859-1" http-equiv="Content-Type">
+</head><body bgcolor="#FFFFFF" text="#000000">You may want to consider -
+ instead of one giant canvas that draws everything - using a 
+pinboard-layout with child drawn-pinboard-objects on it. Those would be 
+regular output-panes (using CAPI to draw to them), but only those that 
+need refreshed would actually be drawn.<br>
+<br>
+If what you end up drawing is mostly static in nature (the nodes 
+wouldn't be changing much), then each drawn-pinboard-object could have a
+ pixmap image that is drawn to instead and each display-callback would 
+literally look like this:<br>
+<br>
+(defmethod display-node-object ((port node-object) x y w h)<br>
+&nbsp; (with-slots (cached-image modified-p)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; port<br>
+&nbsp;&nbsp;&nbsp; (when modified-p<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (redraw-to-cached-image port)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (setf modified-p nil))<br>
+&nbsp;&nbsp;&nbsp; (gp:draw-image port image 0 0)))<br>
+<br>
+That would likely give you the performance you are looking for and the 
+flexibility (and ease) of CAPI drawing.<br>
+<br>
+Jeff M.<br>
+<blockquote style="border: 0px none;" 
+cite="mid:CAOQwdX2D1TT_asGKvkPXBVo=-+9NRx8mxfQAkXwXbLTUabY3KQ@mail.gmail.com"
+ type="cite">
+  <div style="margin:30px 25px 10px 25px;" class="__pbConvHr"><div 
+style="display:table;width:100%;border-top:1px solid 
+#EDEEF0;padding-top:5px"> 	<div 
+style="display:table-cell;vertical-align:middle;padding-right:6px;"><img
+ photoaddress="joelr1@gmail.com" photoname="Joel Reymont" 
+src="cid:part1.08010806.06070402@gmail.com" name="postbox-contact.jpg" 
+height="25px" width="25px"></div>   <div 
+style="display:table-cell;white-space:nowrap;vertical-align:middle;width:100%">
+   	<a moz-do-not-send="true" href="mailto:joelr1@gmail.com" 
+style="color:#737F92 
+!important;padding-right:6px;font-weight:bold;text-decoration:none 
+!important;">Joel Reymont</a></div>   <div 
+style="display:table-cell;white-space:nowrap;vertical-align:middle;">   
+  <font color="#9FA2A5"><span style="padding-left:6px">Thursday, 
+February 27, 2014 10:23 AM</span></font></div></div></div>
+  <div style="color:#888888;margin-left:24px;margin-right:24px;" 
+__pbrmquotes="true" class="__pbConvBody"><div>I would like to draw 
+diagrams like <a class="moz-txt-link-freetext" href="http://gojs.net">http://gojs.net</a>.<br><br>I would need to be able to pan and
+ zoom the canvas, as well as drag<br>and drop the elements.<br><br>Should
+ I go with OpenGL or use CAPI's draw-path?<br><br>    Thanks, Joel<br><br></div></div>
+</blockquote>
+</body></html>
+
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Drawing diagrams: CAPI or OpenGL?</h1>
+                 <pre>
+Hi Joel,
+
+[This is just a guts feeling, I am sorry I can’t think of a formal justification right now]
+
+I would recommend using the CAPI functions.  If I had to use an operating system’s functions for that I would choose Quartz on Mac OS X, which is -- I believe -- what CAPI uses internally.
+
+If you chose OpenGL, there would be a lot of things you would need to implement manually, like fonts handling.  It looks pretty easy to do all that with CAPI, and the setup is minimal.  Beware of gp:font-description portability problems if you target several OSes.
+
+
+Cam
+
+
+
+On 27 Feb 2014, at 17:23, Joel Reymont &lt;joelr1@gmail.com&gt wrote:
+
+&gt 
+&gt I would like to draw diagrams like http://gojs.net.
+&gt 
+&gt I would need to be able to pan and zoom the canvas, as well as drag
+&gt and drop the elements.
+&gt 
+&gt Should I go with OpenGL or use CAPI's draw-path?
+&gt 
+&gt    Thanks, Joel
+&gt 
+&gt -- 
+&gt for hire: iOS apps&amp;servers
+&gt http://wagerlabs.com/about
+&gt 
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+&gt 
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Drawing diagrams: CAPI or OpenGL?</h1>
+                 <pre>
+It is certainly possible to do this in CAPI.
+
+Here's a sample of a diagram editor done with CAPI:
+
+http://www.youtube.com/watch?v=8vZ8Pi32oMo
+
+I didn't implement zoom (iirc), but CAPI does have methods for altering 
+the graphics context which, I think, would result in zoom.
+
+I can't comment much on the OpenGL side.  I did experiment with it a 
+bit, but not in a full project.
+
+pt
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>(unknown)</h1>
+                 <p>
+                  Unable to parse email body. Email id is 12896
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:30 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

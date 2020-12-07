@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>capi:menu-items don't know their item or choice?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>capi:menu-items don't know their item or choice?</h1>
+                <pre>
+I'm getting a rather strange error on LW6 (Windows).  I'm defining
+some interfaces with menus whose items are computed dynamically, and
+the menu items behave just fine if they're selected with the mouse,
+but have problems when invoked via an accelerator.  E.g.,
+
+(in-package "CL-USER")
+
+(capi:define-interface testing () ()
+  (:menus
+   (foo "Foo" () :items-function 'foo-menu-items))
+  (:menu-bar foo))
+
+(defun foo-menu-items (&amp;rest args)
+  (list (make-instance
+         'capi:menu-item
+         :text "Bar" :accelerator #\N
+         :callback #'(lambda (&amp;rest cargs)
+                       (capi:display-message "~A ~A" args cargs)))))
+
+(capi:display (make-instance 'testing))
+
+If I display the interface and press Control-Shift-N (before clicking
+on the "Foo" menu), the callback happens without a problem.  If I then
+click on the "Foo" menu, or click on it first, and select the "Bar"
+item, the callback happens just fine.  But if I press Control-Shift-N
+after having shown the menu by clicking on "Foo", I get an error
+"Callback with both item and choice not capi objects : NIL / NIL".  Is
+there some other argument I should have been passing to the
+items-function?  I know that there's a setup-callback-argument, but I
+don't see any convenient way to pass it the choice (the menu, I
+assume), and I'm just not clear why the item isn't the menu item (and
+hence a capi object).
+
+The same code works without a hitch on OS X.
+
+Anyone know what's going on here?  I'd really like to be able to use
+accelerators in LW in my application…
+
+Many thanks in advance!  //JT
+
+-- 
+Joshua Taylor, http://www.cs.rpi.edu/~tayloj/
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: capi:menu-items don't know their item or choice?</h1>
+                 <pre>
+Joshua TAYLOR wrote on Mon, 22 Mar 2010 00:43:41 -0400 07:43:
+
+| I'm getting a rather strange error on LW6 (Windows).  I'm defining
+| some interfaces with menus whose items are computed dynamically, and
+| the menu items behave just fine if they're selected with the mouse,
+| but have problems when invoked via an accelerator.  E.g.,
+|
+| (in-package "CL-USER")
+|
+| (capi:define-interface testing () ()
+|   (:menus
+|    (foo "Foo" () :items-function 'foo-menu-items))
+|   (:menu-bar foo))
+|
+| (defun foo-menu-items (&amp;rest args)
+|   (list (make-instance
+|          'capi:menu-item
+|          :text "Bar" :accelerator #\N
+|          :callback #'(lambda (&amp;rest cargs)
+|                        (capi:display-message "~A ~A" args cargs)))))
+|
+| (capi:display (make-instance 'testing))
+|
+| If I display the interface and press Control-Shift-N (before clicking
+| on the "Foo" menu), the callback happens without a problem.  If I then
+| click on the "Foo" menu, or click on it first, and select the "Bar"
+| item, the callback happens just fine.  But if I press Control-Shift-N
+| after having shown the menu by clicking on "Foo", I get an error
+| "Callback with both item and choice not capi objects : NIL / NIL".
+
+I have got the same on LWW 4.4.6.
+
+As workaround, I would not recommend defining accelerators for dynamically
+computed items. Anyway, it is rather confusing when the accelerator only
+works after expanding the menu by another means at least once.
+--
+Sincerely,
+Dmitriy Ivanov
+lisp.ystok.ru
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: capi:menu-items don't know their item or choice?</h1>
+                 <pre>
+Joshua TAYLOR &lt;tayloj@cs.rpi.edu&gt writes:
+
+&gt depending on context.  E.g., there's a "Delete Item" (enabled) menu
+&gt item if the selection is a single item, a "Delete Item" (disabled)
+&gt menu item if there is no selection, and a "Delete Items" (enabled)
+&gt menu item if there are ≥2 things in the selection.  I'm not clear how
+&gt to do this without dynamically computing the items.
+
+You can have changing menu-items without replacing them: Use NIL for
+:text, and use a :print-function to print the menu item.
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: capi:menu-items don't know their item or choice?</h1>
+                 <pre>
+&gt&gt&gt&gt&gt On Mon, 22 Mar 2010 00:43:41 -0400, Joshua TAYLOR said:
+&gt 
+&gt I'm getting a rather strange error on LW6 (Windows).  I'm defining
+&gt some interfaces with menus whose items are computed dynamically, and
+&gt the menu items behave just fine if they're selected with the mouse,
+&gt but have problems when invoked via an accelerator.  E.g.,
+&gt 
+&gt (in-package "CL-USER")
+&gt 
+&gt (capi:define-interface testing () ()
+&gt   (:menus
+&gt    (foo "Foo" () :items-function 'foo-menu-items))
+&gt   (:menu-bar foo))
+&gt 
+&gt (defun foo-menu-items (&amp;rest args)
+&gt   (list (make-instance
+&gt          'capi:menu-item
+&gt          :text "Bar" :accelerator #\N
+&gt          :callback #'(lambda (&amp;rest cargs)
+&gt                        (capi:display-message "~A ~A" args cargs)))))
+&gt 
+&gt (capi:display (make-instance 'testing))
+&gt 
+&gt If I display the interface and press Control-Shift-N (before clicking
+&gt on the "Foo" menu), the callback happens without a problem.  If I then
+&gt click on the "Foo" menu, or click on it first, and select the "Bar"
+&gt item, the callback happens just fine.  But if I press Control-Shift-N
+&gt after having shown the menu by clicking on "Foo", I get an error
+&gt "Callback with both item and choice not capi objects : NIL / NIL".  Is
+&gt there some other argument I should have been passing to the
+&gt items-function?  I know that there's a setup-callback-argument, but I
+&gt don't see any convenient way to pass it the choice (the menu, I
+&gt assume), and I'm just not clear why the item isn't the menu item (and
+&gt hence a capi object).
+&gt 
+&gt The same code works without a hitch on OS X.
+&gt 
+&gt Anyone know what's going on here?  I'd really like to be able to use
+&gt accelerators in LW in my application…
+
+In general, dynamic menu items can't have accelerators because the accelerator
+gesture has to be connected to the item before the parent menu pops up.
+Likewise, the end user has to know what the accelerator will do without seeing
+the menu.
+
+The only case where it is allowed is when you return the same capi:menu-item
+objects each time the :items-function is called.  That works because the
+accelerator is still connected to that item.
+
+-- 
+Martin Simmons
+LispWorks Ltd
+http://www.lispworks.com/
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:35 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

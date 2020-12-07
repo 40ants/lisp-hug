@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Always CAPI: drawing a pinboard object.</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Always CAPI: drawing a pinboard object.</h1>
+                <pre>Hi
+
+I created a new PINBOARD-OBJECT class following the example present in 
+the "circled-graph-nodes" example.
+
+Essentially I have a CIRCLED-ITEM that I want to display.
+
+To achieve this effect I do
+
+	(setf co (make-instance 'circled-item :text "Here we go" :x 10 :y 10))
+	(manipulate-pinboard the-pinboard co :add-top)
+
+So far so good.
+Suppose now that I want to create an instance of the CIRCLED-ITEM that 
+has a different color (of the ellipse).
+I try
+
+	(setf co (make-instance 'circled-item :text "Here we go" :x 10 :y 50 
+:graphics-args (list :background :red)))
+	(manipulate-pinboard the-pinboard co :add-top)
+
+now things are not all so good, as I get red all over the bounding 
+rectangle.
+
+Does it mean that I have to munge the :graphics-args in 
+INITIALIZE-INSTANCE to achieve the desired effect?  Is there a better 
+way to do this?
+
+Thanks
+
+Marco
+
+--
+Marco Antoniotti
+NYU Courant Bioinformatics Group		tel. +1 - 212 - 998 3488
+715 Broadway 10th FL				fax. +1 - 212 - 998 3484
+New York, NY, 10003, U.S.A.
+
+
+________________________________________________________________________
+This email has been scanned for all viruses by the MessageLabs Email
+Security System. For more information on a proactive email security
+service working around the clock, around the globe, visit
+http://www.messagelabs.com
+________________________________________________________________________
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Always CAPI: drawing a pinboard object.</h1>
+                 <pre>At 05:19 PM 08/08/03 -0400, Marco Antoniotti wrote:
+&gt         (setf co (make-instance 'circled-item :text "Here we go" :x 10 :y 
+&gt 50 :graphics-args (list :background :red)))
+&gt         (manipulate-pinboard the-pinboard co :add-top)
+&gt
+&gtnow things are not all so good, as I get red all over the bounding rectangle.
+
+I haven't studied the example carefully, but, I think you want to make the 
+*foreground* of the *filled* ellipse red.  The example draws two ellipses - 
+one for the outline, one for the filling (if "background" is non-nil).  I 
+think that this means that you want to send :red as the background colour 
+to draw-text-in-ellipse.  One way would be to subclass text-in-ellipse and 
+write new draw-pinboard-object-xxx routines.
+
+Or subclass text-in-ellipse with a new slot for the fill colour, suitably 
+modifying the draw-pinboard-object-xxx to use it.
+
+I'm not sure what :graphics-args does, but I bet that it affects the whole 
+pinboard object rectangle, instead of the component ellipses, hence, you 
+get a red background for the whole rectangle.
+
+It is this piece of code in draw-text-in-ellipse that causes the filled 
+ellipse to have a colour:
+
+(gp:draw-ellipse pinboard
+                            circle-x circle-y
+                            half-width half-height
+                            :filled t
+                            :foreground background)
+
+Follow the variable "background" to see where it comes from and you will 
+probably get other ideas on how to make it :red.
+
+pt
+
+
+________________________________________________________________________
+This email has been scanned for all viruses by the MessageLabs Email
+Security System. For more information on a proactive email security
+service working around the clock, around the globe, visit
+http://www.messagelabs.com
+________________________________________________________________________
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:55 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>LALR parser from DEFPARSER</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>LALR parser from DEFPARSER</h1>
+                <pre>Hello all,
+
+My parser theory isn't quite up to snuff, I suppose, but I think this
+is a quick
+question to answer. 
+
+Say I've got a simple grammar like:
+
+program -&gt vars statements
+vars -&gt var vars
+vars -&gt 
+
+var -&gt :id :id :semicolon
+
+statements -&gt statement statements
+statements -&gt 
+
+statement -&gt :id :gets :id :semicolon
+statement -&gt :lbrace statement :rbrace
+
+So, the interesting thing with regard to DEFPARSER is that 
+if we only see the token :ID, it can't be told whether it starts a var
+or a statement.
+
+Alright, so my parser looks like:
+
+
+(parsergen:defparser small-parser
+  ((x        program)          $1)
+  ((program  vars statements) `((vars ,$1) (statements ,$2)))
+
+  ((vars var vars)             (cons $1 $2))
+  ((vars) ())
+
+  ((var :id :id :semicolon) 'some-var)
+
+  ((statements statement statements) (cons $1 $2))
+  ((statements) ())
+
+  ((statement :lbrace statement :rbrace) `(,$2))
+  ((statement :id :gets :id :semicolon) 'some-assigment-statement))
+
+and I'll make a cheap tokenizer as follows: 
+
+(defparameter *token-list*
+  '(:id  :id       :semicolon
+    :id :id       :semicolon
+    :id  :gets :id :semicolon
+    :lbrace :id :gets :id :semicolon :rbrace))
+    
+(defun get-token ()
+  (if *token-list* (pop *token-list*) :eoi))
+
+(small-parser #'get-token)
+
+
+Creating the parser gives me the warnings:
+
+.... pre processing grammar... creating state table... defining actions ...
+Warning: Conflict in state 0 for symbol :Id
+   Action 3 (Vars -&gt . )
+   Action :Shift (X -&gt . Program )
+  Using action :Shift
+
+Warning: Conflict in state 3 for symbol :Id
+   Action 3 (Vars -&gt . )
+   Action :Shift (Vars -&gt Var . Vars )
+  Using action :Shift
+.... done.
+Terminal symbols:  :Gets, :Id, :Lbrace, :Rbrace, :Semicolon
+
+To the best of my understanding this is because seeing an :id
+doesn't clarify whether it's a var or a statement being examined.
+
+Running (small-parser #'get-token) yields:
+((Vars (Some-Var Some-Var Some-Var)) (Statements ((Some-Assigment-Statement))))
+
+which shows that the third line of tokens (which should be a statement) is
+being picked up as a var. 
+
+There is also this in the output:
+
+Warning: Expecting (:Id), found Nil
+Discarding input symbol Nil
+
+Nil corresponds to the :gets (but printed is the second of multiple
+values, which
+there aren't in this case). 
+
+So, am I looking at a fundamental limitation of LALR parsers, a limitation of
+an LALR parser that can only look ahead one token (perhaps that's a quality
+of LALR anyways), or a limitation on my understanding of parser generators. 
+Assume for the moment that I can change the grammar only to another 
+equivalent form.
+
+Thanks in advance!
+
+-- 
+=====================
+Joshua Taylor
+tayloj@rpi.edu
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LALR parser from DEFPARSER</h1>
+                 <pre>"Joshua Taylor" &lt;joshuaaaron@gmail.com&gt wrote:
+
+&gt My parser theory isn't quite up to snuff, I suppose, but I think this
+&gt is a quick
+&gt question to answer.
+&gt
+&gt Say I've got a simple grammar like:
+&gt
+&gt program -&gt vars statements
+&gt vars -&gt var vars
+&gt vars -&gt
+&gt
+&gt var -&gt :id :id :semicolon
+
+You can probably specify more your tokens here. I don't know what you want
+to do but for example if the first of the :id is a type then use something
+like :type :id :semicolon.
+
+(parsergen:defparser small-parser
+  ((x        program)          $1)
+  ((program  vars statements) `((vars ,$1) (statements ,$2)))
+
+  ((vars var vars)             (cons $1 $2))
+  ((vars) ())
+
+  ((var :type :id :semicolon) 'some-var)
+
+  ((statements statement statements) (cons $1 $2))
+  ((statements) ())
+
+  ((statement :lbrace statement :rbrace) `(,$2))
+  ((statement :id :gets :id :semicolon) 'some-assigment-statement))
+.... pre processing grammar... creating state table... defining actions
+....... done.
+Terminal symbols:  :gets, :id, :lbrace, :rbrace, :semicolon, :type
+|small-parser-ACTION8|
+
+Marc
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LALR parser from DEFPARSER</h1>
+                 <pre>Some clarification, 
+the grammar aI provided was actually a toy example that demonstrates the 
+problem Im having with a somewhat more complex grammar. The real problem
+does come down to variable-declarations first, then statements. However, these
+can both start with :id (identifier, e.g. a class name for class
+objects, and a variable
+name) so in fact, it's actually something on the lines of 
+
+vars -&gt var vars
+var -&gt type id
+
+type -&gt :int
+type -&gt :string
+type -&gt :id 
+
+....  with statements as before similarly.
+The problem seems to be that an :id is read, but it can't
+be clear yet whether it's a statement or a variable declaration, but 
+the parser keeps going with the assumption that it's a var-decl, and 
+when it comes to the assignment operator = discards it rather than 
+determining the line to be a statement.
+
+On 06/09/05, Marc Battyani &lt;marc.battyani@fractalconcept.com&gt wrote:
+&gt "Joshua Taylor" &lt;joshuaaaron@gmail.com&gt wrote:
+&gt 
+&gt &gt My parser theory isn't quite up to snuff, I suppose, but I think this
+&gt &gt is a quick
+&gt &gt question to answer.
+&gt &gt
+&gt &gt Say I've got a simple grammar like:
+&gt &gt
+&gt &gt program -&gt vars statements
+&gt &gt vars -&gt var vars
+&gt &gt vars -&gt
+&gt &gt
+&gt &gt var -&gt :id :id :semicolon
+&gt 
+&gt You can probably specify more your tokens here. I don't know what you want
+&gt to do but for example if the first of the :id is a type then use something
+&gt like :type :id :semicolon.
+&gt 
+&gt (parsergen:defparser small-parser
+&gt   ((x        program)          $1)
+&gt   ((program  vars statements) `((vars ,$1) (statements ,$2)))
+&gt 
+&gt   ((vars var vars)             (cons $1 $2))
+&gt   ((vars) ())
+&gt 
+&gt   ((var :type :id :semicolon) 'some-var)
+&gt 
+&gt   ((statements statement statements) (cons $1 $2))
+&gt   ((statements) ())
+&gt 
+&gt   ((statement :lbrace statement :rbrace) `(,$2))
+&gt   ((statement :id :gets :id :semicolon) 'some-assigment-statement))
+&gt ... pre processing grammar... creating state table... defining actions
+&gt ...... done.
+&gt Terminal symbols:  :gets, :id, :lbrace, :rbrace, :semicolon, :type
+&gt |small-parser-ACTION8|
+&gt 
+&gt Marc
+&gt 
+&gt 
+&gt 
+&gt 
+
+
+-- 
+=====================
+Joshua Taylor
+tayloj@rpi.edu
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LALR parser from DEFPARSER</h1>
+                 <pre>Well, yes changing the grammar would work, but as I mentioned before, 
+that's not an option. The real issue I'm having is that 
+the non ambiguous series of tokens that I provided in the 
+first message is coming up incorrectly. The first line that corresponds
+to a statement is being trashed and reinterpreted as a variable 
+declaration, because (and I just mean, to my understanding) var
+declarations and statements can both start with the same token,
+_even though_ reading the next symbol (after the one that can 
+be 'shared') would clearly disambiguate between the var declaration
+and the statement.
+
+On 06/09/05, Marc Battyani &lt;marc.battyani@fractalconcept.com&gt wrote:
+&gt Joshua Taylor wrote:
+&gt &gtSome clarification,
+&gt &gtthe grammar aI provided was actually a toy example that demonstrates the
+&gt &gtproblem Im having with a somewhat more complex grammar. The real problem
+&gt &gtdoes come down to variable-declarations first, then statements. However,
+&gt these
+&gt &gtcan both start with :id (identifier, e.g. a class name for class
+&gt &gtobjects, and a variable
+&gt &gtname) so in fact, it's actually something on the lines of
+&gt &gt
+&gt &gtvars -&gt var vars
+&gt &gtvar -&gt type id
+&gt &gt
+&gt &gttype -&gt :int
+&gt &gttype -&gt :string
+&gt &gttype -&gt :id
+&gt 
+&gt OK I see. In that case your problem is not the :id but the fact that both
+&gt vars and statement can be empty.
+&gt For instance you can modify the grammar so that you have at least a
+&gt declaration or at least one statement.
+&gt (anyway a program with no statement is not very useful ;-)
+&gt Or you can put a separator between the vars and the statements.
+&gt Or you can turn the var decl into a statement
+&gt etc...
+&gt 
+&gt ;;; At least one var:
+&gt CL-USER 18 &gt
+&gt (parsergen:defparser small-parser
+&gt   ((x        program)          $1)
+&gt   ((program  vars statements) `((vars ,$1) (statements ,$2)))
+&gt 
+&gt   ((vars vars var)             (cons $2 $1))
+&gt   ((vars var) (list $1))
+&gt 
+&gt   ((var :id :id :semicolon) 'some-var)
+&gt 
+&gt   ((statements statement statements) (cons $1 $2))
+&gt   ((statements) ())
+&gt 
+&gt   ((statement :lbrace statement :rbrace) `(,$2))
+&gt   ((statement :id :gets :id :semicolon) 'some-assigment-statement))
+&gt ... pre processing grammar... creating state table... defining actions
+&gt ...... done.
+&gt Terminal symbols:  :gets, :id, :lbrace, :rbrace, :semicolon
+&gt |small-parser-ACTION8|
+&gt 
+&gt CL-USER 19 &gt (defparameter *token-list*
+&gt   '(:id  :id       :semicolon
+&gt     :id :id       :semicolon
+&gt     :id  :gets :id :semicolon
+&gt     :lbrace :id :gets :id :semicolon :rbrace))
+&gt *token-list*
+&gt 
+&gt CL-USER 20 &gt
+&gt (defun get-token ()
+&gt   (if *token-list* (pop *token-list*) :eoi))
+&gt get-token
+&gt 
+&gt CL-USER 21 &gt
+&gt (small-parser #'get-token)
+&gt ((vars (some-var some-var)) (statements (some-assigment-statement
+&gt (some-assigment-statement))))
+&gt nil
+&gt 
+&gt 
+&gt ;;; At least one statement
+&gt  (parsergen:defparser small-parser
+&gt   ((x        program)          $1)
+&gt   ((program  vars statements) `((vars ,$1) (statements ,$2)))
+&gt 
+&gt   ((vars vars var)             (cons $2 $1))
+&gt   ((vars) ())
+&gt 
+&gt   ((var :id :id :semicolon) 'some-var)
+&gt 
+&gt   ((statements statement statements) (cons $1 $2))
+&gt   ((statements statement) (list $1))
+&gt 
+&gt   ((statement :lbrace statement :rbrace) `(,$2))
+&gt   ((statement :id :gets :id :semicolon) 'some-assigment-statement))
+&gt ... pre processing grammar... creating state table... defining actions
+&gt ...... done.
+&gt Terminal symbols:  :gets, :id, :lbrace, :rbrace, :semicolon
+&gt |small-parser-ACTION8|
+&gt 
+&gt CL-USER 44 &gt (defparameter *token-list*
+&gt   '(:id  :id       :semicolon
+&gt     :id :id       :semicolon
+&gt     :id  :gets :id :semicolon
+&gt     :lbrace :id :gets :id :semicolon :rbrace))
+&gt *token-list*
+&gt 
+&gt CL-USER 45 &gt
+&gt (defun get-token ()
+&gt   (if *token-list* (pop *token-list*) :eoi))
+&gt get-token
+&gt 
+&gt CL-USER 46 &gt
+&gt (small-parser #'get-token)
+&gt ((vars (some-var some-var)) (statements (some-assigment-statement
+&gt (some-assigment-statement))))
+&gt 
+&gt Marc
+&gt 
+&gt 
+&gt 
+
+
+-- 
+=====================
+Joshua Taylor
+tayloj@rpi.edu
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LALR parser from DEFPARSER</h1>
+                 <pre>Aha!
+Thank you greatly. It was not clear to me that the defparser only generated
+LALR(1). I'm not sure this is clear from the manual, but it probably would have
+been if I was more familiar with the parsing canon. I'd suspected that some 
+factoring might be able to solve the problem (still not quite sure),
+but I wanted
+to make sure I was understanding the problem before attacking that (the  full 
+grammar I'm working with might be a little hairer to do than this
+simplified one).
+Again, many thanks!
+
+-joshua
+
+On 07/09/05, tarvydas &lt;tarvydas@allstream.net&gt wrote:
+&gt On September 6, 2005 08:45 pm, Joshua Taylor wrote:
+&gt &gt that's not an option. The real issue I'm having is that
+&gt &gt the non ambiguous series of tokens that I provided in the
+&gt ...
+&gt &gt _even though_ reading the next symbol (after the one that can
+&gt &gt be 'shared') would clearly disambiguate between the var declaration
+&gt &gt and the statement.
+&gt 
+&gt What you're saying, I think, is equivalent to saying that you don't have a
+&gt LALR(1) grammar (an LA LR grammar with just one look-ahead).  You wish you
+&gt had a LALR(2) parser generator, but because the dragon book says that the
+&gt theory for LALR(1) is supremely beautiful, most parser generators generate
+&gt parsers only for LALR(1) grammars.
+&gt 
+&gt The parser generator messages are telling you the same thing - you've got the
+&gt classic shift/reduce problem.  For example:
+&gt 
+&gt Warning: Conflict in state 3 for symbol :Id
+&gt  Action 3 (Vars -&gt . )
+&gt  Action :Shift (Vars -&gt Var . Vars )
+&gt  Using action :Shift
+&gt 
+&gt says that the parser can't decide whether to accept (reduce) or to shift (i.e.
+&gt keep moving the dot to the right).  It says that it chose the shift action
+&gt (consistent with the longest matching string ideology and the order in which
+&gt you've specified the productions).
+&gt 
+&gt BTW: in the warning, the "." shows the position of the parse ("." is used in
+&gt the dragon book and other even more theoretical stuff by Aho and Ullman).
+&gt The parser is a state machine. The stuff to the left of the "." has been
+&gt parsed (if it reaches that state) and the stuff to the right is still
+&gt unrecognized.  In LALR(1) parsers, the item immediately to the right of the
+&gt dot has to unambiguously tell the parser what to do next.  The warning above
+&gt says that you've got something equivalent to a "race condition" - the state
+&gt machine might enter two different states, but can't figure out which.
+&gt 
+&gt The parsers for C "solve" this classic problem by using semi-colons and by
+&gt embedding a symbol table into the scanner, so that the scanner can detect
+&gt symbols which have been typedef'ed and return a token different from :id in
+&gt that case.
+&gt 
+&gt I think your problem is similar to the C typedef problem (which is even worse
+&gt than your problem, because the number of lookaheads in a C typedef is
+&gt unbounded).
+&gt 
+&gt If you, instead, had
+&gt 
+&gt var -&gt :type-id :id :semicolon
+&gt 
+&gt some (if not all) of your problem would go away (you can test this by doing
+&gt this to a temporary copy of the grammar - even if you can't use that
+&gt solution, you'll at least understand the problem).
+&gt 
+&gt The dragon book (I've got it cracked open to see if I can still remember this
+&gt stuff from 30 years ago :-) says that you *might* be able to back out of this
+&gt problem by:
+&gt 
+&gt a) left factoring your grammar
+&gt 
+&gt b) cheating, like C does, and build some extra smarts into the scanner (i.e.
+&gt returning :type-id instead of :id).
+&gt 
+&gt Left factoring involves re-organizing the grammar so that the longest common
+&gt prefix is moved off to another production (if you have the dragon book, look
+&gt for the Left Factoring A Grammar algorithm - 4.2 in my book).
+&gt 
+&gt Here's what I've come up with... but it's getting late and this might be
+&gt flawed...
+&gt 
+&gt (parsergen:defparser small-parser
+&gt   ((x        program)          `((x ,$1)))
+&gt 
+&gt   ((program :id v-or-s) `((program ,$2)))
+&gt   ((program :lbrace statement :rbrace statements) `((program (statements ,$2 ,
+&gt $4))))
+&gt 
+&gt   ((v-or-s :gets :id :semicolon statements) `((assign ,$2 ,$4)))
+&gt   ((v-or-s :lbrace statement :rbrace statements) `((statements ,$2 ,$4)))
+&gt   ((v-or-s :id :semicolon :id v-or-s) `((some-var ,$1 ,$3 ,$4)))
+&gt   ((v-or-s) ())
+&gt 
+&gt   ((statements statement statements) (cons $1 $2))
+&gt   ((statements) ())
+&gt 
+&gt   ((statement :lbrace statement :rbrace) `((braces ,$2)))
+&gt   ((statement :id :gets :id :semicolon) 'some-assigment-statement)
+&gt )
+&gt 
+&gt "v-or-s" means "vars or statements" and the productions for v-or-s (try to)
+&gt carry along all of the vars and statements stuff in a schmozzled state until
+&gt we definitely see the first sign of a statement at which point we can punt to
+&gt the "statements" production.  The epsilon (empty) transition for vars isn't
+&gt explicitly given, but is handled implicitly when the grammar jumps to
+&gt "statements" without parsing any vars.  The "v-or-s" epsilon transition
+&gt handles the case where there are no vars nor statements.  I think :-).  Time
+&gt for bed :-)...
+&gt 
+&gt pt
+&gt 
+
+
+-- 
+=====================
+Joshua Taylor
+tayloj@rpi.edu
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LALR parser from DEFPARSER</h1>
+                 <p>
+                  Unable to parse email body. Email id is 4485
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LALR parser from DEFPARSER</h1>
+                 <pre>Actually, that did the trick. I wouldn't mind knowing why though...
+Thanks! (Glad I saw this before I started refactoring...)
+
+On 07/09/05, Martin Simmons &lt;martin@lispworks.com&gt wrote:
+&gt &gt&gt&gt&gt&gt On Wed, 7 Sep 2005 07:38:17 -0400, Joshua Taylor &lt;joshuaaaron@gmail.com&gt said:
+&gt 
+&gt   Joshua&gt Thank you greatly. It was not clear to me that the defparser only generated
+&gt   Joshua&gt LALR(1). I'm not sure this is clear from the manual, but it probably would have
+&gt   Joshua&gt been if I was more familiar with the parsing canon. I'd suspected that some
+&gt   Joshua&gt factoring might be able to solve the problem (still not quite sure),
+&gt   Joshua&gt but I wanted
+&gt   Joshua&gt to make sure I was understanding the problem before attacking that (the  full
+&gt   Joshua&gt grammar I'm working with might be a little hairer to do than this
+&gt   Joshua&gt simplified one).
+&gt 
+&gt FWIW, I found that the following does work:
+&gt 
+&gt (parsergen:defparser small-parser
+&gt   ((x        program)          $1)
+&gt   ((program  vars statements) `((vars ,$1) (statements ,$2)))
+&gt 
+&gt   ((vars vars var)             (cons $2 $1))
+&gt   ((vars) ())
+&gt 
+&gt   ((var :id :id :semicolon) 'some-var)
+&gt 
+&gt   ((statements statement statements) (cons $1 $2))
+&gt   ((statements) ())
+&gt 
+&gt   ((statement :lbrace statement :rbrace) `(,$2))
+&gt   ((statement :id :gets :id :semicolon) 'some-assigment-statement))
+&gt 
+&gt I'm not yet sure why, but somehow this makes a parser with an extra state
+&gt after matching :ID that can then choose between :ID and :GETS.  This might not
+&gt help if your real grammar is more complex.
+&gt 
+&gt --
+&gt Martin Simmons                              Email: martin@lispworks.com
+&gt LispWorks Ltd, St John's Innovation Centre    TEL:   +44 1223 421860
+&gt Cowley Road, Cambridge CB4 0WS, England.      FAX:   +44 870 2206189
+&gt 
+
+
+-- 
+=====================
+Joshua Taylor
+tayloj@rpi.edu
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LALR parser from DEFPARSER</h1>
+                 <p>
+                  Unable to parse email body. Email id is 4487
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:47 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

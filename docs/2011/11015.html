@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Using both a restart function and multiprocessing when saving an image</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Using both a restart function and multiprocessing when saving an image</h1>
+                <pre>
+Greetings Lispworks Community,
+
+Is there a way to save an image with :multiprocessing t and also a
+:restart-function, so that when the restart-function exits,
+multiprocessing remains enabled?
+
+The log included below the signature shows how multiprocessing exits,
+even when I didn't ask for it to stop (I assume this is because
+my-loop was called in a separate thread, and since that thread exited,
+the system thinks that multiprocessing is no longer needed, which
+isn't the case in our application).  I'm looking for the "right way"
+to keep multiprocessing enabled, even after "my-loop" exits.  I
+include a longer version of this question after the log.
+
+Thank you,
+David
+
+=== My-loop log ===
+
+oliphaunt-0% /u/ragerdl/lisps/lispworks-6.0.1/lw-terminal -init - -siteinit -
+LispWorks(R): The Common Lisp Programming Environment
+Copyright (C) 1987-2009 LispWorks Ltd.  All rights reserved.
+Version 6.0.1
+Saved by ragerdl as lw-terminal, at 11 Apr 2011 14:01
+User kaufmann on oliphaunt-0
+
+CL-USER 1 &gt (defun my-loop ()
+             (loop
+              (princ "prompt&gt ")
+              (let ((x (read)))
+                (format t "Just read: ~s~%" x)
+                (when (eq x :q)
+                  (return-from my-loop nil)))))
+MY-LOOP
+
+CL-USER 2 &gt (system::save-image "lw-mp" :multiprocessing t
+:restart-function 'my-loop)
+#P"lw-mp"
+
+CL-USER 3 &gt (quit)
+oliphaunt-0% ./lw-mp -init - -siteinit -
+LispWorks(R): The Common Lisp Programming Environment
+Copyright (C) 1987-2009 LispWorks Ltd.  All rights reserved.
+Version 6.0.1
+Saved by kaufmann as lw-mp, at 17 May 2011 15:11
+User kaufmann on oliphaunt-0
+prompt&gt 3
+Just read: 3
+prompt&gt 4
+Just read: 4
+prompt&gt :q
+Just read: :Q
+
+;; No live processes except internal servers - stopping multiprocessing
+
+CL-USER 3 &gt mp::*multiprocessing*
+NIL
+
+CL-USER 4 &gt
+
+
+=== Longer version of the question ===
+
+I have an experimental modification to ACL2 that allows the main proof
+process of ACL2 to evaluate in parallel.  ACL2 contains a
+read-eval-print-loop.  Thus far our system has been designed for CCL
+and SBCL, which have compile-time options for enabling
+multiprocessing.  Lispworks has a similar option for when one saves
+the image.  However, it's still possible to "return from"
+multiprocessing once you start that image.  This ability to exit the
+multi-processing loop without explicitly typing
+"mp::stop-multiprocessing" is problematic for us.
+
+So, I'm looking into a new implementation of our multi-threading for
+Lispworks, which is based off the multi-processing example in the
+Lispworks manual
+[http://www.lispworks.com/documentation/lw60/LW/html/lw-287.htm#pgfId-890248].
+ We have a function, "lp", which, when called, causes the prompt to
+enter the ACL2 read-eval-print-loop.  So, I've renamed "lp" to "lp1"
+and added the following Lispworks code:
+
+(defvar *acl2-repl-thread*
+ '("acl2-read-eval-print-loop" nil lp1))
+
+(defun guarantee-process ()
+ (unless mp::*multiprocessing*
+   (pushnew *acl2-repl-thread*
+            mp:*initial-processes*)
+   (mp:initialize-multiprocessing)))
+
+And then upon saving the image, I set the restart function to
+"guarantee-process".
+
+My question is: is there another way?  I still have to define "lp" to
+call "lp1", and I'd like to avoid having to rename "lp" itself to
+"lp1".  Based on an earlier thread, there isn't a way to disable the
+"return from multiprocessing" option.
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Using both a restart function and multiprocessing when saving an image</h1>
+                 <p>
+                  Unable to parse email body. Email id is 11016
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Using both a restart function and multiprocessing when saving an image</h1>
+                 <p>
+                  Unable to parse email body. Email id is 11018
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Using both a restart function and multiprocessing when saving an image</h1>
+                 <pre>
+Hi Martin and Nick,
+
+Calling lw:start-tty-listener is very close to what I was looking for.
+ Thus far it seems nearly impossible to return from multiprocessing
+when I do this (I'm guessing that I could interrupt "The idle process"
+with a function that causes an error, and return that way, but I
+haven't tried).
+
+To answer Nick's question: having multiprocessing quit when there
+aren't any more processes isn't necessarily a bad thing for us.  Our
+problem lies in when we want to reinitialize-multiprocessing.  One
+pretty much has to use a solution similar to the example found in
+section 15.3 of the LW6 manual, where you need to spawn a thread each
+time you want to reenter "my-loop."  Otherwise any time you call
+mp:initialize-multiprocessing from within a function that is also
+supposed to call "my-loop", "my-loop" is never entered.
+
+Anyway, problem solved for now.
+
+Thanks!
+David
+
+On Wed, May 18, 2011 at 7:24 AM, Martin Simmons &lt;martin@lispworks.com&gt wrote:
+&gt
+&gt I'm not quite sure what you want it to do when you enter :q to quit acl2::lp.
+&gt
+&gt If you want it to run a normal REPL, then you could call lw:start-tty-listener
+&gt when acl2::lp returns. &nbsp;That will make a new thread running the REPL, which
+&gt will prevent multiprocessing from stopping.
+&gt
+&gt --
+&gt Martin Simmons
+&gt LispWorks Ltd
+&gt http://www.lispworks.com/
+&gt
+&gt
+&gt
+&gt
+&gt&gt&gt&gt&gt&gt On Tue, 17 May 2011 16:32:21 -0500, David L Rager said:
+&gt&gt
+&gt&gt Greetings Lispworks Community,
+&gt&gt
+&gt&gt Is there a way to save an image with :multiprocessing t and also a
+&gt&gt :restart-function, so that when the restart-function exits,
+&gt&gt multiprocessing remains enabled?
+&gt&gt
+&gt&gt The log included below the signature shows how multiprocessing exits,
+&gt&gt even when I didn't ask for it to stop (I assume this is because
+&gt&gt my-loop was called in a separate thread, and since that thread exited,
+&gt&gt the system thinks that multiprocessing is no longer needed, which
+&gt&gt isn't the case in our application). &nbsp;I'm looking for the "right way"
+&gt&gt to keep multiprocessing enabled, even after "my-loop" exits. &nbsp;I
+&gt&gt include a longer version of this question after the log.
+&gt&gt
+&gt&gt Thank you,
+&gt&gt David
+&gt&gt
+&gt&gt === My-loop log ===
+&gt&gt
+&gt&gt oliphaunt-0% /u/ragerdl/lisps/lispworks-6.0.1/lw-terminal -init - -siteinit -
+&gt&gt LispWorks(R): The Common Lisp Programming Environment
+&gt&gt Copyright (C) 1987-2009 LispWorks Ltd. &nbsp;All rights reserved.
+&gt&gt Version 6.0.1
+&gt&gt Saved by ragerdl as lw-terminal, at 11 Apr 2011 14:01
+&gt&gt User kaufmann on oliphaunt-0
+&gt&gt
+&gt&gt CL-USER 1 &gt (defun my-loop ()
+&gt&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(loop
+&gt&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (princ "prompt&gt ")
+&gt&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (let ((x (read)))
+&gt&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (format t "Just read: ~s~%" x)
+&gt&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (when (eq x :q)
+&gt&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (return-from my-loop nil)))))
+&gt&gt MY-LOOP
+&gt&gt
+&gt&gt CL-USER 2 &gt (system::save-image "lw-mp" :multiprocessing t
+&gt&gt :restart-function 'my-loop)
+&gt&gt #P"lw-mp"
+&gt&gt
+&gt&gt CL-USER 3 &gt (quit)
+&gt&gt oliphaunt-0% ./lw-mp -init - -siteinit -
+&gt&gt LispWorks(R): The Common Lisp Programming Environment
+&gt&gt Copyright (C) 1987-2009 LispWorks Ltd. &nbsp;All rights reserved.
+&gt&gt Version 6.0.1
+&gt&gt Saved by kaufmann as lw-mp, at 17 May 2011 15:11
+&gt&gt User kaufmann on oliphaunt-0
+&gt&gt prompt&gt 3
+&gt&gt Just read: 3
+&gt&gt prompt&gt 4
+&gt&gt Just read: 4
+&gt&gt prompt&gt :q
+&gt&gt Just read: :Q
+&gt&gt
+&gt&gt ;; No live processes except internal servers - stopping multiprocessing
+&gt&gt
+&gt&gt CL-USER 3 &gt mp::*multiprocessing*
+&gt&gt NIL
+&gt&gt
+&gt&gt CL-USER 4 &gt
+&gt&gt
+&gt&gt
+&gt&gt === Longer version of the question ===
+&gt&gt
+&gt&gt I have an experimental modification to ACL2 that allows the main proof
+&gt&gt process of ACL2 to evaluate in parallel. &nbsp;ACL2 contains a
+&gt&gt read-eval-print-loop. &nbsp;Thus far our system has been designed for CCL
+&gt&gt and SBCL, which have compile-time options for enabling
+&gt&gt multiprocessing. &nbsp;Lispworks has a similar option for when one saves
+&gt&gt the image. &nbsp;However, it's still possible to "return from"
+&gt&gt multiprocessing once you start that image. &nbsp;This ability to exit the
+&gt&gt multi-processing loop without explicitly typing
+&gt&gt "mp::stop-multiprocessing" is problematic for us.
+&gt&gt
+&gt&gt So, I'm looking into a new implementation of our multi-threading for
+&gt&gt Lispworks, which is based off the multi-processing example in the
+&gt&gt Lispworks manual
+&gt&gt [http://www.lispworks.com/documentation/lw60/LW/html/lw-287.htm#pgfId-890248].
+&gt&gt &nbsp;We have a function, "lp", which, when called, causes the prompt to
+&gt&gt enter the ACL2 read-eval-print-loop. &nbsp;So, I've renamed "lp" to "lp1"
+&gt&gt and added the following Lispworks code:
+&gt&gt
+&gt&gt (defvar *acl2-repl-thread*
+&gt&gt &nbsp;'("acl2-read-eval-print-loop" nil lp1))
+&gt&gt
+&gt&gt (defun guarantee-process ()
+&gt&gt &nbsp;(unless mp::*multiprocessing*
+&gt&gt &nbsp; &nbsp;(pushnew *acl2-repl-thread*
+&gt&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; mp:*initial-processes*)
+&gt&gt &nbsp; &nbsp;(mp:initialize-multiprocessing)))
+&gt&gt
+&gt&gt And then upon saving the image, I set the restart function to
+&gt&gt "guarantee-process".
+&gt&gt
+&gt&gt My question is: is there another way? &nbsp;I still have to define "lp" to
+&gt&gt call "lp1", and I'd like to avoid having to rename "lp" itself to
+&gt&gt "lp1". &nbsp;Based on an earlier thread, there isn't a way to disable the
+&gt&gt "return from multiprocessing" option.
+&gt&gt
+&gt
+&gt
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:34 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

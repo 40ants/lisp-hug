@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>FLI function (Sqlite) fails when called in display-callback</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>FLI function (Sqlite) fails when called in display-callback</h1><html>
+<head>
+</head>
+<body class='hmmessage'><div dir='ltr'>
+
+
+<style><!--
+..hmmessage P
+{
+margin:0px;
+padding:0px
+}
+body.hmmessage
+{
+font-size: 10pt;
+font-family:Tahoma
+}
+--></style>
+<div dir="ltr">Hi Lispers,<br><br>I have a display-callback which calls some Sqlite functions via the FLI - specifically <a href="http://www.sqlite.org/c3ref/blob_open.html">sqlite3_blob_open</a> and <a href="http://www.sqlite.org/c3ref/blob_reopen.html">sqlite3_blob_reopen</a>, from the Sqlite incremental I/O API. I use the incremental I/O functions to open and iterate over blobs stored in the rows of an Sqlite database on disk. My wrapper for sqlite3_blob_reopen works fine when called from the Listener, but fails with an Sqlite I/O error when called from within an output-pane callback (this also happens for button callbacks). It will work, however, if I pass it to mp:process-run-function within the callback.</div><div dir="ltr"><br></div><div dir="ltr">This suggests that there is some kind of threading issue occurring (though Sqlite is thread-safe). Perhaps it's something relating to the thread that the callback runs in - my assumption was that this would just be the same thread as the CAPI window, but perhaps that's not right.<br><br>This behaviour seems rather odd, and not the kind of thing I would expect to happen when interfacing with Sqlite, which is normally extremely robust. Before I head over to the Sqlite list I thought I'd try here, just in case anybody has an inkling of what the problem might be. I can follow up with some code if need be.<br><br>Regards,<br>Christopher<br></div>
+ 		 	   		  </div></body>
+</html>
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: FLI function (Sqlite) fails when called in display-callback</h1>
+                 <pre>
+Christopher Melen wrote:
+&gt I have a display-callback which calls some Sqlite functions via the
+&gt FLI - specifically sqlite3_blob_open and sqlite3_blob_reopen, from
+&gt the Sqlite incremental I/O API. I use the incremental I/O functions
+&gt to open and iterate over blobs stored in the rows of an Sqlite
+&gt database on disk. My wrapper for sqlite3_blob_reopen works fine when
+&gt called from the Listener, but fails with an Sqlite I/O error when
+&gt called from within an output-pane callback (this also happens for
+&gt button callbacks).
+
+What (extended) error codes are returned by sqlite?  Does it work from
+inside the callbacks when you use open/close instead of reopen?
+
+&gt It will work, however, if I pass it to mp:process-run-function
+&gt within the callback.  This suggests that there is some kind of
+&gt threading issue occurring (though Sqlite is thread-safe).
+
+I assume you're not setting any threading-related options via
+sqlite3_config. Did you confirm thread-safety by checking the return
+value of sqlite3_threadsafe?
+
+&gt Perhaps it's something relating to the thread that the callback runs
+&gt in - my assumption was that this would just be the same thread as
+&gt the CAPI window, but perhaps that's not right.
+
+As far as I know, CAPI callbacks do indeed always run in the process
+of the toplevel interface.
+
+&gt This behaviour seems rather odd, and not the kind of thing I would
+&gt expect to happen when interfacing with Sqlite, which is normally
+&gt extremely robust. Before I head over to the Sqlite list I thought
+&gt I'd try here, just in case anybody has an inkling of what the
+&gt problem might be. I can follow up with some code if need be.
+
+Wish I could offer some insight.  My own use of sqlite has been
+largely problem-free, although I use a pool of dedicated workers to
+handle database tasks, and a buffered-stream wrapper for blob I/O.
+
+Even if the issue you're experiencing is resolved, I'd still suggest
+using a separate process to interact with the database instead of from
+directly inside UI callbacks (especially since you already said that
+that works).
+
+
+Mike
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:32 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

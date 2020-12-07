@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>SSL and delivery</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>SSL and delivery</h1>
+                <pre>[LWW 4.4.5, WinXP pro SP2, OpenSSL 0.9.8 from the source described in
+the LispWorks User Guide.]
+
+Consider the following simple delivery script (function FOO is
+basically the example from the reference entry for OPEN-TCP-STREAM):
+
+  (require "comm")
+
+  (defun foo (hostname)
+    (with-open-stream (http (comm:open-tcp-stream hostname 443 :ssl-ctx t))
+      (format http "GET / HTTP/1.0~C~C~C~C"
+              (code-char 13) (code-char 10)
+              (code-char 13) (code-char 10))
+      (force-output http)
+      (format t "Waiting for reply")
+      (loop for ch = (read-char-no-hang http nil :eof)
+          until ch
+          do (write-char #\.)
+             (force-output)
+             (sleep 0.25)
+          finally (unless (eq ch :eof)
+                    (unread-char ch http)))
+      (format t "~%~%")
+      (loop for line = (read-line http nil nil)
+        while line
+        do (write-line line))))
+
+  (compile 'foo)
+
+  (defun main ()
+    (format t "Connecting...~%")
+    (foo "daybyday.de")
+    (format t "Done. Waiting for 5 seconds.~%")
+    (sleep 5)
+    (quit))
+
+  (compile 'main)
+
+  (deliver 'main "Foo" 0
+           :interface :capi
+           :console t)
+
+If I deliver an application Foo.exe with this script a console window
+pops up, I see "Connecting", then the response from the website (a 302
+redirect), then "Done", and finally it quits after five seconds - as
+expected.
+
+If I, however, deliver without the :INTERFACE :CAPI keyword argument I
+only see "Connecting" at which point the application hangs and CPU
+usage goes up to almost 100%.
+
+Is this expected behaviour or a bug?
+
+Thanks,
+Edi.
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: SSL and delivery</h1>
+                 <pre>Edi Weitz wrote:
+
+&gt If I, however, deliver without the :INTERFACE :CAPI keyword argument I
+&gt only see "Connecting" at which point the application hangs and CPU
+&gt usage goes up to almost 100%.
+
+If you don't use :INTERFACE :CAPI, you don't get :MULTIPROCESSING T.
+Maybe you need to specify :MULTIPROCESSING T explicitly?
+
+Arthur
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:47 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>"Toolbar check buttons" mapped to menu objects, anyone?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>"Toolbar check buttons" mapped to menu objects, anyone?</h1>
+                <pre>Hi!
+
+In one of my projects I have a toolbar which has one button that
+should behave like a check button, i.e. pressing it toggles a state (a
+global variable *DATA-MODE* which can be 'TMP or 'DB).  The button's
+image is supposed to show the current state.  Furthermore there's a
+menu entry which can also be used to toggle this state and which is
+also supposed to show the state (with a checkmark).
+
+Below are the excerpts from my code that implement this.  I think this
+is quite ugly and I hope there's a more elegant way to do it.
+Specifically, I was hoping that there's a way to couple the button and
+the menu object with :REMAPPED.  And maybe there's a way to create a
+kind of "toolbar check button" that changes its image automatically?
+Extra bonus points for not using a toolbar component which is visually
+separated from the surrounding toolbar buttons.
+
+Any ideas?
+
+Thanks,
+Edi.
+
+
+
+(capi:define-interface ...
+
+  (:panes
+    (toolbar
+      capi:toolbar
+      :accessor main-toolbar
+      :items (list (make-instance 'capi:toolbar-button
+                                  :name 'mode-button
+                                  ;; PIC is a utility function which returns images
+                                  ;; created with GP:READ-EXTERNAL-IMAGE
+                                  :image (pic (ecase *data-mode*
+                                                (tmp "tmpmode.bmp")
+                                                (db "dbmode.bmp")))
+                                  :callback-type :item-interface
+                                  :callback 'gui-change-mode)
+                    ...)
+
+  ...
+
+  (:menus
+   (change-mode-component
+    :component
+    (("DB Mode"
+      :name 'mode-menu-object
+      :selected (eq *data-mode* 'db)
+      :callback-type :item-interface
+      :callback 'gui-change-mode))
+    :accessor change-mode-component
+    :interaction :multiple-selection)
+   (options-menu
+    "Options"
+    (change-mode-component))
+
+  ...
+
+
+(defun find-mode-button (interface)
+  (find 'mode-button (capi:collection-items (main-toolbar interface))
+        :key #'capi:capi-object-name))
+
+(defun gui-change-mode (item interface)
+  (let ((from-button-p (typep item 'capi:toolbar-button)))
+    (ecase *data-mode*
+      (tmp
+       (setf *data-mode* 'db
+             (capi:toolbar-button-image (find-mode-button interface))
+             (pic "dbmode.bmp"))
+       (when from-button-p
+         (setf (capi:choice-selection (change-mode-component interface))
+               (list 0))))
+      (db
+       (setf *data-mode* 'tmp
+             (capi:toolbar-button-image (find-mode-button interface))
+             (pic "tmpmode.bmp"))
+       (when from-button-p
+         (setf (capi:choice-selection (change-mode-component interface))
+               nil))))))
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: "Toolbar check buttons" mapped to menu objects, anyone?</h1>
+                 <p>
+                  Unable to parse email body. Email id is 4584
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: "Toolbar check buttons" mapped to menu objects, anyone?</h1>
+                 <pre>On Wed, 28 Sep 2005 13:19:59 +0100, Martin Simmons &lt;martin@lispworks.com&gt wrote:
+
+&gt Sorry, :REMAPPED only works for the callback, not for the button's
+&gt selection state.
+&gt
+&gt LispWorks 5 will support a selected-image for toolbar buttons.
+
+Thanks, Martin.  But to have (in LW 5) a toolbar check button with
+state (and different images) I still have to put it into its own
+toolbar component, right?
+
+Cheers,
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: "Toolbar check buttons" mapped to menu objects, anyone?</h1>
+                 <p>
+                  Unable to parse email body. Email id is 4587
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:47 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

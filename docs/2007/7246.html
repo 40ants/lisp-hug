@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Character writing question</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Character writing question</h1>
+                <pre>
+I have a trivial form to dump some html data read via drakma, currently in sbcl:
+
+(setf *drakma-default-external-format* :utf8)
+
+    (with-open-file
+    	(s (pathname (concatenate 'string "/tmp/tm-" name ".html"))
+		   :direction :output :if-exists :supersede)
+	            (write-sequence page s))
+
+And I get this error in WRITE-SEQUENCE:
+
+Error: #\' is not of type BASE-CHAR
+
+where the ' is (I believe) the Windows single quote character.
+
+OTOH, if I add :element-type '(unsigned-byte 8) to the OPEN args I get this:
+
+"..." contains non-integer element #\Newline.
+
+also in WRITE-SEQUENCE.
+
+I'm sure this is a simple fix.  Thanks in advance for your help and patience.
+
+Jonathon McKitrick
+--
+My other computer is your Windows box.
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Character writing question</h1>
+                 <pre>
+On Wed, 5 Dec 2007 02:31:38 +0000, Jonathon McKitrick &lt;jcm@sdf.lonestar.org&gt wrote:
+
+&gt Error: #\' is not of type BASE-CHAR
+&gt
+&gt where the ' is (I believe) the Windows single quote character.
+
+No, I don't think so.
+
+  CL-USER 1 &gt (typep #\' 'base-char)
+  t
+
+&gt I'm sure this is a simple fix.
+
+Try to open the file with :ELEMENT-TYPE 'LW:SIMPLE-CHAR.
+
+  http://www.lispworks.com/documentation/lw50/LWRM/html/lwref-346.htm
+
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Character writing question</h1>
+                 <pre>
+On Wed, 5 Dec 2007 21:29:35 +0000, Jonathon McKitrick &lt;jcm@sdf.lonestar.org&gt wrote:
+
+&gt It's not a *true* ' but it's one of those characters that looks like
+&gt it was pasted from Word.  I've seen similar characters for quotation
+&gt marks as well that seem to be Win32 specific.
+
+Probably a curly quote.  That's not Win32-specific, you'll find it in
+almost any book.
+
+  http://en.wikipedia.org/wiki/Smart_quotes
+
+It's not an ASCII character, though.
+
+&gt Unfortunately I got the same error
+
+How about a backtrace?
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Character writing question</h1>
+                 <pre>
+On Wed, 5 Dec 2007 22:56:11 +0000, Jonathon McKitrick &lt;jcm@sdf.lonestar.org&gt wrote:
+
+&gt Though that's not very helpful without any expansion.
+
+:bb
+
+&gt Is it useful to mention that the stream object is
+&gt LATIN-1-FILE-STREAM?
+
+Ugh, so maybe your character is not in Latin-1?  Have you tried other
+external formats like UTF-8?
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Character writing question</h1>
+                 <pre>
+On Sun, 9 Dec 2007 20:04:34 +0000, Jonathon McKitrick &lt;jcm@sdf.lonestar.org&gt wrote:
+
+&gt I was going to call regex-replace-all, but the non-ASCII curly quote
+&gt seems to be a problem.  I didn't see anything in the docs on this in
+&gt cl-ppcre, but the replace works on sbcl and not LW.
+
+Works for me (LWW 5.0.2):
+
+  CL-USER 1 &gt (code-char 8216)
+  #\‘
+
+  CL-USER 2 &gt (char-name *)
+  "U+2018"
+
+  CL-USER 3 &gt (defparameter *regex* (format nil "[~C~C]" (code-char 8216) (code-char 8217)))
+  *REGEX*
+
+  CL-USER 4 &gt *regex*
+  "[‘’]"
+
+  CL-USER 5 &gt (defparameter *target* (format nil "~CCurly quotes inside~C" (code-char 8216) (code-char 8217)))
+  *TARGET*
+
+  CL-USER 6 &gt *target*
+  "‘Curly quotes inside’"
+
+  CL-USER 7 &gt (ppcre:regex-replace-all *regex* *target* "'")
+  "'Curly quotes inside'"
+  T
+
+  CL-USER 8 &gt (map 'list #'char-code *)
+  (39 67 117 114 108 121 32 113 117 111 116 101 115 32 105 110 115 105 100 101 39)
+
+  CL-USER 9 &gt (defun foo (target) (ppcre:regex-replace-all #.*regex* target "'"))
+  FOO
+
+  CL-USER 10 &gt (compile *)
+  FOO
+  NIL
+  NIL
+
+  CL-USER 11 &gt (foo *target*)
+  "'Curly quotes inside'"
+  T
+
+  CL-USER 12 &gt (map 'list #'char-code *)
+  (39 67 117 114 108 121 32 113 117 111 116 101 115 32 105 110 115 105 100 101 39)
+
+&gt Is there something I need to do under LW to make it work?
+
+What exactly doesn't work for you?
+
+&gt My other computer is your Windows box.
+
+I'm beginning to seriously doubt that...
+
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Character writing question</h1>
+                 <pre>
+On Mon, 10 Dec 2007 00:24:50 +0000, Jonathon McKitrick &lt;jcm@sdf.lonestar.org&gt wrote:
+
+&gt On Sun, Dec 09, 2007 at 09:35:34PM +0100, Edi Weitz wrote:
+&gt
+&gt : What exactly doesn't work for you?
+&gt
+&gt Hmmm.  I'm not sure why a simple regex on an html page with a curly
+&gt quote works under sbcl but not under LW.  So I really don't know
+&gt where to look next.  Perhaps I need to force latin-1 encoding when
+&gt fetching the page?  I'm new to most of these encoding issues as it
+&gt is.
+&gt
+&gt : &gt My other computer is your Windows box.
+&gt : 
+&gt : I'm beginning to seriously doubt that...
+&gt
+&gt It's just a joke.
+&gt I'm beginning to seriously doubt that subtle humor translates to the
+&gt web. ;-)
+
+Beam me up, Scotty...
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:41 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

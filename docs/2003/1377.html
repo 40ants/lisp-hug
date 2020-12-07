@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>TR: capi:list-panel &amp; callbacks</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>TR: capi:list-panel &amp; callbacks</h1>
+                <pre>Here is the skeleton of the code I use.
+Thanks.
+
+Sebastien.
+
+
+;; CODE BEGIN
+;; ----------
+
+(capi:define-interface class-gui-class-viewer ()
+   (
+      (package-timer :accessor package-timer)
+      )
+   (:panes
+      (packages-pane capi:list-panel
+         :accessor packages-pane
+         :print-function #'(lambda (item) (name item))
+         :interaction :extended-selection
+         :selection-callback 'cb-package-change
+         :extend-callback 'cb-package-change
+         :retract-callback 'cb-package-change
+         :callback-type :interface
+         )
+
+       ...
+
+      )
+   (:layouts
+
+       ...
+
+      )
+   (:default-initargs
+      :title "Class Viewer"
+      ))
+
+
+
+(defmethod cb-package-change ((gui class-gui-class-viewer))
+   (mp:schedule-timer-relative-milliseconds (package-timer gui) 50))
+
+
+(defmethod cb-view-package-classes ((gui class-gui-class-viewer))
+   (mp:process-run-function "View Package Classes" nil 'view-package-classes
+gui))
+
+
+(defmethod view-package-classes ((gui class-gui-class-viewer))
+   (let* ((classes (make-hash-table :test 'equal))
+         (roots nil)
+         )
+
+
+      ...  heavy calculations are done here
+      ...  plus the graph pane update below which involved intensive cpu
+
+
+      (capi:execute-with-interface gui
+         #'(lambda (gui)
+            (setf (capi:graph-pane-roots (class-graph gui)) roots)
+            (setf (capi:collection-items (methods-pane gui)) ())
+            (setf (capi:display-pane-text (display-text gui)) "")
+            )
+         gui)
+      ))
+
+
+(defun make-applix ()
+  (let ((gui (make-instance 'class-gui-class-viewer)))
+    (setf (package-timer gui) (mp:make-timer 'cb-view-package-classes gui))
+    (capi:display gui)
+    ))
+
+
+</pre>
+               </article>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:55 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

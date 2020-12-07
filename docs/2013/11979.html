@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Strange behavior with the FLI</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Strange behavior with the FLI</h1>
+                <pre>
+Hello,
+
+I am interfacing LispWorks 64 bits on Mac OS X to C functions returning a very simple structure:
+
+struct _vector {
+  float x;
+  float y;
+  float z;
+}
+typedef struct _vector vector;
+
+vector direction();
+vector position();
+vector velocity();
+
+
+In LispWorks, when I call this:
+
+(fli:with-dynamic-foreign-objects ((direction vector)
+                                   (position vector)
+                                   (velocity vector))
+      (direction :result-pointer direction)
+      (position :result-pointer position)
+      (velocity :result-pointer velocity)
+      (list :direction (dump-vector direction))
+            :position  (dump-vector position))
+            :velocity  (dump-vector velocity))))
+
+Where:
+
+(defun dump-vector (vector)
+  (list (fli:foreign-slot-values vector 'x)
+        (fli:foreign-slot-values vector 'y)
+        (fli:foreign-slot-values vector 'z)))
+
+The result I get is something like:
+
+(DIRECTION (0.0  yyy1 zzz1)
+ POSITION  (0.0  yyy2 zzz2)
+ VELOCITY  (xxx3 yyy3 zzz3))
+
+The value 0.0 for the component X of direction and position is unexpected, I know the C library does not return 0.0.  More surprising, velocity has all its 3 components with non 0.0 values.
+
+
+Now, if I change the order to something else:
+
+(fli:with-dynamic-foreign-objects ((direction vector)
+                                   (position vector)
+                                   (velocity vector))
+      ;;
+      ;; I have swapped the first two lines below...
+      ;;
+      (position :result-pointer position)
+      (direction :result-pointer direction)
+      (velocity :result-pointer velocity)
+      (list :direction (dump-vector direction))
+            :position  (dump-vector position))
+            :velocity  (dump-vector velocity))))
+
+
+I get a slightly better result, a component is still 0.0 though ...
+
+(DIRECTION (xxx1 yyy1 zzz1)
+ POSITION  (0.0 yyy2 zzz2)
+ VELOCITY  (xxx3 yyy3 zzz3))
+
+
+Now I have found that this outputs the correct results:
+
+(fli:with-dynamic-foreign-objects ((direction vector)
+                                   (position vector)
+                                   (velocity vector))
+      ;;
+      ;; the three following lines were swapped...
+      ;;
+      (velocity :result-pointer velocity)
+      (position :result-pointer position)
+      (direction :result-pointer direction)
+      (list :direction (dump-vector direction))
+            :position  (dump-vector position))
+            :velocity  (dump-vector velocity))))
+
+
+I'm unsure of this but it looks like my foreign objects which size is 12 bytes are aligned on a 16 bytes boundary, but somehow accessed contiguously.  Can an enlightening soul please help me understand why?
+
+
+All the best,
+Cam
+
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Strange behavior with the FLI</h1>
+                 <pre>
+You haven't shown the C code, but, has this got anything to do with the 
+fact that structs are passed and returned by value in C? (Arrays are 
+passed by reference, but not structs).
+
+If this were Windows, I'd also tell you to look at the calling 
+convention declaration (pascal vs. c).
+
+pt
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Strange behavior with the FLI</h1>
+                 <pre>
+Hello,
+
+
+Some new finding about this issue:
+
+- the same code with LispWorks Professional 32 bits on Mac OS X works as expected.
+- I am almost sure that each call to the foreign functions [see 1] overwrite the stack next where the other dynamic foreign objects buffers are allocated.  This is why a different order of the foreign function calls gives different results.
+- I have tried with GCC instead of clang without success.
+- I have not tried to return the structure by passing a pointer to the foreign functions (instead of returning the struct by value as it is right now), but I have good faith that it would work, yet I would really love to understand why my foreign allocations are overwritten.
+
+
+Best,
+Cam
+
+
+[1]
+(fli:with-dynamic-foreign-objects ((direction vector)
+                                  (position vector)
+                                  (velocity vector))
+     ;; each call here overwrite the stack by 4 more bytes
+     (direction :result-pointer direction)
+     (position :result-pointer position)
+     (velocity :result-pointer velocity)
+     (list :direction (dump-vector direction))
+           :position  (dump-vector position))
+           :velocity  (dump-vector velocity))))
+
+
+On 23 janv. 2013, at 01:05, Camille Troillard &lt;camille@osculator.net&gt wrote:
+
+&gt Hello,
+&gt 
+&gt I am interfacing LispWorks 64 bits on Mac OS X to C functions returning a very simple structure:
+&gt 
+&gt struct _vector {
+&gt  float x;
+&gt  float y;
+&gt  float z;
+&gt }
+&gt typedef struct _vector vector;
+&gt 
+&gt vector direction();
+&gt vector position();
+&gt vector velocity();
+&gt 
+&gt 
+&gt In LispWorks, when I call this:
+&gt 
+&gt (fli:with-dynamic-foreign-objects ((direction vector)
+&gt                                   (position vector)
+&gt                                   (velocity vector))
+&gt      (direction :result-pointer direction)
+&gt      (position :result-pointer position)
+&gt      (velocity :result-pointer velocity)
+&gt      (list :direction (dump-vector direction))
+&gt            :position  (dump-vector position))
+&gt            :velocity  (dump-vector velocity))))
+&gt 
+&gt Where:
+&gt 
+&gt (defun dump-vector (vector)
+&gt  (list (fli:foreign-slot-values vector 'x)
+&gt        (fli:foreign-slot-values vector 'y)
+&gt        (fli:foreign-slot-values vector 'z)))
+&gt 
+&gt The result I get is something like:
+&gt 
+&gt (DIRECTION (0.0  yyy1 zzz1)
+&gt POSITION  (0.0  yyy2 zzz2)
+&gt VELOCITY  (xxx3 yyy3 zzz3))
+&gt 
+&gt The value 0.0 for the component X of direction and position is unexpected, I know the C library does not return 0.0.  More surprising, velocity has all its 3 components with non 0.0 values.
+&gt 
+&gt 
+&gt Now, if I change the order to something else:
+&gt 
+&gt (fli:with-dynamic-foreign-objects ((direction vector)
+&gt                                   (position vector)
+&gt                                   (velocity vector))
+&gt      ;;
+&gt      ;; I have swapped the first two lines below...
+&gt      ;;
+&gt      (position :result-pointer position)
+&gt      (direction :result-pointer direction)
+&gt      (velocity :result-pointer velocity)
+&gt      (list :direction (dump-vector direction))
+&gt            :position  (dump-vector position))
+&gt            :velocity  (dump-vector velocity))))
+&gt 
+&gt 
+&gt I get a slightly better result, a component is still 0.0 though ...
+&gt 
+&gt (DIRECTION (xxx1 yyy1 zzz1)
+&gt POSITION  (0.0 yyy2 zzz2)
+&gt VELOCITY  (xxx3 yyy3 zzz3))
+&gt 
+&gt 
+&gt Now I have found that this outputs the correct results:
+&gt 
+&gt (fli:with-dynamic-foreign-objects ((direction vector)
+&gt                                   (position vector)
+&gt                                   (velocity vector))
+&gt      ;;
+&gt      ;; the three following lines were swapped...
+&gt      ;;
+&gt      (velocity :result-pointer velocity)
+&gt      (position :result-pointer position)
+&gt      (direction :result-pointer direction)
+&gt      (list :direction (dump-vector direction))
+&gt            :position  (dump-vector position))
+&gt            :velocity  (dump-vector velocity))))
+&gt 
+&gt 
+&gt I'm unsure of this but it looks like my foreign objects which size is 12 bytes are aligned on a 16 bytes boundary, but somehow accessed contiguously.  Can an enlightening soul please help me understand why?
+&gt 
+&gt 
+&gt All the best,
+&gt Cam
+&gt 
+&gt 
+&gt 
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+&gt 
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:32 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

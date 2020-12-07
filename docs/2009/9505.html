@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Chipz</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Chipz</h1>
+                <pre>
+Hi,
+
+I have a question that might related to how LispWorks compiles a  
+LABELS construct.
+
+In the open source Chipz library ( http://method-combination.net/lisp/chipz/ 
+  ), yet another excellent library by Nathan Froyd doing decompression  
+according to a number of algorithms, I have a performance problem that  
+seems to occur only on LispWorks.
+
+Once you ASDF install the library, this helper function will gunzip  
+from one file to another:
+
+(defun gunzip-file (from to)
+   (with-open-file (in from)
+     (with-open-file (out to :direction :output :if-exists :supersede)
+       (chipz:decompress out 'chipz:gzip in))))
+
+Using the standard Unix tools to create a test file:
+
+$ echo Hello Worls from Common Lisp | gzip &gt /tmp/test.gzip
+
+When can then use Chipz to decompress the file as follows:
+
+ &gt (gunzip-file "/tmp/test.gzip" "/tmp/test.txt")
+#&lt;STREAM::LATIN-1-FILE-STREAM /tmp/test.txt&gt
+
+And is works:
+
+$ cat /tmp/test.txt
+Hello Worls from Common Lisp
+
+The problem is performance related, let's take a bigger file:
+
+$ curl http://www.gutenberg.org/files/345/345.txt &gt /tmp/dracula.txt
+$ cat /tmp/dracula.txt | gzip &gt /tmp/dracula.gzip
+
+Decompressing this file show the problem:
+
+ &gt (gunzip-file "/tmp/dracula.gzip" "/tmp/foo.txt")
+
+Stack overflow (stack size 20475).
+   1 (continue) Extend stack by 50%.
+   2 Extend stack by 300%.
+   3 (abort) Return to level 0.
+   4 Restart top-level loop.
+
+Type :b for backtrace, :c &lt;option number&gt to proceed,  or :? for other  
+options
+
+1 &gt :bq
+
+RUNTIME:BAD-ARGS-OR-STACK
+&lt;- (SUBFUNCTION CHIPZ::FROB-BY-COPYING-FROM (SUBFUNCTION (LABELS  
+CHIPZ::COPY-MATCH) CHIPZ::%INFLATE-STATE-MACHINE))
+&lt;- (SUBFUNCTION (LABELS CHIPZ::COPY-MATCH) CHIPZ::%INFLATE-STATE- 
+MACHINE)
+&lt;- (SUBFUNCTION (LABELS CHIPZ::COPY-MATCH) CHIPZ::%INFLATE-STATE- 
+MACHINE)
+&lt;- (SUBFUNCTION (LABELS CHIPZ::COPY-MATCH) CHIPZ::%INFLATE-STATE- 
+MACHINE)
+&lt;- (SUBFUNCTION (LABELS CHIPZ::COPY-MATCH) CHIPZ::%INFLATE-STATE- 
+MACHINE)
+&lt;- (SUBFUNCTION (LABELS CHIPZ::COPY-MATCH) CHIPZ::%INFLATE-STATE- 
+MACHINE)
+&lt;- (SUBFUNCTION (LABELS CHIPZ::COPY-MATCH) CHIPZ::%INFLATE-STATE- 
+MACHINE)
+&lt;- (SUBFUNCTION (LABELS CHIPZ::COPY-MATCH) CHIPZ::%INFLATE-STATE- 
+MACHINE)
+&lt;- (SUBFUNCTION (LABELS CHIPZ::COPY-MATCH) CHIPZ::%INFLATE-STATE- 
+MACHINE)
+&lt;- (SUBFUNCTION (LABELS CHIPZ::COPY-MATCH) CHIPZ::%INFLATE-STATE- 
+MACHINE)
+&lt;- (SUBFUNCTION (LABELS CHIPZ::COPY-MATCH) CHIPZ::%INFLATE-STATE- 
+MACHINE)
+&lt;- (SUBFUNCTION (LABELS CHIPZ::COPY-MATCH) CHIPZ::%INFLATE-STATE- 
+MACHINE)
+&lt;- (SUBFUNCTION (LABELS CHIPZ::COPY-MATCH) CHIPZ::%INFLATE-STATE- 
+MACHINE)
+&lt;- (SUBFUNCTION (LABELS CHIPZ::COPY-MATCH) CHIPZ::%INFLATE-STATE- 
+MACHINE)
+&lt;- (SUBFUNCTION (LABELS CHIPZ::COPY-MATCH) CHIPZ::%INFLATE-STATE- 
+MACHINE)
+[... many more deleted ...]
+&lt;- (SUBFUNCTION (LABELS CHIPZ::COPY-MATCH) CHIPZ::%INFLATE-STATE- 
+MACHINE)
+&lt;- (SUBFUNCTION (LABELS CHIPZ::COPY-MATCH) CHIPZ::%INFLATE-STATE- 
+MACHINE)
+&lt;- (SUBFUNCTION (LABELS CHIPZ::COPY-MATCH) CHIPZ::%INFLATE-STATE- 
+MACHINE)
+&lt;- (SUBFUNCTION (LABELS CHIPZ::COPY-MATCH) CHIPZ::%INFLATE-STATE- 
+MACHINE)
+&lt;- (SUBFUNCTION (LABELS CHIPZ::COPY-MATCH) CHIPZ::%INFLATE-STATE- 
+MACHINE)
+&lt;- (SUBFUNCTION (LABELS CHIPZ::COPY-MATCH) CHIPZ::%INFLATE-STATE- 
+MACHINE)
+&lt;- (SUBFUNCTION (LABELS CHIPZ::COPY-MATCH) CHIPZ::%INFLATE-STATE- 
+MACHINE)
+&lt;- (SUBFUNCTION (LABELS CHIPZ::COPY-MATCH) CHIPZ::%INFLATE-STATE- 
+MACHINE)
+&lt;- (SUBFUNCTION (LABELS CHIPZ::COPY-MATCH) CHIPZ::%INFLATE-STATE- 
+MACHINE)
+&lt;- (SUBFUNCTION (LABELS CHIPZ::COPY-MATCH) CHIPZ::%INFLATE-STATE- 
+MACHINE)
+&lt;- (SUBFUNCTION (LABELS CHIPZ::COPY-MATCH) CHIPZ::%INFLATE-STATE- 
+MACHINE)
+&lt;- (SUBFUNCTION (LABELS CHIPZ::COPY-MATCH) CHIPZ::%INFLATE-STATE- 
+MACHINE)
+&lt;- (SUBFUNCTION (LABELS CHIPZ::COPY-MATCH) CHIPZ::%INFLATE-STATE- 
+MACHINE)
+&lt;- (SUBFUNCTION (LABELS CHIPZ::COPY-MATCH) CHIPZ::%INFLATE-STATE- 
+MACHINE)
+&lt;- (SUBFUNCTION (LABELS CHIPZ::COPY-MATCH) CHIPZ::%INFLATE-STATE- 
+MACHINE)
+&lt;- CHIPZ::%INFLATE-STATE-MACHINE &lt;- CHIPZ::%INFLATE
+&lt;- CHIPZ::%DECOMPRESS/STREAM-STREAM &lt;- CHIPZ::%DECOMPRESS
+&lt;- GUNZIP-FILE &lt;- EVAL
+
+1 &gt :c 2
+#&lt;STREAM::LATIN-1-FILE-STREAM /tmp/foo.txt&gt
+
+Decompression itself worked:
+
+$ diff /tmp/dracula.txt /tmp/foo.txt
+
+COPY-MATCH is a LABELS sub function inside %INFLATE-STATE-MACHINE.
+The (very big) LABELS construct there is used to implement a state  
+machine.
+According to Nathan, no such recursion should be on the stack.
+As far as I can see, it should at least be tail optimized.
+Maybe LispWorks is doing something wrong compiling the code ?
+
+There are also some important timing differences between LispWorks and  
+SBCL,
+probably because most declarations are more geared towards SBCL, but  
+the cause
+could be related:
+
+LWM:
+
+ &gt (time (gunzip-file "/tmp/dracula.gzip" "/tmp/foo.txt"))
+Timing the evaluation of (GUNZIP-FILE "/tmp/dracula.gzip" "/tmp/ 
+foo.txt")
+
+User time    =        0.707
+System time  =        0.005
+Elapsed time =        0.726
+Allocation   = 182096 bytes
+0 Page faults
+#&lt;STREAM::LATIN-1-FILE-STREAM /tmp/foo.txt&gt
+
+SBCL
+
+* (time (gunzip-file "/tmp/dracula.gzip" "/tmp/foo.txt"))
+
+Evaluation took:
+   0.081 seconds of real time
+   0.074685 seconds of user run time
+   0.004396 seconds of system run time
+   0 calls to %EVAL
+   0 page faults and
+   62,624 bytes consed.
+#&lt;SB-SYS:FD-STREAM for "file /tmp/foo.txt" {11825EA9}&gt
+
+Does anyone have any ideas or care to have a look ?
+It would be nice if we could help Chipz to run great on LispWorks as  
+well.
+
+Sven
+
+PS: the above benchmark was run using a patched version of chipz 0.7.4;
+the patch is a newer CRC32 implementation. This is not related to the  
+LABELS
+issue, but it will influence consing a lot.
+
+PS: on SBCL the gunzip-file function has to be implemented using  
+binary IO,
+somthing that LispWorks does tranparently most of the time.
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Chipz</h1>
+                 <p>
+                  Unable to parse email body. Email id is 9524
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:36 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

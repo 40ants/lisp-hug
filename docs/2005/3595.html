@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Q: How to scroll capi:list-panel just after displaying in LWW 4.4</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Q: How to scroll capi:list-panel just after displaying in LWW 4.4</h1>
+                <pre>Hello lispworkers,
+
+I want to select an item from a list panel just after creating it. But I am
+not able to make the panel scroll to the ensure the item to be visible.
+
+(capi:define-interface test () ()
+ (:panes
+  (pane capi:list-panel
+   :items (loop for i upfrom 0 below 100
+                  collect (format nil "~d" i))
+   :test-function 'string=
+   ;:keep-selection-p t
+   ;:initial-focus-item "66"
+   :visible-min-height '(:character 20))))
+
+(defmethod capi:interface-display :after ((face test))
+  (with-slots (pane) face
+    (setf (capi:choice-selection pane)
+          (capi:search-for-item pane "66"))))
+
+(setq face (capi:display (make-instance 'test))
+      pane (slot-value face 'pane))
+
+The item "66" really gets selected. Unfortunately, the initial scroll
+position is on the top of the list, and the selected item is not visible.
+
+Afterwards, evaluating
+    (setf (capi:choice-selection pane)
+       (capi:search-for-item pane "66")
+in the Editor works fine.
+
+Placing  (setf capi:choice-selection) in the :creation-callback does not
+help. Any takers?
+
+BTW, the :initial-focus-item initarg does not work it at all, must it?
+--
+Sincerely,
+Dmitri Ivanov
+www.ystok.ru
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Q: How to scroll capi:list-panel just after displaying in LWW 4.4</h1>
+                 <pre>Dmitri Ivanov wrote:
+
+&gtHello lispworkers,
+&gt
+&gtI want to select an item from a list panel just after creating it. But I am
+&gtnot able to make the panel scroll to the ensure the item to be visible.
+&gt
+&gt(capi:define-interface test () ()
+&gt (:panes
+&gt  (pane capi:list-panel
+&gt   :items (loop for i upfrom 0 below 100
+&gt                  collect (format nil "~d" i))
+&gt   :test-function 'string=
+&gt   ;:keep-selection-p t
+&gt   ;:initial-focus-item "66"
+&gt   :visible-min-height '(:character 20))))
+&gt
+&gt(defmethod capi:interface-display :after ((face test))
+&gt  (with-slots (pane) face
+&gt    (setf (capi:choice-selection pane)
+&gt          (capi:search-for-item pane "66"))))
+&gt
+&gt(setq face (capi:display (make-instance 'test))
+&gt      pane (slot-value face 'pane))
+&gt
+&gtThe item "66" really gets selected. Unfortunately, the initial scroll
+&gtposition is on the top of the list, and the selected item is not visible.
+&gt
+&gtAfterwards, evaluating
+&gt    (setf (capi:choice-selection pane)
+&gt       (capi:search-for-item pane "66")
+&gtin the Editor works fine.
+&gt
+&gtPlacing  (setf capi:choice-selection) in the :creation-callback does not
+&gthelp. Any takers?
+&gt
+&gt  
+&gt
+CL-USER 11 &gt (capi:scroll (slot-value face 'pane) :vertical :move 50)
+NIL
+
+http://www.lispworks.com/documentation/lw44/CAPRM/html/capiref-302.htm#pgfId-1580041
+
+I suppose you will have to calculate the position of the selected item 
+and set the scroll
+accordingly.
+
+Wade
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Q: How to scroll capi:list-panel just after displaying in LWW 4.4</h1>
+                 <pre>This also works:
+
+(capi:define-interface test ()
+  ((initial-items
+    :initform (loop for i upfrom 0 below 100
+                    collect (write-to-string i))))
+ (:panes
+  (pane capi:list-panel
+   :items initial-items
+   :test-function #'string=
+   :selected-item "66"
+   :visible-min-height '(:character 20))))
+
+Wade
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:49 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

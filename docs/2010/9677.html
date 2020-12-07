@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Total Ordering?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Total Ordering?</h1>
+                <pre>
+Hi,
+
+I'm looking for a (portable) way to assign a total order to all Lisp  
+objects, regardless of type. The present context is in relation to  
+grabbing multiprocessing locks in a consistent order. But this problem  
+has reared its head numerous times in the past. The order need not be  
+consistent from one Lisp session to the next, but within one session  
+the order should be consistent and unambiguous.
+
+Hash tables seem to have some magic, in some implementations, so that  
+any Lisp object can be used as a key. Yet if you go by SXHASH, then  
+all the difficult types of objects get assigned to the same bucket.  
+There are implementations that do much better than this, but it is  
+implementation dependent, hence non-portable.
+
+In the past, I resorted to PRINC representations when all else failed.  
+But that is horribly slow. At other times I have used the network  
+serialization byte vector of objects -- but that only works for  
+portable objects, and it is even slower.
+
+Any ideas?
+
+Dr. David McClain
+dbm@refined-audiometrics.com
+
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Total Ordering?</h1>
+                 <pre>
+David McClain wrote on Thu, 14 Jan 2010 22:55:41 -0700 08:55:
+
+| I'm looking for a (portable) way to assign a total order to all Lisp
+| objects, regardless of type. The present context is in relation to
+| grabbing multiprocessing locks in a consistent order. But this problem
+| has reared its head numerous times in the past. The order need not be
+| consistent from one Lisp session to the next, but within one session
+| the order should be consistent and unambiguous.
+|
+| Hash tables seem to have some magic, in some implementations, so that
+| any Lisp object can be used as a key. Yet if you go by SXHASH, then
+| all the difficult types of objects get assigned to the same bucket.
+| There are implementations that do much better than this, but it is
+| implementation dependent, hence non-portable.
+
+I would recommend comparing multicolumn keys:
+ &lt;(type-of object),(surrogate-key object)&gt.
+
+The surrogate key is a kind of "natural" value (use the result of SXHASH as
+the last resort).
+--
+Sincerely,
+Dmitriy Ivanov
+lisp.ystok.ru
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Total Ordering?</h1>
+                 <pre>
+
+On Jan 15, 2010, at 12:55 AM, David McClain wrote:
+
+&gt The present context is in relation to grabbing multiprocessing locks in a consistent order.
+
+Please keep the list apprised of any progress here - I'm sure there are others, myself included, who would be happy for a robust mp:ordered-lock, mp:make-ordered-lock, mp:with-ordered-locks, etc.
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Total Ordering?</h1>
+                 <pre>
+
+On Jan 15, 2010, at 3:08 PM, David McClain wrote:
+
+&gt The only sure fire way I can come up with, sadly a bit slow, is to keep a hash table, and on-demand, enter new objects of interest into the table along with a consecutively incrementing integer value. The hash table is only for the sake of speedy lookups. An association list does the same thing for you, only slower. The important thing is the consecutive integer value. And since we really don't need all Lisp objects, only those of local interest, the table won't grow too long.
+&gt 
+&gt It just takes a bit of overhead on each use of an interesting object to find out whether it already has an assigned ID, and if not, generate one and record in the hash table.
+&gt 
+&gt I was playing around with STM here, and that sort of overhead really drags on STM performance. So to counteract it, we can record identities on STM object creation, rather than for each time they are used. But in that case, we might as well create a Class structure that contains the ID alongside the Lock, so we don't have to do any lookup at STM runtime.
+
+This is more or less what I had come up with as well. Glad to know I wasn't the only one thinking along these lines.
+
+Just out of curiosity, what sort of performance improvement (if any) do you get using ordered mp:locks in your application as compared to simply having a single symbol-locking-macro  - for example:
+
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (sys:define-symbol-locking-macro atomically
+                                   #.(gensym "ATOMICALLY-SYBOL-LOCKING-GENSYM"))) 
+
+And then just using:
+	(atomically (code-that-would-otherwise-take-locks-in-order-to-prevent-livelock...
+
+I ask because in my testing, even with up to 20 threads contending for a single sys:symbol-locking-macro it is still much faster than taking just 3 ordered locks. Taking more ordered locks is even slower.
+
+warmest regards,
+
+Ralph
+
+
+
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Total Ordering?</h1>
+                 <pre>
+
+On Jan 15, 2010, at 5:00 PM, Raffael Cavallaro wrote:
+
+&gt I ask because in my testing, even with up to 20 threads contending for a single sys:symbol-locking-macro it is still much faster than taking just 3 ordered locks. Taking more ordered locks is even slower.
+
+Sorry, you can safely disregard this - as one might expect this is entirely dependent on how time consuming the task is that holds the ordered locks or the sys:symbol-locking-macro. For tasks that take any significant amount of time, grabbing ordered mp:locks is a win over a single sys:symbol-locking-macro, even if you're taking many ordered locks.
+
+warmest regards,
+
+Ralph
+
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Total Ordering?</h1>
+                 <pre>
+
+On Jan 15, 2010, at 11:36 PM, David McClain wrote:
+
+&gt The question for us documented function users is: "Are locks in LW6 implemented more efficiently than in previous versions?". I have learned from discussions with Martin Simmons that you get better performance by avoiding interactions with the Lisp scheduler. And you do that by using things such as process-wait-local, use single-thread arrays and hash tables, and make use of condition variables and mailboxes which seem quite improved over previous implementations.
+
+Right - this is the approach used by Apple's Grand Central Dispatch - instead of having a lock for a shared resource have a single serial queue for that shared resource. The LW equivalent would be to have an mp:process with a mailbox for the resource, and send it arbitrary messages for execution by that shared resource or mutation of the state of that shared resource.
+
+&gt At any rate, I'd love to know more about symbol locking and such macros. But being undocumented makes me even more leery of using them. It is too easy to fall in love with a particular vendor's extensions, only to find that you dug yourself into a deep hole some months or years down the road when you have a machine for which LW is unavailable and you have to find an alternative. Much easier if you plane for portability from the outset.
+
+True, and symbol-locking-macros do not come without cost - they are actually slower if held for too long - i.e., they are intended for situations where the task being executed while the symbol-lock is held are of short duration. If you're holding a symbol-lock for a significant amount of time and other threads are contending for it, it actually loses vs. an ordinary mp:lock.
+
+Thanks for including us in your thoughts on these things - it's always helpful to hear from others with lots of experience with LispWorks.
+
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Total Ordering?</h1>
+                 <pre>
+
+On Jan 16, 2010, at 10:21 AM, David McClain wrote:
+
+&gt If you are really interested in this, I'll make my version of um:nlet-tail available -- it comes from Doug Hoyte's book, "Let Over Lambda".]
+
+Yes, please post that as well as um:let-if.
+
+In addition, your code appears to use an mpcompat package of some sort. Do you have a pointer to that?
+
+warmest regards,
+
+Ralph
+
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Total Ordering?</h1>
+                 <pre>
+
+On Jan 16, 2010, at 12:22 PM, David McClain wrote:
+
+&gt Here is the code for the macros and a fresh copy of HDSTM without MPCOMPAT symbols. For LW6 they were almost all direct re-exports of imported MP symobls anyway. (Whew!, let me know if I left anything out...)
+
+1. collect-decls uses nlet (i.e., not nlet-tail) which I don't see in your code or in Doug Hoyte's LOL code. I assume this is just a macro for a scheme-like named-let, yes? I've rewritten collect-decls using loop, but I'd be happy to have your version of nlet.
+
+2. You appear to rely on some utilities from your butterfly package in your test code at the end. I appreciate that you may not want to publish butterfly, but could you let me know if my translation of the following into vanilla lispworks mp code is on the mark?
+
+bfly:log-info 
+(I assume this is just an ordinary logging function so this should be simple)
+
+bfly:spawn
+(I assume this is something like mp:process-run-function, but if there are significant differences, let me know)
+
+Anyway, using Doug Hoyte's LOL code (with some eval-whens added - apparently Doug Hoyte doesn't compile his code) and the modifications noted above I've gotten your HDSTM to compile and the test to run. FWIW, it consumes between ~125% - 175% cpu, I show no invariant violations while running, and when done, *nrolls* is 30458 and *ntrans* is 4030458. I'm running on a 2.53GHz Core2 Duo.
+
+Thanks again for sharing this - really interesting stuff!
+
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Total Ordering?</h1>
+                 <pre>
+
+On Jan 17, 2010, at 3:29 AM, David McClain wrote:
+
+&gt Looks to me like we have trivially met the original Herlihy challenge. The only thing that could possibly mutate is the record of the root node of the tree. The body of this purely functional data structure is read-only and therefore up for maximum concurrent access. No way to damage the contents of the tree through accidental misuse of MPU primitives...
+&gt 
+&gt So was Herlihy just shouting an empty boast?? He made it sound like his feat was an enormous breakthrough.
+
+Compare this to clojure - imho Rich Hickey's key insight is that, if you're going to use STM, you need a fast, immutable data structure (in your case, red-black trees, in his case Bagwell's array mapped hash tries which form the basis for several of clojure core data structures). Without immutable (i.e., what Hickey calls "persistent") data structures, you're going to be doing a lot of copying to maintain the functional nature of as yet uncommitted transactions. The "lots-of-shared-structure" part is key.
+
+warmest regards,
+
+Ralph
+
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:36 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

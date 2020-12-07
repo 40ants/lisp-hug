@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Funcallable Standard Objects?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Funcallable Standard Objects?</h1><html><head><meta http-equiv="Content-Type" content="text/html charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">I have been experimenting on/off with Funcallable-Standard-Class metaclass and the resulting Funcallable-Standard-Objects.&nbsp;<div class=""><br class=""></div><div class="">I notice a peculiar asymmetry, wherein you must assign the functional behavior in an Initialize-Instance method using CLOS:SET-FUNCALLABLE-INSTANCE-FUNCTION, yet there is no corresponding method to retrieve the functional behavior of the instance once constructed.<div class=""><br class=""></div><div class="">Does anyone know or understand the reasoning behind this asymmetry. It has the feel of an intentional decision, but I’m puzzled about the language theoretic reasons behind it.</div></div><div class=""><br class=""></div><div class="">In order to retain visibility of the function, I have resorted to making an instance slot to hold the function, then using an indirect dispatch function in the initialize-instance method:</div><div class=""><br class=""></div><div class=""><div class=""><font face="Menlo" class="">(defclass standard-handler ()</font></div><div class=""><font face="Menlo" class="">&nbsp; ((handler-fn &nbsp;:accessor handler-fn &nbsp;:initarg :fn))</font></div><div class=""><font face="Menlo" class="">&nbsp; (:metaclass clos:funcallable-standard-class))</font></div><div class=""><font face="Menlo" class=""><br class=""></font></div><div class=""><font face="Menlo" class="">;; -----------------------------------------</font></div><div class=""><font face="Menlo" class=""><br class=""></font></div><div class=""><font face="Menlo" class="">(defmethod initialize-instance :after ((h standard-handler) &amp;key &amp;allow-other-keys)</font></div><div class=""><font face="Menlo" class="">&nbsp; (clos:set-funcallable-instance-function h (lambda (&amp;rest args)</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (apply (handler-fn h) args))))</font></div></div><div class=""><br class=""></div><div class=""><br class=""></div><div class="">- DM</div></body></html>
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Funcallable Standard Objects?</h1><html><head><meta http-equiv="Content-Type" content="text/html charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">Why does this matter to me? Having access to the function performed by the instance allows one to wrap the function without changing all references to it. The instance object becomes a ref-cell. Without access to the function it becomes impossible to generically alter the behavior of the function.<div class=""><br class=""></div><div class="">- DM</div><div class=""><br class=""></div><div class=""><br class=""><div><blockquote type="cite" class=""><div class="">On Apr 1, 2017, at 03:05, David McClain &lt;<a href="mailto:dbm@refined-audiometrics.com" class="">dbm@refined-audiometrics.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><meta http-equiv="Content-Type" content="text/html charset=utf-8" class=""><div style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">I have been experimenting on/off with Funcallable-Standard-Class metaclass and the resulting Funcallable-Standard-Objects.&nbsp;<div class=""><br class=""></div><div class="">I notice a peculiar asymmetry, wherein you must assign the functional behavior in an Initialize-Instance method using CLOS:SET-FUNCALLABLE-INSTANCE-FUNCTION, yet there is no corresponding method to retrieve the functional behavior of the instance once constructed.<div class=""><br class=""></div><div class="">Does anyone know or understand the reasoning behind this asymmetry. It has the feel of an intentional decision, but I’m puzzled about the language theoretic reasons behind it.</div></div><div class=""><br class=""></div><div class="">In order to retain visibility of the function, I have resorted to making an instance slot to hold the function, then using an indirect dispatch function in the initialize-instance method:</div><div class=""><br class=""></div><div class=""><div class=""><font face="Menlo" class="">(defclass standard-handler ()</font></div><div class=""><font face="Menlo" class="">&nbsp; ((handler-fn &nbsp;:accessor handler-fn &nbsp;:initarg :fn))</font></div><div class=""><font face="Menlo" class="">&nbsp; (:metaclass clos:funcallable-standard-class))</font></div><div class=""><font face="Menlo" class=""><br class=""></font></div><div class=""><font face="Menlo" class="">;; -----------------------------------------</font></div><div class=""><font face="Menlo" class=""><br class=""></font></div><div class=""><font face="Menlo" class="">(defmethod initialize-instance :after ((h standard-handler) &amp;key &amp;allow-other-keys)</font></div><div class=""><font face="Menlo" class="">&nbsp; (clos:set-funcallable-instance-function h (lambda (&amp;rest args)</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (apply (handler-fn h) args))))</font></div></div><div class=""><br class=""></div><div class=""><br class=""></div><div class="">- DM</div></div></div></blockquote></div><br class=""></div></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Funcallable Standard Objects?</h1><html><head><meta http-equiv="Content-Type" content="text/html charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">Hi,<div class=""><br class=""></div><div class="">I recall reading a late version of the CLOS MOP specification before it was published in AMOP, where the funcallable instance function wasn’t even a function, but some more low-level entity that you couldn’t use like a regular function. My guess is that allowing the function not to be retrieved anymore allows for some low-level optimizations, at least in some architectures of that time (but that’s just me speculating).</div><div class=""><br class=""></div><div class="">Pascal</div><div class=""><br class=""><div><blockquote type="cite" class=""><div class="">On 1 Apr 2017, at 12:05, David McClain &lt;<a href="mailto:dbm@refined-audiometrics.com" class="">dbm@refined-audiometrics.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><meta http-equiv="Content-Type" content="text/html charset=utf-8" class=""><div style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">I have been experimenting on/off with Funcallable-Standard-Class metaclass and the resulting Funcallable-Standard-Objects.&nbsp;<div class=""><br class=""></div><div class="">I notice a peculiar asymmetry, wherein you must assign the functional behavior in an Initialize-Instance method using CLOS:SET-FUNCALLABLE-INSTANCE-FUNCTION, yet there is no corresponding method to retrieve the functional behavior of the instance once constructed.<div class=""><br class=""></div><div class="">Does anyone know or understand the reasoning behind this asymmetry. It has the feel of an intentional decision, but I’m puzzled about the language theoretic reasons behind it.</div></div><div class=""><br class=""></div><div class="">In order to retain visibility of the function, I have resorted to making an instance slot to hold the function, then using an indirect dispatch function in the initialize-instance method:</div><div class=""><br class=""></div><div class=""><div class=""><font face="Menlo" class="">(defclass standard-handler ()</font></div><div class=""><font face="Menlo" class="">&nbsp; ((handler-fn &nbsp;:accessor handler-fn &nbsp;:initarg :fn))</font></div><div class=""><font face="Menlo" class="">&nbsp; (:metaclass clos:funcallable-standard-class))</font></div><div class=""><font face="Menlo" class=""><br class=""></font></div><div class=""><font face="Menlo" class="">;; -----------------------------------------</font></div><div class=""><font face="Menlo" class=""><br class=""></font></div><div class=""><font face="Menlo" class="">(defmethod initialize-instance :after ((h standard-handler) &amp;key &amp;allow-other-keys)</font></div><div class=""><font face="Menlo" class="">&nbsp; (clos:set-funcallable-instance-function h (lambda (&amp;rest args)</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (apply (handler-fn h) args))))</font></div></div><div class=""><br class=""></div><div class=""><br class=""></div><div class="">- DM</div></div></div></blockquote></div><br class=""><div class="">
+<span style="font-family: Menlo-Regular; font-size: 11px;" class="">--</span><br style="font-family: Menlo-Regular; font-size: 11px;" class=""><span style="font-family: Menlo-Regular; font-size: 11px;" class="">Pascal Costanza</span><br style="font-family: Menlo-Regular; font-size: 11px;" class=""><br class="">
+
+</div>
+
+<br class=""></div></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Funcallable Standard Objects?</h1><html><head><meta http-equiv="Content-Type" content="text/html charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">I suspect the reason might be that, although the obvious implementation is to use a trampoline which calls into the function, implementations might not want to do that and instead might want to pull apart the function and essentially make the instance *be* a mutant version of it. &nbsp;For the original function to be recoverable would then require it to be stashed somewhere in a slot, and perhaps they did not want to impose that overhead on implementations which had gone to the effort of not using a trampoline.<div class=""><br class=""></div><div class="">That's just a guess though: probably the only way of knowing would be to ask someone who was involved in the MOP specification.</div><div class=""><br class=""><div><blockquote type="cite" class=""><div class="">On 1 Apr 2017, at 11:05, David McClain &lt;<a href="mailto:dbm@refined-audiometrics.com" class="">dbm@refined-audiometrics.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><meta http-equiv="Content-Type" content="text/html charset=utf-8" class=""><div style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">I have been experimenting on/off with Funcallable-Standard-Class metaclass and the resulting Funcallable-Standard-Objects.&nbsp;<div class=""><br class=""></div><div class="">I notice a peculiar asymmetry, wherein you must assign the functional behavior in an Initialize-Instance method using CLOS:SET-FUNCALLABLE-INSTANCE-FUNCTION, yet there is no corresponding method to retrieve the functional behavior of the instance once constructed.<div class=""><br class=""></div><div class="">Does anyone know or understand the reasoning behind this asymmetry. It has the feel of an intentional decision, but I’m puzzled about the language theoretic reasons behind it.</div></div><div class=""><br class=""></div><div class="">In order to retain visibility of the function, I have resorted to making an instance slot to hold the function, then using an indirect dispatch function in the initialize-instance method:</div><div class=""><br class=""></div><div class=""><div class=""><font face="Menlo" class="">(defclass standard-handler ()</font></div><div class=""><font face="Menlo" class="">&nbsp; ((handler-fn &nbsp;:accessor handler-fn &nbsp;:initarg :fn))</font></div><div class=""><font face="Menlo" class="">&nbsp; (:metaclass clos:funcallable-standard-class))</font></div><div class=""><font face="Menlo" class=""><br class=""></font></div><div class=""><font face="Menlo" class="">;; -----------------------------------------</font></div><div class=""><font face="Menlo" class=""><br class=""></font></div><div class=""><font face="Menlo" class="">(defmethod initialize-instance :after ((h standard-handler) &amp;key &amp;allow-other-keys)</font></div><div class=""><font face="Menlo" class="">&nbsp; (clos:set-funcallable-instance-function h (lambda (&amp;rest args)</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (apply (handler-fn h) args))))</font></div></div><div class=""><br class=""></div><div class=""><br class=""></div><div class="">- DM</div></div></div></blockquote></div><br class=""></div></body></html>
+
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:27 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

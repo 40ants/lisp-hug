@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Avoid automatic combining of invalidated rectangles?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Avoid automatic combining of invalidated rectangles?</h1>
+                <pre>
+In my application, I often have the need to invalidate a rectangle which
+covers a strip in most of the upper part of the window, and a very small
+rectangle in the lower right. For instance, a call to
+invalidate-rectangle with x=32, y=1, width=362 and height=14, will often
+be followed by a call to invalidate a very small rectangle (like  x=367, y=42, width=5 and
+height=6). Clearly these are disjunct, but LW wants to be "smart" and
+combines the two and thus invalidates a much larger rectangle.
+
+The problem is that the second and very small rectangle is part of a
+very complicated pinboard-object. Because of the merging of the two
+rectangles, LW tells this object to draw all of, or almost all of itself
+instead of only the tiny rectangle I wanted to redraw. And that means
+spending up to 100ms drawing instead of 1ms or less :-(
+
+So: Is there a way to make LW draw that upper rectangle as a separate
+drawing operation and NOT combine it with the drawing of the small rectangle?
+-- 
+  (espen)
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Avoid automatic combining of invalidated rectangles?</h1>
+                 <pre>
+* Espen Vestre &lt;kwfvc6edih.fsf@aroma.netfonds.no&gt :
+Wrote on Tue, 23 Dec 2014 13:50:30 +0100:
+
+| In my application, I often have the need to invalidate a rectangle
+| which covers a strip in most of the upper part of the window, and a
+| very small rectangle in the lower right. For instance, a call to
+| invalidate-rectangle with x=32, y=1, width=362 and height=14, will
+| often be followed by a call to invalidate a very small rectangle (like
+| x=367, y=42, width=5 and height=6). Clearly these are disjunct, but LW
+| wants to be "smart" and combines the two and thus invalidates a much
+| larger rectangle.
+|
+| The problem is that the second and very small rectangle is part of a
+| very complicated pinboard-object. Because of the merging of the two
+| rectangles, LW tells this object to draw all of, or almost all of
+| itself instead of only the tiny rectangle I wanted to redraw. And that
+| means spending up to 100ms drawing instead of 1ms or less :-(
+|
+| So: Is there a way to make LW draw that upper rectangle as a separate
+| drawing operation and NOT combine it with the drawing of the small
+| rectangle?
+
+Perhaps you could workaround this by calling the display callback for
+the second pinboard-object directly, instead of calling
+invalidate-rectangle: eg:
+
+(apply-in-pane-process pinboard 'capi:draw-pinboard-object pinboard
+	object2 :x 367 :y 42 :width 5 :height 6)
+
+[perversely, just before calling invalidate-rectangle]---Madhu
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Avoid automatic combining of invalidated rectangles?</h1>
+                 <pre>
+Madhu &lt;enometh@meer.net&gt writes:
+
+&gt Perhaps you could workaround this by calling the display callback for
+&gt the second pinboard-object directly, instead of calling
+&gt invalidate-rectangle: eg:
+&gt
+&gt (apply-in-pane-process pinboard 'capi:draw-pinboard-object pinboard
+&gt 	object2 :x 367 :y 42 :width 5 :height 6)
+
+Hmm, thanks, I did something similar (applied draw-pinboard-object
+directly on the first pinboard object when invalidating the small
+section of the second one) and it actually seems to work (with the
+addition that I have to draw a rectangle first to invalidate the region)
+-- 
+  (espen)
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:29 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

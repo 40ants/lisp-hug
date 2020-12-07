@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Hiding the cursor</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Hiding the cursor</h1>
+                <pre>
+Hi everybody,
+
+is there a simple way to completely hide the mouse cursor temporarily
+with CAPI?  My current understanding is that I'd have to create a
+"void" (transparent?) cursor, store it in a file, load this file using
+LOAD-CURSOR and finally enable it using (SETF SIMPLE-PANE-CURSOR).  Is
+there a more elegant way to do this?
+
+A Windows-specific function would be fine for now.  I tried
+WIN32:SET-CURSOR with FLI:*NULL-POINTER* but that doesn't seem to have
+any effect.
+
+Thanks,
+Edi.
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Hiding the cursor</h1>
+                 <pre>
+Hmm, it seems to be more complicated, actually.  Even if I use
+LOAD-CURSOR with a blank cursor, the mouse cursor doesn't vanish.  I
+think the problem is that my application uses
+MP:WAIT-PROCESSING-EVENTS on purpose and during this waiting period I
+want the mouse cursor to disappear.  But apparently something inside
+the bowels of CAPI and/or Win32 causes the hourglass cursor to be
+shown when MP:WAIT-PROCESSING-EVENTS is called.
+
+Any ideas?
+
+
+On Fri, Dec 12, 2014 at 5:56 PM, Edi Weitz &lt;edi@weitz.de&gt wrote:
+&gt Hi everybody,
+&gt
+&gt is there a simple way to completely hide the mouse cursor temporarily
+&gt with CAPI?  My current understanding is that I'd have to create a
+&gt "void" (transparent?) cursor, store it in a file, load this file using
+&gt LOAD-CURSOR and finally enable it using (SETF SIMPLE-PANE-CURSOR).  Is
+&gt there a more elegant way to do this?
+&gt
+&gt A Windows-specific function would be fine for now.  I tried
+&gt WIN32:SET-CURSOR with FLI:*NULL-POINTER* but that doesn't seem to have
+&gt any effect.
+&gt
+&gt Thanks,
+&gt Edi.
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Hiding the cursor</h1>
+                 <pre>
+Sorry for the noise, but - at least on Windows -
+INTERFACE-OVERRIDE-CURSOR /has/ an effect (as opposed to
+SIMPLE-PANE-CURSOR) during the waiting phase.  The problem with this
+approach is that it seems one cannot use loaded cursors - only the
+pre-configured keywords.  Hmm...
+
+On Sat, Dec 13, 2014 at 10:09 AM, Edi Weitz &lt;edi@weitz.de&gt wrote:
+&gt Hmm, it seems to be more complicated, actually.  Even if I use
+&gt LOAD-CURSOR with a blank cursor, the mouse cursor doesn't vanish.  I
+&gt think the problem is that my application uses
+&gt MP:WAIT-PROCESSING-EVENTS on purpose and during this waiting period I
+&gt want the mouse cursor to disappear.  But apparently something inside
+&gt the bowels of CAPI and/or Win32 causes the hourglass cursor to be
+&gt shown when MP:WAIT-PROCESSING-EVENTS is called.
+&gt
+&gt Any ideas?
+&gt
+&gt
+&gt On Fri, Dec 12, 2014 at 5:56 PM, Edi Weitz &lt;edi@weitz.de&gt wrote:
+&gt&gt Hi everybody,
+&gt&gt
+&gt&gt is there a simple way to completely hide the mouse cursor temporarily
+&gt&gt with CAPI?  My current understanding is that I'd have to create a
+&gt&gt "void" (transparent?) cursor, store it in a file, load this file using
+&gt&gt LOAD-CURSOR and finally enable it using (SETF SIMPLE-PANE-CURSOR).  Is
+&gt&gt there a more elegant way to do this?
+&gt&gt
+&gt&gt A Windows-specific function would be fine for now.  I tried
+&gt&gt WIN32:SET-CURSOR with FLI:*NULL-POINTER* but that doesn't seem to have
+&gt&gt any effect.
+&gt&gt
+&gt&gt Thanks,
+&gt&gt Edi.
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Hiding the cursor</h1>
+                 <pre>
+Hi Andreas,
+
+Works here as well.  Thanks a lot!
+
+Cheers,
+Edi.
+
+
+
+
+On Sat, Dec 13, 2014 at 6:43 PM, Andreas Hinze &lt;ahz@snafu.de&gt wrote:
+&gt Am 13.12.2014 17:45, schrieb Andreas Hinze:
+&gt&gt
+&gt&gt Hi Eddi
+&gt&gt
+&gt&gt If a Win32 specific solution will be sufficient then maybe ShowCursor() is
+&gt&gt the way to go ?
+&gt&gt
+&gt&gt
+&gt&gt http://msdn.microsoft.com/en-us/library/windows/desktop/ms648396%28v=vs.85%29.aspx
+&gt&gt
+&gt&gt Regards
+&gt&gt Andreas
+&gt
+&gt
+&gt BTW: Did i always want to play around with FFI on LWW.
+&gt So, here we are. LWW6.0 on Win7/64. And it works ;-)
+&gt
+&gt Regards Andreas
+&gt
+&gt ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; Begin of code
+&gt ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+&gt (defpackage "MY-PACKAGE"
+&gt     (:add-use-defaults t)
+&gt     (:use "CAPI"))
+&gt
+&gt (in-package "MY-PACKAGE")
+&gt
+&gt ;; Display or hide the cursor.
+&gt ;; If bShow is TRUE, the display count is incremented by one. If bShow is
+&gt FALSE, the display count is decremented by one.
+&gt (fli:define-foreign-function (show-cursor "ShowCursor")
+&gt   ((bShow :boolean))
+&gt   :result-type :boolean)
+&gt
+&gt (capi:contain
+&gt  (make-instance
+&gt   'capi:output-pane
+&gt   :title "Select this window and the cursor vanishes (in this window)"
+&gt   :focus-callback
+&gt   #'(lambda (pane hasfocus_p)
+&gt       (if hasfocus_p
+&gt           (progn
+&gt             (format t "Pane ~a selected. Cursor disabled~%" pane)
+&gt             (show-cursor nil))
+&gt        (progn
+&gt             (format t "Pane ~a deselected. Cursor enabled~%" pane)
+&gt             (show-cursor t))))))
+&gt
+&gt ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; End of code
+&gt ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+&gt
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>RE: Hiding the cursor</h1>
+                 <pre>
+Please remove this email address from list serve.
+
+
+
+
+
+
+
+Jerri Freeman, CCS-P, CPC-I, CPC, CPC-P | Content Analyst
+AHIMA Approved ICD-10-CM/PCS Trainer
+AAPC Approved ICD-10-CM Trainer
+Verisk Health - Payment Accuracy
+PHONE919.313.1671MOBILE336.309.2465FAX919.313.1698
+
+WEBSITE | VCARD | MAP | EMAIL
+
+
+
+This email and its attachments may contain privileged, confidential, and/or protected health information. If you are not the intended recipient please notify me directly and permanently delete all forms of this email.
+
+
+-----Original Message-----
+From: owner-lisp-hug@lispworks.com [mailto:owner-lisp-hug@lispworks.com] On Behalf Of Edi Weitz
+Sent: Sunday, December 14, 2014 4:11 PM
+To: Andreas Hinze
+Cc: Lisp Hug Lispworks
+Subject: Re: Hiding the cursor
+
+
+Hi Andreas,
+
+Works here as well.  Thanks a lot!
+
+Cheers,
+Edi.
+
+
+
+
+On Sat, Dec 13, 2014 at 6:43 PM, Andreas Hinze &lt;ahz@snafu.de&gt wrote:
+&gt Am 13.12.2014 17:45, schrieb Andreas Hinze:
+&gt&gt
+&gt&gt Hi Eddi
+&gt&gt
+&gt&gt If a Win32 specific solution will be sufficient then maybe
+&gt&gt ShowCursor() is the way to go ?
+&gt&gt
+&gt&gt
+&gt&gt http://msdn.microsoft.com/en-us/library/windows/desktop/ms648396%28v=
+&gt&gt vs.85%29.aspx
+&gt&gt
+&gt&gt Regards
+&gt&gt Andreas
+&gt
+&gt
+&gt BTW: Did i always want to play around with FFI on LWW.
+&gt So, here we are. LWW6.0 on Win7/64. And it works ;-)
+&gt
+&gt Regards Andreas
+&gt
+&gt ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; Begin of code
+&gt ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+&gt (defpackage "MY-PACKAGE"
+&gt     (:add-use-defaults t)
+&gt     (:use "CAPI"))
+&gt
+&gt (in-package "MY-PACKAGE")
+&gt
+&gt ;; Display or hide the cursor.
+&gt ;; If bShow is TRUE, the display count is incremented by one. If bShow
+&gt is FALSE, the display count is decremented by one.
+&gt (fli:define-foreign-function (show-cursor "ShowCursor")
+&gt   ((bShow :boolean))
+&gt   :result-type :boolean)
+&gt
+&gt (capi:contain
+&gt  (make-instance
+&gt   'capi:output-pane
+&gt   :title "Select this window and the cursor vanishes (in this window)"
+&gt   :focus-callback
+&gt   #'(lambda (pane hasfocus_p)
+&gt       (if hasfocus_p
+&gt           (progn
+&gt             (format t "Pane ~a selected. Cursor disabled~%" pane)
+&gt             (show-cursor nil))
+&gt        (progn
+&gt             (format t "Pane ~a deselected. Cursor enabled~%" pane)
+&gt             (show-cursor t))))))
+&gt
+&gt ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; End of code
+&gt ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+&gt
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users lisp-hug@lispworks.com http://www.lispworks.com/support/lisp-hug.html
+
+
+________________________________
+
+This email is intended solely for the recipient. It may contain privileged, proprietary or confidential information or material. If you are not the intended recipient, please delete this email and any attachments and notify the sender of the error.
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:29 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

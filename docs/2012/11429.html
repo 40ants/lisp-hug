@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Re: different results with different compiler settings</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Re: different results with different compiler settings</h1>
+                <pre>
+&gt My understanding is that optimization settings do not change
+&gt the result of a correct program.
+
+I can speak only from my small knowledge. Some optimization settings do change the result of a program. One being the directive fixnum-safety. When fixnum-safety is 'off', the compiler starts to be clever and tries to optimize numeric computations as being done on fixnums. In your case, float point is treated as fixnum in the second example.
+
+To see that, try to use (disassable). With the first example, we have something like this for the comparison parts (if I got it correctly):
+
+L13:  323:     FF7508           push  [ebp+8]
+     326:      8B45FC           move  eax, [ebp-4]
+     329:      E88AEF0700       call  201187E2         ; #&lt;Function SYSTEM::*%=$ANY-STUB 201187E2&gt
+
+L11:  237:     FF7508           push  [ebp+8]
+     240:      8B45FC           move  eax, [ebp-4]
+     243:      E820EF0700       call  20118722         ; #&lt;Function SYSTEM::*%&lt;=$ANY-STUB 20118722&gt
+
+
+For the second example something like this (if I got it correctly):
+
+L7:  127:      8B7DF4           move  edi, [ebp-C]
+     130:      397D08           cmp   [ebp+8], edi
+     133:      7F25             jg    L9
+     135:      8B7DF4           move  edi, [ebp-C]
+     138:      397D08           cmp   [ebp+8], edi
+     141:      754E             jne   L11
+
+
+As you can see the first example compares values with regard of their types, the second treats all values as fixnums. But the second is fast (less overhead).
+
+&gt So the program is incorrect, but I don't see it.
+
+Program is correct. It is just the optimization that sometimes is like a voodoo magic :))
+
+Best,
+ Art
+
+
+</pre>
+               </article>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:33 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

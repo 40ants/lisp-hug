@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>single instance application delivery?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>single instance application delivery?</h1>
+                <pre>
+When revisiting my delivery on Windows I noticed that the application 
+is a multiple instance application (the Windows default).  Can this 
+be changed?  I'm looking through the Delivery keywords and I haven't 
+found an applicable one yet.
+
+If it matters, my application is multithreaded and headless, using 
+neither the console nor CAPI.  But, if launched repeatedly I get 
+repeated instances in the process queue, which I'd prefer to avoid.
+
+Chris
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: single instance application delivery?</h1>
+                 <pre>
+On Tue, 20 Feb 2007 19:21:04 -0800, Chris Perkins &lt;cperkins@medialab.com&gt wrote:
+
+&gt When revisiting my delivery on Windows I noticed that the
+&gt application is a multiple instance application (the Windows
+&gt default).  Can this be changed?  I'm looking through the Delivery
+&gt keywords and I haven't found an applicable one yet.
+&gt
+&gt If it matters, my application is multithreaded and headless, using
+&gt neither the console nor CAPI.  But, if launched repeatedly I get
+&gt repeated instances in the process queue, which I'd prefer to avoid.
+
+If I google for "windows single instance application", I find lots of
+pages explaining different ways how one can achieve this.  One of them
+says:
+
+  "Limiting an application to a single instance is very problematic.
+   There are dozens of solutions available; most of them work most of
+   the time."
+
+So, I guess there's no "official way" and no silver bullet - you have
+to roll your own facility.  And that's probably the reason LW doesn't
+provide this out of the box.  Are you aware of other Windows IDEs
+where this is controlled with a simple switch?
+
+Cheers,
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: single instance application delivery?</h1>
+                 <pre>
+On Wed, 21 Feb 2007 08:59:44 +0100, Michael Bohn &lt;spaceodyssey@gmx.de&gt wrote:
+
+&gt In Visual Basic 6 you can do this:
+&gt
+&gt If App.PrevInstance = True Then
+&gt
+&gt  MsgBox "Already running...."
+&gt  Exit Sub
+&gt
+&gt End If
+&gt
+&gt It's not in the IDE, but very easy to achieve in VB.
+
+And not 100% reliable it seems:
+
+  http://www.codeguru.com/forum/showthread.php?s=&amp;threadid=293730
+  http://www.vbaccelerator.com/codelib/ssubtmr/startup.htm
+  http://kandkconsulting.tripod.com/VB/VBTips.htm
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>RE: single instance application delivery?</h1>
+                 <pre>
+&gt From: owner-lisp-hug@lispworks.com 
+&gt [mailto:owner-lisp-hug@lispworks.com] On Behalf Of Chris Perkins
+&gt Sent: 21 February 2007 03:21
+&gt To: lisp-hug@lispworks.com
+&gt Subject: single instance application delivery?
+&gt 
+&gt 
+&gt When revisiting my delivery on Windows I noticed that the
+application 
+&gt is a multiple instance application (the Windows default).  Can this 
+&gt be changed?  I'm looking through the Delivery keywords and I haven't
+
+&gt found an applicable one yet.
+&gt 
+&gt If it matters, my application is multithreaded and headless, using 
+&gt neither the console nor CAPI.  But, if launched repeatedly I get 
+&gt repeated instances in the process queue, which I'd prefer to avoid.
+&gt 
+&gt Chris
+
+There may be a better way, but after my application starts
+I use DDE to check whether another instance exists.
+
+My application uses CAPI and has the idea of files/documents
+that belong to the application, so some of the following
+is probably not relevant to you.  But I've included those
+details because they may be interesting to someone else.
+
+On startup, my application determines whether there is an
+already-existing instance by sending a DDE message.  If
+there is no other instance, it starts a DDE server.  If
+there is another instance, the new instance sends the old
+instance a message to get it to open a document or activate
+the main application window and then the new instance quits.
+
+The DDE server also allows files/documents to be opened from
+Windows Explorer if you set up a Windows file type
+appropriately.
+
+I wrote the code below a very long time ago and am not proud
+of (sheez -- it has an EVAL), but it works.  (Well, I've
+removed some fluff from the code before posting it so maybe
+I've removed something important, but I don't think so.)
+
+Here's a note I made at the time I wrote the code:
+
+- Whenever you call any DDE function, the current thread
+  is registered with the DDE library and is expected to
+  process Windows messages.  So when on startup you check
+  whether this is a duplicate application instance, the DDE
+  message must be sent in the same process as will later run
+  the DDE server.  Otherwise you get all sorts of nasty hanging.
+
+I suppose that's true, but I feel like it was written by someone
+else (it was me a long time ago) and, also, perhaps things
+have changed, so I won't make any promises.
+
+If you're not using CAPI, I guess you need to run this code
+in a separate process and after everything is set up arrange
+for the processing of Windows messages.  To process Windows
+messages you can do
+   (CAPI::LOOP-PROCESS-EVENTS NIL NIL NIL NIL NIL)
+
+CAPI::LOOP-PROCESS-EVENTS is undocumented and maybe unsupported;
+I think LW support told me about it.
+
+Here's the code:
+
+------------------------------------------
+
+(defun quit-if-duplicate-application-instance (service-name)
+  (labels ((dde-service-exists-p (service-name)
+             (handler-case
+                 (progn
+                   (win32:dde-execute-command* service-name
+                                               'general
+                                               "exists_p"
+                                               '())
+                   t)
+               (condition () nil))))
+    (when (dde-service-exists-p service-name)
+      (let* ((filename (get-command-line-arg-for-file-to-open)))
+        (if filename
+            (win32:dde-execute-command* service-name
+                                        'edit
+                                        "open"
+                                        (list filename))
+          (win32:dde-execute-command* service-name
+                                      'general
+                                      "activate"
+                                      '())))
+      (lw:quit))))
+
+(defun def-generic-app-dde-things (service-name
+                                   document-open-fun
+                                   activate-fun)
+  (quit-if-duplicate-application-instance service-name)
+  (eval `(win32:define-dde-server generic-app-dde-server ()
+                                  ()
+                                  (:service ,service-name)))
+
+  (win32:define-dde-dispatch-topic edit
+                                   :server
+                                   generic-app-dde-server)
+  (win32:define-dde-server-function (open :topic edit)
+      :execute
+      ((filename string)) 
+    (let* ((path (probe-file filename)))
+      (when path
+        (funcall document-open-fun path)))
+    t ; successful return value
+      ; -- I'm not sure that this makes a difference
+    )
+
+  (win32:define-dde-dispatch-topic general
+                                   :server
+                                   generic-app-dde-server)
+  (win32:define-dde-server-function (exists_p :topic general)
+      :execute
+      () 
+    t ; successful return value
+    )
+
+  (win32:define-dde-server-function (activate :topic general)
+      :execute
+      ()
+    (funcall activate-fun)
+    t ; successful return value
+    ) 
+  (win32:start-dde-server 'generic-app-dde-server))
+
+------------------------------------------
+
+I've run this code with no problems for many years now on
+Windows 98, Windows 2000 and Windows XP.
+
+HTH,
+Simon
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>RE: single instance application delivery?</h1>
+                 <pre>
+I wrote:
+
+&gt There may be a better way, but after my application starts
+&gt I use DDE to check whether another instance exists.
+
+Yes, surely there is a better way.  My solution doesn't
+work if the second application instance starts up before
+the first instance has set up the DDE server.
+
+Edi's links may be a better starting point.
+
+Simon
+
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:43 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>intern / apply / &amp;rest / defmacro badness...</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>intern / apply / &amp;rest / defmacro badness...</h1>
+                <pre>
+Hi all,
+I've reduced a problem I was having to the following code.
+
+
+(defmacro deffunction1 (bar)
+  `(defun ,(intern (concatenate 'string (symbol-name bar))) ()
+     34))
+
+(deffunction1 a)
+(deffunction1 b)
+
+(defmacro deffunction2 (bar)
+  (labels ((c  (&amp;rest args) (apply #'concatenate 'string args))
+           (ci (&amp;rest args) (intern (apply #'c args))))
+    `(defun ,(ci (symbol-name bar)) ()
+       34)))
+
+(deffunction2 c)
+(deffunction2 d)
+
+
+I've got this in a file open in the Editor and I press
+File-&gtCompile and Load, and I see the following:
+
+
+;;; Compiling file /Users/tayloj/dtopthings/foo.lisp ...
+;;; Safety = 3, Speed = 1, Space = 1, Float = 1, Interruptible = 0
+;;; Compilation speed = 1, Debug = 2, Fixnum safety = 3
+;;; Source level debugging is on
+;;; Source file recording is  on
+;;; Cross referencing is on
+; (Top-Level-Form 1)
+; Deffunction1
+; A
+; B
+; Deffunction2
+; ||
+; ||
+; (Top-Level-Form 2)
+; Loading fasl file /Users/tayloj/dtopthings/foo.nfasl
+Warning: || defined more than once in /Users/tayloj/dtopthings/foo.lisp.
+
+
+Clearly I'm not getting the symbols that I need in place at the defun.
+I've tried
+various permutations of the apply and the &amp;rest arglists, but I can't seem to
+get the bug in a smaller chunk of code. Some other LISPs don't choke on this
+so I'm not inclined to think I'm doing something bad, but rather that there's
+something nasty going on in the &amp;rest args and the applying.
+
+I'm using LWM (Academic)  5.0.
+
+Thanks in advance!
+
+-- 
+=====================
+Joshua Taylor
+tayloj@rpi.edu
+
+"A lot of good things went down one time,
+     back in the goodle days."
+               John Hartford
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: intern / apply / &amp;rest / defmacro badness...</h1>
+                 <pre>
+Sorry to reply to my own message, but I was wondering if it can be
+confirmed that this is a compiler bug (which Chris' reply seems to
+illustrate) and whether there's some workaround, or general advice of
+what /not/ to do. It's easy to avoid in the particular instance that
+I've got, but it'd be nice to know /what/ to avoid.
+
+Thanks in advance!
+
+On 3/9/07, Taylor, Joshua &lt;tayloj@rpi.edu&gt wrote:
+&gt Hi all,
+&gt I've reduced a problem I was having to the following code.
+&gt
+&gt
+&gt (defmacro deffunction1 (bar)
+&gt   `(defun ,(intern (concatenate 'string (symbol-name bar))) ()
+&gt      34))
+&gt
+&gt (deffunction1 a)
+&gt (deffunction1 b)
+&gt
+&gt (defmacro deffunction2 (bar)
+&gt   (labels ((c  (&amp;rest args) (apply #'concatenate 'string args))
+&gt            (ci (&amp;rest args) (intern (apply #'c args))))
+&gt     `(defun ,(ci (symbol-name bar)) ()
+&gt        34)))
+&gt
+&gt (deffunction2 c)
+&gt (deffunction2 d)
+&gt
+&gt
+&gt I've got this in a file open in the Editor and I press
+&gt File-&gtCompile and Load, and I see the following:
+&gt
+&gt
+&gt ;;; Compiling file /Users/tayloj/dtopthings/foo.lisp ...
+&gt ;;; Safety = 3, Speed = 1, Space = 1, Float = 1, Interruptible = 0
+&gt ;;; Compilation speed = 1, Debug = 2, Fixnum safety = 3
+&gt ;;; Source level debugging is on
+&gt ;;; Source file recording is  on
+&gt ;;; Cross referencing is on
+&gt ; (Top-Level-Form 1)
+&gt ; Deffunction1
+&gt ; A
+&gt ; B
+&gt ; Deffunction2
+&gt ; ||
+&gt ; ||
+&gt ; (Top-Level-Form 2)
+&gt ; Loading fasl file /Users/tayloj/dtopthings/foo.nfasl
+&gt Warning: || defined more than once in /Users/tayloj/dtopthings/foo.lisp.
+&gt
+&gt
+&gt Clearly I'm not getting the symbols that I need in place at the defun.
+&gt I've tried
+&gt various permutations of the apply and the &amp;rest arglists, but I can't seem to
+&gt get the bug in a smaller chunk of code. Some other LISPs don't choke on this
+&gt so I'm not inclined to think I'm doing something bad, but rather that there's
+&gt something nasty going on in the &amp;rest args and the applying.
+&gt
+&gt I'm using LWM (Academic)  5.0.
+&gt
+&gt Thanks in advance!
+&gt
+&gt --
+&gt =====================
+&gt Joshua Taylor
+&gt tayloj@rpi.edu
+&gt
+&gt "A lot of good things went down one time,
+&gt      back in the goodle days."
+&gt                John Hartford
+&gt
+
+
+-- 
+=====================
+Joshua Taylor
+tayloj@rpi.edu
+
+"A lot of good things went down one time,
+     back in the goodle days."
+               John Hartford
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:43 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

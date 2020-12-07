@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Scrolling pixmaps</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Scrolling pixmaps</h1>
+                <pre>
+I'm drawing a lot of data using an off-screen pixmap (stored in a slot in my
+main interface). The data typically consists of a large number of points, which
+I draw to the pixmap using draw-polygon. So I need to scroll the pane, but it's
+still rather laboured, and also flashes at the edges where the new data is
+coming into view. I was under the impression that using an off-screen buffer
+would eradicate problems like these. Here is some test code which illustrates
+what I'm doing -
+
+(define-interface pixmap-test ()
+  ((pixmap :initform nil))
+  (:panes
+    (pixmap-object drawn-pinboard-object
+      :display-callback 'draw-my-pixmap-object
+      :internal-min-width 5000))
+  (:layouts
+    (pixmap-layout pinboard-layout
+      '((pixmap-object))
+	 :scroll-width 5000
+	 :horizontal-scroll t))
+  (:default-initargs
+    :layout 'pixmap-layout
+    :destroy-callback 'destroy-my-pixmap-object
+    :best-width 500
+    :best-height 500))
+
+(defmethod interface-display :after ((self pixmap-test))
+  (with-slots (pixmap pixmap-layout) self
+    (with-geometry pixmap-layout
+      (setf pixmap (gp:create-pixmap-port pixmap-layout %scroll-width% %height%
+	              :clear t :background :white)))))
+
+(defun destroy-my-pixmap-object (interface)
+  (with-slots (pixmap) interface
+    (when pixmap
+      (gp:destroy-pixmap-port pixmap))))
+
+(defun draw-my-pixmap-object (pane self x y width height)
+  (declare (ignore self width height))
+  (with-geometry pane
+    (let ((coords 
+            (loop for x-val from 0 to 3565
+		  for x-coord = (truncate (rescale x-val 3565 %scroll-width%))
+		  for y-val = (random 65536)
+		  for y-coord = (truncate (rescale y-val 65536 %height%))
+		  append (list x-coord y-coord))))
+      (with-slots (pixmap) (element-interface pane)
+        (gp:clear-graphics-port pixmap)
+	(gp:draw-polygon pixmap coords :closed nil :foreground :blue)
+	(gp:pixblt pane boole-1 pixmap x y %scroll-width% %height% x y)))))
+
+The rescale function has the signature (rescale val old-max new-max), where both
+intervals have a minimum of zero.
+
+If I don't call clear-graphics-port then as I scroll the newly uncovered area
+seems to get redrawn over the old one.
+
+So what is actually happening here? Am I doing this right? I am wondering
+whether, despite the fact that I'm using an off-screen buffer, scrolling causes
+some redrawing to happen automatically behind the scenes.
+
+Thanks for any advice, tips, etc.
+Chris
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Scrolling pixmaps</h1>
+                 <pre>
+Chris &lt;relativeflux &lt;at&gt hotmail.co.uk&gt writes:
+
+&gt I'm drawing a lot of data using an off-screen pixmap (stored in a slot in my
+&gt main interface).
+
+One of those posts where you go 'Doh!' 3 seconds after posting it... All I
+needed to do was to cache the data points, which were being recalculated each
+time. Adding a slot 'coords' to my interface allows me to do -
+
+(defun draw-my-pixmap-object (pane self x y width height)
+  (declare (ignore self width height))
+  (with-geometry pane 
+    (with-slots (pixmap coords) (element-interface pane)
+      (unless coords 
+        (setf coords 
+          (loop for x-val from 0 to 3565
+                for x-coord = (truncate (rescale x-val 3565 %scroll-width%))
+	        for y-val = (random 65536)
+	        for y-coord = (truncate (rescale y-val 65536 %height%))
+                append (list x-coord y-coord))))
+      (gp:clear-graphics-port pixmap)
+      (gp:draw-polygon pixmap coords :closed nil :foreground :blue)
+      (gp:pixblt pane boole-1 pixmap x y %scroll-width% %height% x y))))
+
+That works fine.
+
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:37 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

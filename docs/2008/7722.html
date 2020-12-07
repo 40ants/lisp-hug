@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Mac equivalent of top-level hook?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Mac equivalent of top-level hook?</h1>
+                <pre>
+For a Windows application all my interfaces inherit from a class which
+has a top-level hook[1] that sets up a "catch-all" HANDLER-BIND,
+establishes a "global" catch tag and binds a couple of special
+variables.  This is a pretty convenient technique.
+
+I understand that there are no top-level hooks on Cocoa and that all
+the GUI action happens in one thread which "is already there", but I
+was wondering if CAPI hackers use a similar or equivalent technique on
+the Mac to "wrap" their code somehow.
+
+Thanks,
+Edi.
+
+
+[1] http://www.lispworks.com/documentation/lw50/CAPRM/html/capiref-157.htm#marker-3919503
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Mac equivalent of top-level hook?</h1>
+                 <pre>
+
+On Feb 16, 2008, at 4:09 PM, Edi Weitz wrote:
+
+&gt For a Windows application all my interfaces inherit from a class which
+&gt has a top-level hook[1] that sets up a "catch-all" HANDLER-BIND,
+&gt establishes a "global" catch tag and binds a couple of special
+&gt variables.  This is a pretty convenient technique.
+&gt
+&gt I understand that there are no top-level hooks on Cocoa and that all
+&gt the GUI action happens in one thread which "is already there", but I
+&gt was wondering if CAPI hackers use a similar or equivalent technique on
+&gt the Mac to "wrap" their code somehow.
+
+
+When my application initializes (in delivered form only), I set  
+*debugger-hook* as a method to handle unexpected errors. Something like:
+
+(when (and (delivered-p) (not (test-p)) (not (debug-p)))
+       (setf *debugger-hook* 'unexpected-error-function))
+
+
+
+(defun unexpected-error-function (error &amp;optional (debugger-hook nil  
+debugger-hook-p))
+   (declare (ignore debugger-hook))
+   (alert (localize "An unexpected error of type ~a occurred: ~a")  
+(type-of error) error)
+   (when debugger-hook-p ;we were called from the *debugger-hook- 
+function*
+     (abort error)))
+
+
+John DeSoi, Ph.D.
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Mac equivalent of top-level hook?</h1>
+                 <pre>
+John DeSoi &lt;desoi@pgedit.com&gt writes:
+
+&gt When my application initializes (in delivered form only), I set  
+&gt *debugger-hook* as a method to handle unexpected errors. Something like:
+&gt
+&gt (when (and (delivered-p) (not (test-p)) (not (debug-p)))
+&gt       (setf *debugger-hook* 'unexpected-error-function))
+
+I add my debugger-hook function (i.e. capi-e::debugger-hook) to the
+process-initial-bindings at build time:
+
+(defun debugger-hook (condition debugger-hook)
+  (declare (ignore debugger-hook))
+  (collect-backtrace condition)
+  (fatal-error-handler condition)
+  (invoke-restart (first (compute-restarts condition))))
+
+#+cocoa
+(pushnew '(*debugger-hook* . 'debugger-hook) mp:*process-initial-bindings*
+         :test 'equal)
+
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:40 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

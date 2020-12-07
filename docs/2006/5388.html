@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Manipulating and writing images</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Manipulating and writing images</h1>
+                <pre>
+Hello
+    Given the lack of responses to my original question I thought I'd
+make it easier to help :D Below is a quick demo that will demonstrate
+my problem. It displays a jpeg in an output-pane and then copies this
+image to another output-pane using make-image-from-pane and
+externalize-image. The image in the second output-pane displays
+exactly the same corruption i see when I write an image to disk. Just
+change *jpeg-image-path* to an appropriate jpeg and run. Note that the
+problem appears to occur in the externalize-image function.
+
+    thanks to anyone who has a clue!!
+
+            Andrew
+
+
+(defclass my-output-pane (capi:output-pane)
+  ((the-image :accessor the-image :initform nil)))
+
+(defparameter *jpeg-image-path* #P"Escritorio/test.jpg")
+
+(capi:define-interface photo-test ()
+  ()
+  (:panes
+   (tp-first capi:title-pane :text "First")
+   (op-first my-output-pane :accessor op-first :display-callback #'on-draw)
+   (tp-second capi:title-pane :text "Second")
+   (op-second my-output-pane :accessor op-second :display-callback #'on-draw)
+   (pb-copy capi:push-button :callback #'on-copy :text "Copy"))
+  (:layouts
+   (cl-main capi:column-layout '(gl-main pb-copy) :x-adjust :right)
+   (gl-main capi:grid-layout '(tp-first op-first tp-second op-second)
+            :columns 2))
+  (:default-initargs
+   :layout 'cl-main
+   :visible-min-width 400
+   :visible-min-height 400
+   :create-callback #'on-create))
+
+;(capi:display (make-instance 'photo-test))
+
+(defun on-create (ifc)
+  (let ((ext-image (gp:read-external-image *jpeg-image-path*)))
+    (let ((image-1 (gp:convert-external-image (op-first ifc) ext-image)))
+      (setf (the-image (op-first ifc)) image-1))))
+
+(defun on-draw (op x y to-x to-y)
+  (declare (ignore x y to-x to-y))
+  (when (the-image op)
+    (gp:draw-image op (the-image op) 0 0)))
+
+(defun on-copy (data ifc)
+  (declare (ignore data))
+  (setf (the-image (op-second ifc))
+        (gp:convert-external-image
+         (op-second ifc) 
+         (gp:externalize-image
+          (op-first ifc)
+          (gp:make-image-from-port (op-first ifc)))))
+  (gp:invalidate-rectangle (op-second ifc)))
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Manipulating and writing images</h1>
+                 <p>
+                  Unable to parse email body. Email id is 5389
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Manipulating and writing images</h1>
+                 <p>
+                  Unable to parse email body. Email id is 5393
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:45 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

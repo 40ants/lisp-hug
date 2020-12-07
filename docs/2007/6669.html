@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>COM / connecting to a running COM instance</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>COM / connecting to a running COM instance</h1>
+                <pre>
+Hi,
+
+The following code fragment start Internet Explorer 7 (on my machine) and
+navigates to the
+given url. Using nav I can navigate somewhere else.
+
+Now it would be very convinient if I could connect to an already running
+instance of IE7.
+
+Can anybody give me any hint?
+How does LispWorks itself solve the problem?
+
+
+(eval-when (compile load eval)
+  (require "automation"))
+
+(defvar *ie* nil)
+
+(defun run-ie (&amp;optional url)
+  (com:co-initialize)
+  (let* ((iexplore (com:create-object :progid
+"InternetExplorer.Application")))
+    (setf *ie* iexplore)
+    (when url
+      (com:invoke-dispatch-method iexplore "Navigate" url))
+    (com:invoke-dispatch-put-property iexplore "Visible" "true")))
+
+(defun nav (url)
+  (com:invoke-dispatch-method *ie* "Navigate" url))
+
+
+Thanks Andreas
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: COM / connecting to a running COM instance</h1>
+                 <pre>
+Hello Andreas,
+
+This may be more than you bargained for, since it will connect to networked
+machines (use your local machine's host name to connect locally).  The
+classid is a string that is the Microsoft class id for the application, a
+string like "00020970-0000-0000-C000-000000000046".  (Sorry, I don't have
+IE7's classid at hand, I'd give you that instead).  Host is also a string
+which is the hostname of the desired target machine on which the app is
+running
+
+(fli:define-c-struct (_coauthidentity (:foreign-name "_COAUTHIDENTITY"))
+  (user (:pointer com:ushort))
+  (user-length win32:dword)
+  (domain (:pointer com:ushort))
+  (domain-length win32:dword)
+  (password (:pointer com:ushort))
+  (password-length win32:dword)
+  (flags win32:dword))
+
+(fli:define-c-typedef (coauthidentity (:foreign-name "COAUTHIDENTITY"))
+  (:struct _coauthidentity))
+
+(fli:define-c-struct (_coauthinfo (:foreign-name "_COAUTHINFO"))
+  (dw-authn-svc win32:dword)
+  (dw-authz-svc win32:dword)
+  (pwsz-server-princ-name win32:lpwstr)
+  (dw-authn-level win32:dword)
+  (dw-impersonation-level win32:dword)
+  (p-auth-identity-data (:pointer coauthidentity))
+  (dw-capabilities win32:dword))
+
+(fli:define-c-typedef (coauthinfo (:foreign-name "COAUTHINFO"))
+  (:struct _coauthinfo))
+
+(fli:define-c-struct (_coserverinfo (:foreign-name "_COSERVERINFO"))
+  (dw-reserved-1 win32:dword)
+  (pwsz-name win32:lpwstr)
+  (p-auth-info (:pointer coauthinfo))
+  (dw-reserved-2 win32:dword))
+
+(fli:define-c-typedef (coserverinfo (:foreign-name "COSERVERINFO"))
+  (:struct _coserverinfo))
+
+(defun retry-com-connection (c)
+  (let ((restart (find-restart 'retry-com-connection)))
+    (invoke-restart restart (classid c) (host c) (riid c))))
+
+(defun connect-remote-host (classid host &amp;optional riid)
+  "generic COM connection function - takes a classid and remote host to
+connect to and an optional riid (interface type)"
+  (fli:with-dynamic-foreign-objects ()
+    (let* ((succeeded nil)
+         (authptr (fli:allocate-foreign-object :type 'coauthinfo))
+         (authsvc 10) ;0
+         (authzsvc 0)
+         (authlevel 0); 1
+         (authimp 3)
+         (cap 0))
+      (setf (fli:foreign-slot-value authptr 'dw-authn-svc) authsvc
+          (fli:foreign-slot-value authptr 'dw-authz-svc) authzsvc
+          (fli:foreign-slot-value authptr 'pwsz-server-princ-name) nil
+          (fli:foreign-slot-value authptr 'dw-authn-level) authlevel
+          (fli:foreign-slot-value authptr 'dw-impersonation-level) authimp
+          (fli:foreign-slot-value authptr 'p-auth-identity-data) nil
+          (fli:foreign-slot-value authptr 'dw-capabilities) cap)
+      (unwind-protect
+         (handler-bind
+             ((com::com-error
+             #'(lambda (c)
+                 (restart-case
+                   (error 'COM-creation-error :classid classid
+                        :com-host host
+                        :riid riid
+                        :com-err c)
+                   ((retry-com-connection (clsid hst rid)
+                   (connect-remote-host clsid hst rid))))
+                 )))
+           (prog1
+             (if riid
+                 (com:create-instance
+                  classid
+                  :clsctx COM:CLSCTX_REMOTE_SERVER
+                  :auth-info authptr
+                  :riid riid
+                  :server-name host)
+                 (com:create-instance
+                  classid
+                  :clsctx COM:CLSCTX_REMOTE_SERVER
+                  :auth-info authptr
+                  :server-name host))
+             (setq succeeded t)))
+      (unless succeeded
+        (fli:free-foreign-object authptr)))
+      )))
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: COM / connecting to a running COM instance</h1>
+                 <pre>
+Andreas,
+
+a simpler solution to your request is to just use
+
+(com:create-instance classid)
+
+If an instance of the classid application is already running, you'll
+connect to it, as you would have w/the remote example.
+
+Raymond Laning
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: COM / connecting to a running COM instance</h1>
+                 <p>
+                  Unable to parse email body. Email id is 6813
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: COM / connecting to a running COM instance</h1>
+                  <pre>
+Brian,
+
+my understanding, which is slightly less laughable, is that whether you
+connect to a running server app or instead start a new instance of one is
+determined by whoever compiled the app.  One of the black arts in compiling
+a COM server app is knowing what settings to use to get the app to do what
+you want.  The settings that control what you want are mentioned as single
+threaded vs multi threaded apartments.  If the app is set up to handle
+multi-threading, then creating a COM object instance of that type and
+initing it in your app should establish communication with the
+already-running server app on the target machine, presumably your local
+machine.  Remote machine communication is another ball of wax, but doable.
+Single threaded server apps, you should always get a new process starting
+when you create the COM object.  If no instance of the server app is
+running, then one should start, whether single or multi threaded.  Of
+course, other compiler settings dealing with permissions, etc. can make for
+wonderfully hard to debug problems, especially on remote machines on which
+you might not be logged in.
+
+HTH,
+
+Raymond Laning
+
+
+</pre>
+                 </article>
+                </section>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: COM / connecting to a running COM instance</h1>
+                  <p>
+                   Unable to parse email body. Email id is 6821
+                 </article>
+                </section>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:42 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

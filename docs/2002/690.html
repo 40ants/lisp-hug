@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Problem with locally, let and optimization</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Problem with locally, let and optimization</h1>
+                <pre>I use LispWorks 4.2.7 under Windows NT
+
+I am having strange trouble with the compiler and locally and let. I
+think there is a problem, or I don't understand how to use locally.
+
+Does everyone get the same output for the two these? Or do you get
+different output, like I do. Shouldn't these give the same output?
+
+;; slow version
+(disassemble (compile nil '(lambda (a b)   
+		(locally 
+		 (declare (optimize (speed 3) (float 0) (safety 0))
+			  (type double-float a)	
+			  (type double-float b))
+		 (the double-float (+ a b))))))
+
+;; fast version -- only boxes the result.
+(disassemble (compile nil '(lambda (a b)   
+			     (declare (optimize (speed 3) (float 0) (safety
+0))
+				      (type double-float a)	
+				      (type double-float b))
+			     (the double-float (+ a b))
+			     )))
+
+See the bottom for my output. I thought these should be the same, as I think
+the programs "mean" the same thing.
+
+I found this out because I tried doing this: 
+(defmacro fast (&amp;rest x)
+  `(locally (declare (optimize (speed 3) (safety 0) (float 0) (debug 0)))
+	    ,@x))
+
+and then found out that it actually made my stuff worse, relative to
+throwing in (declare (optimiz.....))
+
+This makes me wonder, am I misunderstanding "locally"? I thought it
+was for exactly this sort of thing.
+
+
+Another thing: these two give me different output.
+
+(disassemble (compile nil '(lambda (x) 
+			     (let
+((i-am-a-superfluous-variable-that-slows-down-everything 0.0d0))   
+			       (declare (optimize (float 0) (speed 3)
+(safety 0)) 
+					(type double-float x))
+			       (the double-float 
+				 (+ 3.0d0 x  
+				    (the double-float (* x x ) )
+				    (the double-float (/ x  3.1230d0))))))))
+
+(disassemble (compile nil '(lambda (x) 
+			     (declare (optimize (float 0) (speed 3) (safety
+0)) 
+				      (type double-float x))
+			     (the double-float 
+			       (+ 3.0d0 x  
+				  (the double-float (* x x ) )
+				  (the double-float (/ x  3.1230d0)))))))
+
+
+Here is my transcript:
+
+CL-USER 1 &gt (disassemble (compile nil '(lambda (a b)   
+		(locally 
+		 (declare (optimize (speed 3) (float 0) (safety 0))
+			  (type double-float a)	
+			  (type double-float b))
+		 (the double-float (+ a b))))))
+; Loading fasl file C:\Program
+Files\Xanalys\LispWorks\lib\4-2-0-0\modules\util\disass.fsl
+; Loading fasl file C:\Program
+Files\Xanalys\LispWorks\lib\4-2-0-0\modules\memory\findptr.fsl
+20622412:
+       0:      80FD02           cmpb  ch, 2
+       3:      7521             jne   L2
+       5:      3B25BC150020     cmp   esp, [200015BC]  ; T
+      11:      7619             jbe   L2
+      13:      55               push  ebp
+      14:      89E5             move  ebp, esp
+      16:      50               push  eax
+      17:      8B4DFC           move  ecx, [ebp-4]
+      20:      0A4D08           orb   cl, [ebp+8]
+      23:      7512             jne   L3
+      25:      8B4508           move  eax, [ebp+8]
+      28:      0345FC           add   eax, [ebp-4]
+      31:      700A             jo    L3
+L1:   33:      FD               std   
+      34:      C9               leave 
+      35:      C20400           ret   4
+L2:   38:      E8ED3BA2FF       call  2004602A         ; #&lt;function
+2004602A&gt
+L3:   43:      FF7508           push  [ebp+8]
+      46:      8B45FC           move  eax, [ebp-4]
+      49:      E802593300       call  20957D4A         ; #&lt;function
+20957D4A&gt
+      54:      EBE9             jmp   L1
+      56:      90               nop   
+      57:      90               nop   
+NIL
+
+CL-USER 2 &gt (disassemble (compile nil '(lambda (a b)   
+			     (declare (optimize (speed 3) (float 0) (safety
+0))
+				      (type double-float a)	
+				      (type double-float b))
+			     (the double-float (+ a b))
+			     )))
+213F3BF2:
+       0:      55               push  ebp
+       1:      89E5             move  ebp, esp
+       3:      83EC14           sub   esp, 14
+       6:      C7042445140000   move  [esp], 1445
+      13:      50               push  eax
+      14:      8B7D08           move  edi, [ebp+8]
+      17:      DD4704           fldl  [edi+4]
+      20:      8B7DE8           move  edi, [ebp-18]
+      23:      DD4704           fldl  [edi+4]
+      26:      DEC1             faddp st(1), st
+      28:      DD5DF8           fstpl [ebp-8]
+      31:      B500             moveb ch, 0
+      33:      FF15C0770F20     call  [200F77C0]       ;
+SYSTEM::BOX-DOUBLE-AUX
+      39:      DD45F8           fldl  [ebp-8]
+      42:      DD5804           fstpl [eax+4]
+      45:      C9               leave 
+      46:      C20400           ret   4
+      49:      90               nop   
+NIL
+
+CL-USER 3 &gt (disassemble (compile nil '(lambda (x) 
+			     (let
+((i-am-a-superfluous-variable-that-slows-down-everything 0.0d0))   
+			       (declare (optimize (float 0) (speed 3)
+(safety 0)) 
+					(type double-float x))
+			       (the double-float 
+				 (+ 3.0d0 x  
+				    (the double-float (* x x ) )
+				    (the double-float (/ x  3.1230d0))))))))
+;;;*** Warning between functions:
+I-AM-A-SUPERFLUOUS-VARIABLE-THAT-SLOWS-DOWN-EVERYTHING is bound but not
+referenced
+205FA64A:
+       0:      80FD01           cmpb  ch, 1
+       3:      0F8592000000     jne   L4
+       9:      3B25BC150020     cmp   esp, [200015BC]  ; T
+      15:      0F8686000000     jbe   L4
+      21:      55               push  ebp
+      22:      89E5             move  ebp, esp
+      24:      83EC14           sub   esp, 14
+      27:      C7042445140000   move  [esp], 1445
+      34:      50               push  eax
+      35:      50               push  eax
+      36:      50               push  eax
+      37:      50               push  eax
+      38:      807DE800         cmpb  [ebp-18], 0
+      42:      7574             jne   L5
+      44:      8B75E8           move  esi, [ebp-18]
+      47:      8975E4           move  [ebp-1C], esi
+      50:      C17DE408         sar   [ebp-1C], 8
+      54:      8B75E4           move  esi, [ebp-1C]
+      57:      0FAF75E8         imul  esi, [ebp-18]
+      61:      8975E4           move  [ebp-1C], esi
+      64:      705E             jo    L5
+L1:   66:      FF75E8           push  [ebp-18]
+      69:      B834EA3F21       move  eax, 213FEA34    ; 3.123
+      74:      E841876500       call  20C52DDA         ; #&lt;function
+20C52DDA&gt
+      79:      8945DC           move  [ebp-24], eax
+      82:      B9A4E73F21       move  ecx, 213FE7A4    ; 3.0
+      87:      0A4DE8           orb   cl, [ebp-18]
+      90:      7554             jne   L6
+      92:      BEA4E73F21       move  esi, 213FE7A4    ; 3.0
+      97:      0375E8           add   esi, [ebp-18]
+     100:      8975E0           move  [ebp-20], esi
+     103:      7047             jo    L6
+L2:  105:      8B7DE4           move  edi, [ebp-1C]
+     108:      DD4704           fldl  [edi+4]
+     111:      8B7DDC           move  edi, [ebp-24]
+     114:      DD4704           fldl  [edi+4]
+     117:      DEC1             faddp st(1), st
+     119:      DD5DF8           fstpl [ebp-8]
+     122:      B500             moveb ch, 0
+     124:      FF15C0770F20     call  [200F77C0]       ;
+SYSTEM::BOX-DOUBLE-AUX
+     130:      DD45F8           fldl  [ebp-8]
+     133:      DD5804           fstpl [eax+4]
+     136:      89C1             move  ecx, eax
+     138:      0A4DE0           orb   cl, [ebp-20]
+     141:      7533             jne   L7
+     143:      8B7DE0           move  edi, [ebp-20]
+     146:      03F8             add   edi, eax
+     148:      702C             jo    L7
+L3:  150:      FD               std   
+     151:      89F8             move  eax, edi
+     153:      C9               leave 
+     154:      C3               ret   
+L4:  155:      E840B9A4FF       call  2004602A         ; #&lt;function
+2004602A&gt
+L5:  160:      FF75E8           push  [ebp-18]
+     163:      8B45E8           move  eax, [ebp-18]
+     166:      E82DD63500       call  20957D22         ; #&lt;function
+20957D22&gt
+     171:      8945E4           move  [ebp-1C], eax
+     174:      EB92             jmp   L1
+L6:  176:      68A4E73F21       push  213FE7A4         ; 3.0
+     181:      8B45E8           move  eax, [ebp-18]
+     184:      E843D63500       call  20957D4A         ; #&lt;function
+20957D4A&gt
+     189:      8945E0           move  [ebp-20], eax
+     192:      EBA7             jmp   L2
+L7:  194:      FF75E0           push  [ebp-20]
+     197:      E836D63500       call  20957D4A         ; #&lt;function
+20957D4A&gt
+     202:      89C7             move  edi, eax
+     204:      EBC8             jmp   L3
+NIL
+
+CL-USER 4 &gt (disassemble (compile nil '(lambda (x) 
+			     (declare (optimize (float 0) (speed 3) (safety
+0)) 
+				      (type double-float x))
+			     (the double-float 
+			       (+ 3.0d0 x  
+				  (the double-float (* x x ) )
+				  (the double-float (/ x  3.1230d0)))))))
+20601BA2:
+       0:      55               push  ebp
+       1:      89E5             move  ebp, esp
+       3:      83EC24           sub   esp, 24
+       6:      C7042445240000   move  [esp], 2445
+      13:      50               push  eax
+      14:      8B7DD8           move  edi, [ebp-28]
+      17:      DD4704           fldl  [edi+4]
+      20:      DD55F8           fstl  [ebp-8]
+      23:      DCC8             fmul  st(0), st
+      25:      DD5DF0           fstpl [ebp-10]
+      28:      DD0558136220     fldl  [20621358]       ; 3.123
+      34:      DC7DF8           fdivrl [ebp-8]
+      37:      DD5DE8           fstpl [ebp-18]
+      40:      DD05C8106220     fldl  [206210C8]       ; 3.0
+      46:      DC45F8           faddl [ebp-8]
+      49:      DD5DF8           fstpl [ebp-8]
+      52:      DD45F0           fldl  [ebp-10]
+      55:      DC45E8           faddl [ebp-18]
+      58:      DC45F8           faddl [ebp-8]
+      61:      DD5DF8           fstpl [ebp-8]
+      64:      B500             moveb ch, 0
+      66:      FF15C0770F20     call  [200F77C0]       ;
+SYSTEM::BOX-DOUBLE-AUX
+      72:      DD45F8           fldl  [ebp-8]
+      75:      DD5804           fstpl [eax+4]
+      78:      C9               leave 
+      79:      C3               ret   
+      80:      90               nop   
+      81:      90               nop   
+NIL
+
+CL-USER 5 &gt 
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Problem with locally, let and optimization</h1>
+                 <pre>* Heath Putnam Extern wrote:
+
+&gt Does everyone get the same output for the two these? Or do you get
+&gt different output, like I do. Shouldn't these give the same output?
+
+&gt ;; slow version
+&gt (disassemble (compile nil '(lambda (a b)   
+&gt 		(locally 
+&gt 		 (declare (optimize (speed 3) (float 0) (safety 0))
+&gt 			  (type double-float a)	
+&gt 			  (type double-float b))
+&gt 		 (the double-float (+ a b))))))
+
+&gt ;; fast version -- only boxes the result.
+&gt (disassemble (compile nil '(lambda (a b)   
+&gt 			     (declare (optimize (speed 3) (float 0) (safety
+&gt 0))
+&gt 				      (type double-float a)	
+&gt 				      (type double-float b))
+&gt 			     (the double-float (+ a b))
+&gt 			     )))
+
+It's not clear to me that they are the same from the point of view of
+the language.  In something like:
+
+(lambda (a)
+  (declare (type x a) ...)
+  ...)
+
+The declaration refers to the binding of A established by LAMBDA.  In
+something like:
+
+(lambda (a)
+  (locally
+    (declare (type x a) ...)
+    ...))
+
+I think that the declaration is free - it declares something about the
+type of A within its scope, but it doesn't declare the type of the
+binding.
+
+I *think* that in the specific case you mention, then a compiler could
+treat these two cases as the same - it could `raise' the declaration
+up to apply to the binding.  I guess that LW doesn't do this.
+
+--tim
+
+
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:57 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

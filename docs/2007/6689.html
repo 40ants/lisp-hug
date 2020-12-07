@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Buttons for text-input-panes</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Buttons for text-input-panes</h1>
+                <pre>
+Hi,
+I have a text-input-pane with a completion button. I'd like to change
+the image on the button, but have had no luck. I have made an
+external-image and registered it in the image translation table like
+shown in the buttons.lisp example file.
+
+So this now brings up a button with a calendar image on it:
+(contain (make-instance 'push-button :image :calendar))
+
+But this just shows a black square where the image should be:
+(contain (make-instance 'text-input-pane :buttons '(:ok (:image :calendar))))
+
+When creating the external-image (with make-instance 'external-image)
+I had to use :transparent-color-index nil as setting it to a value
+gives a "NIL is not of type ARRAY" error in
+gp::%convert-dib when trying to use the image in a button.
+
+This is all LWW 5.0.2
+-- 
+  -asbjxrn
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Buttons for text-input-panes</h1>
+                 <pre>
+On 5/17/07, Asbjørn Bjørnstad &lt;asbjxrn@bjxrnstad.net&gt wrote:
+
+&gt When creating the external-image (with make-instance 'external-image)
+&gt I had to use :transparent-color-index nil as setting it to a value
+&gt gives a "NIL is not of type ARRAY" error in
+&gt gp::%convert-dib when trying to use the image in a button.
+
+This was the problem. A bitmap is not just a bitmap. My bitmap was
+using 24bit colors. I've managed to convert the image into a 8-bit
+bitmap and the buttons now work fine.
+
+Except: Is it possible to enable/disable the ok/cancel/complete
+buttons of a text-input-pane? Would be nice if they were
+enabled/disabled along with the text-input-pane itself.
+-- 
+  -asbjxrn
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Buttons for text-input-panes</h1>
+                 <pre>
+On 5/17/07, Dmitriy Ivanov &lt;divanov@aha.ru&gt wrote:
+&gt Hello Asbjørn,
+&gt
+&gt | Except: Is it possible to enable/disable the ok/cancel/complete
+&gt | buttons of a text-input-pane? Would be nice if they were
+&gt | enabled/disabled along with the text-input-pane itself.
+&gt
+&gt You can use the following approach (an excerpt from ywi-basics.lisp,
+&gt the Ystok-Widgets project):
+&gt
+&gt (defgeneric (setf enabled) (value object)
+&gt ...
+&gt ;; for a pane equipped by buttons, affect the toolbar as well
+&gt (:method :after (value (pane capi:text-input-pane))
+&gt   (when-let (parent (capi:element-parent pane))
+&gt     (when (eq (capi:capi-object-name parent)
+&gt                  'CAPI::TEXT-INPUT-PANE-BUTTON-ROW)
+&gt       (capi:map-pane-children parent
+&gt         (lambda (child) (unless (eq child pane)
+&gt            (setf (capi:simple-pane-enabled child) value))))))) ...)
+
+Excellent. Thanks.
+-- 
+  -asbjxrn
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:42 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

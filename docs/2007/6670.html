@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Returning a hash-table iterator from a function?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Returning a hash-table iterator from a function?</h1>
+                <pre>
+
+Is there a way in LispWorks to return an iterator into a hash table
+from a function?  I don't think this is possible using standard CL.
+
+For example, I'd like to do something like this:
+
+    (defun hti-closure (ht)
+      (with-hash-table-iterator (next ht)
+        (lambda () (next))))
+
+    (let ((ii (hti-closure my-hash-table)))
+      (multiple-value-bind (found? key value) (funcall ii)
+        (when found?
+         (format t "First key value is ~a ~a~%", key value))))
+
+This won't work of course, but I was hoping there was a way to do the
+equivalent in LispWorks.    
+
+Cheers,
+Chris Dean
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Returning a hash-table iterator from a function?</h1>
+                 <pre>
+
+On May 13, 2007, at 6:27 PM, Chris Dean wrote:
+
+&gt Is there a way in LispWorks to return an iterator into a hash table
+&gt from a function?  I don't think this is possible using standard CL.
+
+
+Not absolutely sure if this is what you meant, but isn't this  
+possible in standard Common Lisp?
+
+
+
+
+(defun make-hash-table-iterator (some-hash-table)
+   (let ((hash-key-list (loop for key being each hash-key of some- 
+hash-table collect key)))
+     (lambda () (let ((this-key (pop hash-key-list)))
+                  (values this-key (gethash this-key some-hash- 
+table))))))
+
+CL-USER 28 &gt (defvar *my-hash* (make-hash-table))
+*MY-HASH*
+
+CL-USER 29 &gt (setf (gethash 'first-key *my-hash*) 1)
+1
+
+CL-USER 30 &gt (setf (gethash 'second-key *my-hash*) 2)
+2
+
+CL-USER 31 &gt (setf (gethash 'third-key *my-hash*) 3)
+3
+
+CL-USER 32 &gt (defvar *test-hash-iterator* (make-hash-table-iterator  
+*my-hash*))
+*TEST-HASH-ITERATOR*
+
+CL-USER 33 &gt (funcall *test-hash-iterator*)
+SECOND-KEY
+2
+
+CL-USER 34 &gt (funcall *test-hash-iterator*)
+FIRST-KEY
+1
+
+CL-USER 35 &gt (funcall *test-hash-iterator*)
+THIRD-KEY
+3
+
+CL-USER 36 &gt (funcall *test-hash-iterator*)
+NIL
+NIL
+
+CL-USER 37 &gt
+
+
+
+This will even allow you to change the values for existing keys  
+between calls to the iterator since the iterator closure only holds a  
+list of keys, not their associated values. Of course you can't remove  
+or add keys without making a new iterator.
+
+
+
+
+
+regards,
+
+Ralph
+
+
+
+
+Raffael Cavallaro, Ph.D.
+raffaelcavallaro@mac.com
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Returning a hash-table iterator from a function?</h1>
+                 <pre>
+
+Raffael Cavallaro &lt;raffaelcavallaro@mac.com&gt writes:
+&gt Not absolutely sure if this is what you meant, but isn't this
+&gt possible in standard Common Lisp?
+
+This is what I meant, thanks.  But I'd like to avoid the extra consing
+if possible.  In this solution, if we're using a large hash table then
+we are creating a large list, even if we only end up looking at the
+first few elements.
+
+Cheers,
+Chris Dean
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Returning a hash-table iterator from a function?</h1>
+                 <pre>
+Shameless plug.
+
+	http://common-lisp.net/project/cl-enumeration/
+
+Cheers
+
+Marco
+
+
+
+On May 14, 2007, at 12:27 AM, Chris Dean wrote:
+
+&gt
+&gt
+&gt Is there a way in LispWorks to return an iterator into a hash table
+&gt from a function?  I don't think this is possible using standard CL.
+&gt
+&gt For example, I'd like to do something like this:
+&gt
+&gt     (defun hti-closure (ht)
+&gt       (with-hash-table-iterator (next ht)
+&gt         (lambda () (next))))
+&gt
+&gt     (let ((ii (hti-closure my-hash-table)))
+&gt       (multiple-value-bind (found? key value) (funcall ii)
+&gt         (when found?
+&gt          (format t "First key value is ~a ~a~%", key value))))
+&gt
+&gt This won't work of course, but I was hoping there was a way to do the
+&gt equivalent in LispWorks.
+&gt
+&gt Cheers,
+&gt Chris Dean
+&gt
+
+--
+Marco Antoniotti, Associate Professor
+DISCo, Università Milano Bicocca
+Via Bicocca degli Arcimboldi 8, U7, 4 piano
+I-20126 Milan (MI) ITALY
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Returning a hash-table iterator from a function?</h1>
+                 <pre>
+On Mon, 14 May 2007 12:01:23 +0200, Marco Antoniotti &lt;marcoxa@cs.nyu.edu&gt wrote:
+
+&gt Shameless plug.
+&gt
+&gt 	http://common-lisp.net/project/cl-enumeration/
+
+I looked at the source and it seems it also just conses up lists of
+the current keys and values of the hash table.  AFAIU this is not what
+Chris wants.  (And I tend to think it's not possible in portable CL.)
+
+Cheers,
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Returning a hash-table iterator from a function?</h1>
+                 <pre>
+
+Edi Weitz &lt;edi@agharta.de&gt writes:
+&gt On Mon, 14 May 2007 12:01:23 +0200, Marco Antoniotti &lt;marcoxa@cs.nyu.edu&gt wrote:
+&gt&gt 	http://common-lisp.net/project/cl-enumeration/
+&gt
+&gt I looked at the source and it seems it also just conses up lists of
+&gt the current keys and values of the hash table.  AFAIU this is not what
+&gt Chris wants.  (And I tend to think it's not possible in portable CL.)
+
+Right, I'm trying to avoid creating a copy of the hash table keys.  I
+also don't think that this is possible in portable Common Lisp.
+
+What I'm looking for is a way to create an iterator into a hash table
+that uses minimal consing and has indefinite extent.
+
+Is there a non-portable LispWorks specific way to do this?
+
+On further investigation I see that CLISP has sys::hash-table-iterator
+that is used by the series package.  This might be an exampple of what
+I want, but of course I can't find any documentation, etc.
+
+Cheers,
+Chris Dean
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Returning a hash-table iterator from a function?</h1>
+                 <pre>
+
+Wade Humeniuk &lt;whumeniu@telus.net&gt writes:
+&gt Why not just pass the hash-table around. Why do you need the
+&gt iterator?
+
+Well, I could.  That's what I do now :).  But I'd like to have more of
+an abstraction layer between the data types and the operators.  
+
+For example, for some problems I use a disk based btree that has
+similar semantics to a hash-table (that is, you can lookup key/value
+pairs easily).  Mostly I can just switch to using a hash-table and the
+code just works.  But there are some areas where there is a complex
+looping construct that I'd like to use my normal Iterate looping macro
+and I can't without changing the code from IN-HASHTABLE to IN-BTREE.
+
+Hope that answers your question.
+
+Cheers,
+Chris Dean
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Returning a hash-table iterator from a function?</h1>
+                 <pre>
+On 13 May 2007, at 23:27, Chris Dean wrote:
+
+&gt
+&gt
+&gt Is there a way in LispWorks to return an iterator into a hash table
+&gt from a function?  I don't think this is possible using standard CL.
+&gt
+
+I once had to do this, and I did something which was a bit horrible  
+and somewhat consy but worked. for me.
+
+What you do is to dress your hashtables up a bit so that instead of  
+storing the value into the table you store a cons of (value . next).   
+The result of that is that the values end up linked together into a  
+list (the head of which you keep somewhere so you can iterate and add  
+new values) which you can then keep pointers into.
+
+If you modify values then you just change the cons rather than the  
+table.
+
+Iteration happens in predictable and non-hash order which may not be  
+good.
+
+Deletion is problematic.  What I did was, on deletion, to remove the  
+hashtable entry, and to replace the value by a magic broken-heart  
+value.  The iteration code then spots these and elides the dead  
+cons.  Of course, if you never iterate, you never remove the dead  
+conses.
+
+The whole thing has potentially exciting thread-safety issues,  
+although things like adding new elements during iteration is OK,  
+because they always appear further up the list than you are.
+
+Iterating over the table using this approach doesn't give you the  
+keys.  You can fix that at the cost of an extra cons per entry of  
+course.
+
+--tim
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Returning a hash-table iterator from a function?</h1>
+                 <pre>
+
+"Dmitriy Ivanov" &lt;divanov@aha.ru&gt writes:
+&gt Though dealing with the universal macro is a nice idea, but why do
+&gt not you move the "point of dispatch" higher? I mean introducing a
+&gt generic function (or functions) with methods specialized on the
+&gt hash-table and btree correspondingly.
+
+It's certainly a matter of taste and I only know what my tastes are.
+The short answer is that I've tried both ways and I like one way
+better.
+
+For my last gig, I spent several years in a Scheme environment where
+we had a large number of high level functions that worked on a variety
+of data types.  We used the programming technique that you're
+mentioning above.
+
+When I follow the "higher level functions dispatched on type"
+technique I often end up following two paths:
+
+-  One implementation of an algorithm that uses functions like map,
+   reduce, remove-if, best, etc that conses so much that performance
+   if a problem.
+-  Two implementations of the same algorithm that are both performant,
+   but that are slightly out sync with each other.
+
+Over time as the code stabilizes these problems disappear and we end
+up with one performant implementation.  But it's nice during the few
+weeks that a task is being developed to be able to change the data
+structures easily.
+
+Astute readers might be thinking about functional languages or
+languages with iterators that solve this issue by allowing one
+implementation to use less memory.  That's right of course!
+
+Cheers,
+Chris Dean
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:42 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

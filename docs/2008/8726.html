@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>How to transfer focus from tree-view</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>How to transfer focus from tree-view</h1>
+                <pre>
+I would like to have the focus change to another pane when a tree-view 
+node is selected.  Stepping through the code, I can see that this works, 
+but when the selection-callback is exited, focus transfers back to the 
+tree-view.
+
+Can I make the focus change stay where the callback puts it?  Thanks for 
+any help.
+
+Mitch
+
+This demonstrates:
+
+(capi:define-interface focus-test-interface ()
+   ()
+   (:panes
+    (test-pane-1
+     capi:text-input-pane
+     :accessor test-pane-1
+     :title "Test Pane 1"
+     :title-position :frame
+     :visible-min-height 50)
+    (test-pane-2
+     capi:text-input-pane
+     :accessor test-pane-2
+     :title "Test Pane 2"
+     :title-position :frame
+     :visible-min-height 50)
+    (pick-tree
+     capi:tree-view
+     :roots '(0)
+     :children-function #'(lambda (x) (when (= x 0) (list 1 2)))
+     :selection-callback 'pick-tree-callback
+     :callback-type :interface-data
+     :visible-min-height 100))
+   (:layouts
+    (main-layout
+     capi:column-layout
+     '(test-pane-1 test-pane-2 pick-tree)))
+   (:default-initargs
+    :layout 'main-layout
+    :best-width 100
+    :title "Focus test"))
+
+(defun pick-tree-callback (interface data)
+   (cond
+    ((= data 1)
+     (capi:apply-in-pane-process interface #'capi:set-pane-focus 
+(test-pane-1 interface)))
+    ((= data 2)
+     (capi:apply-in-pane-process interface #'capi:set-pane-focus 
+(test-pane-2 interface)))))
+
+(capi:contain (make-instance 'focus-test-interface))
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: How to transfer focus from tree-view</h1>
+                 <pre>
+On Fri, Oct 10, 2008 at 09:36:01PM -0400, Mitch Berkson wrote:
+&gt I would like to have the focus change to another pane when a
+&gt tree-view node is selected.  Stepping through the code, I can see
+&gt that this works, but when the selection-callback is exited, focus
+&gt transfers back to the tree-view.
+&gt 
+&gt Can I make the focus change stay where the callback puts it?  Thanks
+&gt for any help.
+
+Running your sample code as is, in a listener, with no debugging or
+tracing or stepping or whatever, works for me.  (Lispworks for Linux
+Pro 5.1.)  I did not try it in the stepper.
+
+I note that when I click in the tree-view, focus is briefly
+transferred to the tree-view while I hold the mouse button down, then
+transferred to the appropriate test pane when I release the mouse
+button.
+
+-- L
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:38 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

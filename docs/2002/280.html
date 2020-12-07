@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>threads and GC in LWW 4.2</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>threads and GC in LWW 4.2</h1>
+                <pre>I've been finding that if you have lots of threads in LWW then it
+tends to leak memory enormously - generation 2 becomes hundreds of
+Mb.  In some cases doing a mark and sweep in generation 2 will then
+cause an abrupt termination of LW.
+
+Obviously the latter is a bug of some kind (possibly in windows), but
+I'm not sure if the former is due to some resonance between the thread
+system and memory allocation or something like that.  In general I'm
+not clear if what I'm doing is reasonable or not, or if I could tweak
+some GC parameters to fix it.
+
+Unfortunately my real system lives behind a compatibility layer which
+I can't show here, but a native LW version looks like the code below.
+If you call (ts-native 100 100) - spawn 100 threads 100 times - you
+should get a generation 2 which is hundreds of Mb, and if you try
+(mark-and-sweep 2) LW will probably die.  (ts-native 1000 10) - spawn
+10 threads 1000 times - does not seem to leak like this, so I guess
+the issue is if there are hundreds of threads alive when GC happens?
+
+My real system doesn't spawn this many threads, this was just part of
+the test suite for it.  Adding the commented locking code back in
+doesn't seem to make any difference.
+
+Does anyone know anything about this?
+
+Thanks
+
+--tim
+
+;;;; Test native thread leakage
+;;;
+
+(in-package :cl-user)
+
+(defvar *n* 0)
+
+(defun native-inc-n (cons)
+  ;; Note there is only one lock here.
+  #||(let ((lock (load-time-value (mp:make-lock))))
+    (mp:with-lock (lock)
+      (incf *n*)))||#
+  (mp:without-preemption
+    (setf (car cons) t)))
+
+(defun native-run-n (n)
+  ;; spawn n threads and then wait for them all to complete
+  (setf *n* 0)
+  (loop for x in (loop repeat n
+                       for c = (cons nil nil)
+                       do (mp:process-run-function "native-thr" ()
+                                                   #'native-inc-n c)
+                       collect c)
+        do (mp:process-wait "Waiting..." #'(lambda ()
+                                             (car x)))
+        finally (return *n*)))
+
+(defun ts-native (n m)
+  ;; run m threads n times
+  (loop repeat n
+        do (native-run-n m)))
+
+
+
+
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: threads and GC in LWW 4.2</h1>
+                 <pre>Tim Bradshaw writes
+
+
+&gt I've been finding that if you have lots of threads in LWW then it
+&gt tends to leak memory enormously - generation 2 becomes hundreds of
+&gt Mb.  In some cases doing a mark and sweep in generation 2 will then
+&gt cause an abrupt termination of LW.
+&gt
+&gt Obviously the latter is a bug of some kind (possibly in windows), but
+&gt I'm not sure if the former is due to some resonance between the thread
+&gt system and memory allocation or something like that.  In general I'm
+&gt not clear if what I'm doing is reasonable or not, or if I could tweak
+&gt some GC parameters to fix it.
+&gt
+&gt Unfortunately my real system lives behind a compatibility layer which
+&gt I can't show here, but a native LW version looks like the code below.
+&gt If you call (ts-native 100 100) - spawn 100 threads 100 times - you
+&gt should get a generation 2 which is hundreds of Mb, and if you try
+&gt (mark-and-sweep 2) LW will probably die.  (ts-native 1000 10) - spawn
+&gt 10 threads 1000 times - does not seem to leak like this, so I guess
+&gt the issue is if there are hundreds of threads alive when GC happens?
+&gt
+&gt My real system doesn't spawn this many threads, this was just part of
+&gt the test suite for it.  Adding the commented locking code back in
+&gt doesn't seem to make any difference.
+&gt
+&gt Does anyone know anything about this?
+
+I had the same problem with a LWL web service (Apache + mod_lisp) and now I
+force a mark-and-sweep of gen 2 every 1000 requests. The LW 4.2 GC has now 3
+generations so this takes less time but it's still painfull.
+
+I don't know if there is a good way to handle this in a generational GC ?
+Allocated data of a thread is promoted to older generations by the GC
+triggered by the other threads working.
+May be some kind of per thread generations ?
+
+Marc
+
+PS your code makes LWW die on my PC when I do a (mark-and-sweep 2) after
+running it.
+
+CL-USER 7 &gt (room)
+ Generation 0:  Total Size 525K, Allocated 229K, Free 287K
+ Generation 1:  Total Size 1602K, Allocated 951K, Free 639K
+ Generation 2:  Total Size 713045K, Allocated 564248K, Free 144192K
+ Generation 3:  Total Size 16213K, Allocated 15783K, Free 412K
+
+Total Size 731382K, Allocated 581213K, Free 145532K
+
+I tried the Linux version and it hangs before finishing
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: threads and GC in LWW 4.2</h1>
+                 <pre>At 16/04/2002 15:46 +0100, Tim Bradshaw wrote:
+&gtI've been finding that if you have lots of threads in LWW then it
+&gttends to leak memory enormously - generation 2 becomes hundreds of
+&gtMb.
+
+Would it not help to freeze the promotion mechanism during the call to 
+native-run-n in order to keep the garbage in generation 0? At the end of 
+native-run-n you could also force a promotion from 0 to 1. I don't know LW 
+yet. In ACL (two-space generation-scavenging gc) I had defined the 
+following macro for a similar purpose:
+
+(defmacro without-generation-stepping (&amp;body body)
+    "To stop the generation-stepping during the execution of body.
+     Possible danger : could force the newspace to grow"
+    (with-gensyms (auto-step)
+      `(let ((,auto-step (sys:gsgc-switch :auto-step)))
+          (unwind-protect
+           (progn
+            (setf (sys:gsgc-switch :auto-step) NIL)
+            ,@body
+            (setf (sys:gsgc-switch :auto-step) ,auto-step))))))
+
+
+&gtObviously the latter is a bug of some kind (possibly in windows), but
+&gtI'm not sure if the former is due to some resonance between the thread
+&gtsystem and memory allocation or something like that.  In general I'm
+&gtnot clear if what I'm doing is reasonable or not, or if I could tweak
+&gtsome GC parameters to fix it.
+&gt
+&gtUnfortunately my real system lives behind a compatibility layer which
+&gtI can't show here, but a native LW version looks like the code below.
+&gtIf you call (ts-native 100 100) - spawn 100 threads 100 times - you
+&gtshould get a generation 2 which is hundreds of Mb, and if you try
+&gt(mark-and-sweep 2) LW will probably die.  (ts-native 1000 10) - spawn
+&gt10 threads 1000 times - does not seem to leak like this, so I guess
+&gtthe issue is if there are hundreds of threads alive when GC happens?
+&gt
+&gtMy real system doesn't spawn this many threads, this was just part of
+&gtthe test suite for it.  Adding the commented locking code back in
+&gtdoesn't seem to make any difference.
+&gt
+&gtDoes anyone know anything about this?
+&gt
+&gtThanks
+&gt
+&gt--tim
+&gt
+&gt;;;; Test native thread leakage
+&gt;;;
+&gt
+&gt(in-package :cl-user)
+&gt
+&gt(defvar *n* 0)
+&gt
+&gt(defun native-inc-n (cons)
+&gt   ;; Note there is only one lock here.
+&gt   #||(let ((lock (load-time-value (mp:make-lock))))
+&gt     (mp:with-lock (lock)
+&gt       (incf *n*)))||#
+&gt   (mp:without-preemption
+&gt     (setf (car cons) t)))
+&gt
+&gt(defun native-run-n (n)
+&gt   ;; spawn n threads and then wait for them all to complete
+&gt   (setf *n* 0)
+&gt   (loop for x in (loop repeat n
+&gt                        for c = (cons nil nil)
+&gt                        do (mp:process-run-function "native-thr" ()
+&gt                                                    #'native-inc-n c)
+&gt                        collect c)
+&gt         do (mp:process-wait "Waiting..." #'(lambda ()
+&gt                                              (car x)))
+&gt         finally (return *n*)))
+&gt
+&gt(defun ts-native (n m)
+&gt   ;; run m threads n times
+&gt   (loop repeat n
+&gt         do (native-run-n m)))
+
+
+--
+Francis Leboutte
+Algorithme, Rue de la Charrette 141, 4130 Tilff, Belgium
+   f.leboutte@algo.be    leboutte@acm.org
+   www.algo.be   +32-(0)4.388.3919
+    Le langage Logo à l'athénée de Waha : www.algo.be/logo.html
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: threads and GC in LWW 4.2</h1>
+                  <p>
+                   Unable to parse email body. Email id is 284
+                 </article>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>Re: threads and GC in LWW 4.2</h1>
+                   <p>
+                    Unable to parse email body. Email id is 285
+                  </article>
+                 </section>
+                </section>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: threads and GC in LWW 4.2</h1>
+                  <pre>* davef  wrote:
+
+&gt Most of the allocation in Tim's test is for the stacks of the
+&gt processes. Stacks are allocated in generation 2 by default, which
+&gt accounts for the effects observed. To improve the performance, try
+&gt setting SYS::*DEFAULT-STACK-GROUP-LIST-LENGTH*.
+
+Thanks for explaining this.  I'd worked out, I think, that there must
+have been some allocation in the generation 2, and stacks is the
+obvious thing (especially as they're relatively large).
+
+&gt LispWorks keeps a cache of stacks, so 'normal' creation and
+&gt destruction of processes normally does not cause a problem.  The stack
+&gt of a dead process is put in the cache and then re-used. The number of
+&gt stacks in the cache is limited to the value of
+&gt SYS::*DEFAULT-STACK-GROUP-LIST-LENGTH*, which defaults to 10. The
+&gt test creates more than 10 processes and then they all die, so only
+&gt 10 of the stacks are cached and the rest are not collected until the
+&gt user calls (MARK-AND-SWEEP 2). This is what causes the enlargement of
+&gt memory.
+
+Yes.  One thing I tried was to set collect-second-generation (? the
+function name, but the one that says to GC the second generation), and
+this didn't seem to help.  I'm slightly mystified by that, but
+everything else makes sense. (Actually, maybe this is because there
+was not enough allocation in 0 and 1 to force a GC of 2?)
+
+&gt If the application needs this fast turnover of processes, then try
+&gt setting SYS::*DEFAULT-STACK-GROUP-LIST-LENGTH* to a larger value. For
+&gt example, after doing 
+&gt  (SETQ SYS::*DEFAULT-STACK-GROUP-LIST-LENGTH* 110)
+&gt for me 
+&gt  (TS-NATIVE 100 100) 
+&gt runs in a few minutes and doesn't grow after the initial growth.
+&gt Since a stack is approximately 65Kb, setting this to 110 will make a
+&gt cache of around 7Mb.
+
+If I understand correctly, the bad situation is if more than
+SYS::*DEFAULT-STACK-GROUP-LIST-LENGTH* have died with no new process
+creation in the meantime, then if the death rate exceeds the birth
+rate stacks will `leak' until a GC of 2.  Is that right?
+
+&gt Maybe we should make the initial value of
+&gt SYS::*DEFAULT-STACK-GROUP-LIST-LENGTH* larger, but it is not obvious
+&gt since this issue has not arisen before AFAICT. A larger value should
+&gt be harmless since in normal circumstances the cache is not going to
+&gt grow much anyway. Anyway, we have have decided to export and document
+&gt this variable, but not change the initial value at this stage.
+
+&gt We would be interested to hear of a 'real-life' (non test-suite!)
+&gt situation where such a large turnover of processes is useful. 
+
+I doubt my system will have this problem.  I'm intending to create a
+pool of processes and then feed them with mailboxes, so my stacks will
+be very long-lived.
+
+&gt There is a general mechanism in LispWorks for freezing the promotion
+&gt mechanism similarly to what Francis described for ACL. See
+&gt LW:BLOCK-PROMOTION. I tried this in the test case, and found that it
+&gt does not improve performance, because stacks are allocated in
+&gt generation 2 regardless. We'll improve the doc to mention this
+&gt subtlety.
+
+The other thing is that I *think* LW:BLOCK-PROMOTION won't work in
+multithreaded contexts. When I macro-expanded it it seemed to work by
+binding an internal special variable, which binding will, I guess not
+be visible outside the process that created it.  Unless there is some
+deep magic I don't see how the GC can tell if BLOCK-PROMOTION is in
+effect in another thread.  I think it should assign the variable in an
+unwind-protect or something. But maybe I misunderstand this...
+
+Anyway, thanks for explaining what is happening.  I'm now reassured
+that bad things won't happen in real life.
+
+--tim
+
+
+
+</pre>
+                 </article>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>Re: threads and GC in LWW 4.2</h1>
+                   <p>
+                    Unable to parse email body. Email id is 287
+                  </article>
+                 </section>
+                </section>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:58 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

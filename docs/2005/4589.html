@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>DSPEC question - I'm too dumb</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>DSPEC question - I'm too dumb</h1>
+                <pre>As I already mentioned in other emails I'm porting a large amount of
+legacy code (originally written for Goldhill) to LispWorks.  I have
+written enough "glue" code to be able to compile and load the legacy
+code into LispWorks.  There's no hope to make it run there directly
+(it uses a lot of Goldhill-specific functionality) but with the code
+loaded I can use LW facilities like M-. ("Find Source") to jump
+through the source and find definitions which helps a lot.
+
+However, there's one problem that remains: Many functions are defined
+through Goldhill's FFI::DEF-FOREIGN-FUNCTION.  I wrote a dummy macro
+like this
+
+  (defmacro ffi::def-foreign-function (first &amp;rest rest)
+    `(defun ,(first first) ,(mapcar #'first rest)))
+
+which is enough to appease the compiler and provide me with correct
+argument lists for these functions, but - the IDE can't find the
+source of these definitions.  It finds the right file but then I get
+
+  Cannot find (DEFUN ...) in XXX.LSP.
+
+Obviously, I could deploy the DSPEC stuff to work around this but I
+must readily admit that I simply don't understand it.  I tried several
+different ways to use DEFINE-FORM-PARSER, DEFINE-DSPEC-ALIAS but none
+of them worked.
+
+Would someone with a better understanding of DSPEC be so nice to
+explain to me what to do?
+
+Thanks a lot in advance,
+Edi.
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>RE: DSPEC question - I'm too dumb</h1>
+                 <pre>&gt Would someone with a better understanding of DSPEC be so nice to
+&gt explain to me what to do?
+
+I have a number of examples that I put together when I was trying
+to get to grips with the dspec stuff.
+
+Below are two examples, one for the case where there is a single
+definition for a given name and that name is the cadr of the
+defining form, and one for the case where there is a single
+definition for a given name that that name is not the cadr of the
+defining form.
+
+I think the warning at the start of the file relates to the fact
+that the file contains definitions and uses of the defining
+macros (but I don't remember for sure).
+
+The comments contain forms that you can evaluate to test that
+finding source works properly.
+
+Simon
+___________________
+
+
+;;;; WARNING: Compile and load this file before looking at the
+Definitions tab
+;;;; in the editor, otherwise confusing things happen with the Find
+Source
+;;;; commands.
+
+#|
+----------------------------------------------------------------------
+----------
+| WRAP/1
+|
+| Wrapping an existing defining macro.
+|
+| There is a single definition for a given name.
+|
+| That name occurs as the cadr of the defining form.
+|
+| Using DSPEC:DEFINE-DSPEC-ALIAS and DSPEC:DEF
+|
+----------------------------------------------------------------------
+----------
+
+(1)
+(editor:find-source-command nil 'wrap/1/eg)
+
+(2)
+(editor:find-source-for-dspec-command nil '(defun wrap/1/eg))
+
+(3)
+(editor:find-source-for-dspec-command nil '(def/wrap/1 wrap/1/eg))
+
+|#
+
+(dspec:define-dspec-alias def/wrap/1 (name)
+  `(defun ,name))
+
+(defmacro def/wrap/1 (name args &amp;body body)
+  `(dspec:def (def/wrap/1 ,name)
+     (defun ,name ,args ,@body)))
+
+;;;; - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+- - - - -
+
+(def/wrap/1 wrap/1/eg ()
+  42)
+
+
+#|
+----------------------------------------------------------------------
+----------
+| FUN-WITH-PARSER
+|
+| Wrapping an existing defining macro.
+|
+| There is a single definition for a given name.
+|
+| That name does not occur as the cadr of the defining form.
+|
+| Using DSPEC:DEFINE-DSPEC-ALIAS DSPEC:DEFINE-FORM-PARSER and
+DSPEC:DEF        |
+----------------------------------------------------------------------
+----------
+
+(1)
+(editor:find-source-command nil 'fun-with-parser/eg)
+
+(2)
+(editor:find-source-for-dspec-command nil '(defun fun-with-parser/eg))
+
+(3)
+(editor:find-source-for-dspec-command nil '(def/fun-with-parser
+fun-with-parser/eg))
+
+|#
+ 
+(dspec:define-dspec-alias def/fun-with-parser (name)
+  `(defun ,name))
+ 
+(dspec:define-form-parser def/fun-with-parser
+    (xxxx)
+  (destructuring-bind (name &amp;rest options)
+      xxxx
+    (declare (ignore options))
+    `(,def/fun-with-parser ,name))
+  #|
+  Or just:
+  `(,def/fun-with-parser ,(car xxxx))
+  |#
+  )
+
+#|
+An alternative parser:
+(dspec:define-form-parser
+    (def/fun-with-parser
+     (:parser dspec:single-form-with-options-form-parser)))
+|#
+
+(defmacro def/fun-with-parser ((name &amp;rest options)
+                                args &amp;body body)
+  (declare (ignore options))
+  `(dspec:def (def/fun-with-parser ,name)
+     (defun ,name ,args ,@body)))
+
+;;;; - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+- - - - -
+
+(def/fun-with-parser (fun-with-parser/eg :foo 42) ()
+  42)
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: DSPEC question - I'm too dumb</h1>
+                 <pre>Hello Edi,
+
+| As I already mentioned in other emails I'm porting a large amount of
+| legacy code (originally written for Goldhill) to LispWorks.  I have
+| written enough "glue" code to be able to compile and load the legacy
+| code into LispWorks.  There's no hope to make it run there directly
+| (it uses a lot of Goldhill-specific functionality) but with the code
+| loaded I can use LW facilities like M-. ("Find Source") to jump
+| through the source and find definitions which helps a lot.
+| 
+| However, there's one problem that remains: Many functions are defined
+| through Goldhill's FFI::DEF-FOREIGN-FUNCTION.  I wrote a dummy macro
+| like this
+| 
+|   (defmacro ffi::def-foreign-function (first &amp;rest rest)
+|     `(defun ,(first first) ,(mapcar #'first rest)))
+|...snip...|
+
+The following should be enough:
+
+(defmacro ffi::def-foreign-function (name &amp;body body)
+  `(dspec:def (ffi::def-foreign-function ,name)
+     (defun name ,@body)))
+
+(dspec:define-form-parser ffi::def-foreign-function (name)
+  `(ffi::def-foreign-function ,name))
+
+BTW, (mapcar #'first rest) is terrific version of (copy-list rest) :-)
+--
+HTH,
+Dmitriy Ivanov
+lisp.ystok.ru
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:47 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

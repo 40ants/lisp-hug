@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>LW load paths</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>LW load paths</h1>Is there something akin to Emacs&#39; load-path that I can do in the .lispworks file to expose various packages I&#39;ve made and just #&#39;load or #&#39;require by name instead of by full path?<div><br></div><div>While I&#39;ve been programming Lisp for quite some time (hobbyist), I&#39;ve never done &quot;full&quot; development of something major. Perhaps the above question is rendered moot by just saving an image or using quicklisp, etc, but ATM I&#39;m hoping there&#39;s just a simple thing like:</div>
+<div><br></div><div>(push #p&quot;~/Projects/lisp-stuff/&quot; *load-paths*)</div><div><br></div><div>I&#39;ve been looking through the docs, sample .lispworks and configure.lisp files and not seeing anything. Thanks in advance.</div>
+<div><br></div><div>Jeff M.</div>
+
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LW load paths</h1>
+                 <pre>
+On Sep 27, 2012, at 19:52 , Jeff Massung &lt;massung@gmail.com&gt wrote:
+&gt Is there something akin to Emacs' load-path that I can do in the .lispworks file to expose various packages I've made and just #'load or #'require by name instead of by full path?
+&gt 
+&gt While I've been programming Lisp for quite some time (hobbyist), I've never done "full" development of something major. Perhaps the above question is rendered moot by just saving an image or using quicklisp, etc, but ATM I'm hoping there's just a simple thing like:
+&gt 
+&gt (push #p"~/Projects/lisp-stuff/" *load-paths*)
+&gt 
+&gt I've been looking through the docs, sample .lispworks and configure.lisp files and not seeing anything. Thanks in advance.
+&gt 
+&gt Jeff M.
+
+My advice is that you should just go for quicklisp. Assuming that you have created asdf definitions for your own code, compiling/loading a module is as simple as 
+
+(ql:quickload :my-project)
+
+As a bonus, quicklisp will also pull in all of your dependencies for you, and if there are dependencies that quicklisp does not know about, you can add these manually into a place where quicklisp will find them (the same place that you'll have to place your own code - ~/quicklisp/local-projects).
+
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LW load paths</h1>
+                 <pre>
+Jeff Massung wrote on Thu, 27 Sep 2012 12:52:07 -0500 21:52:
+
+| Is there something akin to Emacs' load-path that I can do in the
+| .lispworks file to expose various packages I've made and just #'load or
+| #'require by name instead of by full path?
+
+Maybe lw:current-pathname can fit. (If *load-pathname* is not enough.)
+--
+Sincerely,
+Dmitriy Ivanov
+lisp.ystok.ru
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LW load paths</h1>
+                 <pre>
+On 27 Sep 2012, at 18:52, Jeff Massung wrote:
+
+&gt Is there something akin to Emacs' load-path that I can do in the .lispworks file to expose various packages I've made and just #'load or #'require by name instead of by full path?
+
+I don't think LW has anything by default.  I mostly agree with whoever said "use Quicklisp": it really is the answer to this I think.
+
+However I have some stuff which lets you install things in one or more directory trees and then provides a wrapper around require which will search for them.  It assumes you use structured module names (though if they're flat it will work, they just will all end up in a smaller subset of directories).
+
+A version of this lives here: http://www.tfeb.org/lisp/implementation-hax.html, but it looks as if it's out of date.  If you are interested I will merge across the current version.  It's all quite old now, and is historically entangled with a bunch of other stuff (defining new colon commands in LW, and the definition of some that I used), but it could be extracted if you wanted it standalone, perhaps.
+
+--tim
+
+So, for instance, at the command level (and with verbosity cranked up):
+
+CL-USER 3 &gt :require "ORG.TFEB.HAX.COLLECTING" :pretend t :verbose t
+Looking for module "ORG.TFEB.HAX.COLLECTING"
+Probing TFB:LIB;MODULES;ORG;TFEB;HAX;COLLECTING;COLLECTING-LOADER.LISP
+ as     /Users/tfb/lib/lw/modules/org/tfeb/hax/collecting/collecting-loader.lisp
+ from (:host
+       "TFB"
+       :directory
+       (:absolute "LIB" "MODULES")
+       :name
+       "*-LOADER"
+       :type
+       "LISP")
+Probing TFB:LIB;MODULES;ORG;TFEB;HAX;COLLECTING-LOADER.LISP
+ as     /Users/tfb/lib/lw/modules/org/tfeb/hax/collecting-loader.lisp
+ from (:host
+       "TFB"
+       :directory
+       (:absolute "LIB" "MODULES")
+       :name
+       "*-LOADER"
+       :type
+       "LISP")
+Probing TFB:LIB;MODULES;ORG;TFEB;HAX;COLLECTING;LOADER.LISP.NEWEST
+ as     /Users/tfb/lib/lw/modules/org/tfeb/hax/collecting/loader.lisp
+ from (:host
+       "TFB"
+       :directory
+       (:absolute "LIB" "MODULES")
+       :name
+       "LOADER"
+       :type
+       "LISP")
+Probing TFB:LIB;MODULES;ORG;TFEB;HAX;COLLECTING;COLLECTING.LISP
+ as     /Users/tfb/lib/lw/modules/org/tfeb/hax/collecting/collecting.lisp
+ from (:host
+       "TFB"
+       :directory
+       (:absolute "LIB" "MODULES")
+       :name
+       "*"
+       :type
+       "LISP")
+Probing TFB:LIB;MODULES;ORG;TFEB;HAX;COLLECTING.LISP
+ as     /Users/tfb/lib/lw/modules/org/tfeb/hax/collecting.lisp
+ from (:host
+       "TFB"
+       :directory
+       (:absolute "LIB" "MODULES")
+       :name
+       "*"
+       :type
+       "LISP")
+Probing CLEY:LIB;MODULES;ORG;TFEB;HAX;COLLECTING;COLLECTING-LOADER.LISP
+ as     /Local/packages/lispworks/lib/modules/org/tfeb/hax/collecting/collecting-loader.lisp
+ from (:host
+       "CLEY"
+       :directory
+       (:absolute "LIB" "MODULES")
+       :name
+       "*-LOADER"
+       :type
+       "LISP")
+Probing CLEY:LIB;MODULES;ORG;TFEB;HAX;COLLECTING-LOADER.LISP
+ as     /Local/packages/lispworks/lib/modules/org/tfeb/hax/collecting-loader.lisp
+ from (:host
+       "CLEY"
+       :directory
+       (:absolute "LIB" "MODULES")
+       :name
+       "*-LOADER"
+       :type
+       "LISP")
+Probing CLEY:LIB;MODULES;ORG;TFEB;HAX;COLLECTING;LOADER.LISP.NEWEST
+ as     /Local/packages/lispworks/lib/modules/org/tfeb/hax/collecting/loader.lisp
+ from (:host
+       "CLEY"
+       :directory
+       (:absolute "LIB" "MODULES")
+       :name
+       "LOADER"
+       :type
+       "LISP")
+Probing CLEY:LIB;MODULES;ORG;TFEB;HAX;COLLECTING;COLLECTING.LISP
+ as     /Local/packages/lispworks/lib/modules/org/tfeb/hax/collecting/collecting.lisp
+ from (:host
+       "CLEY"
+       :directory
+       (:absolute "LIB" "MODULES")
+       :name
+       "*"
+       :type
+       "LISP")
+Probing CLEY:LIB;MODULES;ORG;TFEB;HAX;COLLECTING.LISP
+ as     /Local/packages/lispworks/lib/modules/org/tfeb/hax/collecting.lisp
+ from (:host
+       "CLEY"
+       :directory
+       (:absolute "LIB" "MODULES")
+       :name
+       "*"
+       :type
+       "LISP")
+Found /Local/packages/lispworks/lib/modules/org/tfeb/hax/collecting.xfasl
+Would load "ORG.TFEB.HAX.COLLECTING" from /Local/packages/lispworks/lib/modules/org/tfeb/hax/collecting.xfasl
+"ORG.TFEB.HAX.COLLECTING"
+
+
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:32 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

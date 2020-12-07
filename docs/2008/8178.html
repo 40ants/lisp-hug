@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>lww pathname strangeness</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>lww pathname strangeness</h1>
+                <pre>
+I am calling a C dll from lispworks (lww 5.1) and it keeps failing because 
+_getcwd() returns the wrong pathname.
+
+I've tracked this down to (change-directory ...).  As soon as I use it, C's 
+_getcwd returns a string with "\\?\" prepended to it (looks like a 
+hostname!).
+
+Does anybody know how to stop this from happening?  (Is this a bug or a 
+feature?)
+
+
+Here is a test that shows the problem (once per lisp session) on my W2K box:
+
+
+(fli:define-foreign-function (getcwd "_getcwd" :source)
+    ((buff (:pointer (:unsigned :char)))
+     (len :int))
+  :result-type (:pointer (:unsigned :char))
+  :language :ansi-c
+  :calling-convention :cdecl)
+
+(defun test ()
+  (format t "~A~%" (fli:convert-from-foreign-string
+                    (getcwd
+                     (fli:convert-to-foreign-string (make-string 
+256 :initial-element #\*)
+                                                    :null-terminated-p 
+t :external-format :ascii)
+                     256)))
+  (change-directory (current-pathname))
+  (format t "~A~%"(fli:convert-from-foreign-string
+                   (getcwd
+                    (fli:convert-to-foreign-string (make-string 
+256 :initial-element #\@)
+                                                   :null-terminated-p 
+t :external-format :ascii)
+                    256))))
+
+
+Thanks
+pt
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: lww pathname strangeness</h1>
+                 <pre>
+That character sequence is the standard NTFS volume naming convention:
+http://blogs.msdn.com/adioltean/archive/2005/04/16/408947.aspx
+"\\?\" Is the volume manager namespace and other identifiers are appended to it.
+There's some advice in the "Translations" section about half way down
+that article.
+Sorry, that probably doesn't help much.
+
+Cheers,
+Chris
+
+On Wed, Jun 4, 2008 at 3:47 PM, Paul Tarvydas
+&lt;tarvydas@visualframeworksinc.com&gt wrote:
+&gt
+&gt I am calling a C dll from lispworks (lww 5.1) and it keeps failing because
+&gt _getcwd() returns the wrong pathname.
+&gt
+&gt I've tracked this down to (change-directory ...).  As soon as I use it, C's
+&gt _getcwd returns a string with "\\?\" prepended to it (looks like a
+&gt hostname!).
+&gt
+&gt Does anybody know how to stop this from happening?  (Is this a bug or a
+&gt feature?)
+&gt
+&gt
+&gt Here is a test that shows the problem (once per lisp session) on my W2K box:
+&gt
+&gt
+&gt (fli:define-foreign-function (getcwd "_getcwd" :source)
+&gt    ((buff (:pointer (:unsigned :char)))
+&gt     (len :int))
+&gt  :result-type (:pointer (:unsigned :char))
+&gt  :language :ansi-c
+&gt  :calling-convention :cdecl)
+&gt
+&gt (defun test ()
+&gt  (format t "~A~%" (fli:convert-from-foreign-string
+&gt                    (getcwd
+&gt                     (fli:convert-to-foreign-string (make-string
+&gt 256 :initial-element #\*)
+&gt                                                    :null-terminated-p
+&gt t :external-format :ascii)
+&gt                     256)))
+&gt  (change-directory (current-pathname))
+&gt  (format t "~A~%"(fli:convert-from-foreign-string
+&gt                   (getcwd
+&gt                    (fli:convert-to-foreign-string (make-string
+&gt 256 :initial-element #\@)
+&gt                                                   :null-terminated-p
+&gt t :external-format :ascii)
+&gt                    256))))
+&gt
+&gt
+&gt Thanks
+&gt pt
+&gt
+&gt
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:39 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

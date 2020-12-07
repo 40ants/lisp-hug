@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>HtmlHelp</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>HtmlHelp</h1>
+                <p>
+                 Unable to parse email body. Email id is 4733
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: HtmlHelp</h1>
+                 <pre>Hi Nick,
+
+On Oct 27, 2005, at 1:41 PM, Nick Levine wrote:
+
+&gt Has anyone had any experience invoking HtmlHelp from Lispworks?
+
+Some experience, not completely pleasant :).
+
+Below are the remains of some code commented out in my current  
+project. I think there were a few issues I did not solve and I  
+decided to use plain html with a browser for help, similar to  
+Lispworks. If I recall correctly, HTML help insists on being the  
+topmost window which is very annoying if you want to use the help  
+contents as reference when typing something.
+
+If you find it useful, please post fixes and improvements back to the  
+list.
+
+
+
+John DeSoi, Ph.D.
+http://pgedit.com/
+Power Tools for PostgreSQL
+
+
+
+(defvar *help-cookie* nil)
+
+
+(defconstant +hh_display_topic+ 0)
+(defconstant +hh_display_toc+ 1) ;apparently no different from 0
+(defconstant +hh_sync+ 9) ;show the contents for the current topic
+(defconstant +hh_initialize+ 28)
+(defconstant +hh_uninitialize+ 29)
+
+
+
+(fli:register-module :mshelp :real-name "hhctrl.ocx")
+
+
+
+
+; this is right from the docs but does not seem to work - always   
+returns 0
+(fli:define-foreign-function (GetActiveWindow "GetActiveWindow")
+     ()
+   :result-type win32:hwnd
+   :documentation "Returns the window handle of the active window
+for the current thread. If no active window is associated with the
+current thread then it returns 0.")
+
+(fli:define-foreign-function (GetForegroundWindow "GetForegroundWindow")
+     ()
+   :result-type win32:hwnd)
+
+(fli:define-foreign-function (GetDesktopWindow "GetDesktopWindow")
+     ()
+   :result-type win32:hwnd)
+
+
+
+
+(fli:define-foreign-function (HtmlHelp "HtmlHelp" :dbcs)
+     ((caller win32:hwnd)
+      (file-lpstring :pointer)
+      (command (:unsigned :int))
+      (data :pointer))
+   :result-type win32:hwnd
+   :module :mshelp)
+
+
+(defun %help-init ()
+   (if *help-cookie*
+     t
+     (progn
+       (setf *help-cookie* (fli:allocate-foreign-object :type :pointer))
+       (HtmlHelp 0 nil +hh_initialize+ *help-cookie*)
+       (lw:define-action "When quitting image" "Windows help cleanup"  
+'%help-cleanup)
+       *help-cookie*)))
+
+;! add close all entry point
+(defun %help-cleanup ()
+   (when *help-cookie*
+     (HtmlHelp 0 nil +hh_uninitialize+ *help-cookie*)
+     (fli:free-foreign-object *help-cookie*)
+     (setf *help-cookie* nil)))
+
+
+(defun active-window ()
+   (let ((win (GetActiveWindow)))
+     (when (zerop win)
+       (setf win (GetForegroundWindow)))
+     win))
+
+
+; can only be done from one thread and it must be an interface thread
+(defun %help-display-topic (path &amp;optional win)
+   (if *application-interface*
+     (let ((active-window (or win (active-window))))
+       (apply-in-pane-process *application-interface* '%help-display- 
+topic-internal path active-window))
+     (alert (localize "Unable to load help topic. The main heap  
+thread could not be located."))))
+
+
+
+
+(defun %help-display-topic-internal (path &amp;optional win)
+   (%help-init)
+   (let ((active-window (or win (active-window)))) ;! see about using  
+window representation from interface
+     (unless (zerop active-window)
+       (fli:with-foreign-string (path-ptr element-count byte-count
+                                         :external-format :unicode)
+           path
+         (declare (ignore element-count byte-count))
+         (HtmlHelp active-window path-ptr +hh_display_topic+ nil)))))
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: HtmlHelp</h1>
+                 <p>
+                  Unable to parse email body. Email id is 4759
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: HtmlHelp</h1>
+                  <pre>Hi Nick,
+
+--- Nick Levine &lt;ndl@ravenbrook.com&gt wrote:
+
+&gt Sometime last week, I brightly asked
+&gt 
+&gt   Has anyone had any experience invoking HtmlHelp from Lispworks?
+&gt 
+&gt ...and by the time we'd got it working some of us had had more
+&gt experience with this than we felt we really deserved.
+&gt 
+&gt Now for question two:
+&gt 
+&gt   Has anyone had any experience invoking HtmlHelp from a delivered
+&gt   Lispworks?
+&gt 
+&gt When invoking the same code from a (level 0) delivered CAPI
+&gt application, the first (only the first? always the first?) invocation
+&gt to HH_DISPLAY_TOPIC fails.
+....
+
+Reverting back to the last example I submitted, with a small change made to
+support delivery, works OK for me:
+
+(defun demo-help (&amp;rest args)
+  (declare (ignore args))
+  (display-help-topic "c:\\WINUI.CHM"))
+
+(capi:define-interface demo ()  ()
+  (:menus
+   (help-menu "Help" ()))
+  (:default-initargs :title "Demo" :display-state :hidden))
+
+(defparameter *hidden* nil)
+
+(defun show-help (&amp;rest args)
+  (capi:execute-with-interface *hidden* #'demo-help)) 
+
+(capi:define-interface demo-2 () ()
+  (:menus
+   (help-menu "Help" (("WinUI" :selection-callback #'show-help))))
+  (:menu-bar help-menu)
+  (:default-initargs :title "Demo 2")) 
+
+(capi:define-interface demo-3 () ()
+  (:menus
+   (help-menu "Help" (("WinUI" :selection-callback #'show-help))))
+  (:menu-bar help-menu)
+  (:default-initargs :title "Demo 3")) 
+
+(defun demo ()
+  (setf *hidden* (capi:display (make-instance 'demo)))
+  (capi:display (make-instance 'demo-2))
+  (capi:display (make-instance 'demo-3)))
+
+The first invocation works.
+
+Jeff Caldwell
+
+
+
+		
+__________________________________ 
+Yahoo! FareChase: Search multiple travel sites in one click.
+http://farechase.yahoo.com
+
+
+</pre>
+                 </article>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>Re: HtmlHelp</h1>
+                   <p>
+                    Unable to parse email body. Email id is 4796
+                  </article>
+                 </section>
+                </section>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:46 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

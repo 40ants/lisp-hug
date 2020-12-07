@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Unplanned need to find the interface that called a callback</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Unplanned need to find the interface that called a callback</h1>
+                <pre>I have a large interactive application and I've started adding
+some progress bars when time-consuming operations are performed.
+The progress bars are displayed in fresh interfaces containing
+nothing but the progress bar and some text saying what is happening.
+I want the progress bars to have as their owner the interface
+from which the user initiated the current action.
+
+My issue is how to find the interface that initiated the
+current action. I could re-visit all the callbacks and modify
+them to take an interface as argument, but that would be a lot
+of fiddly work. 
+
+Instead, I've looked at stack backtraces in the debugger to
+see what happens before a callback is called and I've come up
+with the following solution of adding advice in a couple of
+places:
+
+___________________________________________________________
+
+(defvar *callback-interface* nil) ; NIL in case I haven't
+                                  ; caught all places
+                                  ; where callbacks are called
+
+;; menu-item and button callbacks are called within a call
+;; of CAPI:EXECUTE-WITH-INTERFACE
+(lw:defadvice (capi:execute-with-interface
+               bind-*callback-interface*
+               :around)
+    (interface &amp;rest other-args)
+  (let* ((*callback-interface* interface))
+    (apply #'lw:call-next-advice interface other-args)))
+
+;; confirm-destroy-callbacks are called within a call
+;; of CAPI::EXECUTE-WITH-INTERFACE-INTERNAL
+(lw:defadvice (capi::execute-with-interface-internal
+               bind-*callback-interface*
+               :around)
+    (interface &amp;rest other-args)
+  (let* ((*callback-interface* interface))
+    (apply #'lw:call-next-advice interface other-args)))
+___________________________________________________________
+
+
+This seems to work fine.
+
+My questions are:
+
+Is there a better way to approach this?
+Would it be a useful addition for the CAPI to provide such a
+variable?
+
+Simon
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Unplanned need to find the interface that called a callback</h1>
+                 <pre>Simon Katz wrote:
+
+&gt 
+&gt This seems to work fine.
+&gt 
+&gt My questions are:
+&gt 
+&gt Is there a better way to approach this?
+&gt Would it be a useful addition for the CAPI to provide such a
+&gt variable?
+&gt 
+
+Even though it might be fiddly I would suggest you add an interface
+arg to the progress bar callbacks.  I think that it is the _right_
+thing to do.  Using CAPI implementation internals is not a good idea.
+
+Wade
+
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:50 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

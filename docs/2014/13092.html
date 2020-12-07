@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>capi drag and drop on linux/gtk?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>capi drag and drop on linux/gtk?</h1><html>
+  <head>
+
+    <meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+  </head>
+  <body bgcolor="#FFFFFF" text="#000000">
+    Hi, <br>
+    <br>
+    Does drag-and-drop work on linux/gtk? I try the code below, which is
+    from the capi documentation on two linux machines. Dropping strings
+    into an emacs buffer works; dropping into the capi:list-panel of the
+    demo code did not. <br>
+    <br>
+    I tried:<br>
+    openSUSE 12.3 (Dartmouth) (x86_64) and<br>
+    Ubuntu 14.04 LTS (x86_64)<br>
+    <br>
+    My lispworks is 6.1.1 32-bit linux<br>
+    <br>
+    Perhaps the problem is that my linux is 64 bit and lispworks is 32
+    bit. Of course I'm using the 32-bit gtk libraries, and other capi
+    things have been working OK.<br>
+    <br>
+    Best regards, <br>
+    &nbsp;&nbsp; Peter<br>
+    <br>
+    <br>
+    (in-package :cl-user)<br>
+    <br>
+    (defun list-drop-callback (pane drop-object stage)<br>
+    &nbsp; (format t "list drop callback ~S ~S ~S" pane&nbsp; drop-object stage)<br>
+    &nbsp; (case stage<br>
+    &nbsp;&nbsp;&nbsp; (:formats <br>
+    &nbsp;&nbsp;&nbsp;&nbsp; (set-drop-object-supported-formats drop-object (list :string)))<br>
+    &nbsp;&nbsp;&nbsp; (:drag<br>
+    &nbsp;&nbsp;&nbsp;&nbsp; (when (and (drop-object-provides-format drop-object :string)<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (drop-object-allows-drop-effect-p drop-object
+    :copy))<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (setf (drop-object-drop-effect drop-object) :copy)))<br>
+    &nbsp;&nbsp;&nbsp; (:drop<br>
+    &nbsp;&nbsp;&nbsp;&nbsp; (when (and (drop-object-provides-format drop-object :string)<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (drop-object-allows-drop-effect-p drop-object
+    :copy))<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (setf (drop-object-drop-effect drop-object) :copy)<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (add-list-item pane drop-object)))))<br>
+    &nbsp;<br>
+    (defun add-list-item (pane drop-object)<br>
+    &nbsp; (append-items<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; pane <br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (list (string-capitalize <br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (drop-object-get-object drop-object <br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; pane :string)))))<br>
+    (defun demo-target ()<br>
+    &nbsp; (contain<br>
+    &nbsp;&nbsp; (make-instance 'list-panel<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp; :title "Shopping list"<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp; :items (list "Tea" "Bread")<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp; :drop-callback 'list-drop-callback)))<br>
+    <br>
+    (defun tree-drag-callback (pane indices)<br>
+    &nbsp; (list :string <br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (string (elt (capi:collection-items pane)<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (first indices)))))<br>
+    &nbsp;<br>
+    (defun fruits (x) <br>
+    &nbsp; (case x <br>
+    &nbsp;&nbsp;&nbsp; (:fruits (list :apple :orange))<br>
+    &nbsp;&nbsp;&nbsp; (:apple (list :cox :bramley))<br>
+    &nbsp;&nbsp;&nbsp; (:orange (list :blood-orange :seville))<br>
+    &nbsp;&nbsp;&nbsp; (t nil)))<br>
+    <br>
+    (defun demo-source () <br>
+    &nbsp; (capi:contain<br>
+    &nbsp;&nbsp; (make-instance 'capi:tree-view<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp; :title "Fruit tree"<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp; :roots '(:fruits)<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp; :children-function 'fruits<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp; :drag-callback 'tree-drag-callback)))<br>
+  </body>
+</html>
+
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: capi drag and drop on linux/gtk?</h1>
+                 <p>
+                  Unable to parse email body. Email id is 13093
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:29 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

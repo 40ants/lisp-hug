@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Unexpected Memory Allocation</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Unexpected Memory Allocation</h1>
+                <pre>I'm trying to track down some unexpected memory allocations. I spotted the 
+allocations with "time" (eg, "Allocation = 68192 bytes standard/121220 
+bytes conses") and followed up using "trace" with the :allocation option. 
+(The code is compiled with full optimization, but I've also checked 
+results without optimizations enabled.)
+
+I have a function x which calls a function y. According to trace, y uses 
+16 bytes; but x, which returns right after calling y, allocates over 
+17900! The only other thing that x does directly is to call "etypecase". 
+This all leaves me wondering if the cause is something I don't directly 
+see--ie, a side-effect of some Lisp feature.
+
+Some very general questions then:
+
+ * Would special vars allocate memory when they're "overloaded" in a 
+function?
+ * Would funcall allocate memory?
+ * Would multiple (return) values allocate memory?
+ * Would typecase allocate memory?
+
+I've been looking at the disassembled code, and I see calls to anonymous 
+functions every now and then but of course I don't know what they do--thus 
+the very broad strokes as I try to track down the cause(s).
+
+Thanks!
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Unexpected Memory Allocation</h1>
+                 <pre>For those interested: I traced it down to boxing double-floats. I 
+discovered, for example, that sometimes inlined functions still boxed 
+floats when the float was being returned through (values...). Changing 
+some of the inlines to macros actually reduced boxing. There's still some 
+needless boxing I'm trying to get rid of though...
+
+(On a sample run of, say, 10,000 calculations, most of the time is being 
+spent in the garbage collector.)
+
+owner-lisp-hug@xanalys.com wrote on 03/15/2004 08:09:44 PM:
+
+&gt I'm trying to track down some unexpected memory allocations. I 
+&gt spotted the 
+&gt allocations with "time" (eg, "Allocation = 68192 bytes standard/121220 
+&gt bytes conses") and followed up using "trace" with the :
+&gt allocation option. 
+&gt (The code is compiled with full optimization, but I've also checked 
+&gt results without optimizations enabled.)
+&gt 
+&gt I have a function x which calls a function y. According to trace, y uses 
+
+&gt 16 bytes; but x, which returns right after calling y, allocates over 
+&gt 17900! The only other thing that x does directly is to call "etypecase". 
+
+&gt This all leaves me wondering if the cause is something I don't directly 
+&gt see--ie, a side-effect of some Lisp feature.
+&gt 
+&gt Some very general questions then:
+&gt 
+&gt  * Would special vars allocate memory when they're "overloaded" in a 
+&gt function?
+&gt  * Would funcall allocate memory?
+&gt  * Would multiple (return) values allocate memory?
+&gt  * Would typecase allocate memory?
+&gt 
+&gt I've been looking at the disassembled code, and I see calls to anonymous 
+
+&gt functions every now and then but of course I don't know what 
+&gt they do--thus 
+&gt the very broad strokes as I try to track down the cause(s).
+&gt 
+&gt Thanks!
+&gt 
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:53 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

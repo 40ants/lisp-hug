@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>memory usage in capi</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>memory usage in capi</h1>
+                <pre>I find when using LW4.2.7 on Windows that if I generate many interfaces,
+each uses some of my RAM which is not released when the interface is closed,
+even though I haven't maintained (I think) any references to the interface
+object. I would think it would be garbage collected. Does anyone have any
+insight into what I may be doing wrong? Is it possible that CAPI maintains
+references to closed interfaces?
+
+Thanks,
+
+Jim Bushnell
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: memory usage in capi</h1>
+                 <pre>jcbushnell2@comcast.net writes:
+
+&gt I find when using LW4.2.7 on Windows that if I generate many interfaces,
+&gt each uses some of my RAM which is not released when the interface is closed,
+&gt even though I haven't maintained (I think) any references to the interface
+&gt object. I would think it would be garbage collected. Does anyone have any
+&gt insight into what I may be doing wrong? Is it possible that CAPI maintains
+&gt references to closed interfaces?
+
+Did you try to run (mark-and-sweep 2) to see if the memory gets released
+then? (If it didn't, you sometimes also need to collect generation 3
+with (mark-and-sweep 3), though if data gets promoted to generation 3 you
+might have hit a gc bug)
+
+(You should also read the "Storage management" chapter of the User Guide)
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: memory usage in capi</h1>
+                 <p>
+                  Unable to parse email body. Email id is 813
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: memory usage in capi</h1>
+                  <pre>
+----- Original Message -----
+From: &lt;davef@xanalys.com&gt
+To: &lt;jcbushnell2@comcast.net&gt
+Cc: &lt;lisp-hug@xanalys.com&gt
+Sent: Wednesday, January 29, 2003 5:28 AM
+Subject: Re: memory usage in capi
+
+
+&gt
+&gt    I find when using LW4.2.7 on Windows that if I generate many
+interfaces,
+&gt    each uses some of my RAM which is not released when the interface is
+closed,
+&gt    even though I haven't maintained (I think) any references to the
+interface
+&gt    object. I would think it would be garbage collected. Does anyone have
+any
+&gt    insight into what I may be doing wrong? Is it possible that CAPI
+maintains
+&gt    references to closed interfaces?
+&gt
+&gt One thing to check is that you are not simply holding on to the
+&gt interface in the value of *, **, or ***.
+&gt
+&gt What evidence do you have that the uncollected memory is CAPI
+&gt interface objects?
+&gt
+&gt How are you closing the interfaces?
+&gt
+&gt
+&gt Dave Fox
+&gt Xanalys
+&gt Compass House
+&gt Vision Park
+&gt Chivers Way
+&gt Histon
+&gt Cambridge
+&gt CB4 9AD
+&gt England
+&gt
+&gt Email: davef@xanalys.com
+&gt Tel:   +44 1223 253793
+&gt Fax:   +44 1223 257812
+&gt These opinions are not necessarily those of Xanalys.
+&gt
+The percentages given are all obtained by Control Panel -&gt System -&gt
+Performance in Windows on a computer using ME with 384 MB memory.
+
+Start up LWW 4.2.7 and load interface definition files
+Now 80% free
+
+Make 25 instances of the interface by:
+(dotimes (i 25) (make-instance 'complicated-interface))
+
+Still 80% free
+
+Make and display 25 instances of the interface by:
+(dotimes (i 25) (capi:display (make-instance 'complicated-interface)))
+
+Now 53 % free (all the interfaces are now displayed)
+
+Close each interface by clicking in the upper right-hand corner
+
+Now 65% free
+
+The puzzle to me is why the 53% only goes up to 65%, rather than the 80%
+free as in making instances without displaying them.
+
+(mark-and-sweep 2) or (mark-and-sweep 3), as suggested by Espen Vestre,
+appears to release no memory, as indicated by Control Panel.
+
+Thanks,
+
+Jim Bushnell
+
+
+</pre>
+                 </article>
+                </section>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: memory usage in capi</h1>
+                  <pre>* jcbushnell2  wrote:
+&gt (mark-and-sweep 2) or (mark-and-sweep 3), as suggested by Espen Vestre,
+&gt appears to release no memory, as indicated by Control Panel.
+
+I notice you are measuring the memory used with Control Panel. Does LW
+hand back memory to the OS on a MARK-AND-SWEEP?  I don't know, but
+it's quite plausible that it does not do so, so the control panel will
+see the memory only increase or stay constant.  This would be quite
+normal for many applications - once they've grabbed some memory from
+the OS they don't hand it back, but hang on to it in case they need it
+again.
+
+For LW on Linux, MARK-AND-SWEEP does not seem to hand memory back to
+the OS, but CLEAN-DOWN does - given the following:
+
+(defun allocate-bigly (n)
+  (loop repeat n
+        collect (make-array 10000))
+  (* n 10000))
+
+then calling (allocate-bigly 1000) will cause memory usage to go up to
+~75MB.  MARK-AND-SWEEP won't change this, but CLEAN-DOWN will reduce
+it to ~29MB again.
+
+Iterating these two operations a few times seems not to cause any
+significant memory to leak from the OS's point of view.
+
+Note that a large memory footprint in the sense of a large chunk of
+memory allocated from the OS is not really a bad or expensive thing -
+virtual memory should be pretty much free.  What counts is how much
+much of it is actually being touched from moment to moment.
+
+--tim
+
+
+</pre>
+                 </article>
+                </section>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:57 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

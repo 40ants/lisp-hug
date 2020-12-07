@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Problems converting from very large ratio</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Problems converting from very large ratio</h1>
+                <pre>Some weeks ago, I was running Eric Marsden's CL-BENCH common lisp  
+benchmarking suite on LWM 4.3.6.
+
+http://www.cliki.net/Performance%20Benchmarks
+
+I found two problems, one of which is probably a bug:
+
+In the file bignum.lisp, pi is calculated using two different  
+algorithms as a fraction, and then compared to the cl pi constant using  
+a fuzzy equality test called fuzzy-eql. To make this work in LW I had  
+to explicitely convert the fraction to a float before calling fuzzy-eql  
+or I would get some sort of calculation error:
+
+#-lispworks
+(defun run-pi-decimal/big ()
+   (assert (fuzzy-eql pi (/ (compute-pi-decimal 1000) (expt 10 998)))))
+
+#+lispworks
+(defun run-pi-decimal/big ()
+   (assert (fuzzy-eql pi (float (/ (compute-pi-decimal 1000) (expt 10  
+998))))))
+
+#-lispworks
+(defun run-pi-atan ()
+   (let ((api (calc-pi-atan 1000)))
+     (assert (fuzzy-eql pi (/ api (expt 10 1000))))))
+
+#+lispworks
+(defun run-pi-atan ()
+   (let ((api (calc-pi-atan 1000)))
+     (assert (fuzzy-eql pi (float (/ api (expt 10 1000)))))))
+
+This is some listener hacking:
+
+CL-USER 130 &gt (in-package :cl-bench.bignum)
+#&lt;The CL-BENCH.BIGNUM package, 39/64 internal, 0/16 external&gt
+
+CL-BENCH.BIGNUM 131 &gt (/ (compute-pi-decimal 1000) (expt 10 998))
+314159265358979323846264338327950288419716939937510582097494459230781640 
+628620899862803482534211706798214808651328230664709384460955058223172535 
+940812848111745028410270193852110555964462294895493038196442881097566593 
+344612847564823378678316527120190914564856692346034861045432664821339360 
+726024914127372458700660631558817488152092096282925409171536436789259036 
+001133053054882046652138414695194151160943305727036575959195309218611738 
+193261179310511854807446237996274956735188575272489122793818301194912983 
+367336244065664308602139494639522473719070217986094370277053921717629317 
+675238467481846766940513200056812714526356082778577134275778960917363717 
+872146844090122495343014654958537105079227968925892354201995611212902196 
+086403441815981362977477130996051870721134999999837297804995105973173281 
+609631859502445945534690830264252230825334468503526193118817101000313783 
+875288658753320838142061717766914730359825349042875546873115956286388235 
+378759375195778185778053217122680661300192787661119590921642019/ 
+100000000000000000000000000000000000000000000000000000000000000000000000 
+000000000000000000000000000000000000000000000000000000000000000000000000 
+000000000000000000000000000000000000000000000000000000000000000000000000 
+000000000000000000000000000000000000000000000000000000000000000000000000 
+000000000000000000000000000000000000000000000000000000000000000000000000 
+000000000000000000000000000000000000000000000000000000000000000000000000 
+000000000000000000000000000000000000000000000000000000000000000000000000 
+000000000000000000000000000000000000000000000000000000000000000000000000 
+000000000000000000000000000000000000000000000000000000000000000000000000 
+000000000000000000000000000000000000000000000000000000000000000000000000 
+000000000000000000000000000000000000000000000000000000000000000000000000 
+000000000000000000000000000000000000000000000000000000000000000000000000 
+000000000000000000000000000000000000000000000000000000000000000000000000 
+000000000000000000000000000000000000000000000000000000000000000
+
+CL-BENCH.BIGNUM 132 &gt (fuzzy-eql pi *)
+NIL
+
+CL-BENCH.BIGNUM 133 &gt (setf r **)
+
+....
+
+CL-BENCH.BIGNUM 134 &gt (fuzzy-eql pi (float r))
+T
+
+CL-BENCH.BIGNUM 135 &gt (- pi r)
+1D+-0 #| 1D+-0 is double-float not-a-number |#
+
+This last computation (part of fuzzy-eql) is the problem I think.
+
+Another problem was with one of the tak benchmarks that was too deeply  
+recursive: due to certain compiler settings that stack overflow test  
+was probably absent and the overflow killed the whole lisp...
+
+Sven
+
+
+</pre>
+               </article>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:53 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

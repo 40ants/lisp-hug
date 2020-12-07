@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Type problem when optimizing</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Type problem when optimizing</h1>
+                <pre>The following code snipped gives the following error:
+
+;;;*** Warning in %SET-CREATURE-Y-POSITION: Declared type (DOUBLE-FLOAT * *)
+and value type FIXNUM are disjoint.
+
+The warning goes away if I remove the "(the float" down at the bottom but
+the code bombs trying to put together mismatched types under high
+optimization. 
+
+I can't figure out why it considers either (aref location 1) or
+(terrain-vertex ...) to be a fixnum.
+
+If I put in a (declare (ftype (function (fixnum fixnum) double-float)
+terrain-vertex) after the terrain-vertex definition it will give the same
+message, seeming to indicate it is expecting terrain-vertex to return a
+fixnum. 
+I have verified that name/symbol terrain-vertex does not appear anywhere
+else in the code and might be causing a conflict.
+
+Any thoughts? 
+
+Thanks,
+
+brad
+
+(defun %set-creature-y-position (creature terrain)
+  (declare (optimize (speed 3)(safety 2)(hcl:fixnum-safety 2)))
+  (let ((location (location creature))
+        (vertices (vertices terrain)))
+    (declare  (type (simple-array double-float (3)) location)
+              (type (simple-array single-float (*)) vertices))
+    (flet ((terrain-vertex (x-pos z-pos)
+             (declare (type fixnum x-pos z-pos))
+             (let* ((width (width terrain))
+                    (adjust (the fixnum (/ (1- width) 2)))
+                    (x (+ x-pos adjust))
+                    (z (+ z-pos adjust)))
+               (declare (type fixnum width x z))
+               (let* ((sw-index (* 3 (+ x (* z width))))
+                      (ne-index (+ sw-index (* 3 (1+ width))))
+                      (sw-Y-value (aref vertices (1+ sw-index)))
+                      (ne-Y-value (aref vertices (1+ ne-index))))
+                 (+ 0.1 (max sw-Y-value ne-Y-value))))))
+      (setf (aref location 1) 
+            (the float
+            (terrain-vertex (floor (aref location 0))(floor (aref location
+2))))))))
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>RE: Type problem when optimizing</h1>
+                 <pre> More info, at runtime ((speed 3)(safety 2)(hcl:fixnum-safety 2)) I am
+getting:
+
+Error: In + of (0.1 7.039999961853027) arguments should be of type FIXNUM.
+
+
+
+-----Original Message-----
+From: owner-lisp-hug@lispworks.com [mailto:owner-lisp-hug@lispworks.com] On
+Behalf Of Brad Might
+Sent: Sunday, September 11, 2005 7:29 PM
+To: lisp-hug@lispworks.com
+Subject: Type problem when optimizing 
+
+The following code snipped gives the following error:
+
+;;;*** Warning in %SET-CREATURE-Y-POSITION: Declared type (DOUBLE-FLOAT * *)
+and value type FIXNUM are disjoint.
+
+....
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: Type problem when optimizing</h1>
+                  <pre>Hello Brad,
+
+|  More info, at runtime ((speed 3)(safety 2)(hcl:fixnum-safety 2)) I am
+| getting:
+| 
+| Error: In + of (0.1 7.039999961853027) arguments should be of type
+| FIXNUM.
+
+AFAIK, you should not declare hcl:fixnum-safety other than 3 when mixing
+numbers of (subtypes of) the float and integer types. See Section
+9.4 of "LispWorks User Guide":
+
+The levels of fixnum-safety have the following implications:
+
+- 0 implies no type checking of arguments to numeric operations, which
+ are assumed to be fixnums. Also the result is assumed, without checking,
+to not overflow - this level means single machine instructions can
+be generated for most common integer operations, but risks generating
+values that may confuse the garbage collector.
+
+- 1 implies that numeric operations do not check their argument types
+(assumed fixnum), but do signal an error if the result would have been
+out of range.
+
+- 2 implies that numeric operations signal an error if their arguments are
+non-fixnum, and also check for overflow.
+
+- 3 (default) implies complete conformance to the semantics of Common
+Lisp numbers, so that types other than integers are handled in compiled
+code.
+--
+Sincerely,
+Dmitriy Ivanov
+lisp.ystok.ru
+
+
+</pre>
+                 </article>
+                </section>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:47 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

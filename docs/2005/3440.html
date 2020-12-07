@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Help optimizing array iteration</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Help optimizing array iteration</h1>
+                <pre>Folks,
+
+Am I doing everything I can to optimize the code below? 
+
+I'm copying  a RGB byte array into a RGBA byte array. I need to do
+this because my partially translucent JPEGs have the mask stored in a
+separate file. I tried converting JPEGs to PNG so that I could store
+the alpha in the image but even without the alpha layer the PNGs are
+at least twice as big as the JPEGs. It's important to me that the
+images take as little space as possible.
+
+The arrays are all foreign byte arrays, i.e. #&lt;Pointer to type
+(:UNSIGNED :CHAR)&gt and there are at most 427,172 iterations in that
+loop.
+
+(in-package "CL-USER")
+
+(eval-when (compile)
+  (hcl:toggle-source-debugging nil))
+
+(eval-when (compile load eval)
+  (defvar *optimize*  '(optimize (safety 0) 
+			(space 0) 
+			(debug 0) 
+			(float 0)
+			(hcl:fixnum-safety 0)
+			(speed 3))))
+
+(defun cocoa-build-sprite (sprite image mask size)
+  (declare #.*optimize*
+	   (type fixnum size))
+  (loop for i fixnum from 0 below size
+     for ii fixnum from 0 by 3
+     for si fixnum from 0 by 4
+     for alpha fixnum = ii
+     for sr fixnum = si
+     for sg fixnum = (1+ sr)
+     for sb fixnum = (1+ sg)
+     for sa fixnum = (1+ sb)
+     for ir fixnum = ii
+     for ig fixnum = (1+ ir)
+     for ib fixnum = (1+ ig) do
+     ;; copy color channels
+       (setf (opengl:gl-vector-aref sprite sr) 
+	     (the fixnum (opengl:gl-vector-aref image ir)))
+       (setf (opengl:gl-vector-aref sprite sg) 
+	     (the fixnum (opengl:gl-vector-aref image ig)))
+       (setf (opengl:gl-vector-aref sprite sb) 
+	     (the fixnum (opengl:gl-vector-aref image ib)))
+       (setf (opengl:gl-vector-aref sprite sa) 
+	     (the fixnum (opengl:gl-vector-aref mask alpha)))
+       ))
+
+    Thanks, Joel
+
+-- 
+http://wagerlabs.com/ 
+New generation of poker room software
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Help optimizing array iteration</h1>
+                 <pre>Hi Joel,
+
+Try this, though I am not sure about the mask index for its alpha 
+channel (increment
+by 3?).  I cannot be sure it is correct, the indexes may be off.  I you 
+disassemble this
+version it seems much more efficient than yours, though I am not sure 
+how the
+fli:replace-foreign-array will perfom.
+
+(defun cocoa-build-sprite (sprite image mask size)
+  (declare (optimize (speed 3) (safety 0)) (type fixnum size))
+  (prog ((sprite-start 0)
+         (sprite-end 3)
+         (image-start 0)
+         (image-end 3)
+         (alpha-start 0)
+         (mask-alpha-start 0))
+    (declare (type fixnum sprite-start sprite-end image-start image-end 
+alpha-start))
+    replace-bytes
+    (when (zerop size) (return-from cocoa-build-sprite sprite))
+    (fli:replace-foreign-array sprite image
+                               :start1 sprite-start :end1 sprite-end
+                               :start2 image-start :end2 image-end)
+    (setf (opengl:gl-vector-aref sprite alpha-start)
+          (the fixnum (opengl:gl-vector-aref mask mask-alpha-start)))
+    (incf sprite-start 4)
+    (incf sprite-end 4)
+    (incf image-start 3)
+    (incf image-end 3)
+    (incf alpha-start 4)
+    (incf mask-alpha-start 3)
+    (go replace-bytes)))
+
+Wade
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Help optimizing array iteration</h1>
+                 <pre>On third thought I think things could be faster if your
+image, sprite and mask arrays were actually static lisp
+arrays of type (simple-array (unsigned-byte 8) (*)).  If
+you look at the documentation:
+
+http://www.lispworks.com/documentation/lw44/FLI/html/fli-120.htm#pgfId-1112879
+
+one sees that a Lisp array can be passed to Foreign functions directly
+if they are allocated in the static area.  The Lisp compiler seems to
+do a better job copying between arrays if they are actually Lisp
+arrays.  The overhead to call the FLI to copy bytes between foreign
+arrays is not optimized.  When you pass to OpenGL use
+fli:with-dynamic-lisp-array-pointer.
+
+So if you replace you opengl arrays from being fli allocated arrays
+to Lisp arrays then you can create functions like (still not sure about
+the ma increment though):
+
+(defun cocoa-build-sprite (sprite-array image-array mask-array size)
+  "Merges BGR Image and Alpha Mask arrays into a BGRA Sprite array"
+  (declare (optimize (speed 3) (safety 0)) (type fixnum size)
+           (type (simple-array (unsigned-byte 8) (*))
+                 sprite-array image-array mask-array))
+  (prog ((sb 0) (sg 1) (sr 2) (sa 3)
+         (ib 0) (ig 1) (ir 2)
+         (ma 0))
+    (declare (type fixnum sb sg sr sa ib ig ir ma))
+    replace-bytes
+    (when (zerop size) (return-from cocoa-build-sprite sprite-array))
+    (setf (aref sprite-array sb) (aref image-array ib)
+          (aref sprite-array sg) (aref image-array ig)
+          (aref sprite-array sr) (aref image-array ir)
+          (aref sprite-array sa) (aref mask-array ma))
+    (incf sb 4) (incf sg 4) (incf sr 4) (incf sa 4)
+    (incf ib 3) (incf ig 3) (incf ir 3)
+    (incf ma 1)
+    (decf size)
+    (go replace-bytes)))
+
+Disassembling on x86 reveals that there are no longer any function
+calls.
+
+CL-USER 2 &gt (disassemble 'cocoa-build-sprite)
+206A82D2:
+       0:      55               push  ebp
+       1:      89E5             move  ebp, esp
+       3:      83EC10           sub   esp, 10
+       6:      C7042445100000   move  [esp], 1045
+      13:      50               push  eax
+      14:      50               push  eax
+      15:      50               push  eax
+      16:      50               push  eax
+      17:      50               push  eax
+      18:      50               push  eax
+      19:      50               push  eax
+      20:      50               push  eax
+      21:      8B7D10           move  edi, [ebp+10]
+      24:      8B5D0C           move  ebx, [ebp+C]
+      27:      C745EC00000000   move  [ebp-14], 0
+      34:      C745E800010000   move  [ebp-18], 100
+      41:      C745E400020000   move  [ebp-1C], 200
+      48:      C745E000030000   move  [ebp-20], 300
+      55:      C745DC00000000   move  [ebp-24], 0
+      62:      C745D800010000   move  [ebp-28], 100
+      69:      C745D400020000   move  [ebp-2C], 200
+      76:      33D2             xor   edx, edx
+L1:   78:      83F800           cmp   eax, 0
+      81:      7507             jne   L2
+      83:      89F8             move  eax, edi
+      85:      FD               std  
+      86:      C9               leave
+      87:      C20C00           ret   C
+L2:   90:      8B4DEC           move  ecx, [ebp-14]
+      93:      8D7310           lea   esi, [ebx+10]
+      96:      8975FC           move  [ebp-4], esi
+      99:      8B75DC           move  esi, [ebp-24]
+     102:      8975F8           move  [ebp-8], esi
+     105:      C17DF808         sar   [ebp-8], 8
+     109:      8B75FC           move  esi, [ebp-4]
+     112:      0375F8           add   esi, [ebp-8]
+     115:      0FB636           movzb esi, [esi]
+     118:      8975FC           move  [ebp-4], esi
+     121:      8B75FC           move  esi, [ebp-4]
+     124:      8975D0           move  [ebp-30], esi
+     127:      C165D008         shl   [ebp-30], 8
+     131:      8D7710           lea   esi, [edi+10]
+     134:      8975FC           move  [ebp-4], esi
+     137:      894DF8           move  [ebp-8], ecx
+     140:      C17DF808         sar   [ebp-8], 8
+     144:      8B75D0           move  esi, [ebp-30]
+     147:      8975F4           move  [ebp-C], esi
+     150:      C17DF408         sar   [ebp-C], 8
+     154:      8B4DF4           move  ecx, [ebp-C]
+     157:      8B75FC           move  esi, [ebp-4]
+     160:      0375F8           add   esi, [ebp-8]
+     163:      880E             moveb [esi], cl
+     165:      8B4DE8           move  ecx, [ebp-18]
+     168:      8D7310           lea   esi, [ebx+10]
+     171:      8975FC           move  [ebp-4], esi
+     174:      8B75D8           move  esi, [ebp-28]
+     177:      8975F8           move  [ebp-8], esi
+     180:      C17DF808         sar   [ebp-8], 8
+     184:      8B75FC           move  esi, [ebp-4]
+     187:      0375F8           add   esi, [ebp-8]
+     190:      0FB636           movzb esi, [esi]
+     193:      8975FC           move  [ebp-4], esi
+     196:      8B75FC           move  esi, [ebp-4]
+     199:      8975D0           move  [ebp-30], esi
+     202:      C165D008         shl   [ebp-30], 8
+     206:      8D7710           lea   esi, [edi+10]
+     209:      8975FC           move  [ebp-4], esi
+     212:      894DF8           move  [ebp-8], ecx
+     215:      C17DF808         sar   [ebp-8], 8
+     219:      8B75D0           move  esi, [ebp-30]
+     222:      8975F4           move  [ebp-C], esi
+     225:      C17DF408         sar   [ebp-C], 8
+     229:      8B4DF4           move  ecx, [ebp-C]
+     232:      8B75FC           move  esi, [ebp-4]
+     235:      0375F8           add   esi, [ebp-8]
+     238:      880E             moveb [esi], cl
+     240:      8B4DE4           move  ecx, [ebp-1C]
+     243:      8D7310           lea   esi, [ebx+10]
+     246:      8975FC           move  [ebp-4], esi
+     249:      8B75D4           move  esi, [ebp-2C]
+     252:      8975F8           move  [ebp-8], esi
+     255:      C17DF808         sar   [ebp-8], 8
+     259:      8B75FC           move  esi, [ebp-4]
+     262:      0375F8           add   esi, [ebp-8]
+     265:      0FB636           movzb esi, [esi]
+     268:      8975FC           move  [ebp-4], esi
+     271:      8B75FC           move  esi, [ebp-4]
+     274:      8975D0           move  [ebp-30], esi
+     277:      C165D008         shl   [ebp-30], 8
+     281:      8D7710           lea   esi, [edi+10]
+     284:      8975FC           move  [ebp-4], esi
+     287:      894DF8           move  [ebp-8], ecx
+     290:      C17DF808         sar   [ebp-8], 8
+     294:      8B75D0           move  esi, [ebp-30]
+     297:      8975F4           move  [ebp-C], esi
+     300:      C17DF408         sar   [ebp-C], 8
+     304:      8B4DF4           move  ecx, [ebp-C]
+     307:      8B75FC           move  esi, [ebp-4]
+     310:      0375F8           add   esi, [ebp-8]
+     313:      880E             moveb [esi], cl
+     315:      8B4DE0           move  ecx, [ebp-20]
+     318:      8B7508           move  esi, [ebp+8]
+     321:      83C610           add   esi, 10
+     324:      8975FC           move  [ebp-4], esi
+     327:      8955F8           move  [ebp-8], edx
+     330:      C17DF808         sar   [ebp-8], 8
+     334:      8B75FC           move  esi, [ebp-4]
+     337:      0375F8           add   esi, [ebp-8]
+     340:      0FB636           movzb esi, [esi]
+     343:      8975FC           move  [ebp-4], esi
+     346:      8B75FC           move  esi, [ebp-4]
+     349:      8975D0           move  [ebp-30], esi
+     352:      C165D008         shl   [ebp-30], 8
+     356:      8D7710           lea   esi, [edi+10]
+     359:      8975FC           move  [ebp-4], esi
+     362:      894DF8           move  [ebp-8], ecx
+     365:      C17DF808         sar   [ebp-8], 8
+     369:      8B75D0           move  esi, [ebp-30]
+     372:      8975F4           move  [ebp-C], esi
+     375:      C17DF408         sar   [ebp-C], 8
+     379:      8B4DF4           move  ecx, [ebp-C]
+     382:      8B75FC           move  esi, [ebp-4]
+     385:      0375F8           add   esi, [ebp-8]
+     388:      880E             moveb [esi], cl
+     390:      8B4DEC           move  ecx, [ebp-14]
+     393:      81C100040000     add   ecx, 400
+     399:      894DEC           move  [ebp-14], ecx
+     402:      8B4DE8           move  ecx, [ebp-18]
+     405:      81C100040000     add   ecx, 400
+     411:      894DE8           move  [ebp-18], ecx
+     414:      8B4DE4           move  ecx, [ebp-1C]
+     417:      81C100040000     add   ecx, 400
+     423:      894DE4           move  [ebp-1C], ecx
+     426:      8B4DE0           move  ecx, [ebp-20]
+     429:      81C100040000     add   ecx, 400
+     435:      894DE0           move  [ebp-20], ecx
+     438:      8B4DDC           move  ecx, [ebp-24]
+     441:      81C100030000     add   ecx, 300
+     447:      894DDC           move  [ebp-24], ecx
+     450:      8B4DD8           move  ecx, [ebp-28]
+     453:      81C100030000     add   ecx, 300
+     459:      894DD8           move  [ebp-28], ecx
+     462:      8B4DD4           move  ecx, [ebp-2C]
+     465:      81C100030000     add   ecx, 300
+     471:      894DD4           move  [ebp-2C], ecx
+     474:      81C200010000     add   edx, 100
+     480:      2D00010000       sub   eax, 100
+     485:      E964FEFFFF       jmp   L1
+NIL
+
+CL-USER 3 &gt
+
+Is it fast?.  If this is still not fast enough
+this may be a good case for creating a C DLL with helper functions
+to do this brute forve copying.
+
+Wade
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Help optimizing array iteration</h1>
+                 <pre>Wade,
+
+This is a cool idea and I'll try it. The image and mask arrays are
+foreign arrays by definition, though, as they are returned by
+Objective-C. I wonder if having the sprite array as a static lisp
+array is gonna make any difference.
+
+   Joel
+
+On Tue, 18 Jan 2005 23:27:48 -0700, Wade Humeniuk &lt;whumeniu@telus.net&gt wrote:
+&gt On third thought I think things could be faster if your
+&gt image, sprite and mask arrays were actually static lisp
+&gt arrays of type (simple-array (unsigned-byte 8) (*)).  If
+&gt you look at the documentation:
+&gt 
+&gt http://www.lispworks.com/documentation/lw44/FLI/html/fli-120.htm#pgfId-1112879
+&gt 
+&gt one sees that a Lisp array can be passed to Foreign functions directly
+&gt if they are allocated in the static area.  The Lisp compiler seems to
+&gt do a better job copying between arrays if they are actually Lisp
+&gt arrays.  The overhead to call the FLI to copy bytes between foreign
+&gt arrays is not optimized.  When you pass to OpenGL use
+&gt fli:with-dynamic-lisp-array-pointer.
+
+-- 
+http://wagerlabs.com/ 
+New generation of poker room software
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:49 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

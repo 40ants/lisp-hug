@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>ODBC on Linux</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>ODBC on Linux</h1>
+                <pre>Does anyone have used it successfully? 
+
+What were the steps you have done?
+
+
+I tried with unixODBC and MYODBC. The examples in that packages run
+fine, but I wasn't able to connect to the database with CommonSQL.
+
+
+Regards
+Friedrich
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: ODBC on Linux</h1>
+                 <pre>Am Don, 2002-03-07 um 09.23 schrieb Friedrich Dominicus:
+&gt Does anyone have used it successfully? 
+&gt 
+&gt What were the steps you have done?
+&gt 
+&gt 
+&gt I tried with unixODBC and MYODBC. The examples in that packages run
+&gt fine, but I wasn't able to connect to the database with CommonSQL.
+
+I have it running I used the unixODBCs of the site
+
+  http://edas.visaci.cz/en/unixodbc/
+
+I also installed the GTK+ Driver Manager from the same site.
+On by machine runs PostgreSQL 7.1.3 which I first tested with "psql".
+
+Then I started "gODBCConfig" which is the GTK+ Driver Manager.
+If you installed all packages correctly there should be an entry for
+PostgreSQL in the List under the "Drivers" tab.
+
+I clicked on the tab "User DSN" and hit the "Add" Button.
+A new window pops up which shows all installed drivers (in my case only
+PostgeSQL). I selected it and clicked on "Ok".
+
+After that a window appeared where one can setup the details of the
+UserDSN.
+
+I gave the DSN the name "jsc".
+"Database" was "jsc" too which is the name of a Database I created with
+PostgreSQL. I supplied Username and Password of the PostgreSQL database
+user. Then I changed the "ReadOnly" Selector from "Yes" to "No" and
+clicked on the "Ok" button of the dialog.
+
+After that I closed the Driver Manager Window.
+
+Now I started LispWorks and CommonSQL
+
+CL-USER 1 &gt (require "odbc")
+
+And connected to the database:
+
+CL-USER 2 &gt (sql:connect "jsc/thepassword")
+
+One thing that not worked was CREATE-VIEW-FROM-CLASS
+
+CL-USER 3 &gt (sql:def-view-class a () ((aslot :type fixnum)))
+CL-USER 4 &gt (sql:create-view-from-class 'a)
+Error: Schema querying not implemented for database
+#&lt;SQL::POSTGRESQL-ODBC-DATABASE "jsc/thepassword" 2067F0B4&gt
+  1 (abort) Return to level 0.
+  2 Return to top loop level 0.
+....
+CL-USER 5 : 1 &gt :b
+Call to (METHOD SQL::TABLE-EXISTS (SQL-COMMON:DATABASE T))
+Call to SQL:CREATE-VIEW-FROM-CLASS
+Call to SPECIAL::%EVAL-NOHOOK
+Call to IV:PROCESS-TOP-LEVEL
+Call to CAPI::CAPI-TOP-LEVEL-FUNCTION
+Call to CAPI::INTERACTIVE-PANE-TOP-LOOP
+Call to (SUBFUNCTION 1 MP::INITIALIZE-PROCESS-STACK)
+
+Defining a method as follows lets you at least create and use the table:
+
+CL-USER 6 : 1 &gt (defmethod sql::table-exists ((db
+sql::postgresql-odbc-database) table) nil)
+
+CL-USER 7 : 1 &gt :a
+CL-USER 8 &gt (sql:create-view-from-class 'a)
+NIL
+CL-USER 9 &gt (sql:commit)
+NIL
+CL-USER 10 &gt (sql:list-tables)
+("a")
+CL-USER 11 &gt (setf *a* (make-instance 'a))
+CL-USER 12 &gt (setf (slot-value *a* 'aslot) 1)
+CL-USER 13 &gt (sql:update-records-from-instance *a*)
+CL-USER 14 &gt (sql:commit)
+CL-USER 15 &gt (sql:select 'a)
+((#&lt;db-instance A 543726476&gt))
+CL-USER 16 &gt (slot-value (first (first *)) 'aslot)
+1
+CL-USER 17 &gt (sql:disconnect)
+
+
+The SQL::TABLE-EXISTS method could probably be implemented by using
+(sql:list-tables) but I have no idea whats going wrong.
+
+ciao,
+Jochen
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:58 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

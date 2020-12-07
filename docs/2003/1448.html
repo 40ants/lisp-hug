@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Auto-completion in editor?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Auto-completion in editor?</h1>
+                <pre>Hi everyone,
+
+is it possible to make the editor auto-complete the text, sort of 
+similar to the way modern word processors do?
+
+BTW. I don't mean "dynamic completion", I'm aware of that one. Try it 
+with a non US keyboard and you'll find it most inconvenient.
+
+In case the "auto completion" isn't already setable, I should think some 
+of you clever guys out there have already come up with some code, care 
+to share with the rest of us?
+
+Cheers
+Guenther
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Auto-completion in editor?</h1>
+                 <p>
+                  Unable to parse email body. Email id is 1449
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Q: CAPI completion keyboard gesture in LWW?</h1>
+                  <pre>Hello lispworkers,
+
+One can invoke the completion function for a text input pane by clicking the
+"?" button.
+Does any standard keyboard combination to do so exist on Windows? Is it
+possible to assign this gesture?
+--
+Sincerely,
+Dmitri Ivanov
+www.ystok.ru
+
+
+</pre>
+                 </article>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>Re: Q: CAPI completion keyboard gesture in LWW?</h1>
+                   <p>
+                    Unable to parse email body. Email id is 1461
+                  </article>
+                  <section class=tree>
+                   <article class=email>
+                    <h1>Re: Q: CAPI completion keyboard gesture in LWW?</h1>
+                    <pre>Hello David,
+
+| ...snip...|
+| Possibly the Windows-compliant way to do it would be to use a menu
+| item with an accelerator. Then, the user can figure out what
+| non-standard key to use, because it appears on the menu.
+| ...snip...|
+| We will document callback-type :focus, though you could implement this
+| idea without it.
+
+Nice way, thanks. Unfortunately, does not work for text-inpute-choice, the
+subclass text-input-pane.
+--
+Sincerely,
+Dmitri Ivanov
+www.ystok.ru
+
+
+</pre>
+                   </article>
+                   <section class=tree>
+                    <article class=email>
+                     <h1>Re: Q: CAPI completion keyboard gesture in LWW?</h1>
+                     <p>
+                      Unable to parse email body. Email id is 1474
+                    </article>
+                   </section>
+                  </section>
+                  <section class=tree>
+                   <article class=email>
+                    <h1>Q: Compiling closure to file</h1>
+                    <pre>Hello lispworkers,
+
+I have the following piece of code in the file cc.lisp:
+----------------
+(defun %make-closure (x &amp;aux y)
+  (lambda ()
+    (unless y (setq y (* x 1000))) ; long run
+    (1+ y)))
+
+(defmacro cc (x)
+  `(funcall ,(%make-closure x)))
+
+(defun test ()
+  (+ (cc 2) (cc 3)))
+
+;(cc 3)
+;(test)
+----------------
+When compiling this file with LWW 4.3, I have got the following:
+
+**++++ Error in TEST:
+  Object #&lt;interpreted closure (LAMBDA NIL (UNLESS Y (SETQ Y (* X 1000)))
+(1+ Y))&gt is of type TYPE::INTERPRETED-FUNCTION which is not externalizable
+to #&lt;STREAM::LATIN-1-FILE-STREAM E:\Lisp\Projects\t_cc.fsl&gt.
+; (TOP-LEVEL-FORM 2)
+; *** 1 error detected, no fasl file produced.
+;;; Compilation finished with 0 warnings, 1 error.
+
+Is this a LW-specific problem or general CL issue?
+
+The workaround could be not to compile the TEST function at all, but put
+into a separate file and load from the .lisp source instead of .fasl.
+However, leaving the function interpreted means macroexpansion occurring
+every time it gets called, which is undermines the usefulness of the
+closure.
+Any takers?
+
+BTW, is it possible to declare some function interpreted within the body of
+the file being compiled?
+--
+Sincerely,
+Dmitri Ivanov
+www.ystok.ru
+
+
+</pre>
+                   </article>
+                  </section>
+                  <section class=tree>
+                   <article class=email>
+                    <h1>Re: Q: Compiling closure to file</h1>
+                    <pre>The problem is a general CL issue - function literals can't be dumped to 
+file.
+
+The way your code is set up, the %make-closure function returns a 
+function literal which, ultimately,  is embedded in the function test.
+
+The following revision to %make-closure works since the macro returns 
+the function-creating form rather than the function itself.
+
+(defun %make-closure (x)
+   `(let (y)
+      (lambda ()
+        (unless y (setq y (* ,x 1000))) ; long run
+        (1+ y))))
+
+
+Hope this helps.
+Regards
+Guy.
+
+
+In message &lt;000001c39df3$3552d2e0$425702c3@digo&gt, Dmitri Ivanov 
+&lt;divanov@aha.ru&gt writes
+&gtHello lispworkers,
+&gt
+&gtI have the following piece of code in the file cc.lisp:
+&gt----------------
+&gt(defun %make-closure (x &amp;aux y)
+&gt  (lambda ()
+&gt    (unless y (setq y (* x 1000))) ; long run
+&gt    (1+ y)))
+&gt
+&gt(defmacro cc (x)
+&gt  `(funcall ,(%make-closure x)))
+&gt
+&gt(defun test ()
+&gt  (+ (cc 2) (cc 3)))
+&gt
+&gt;(cc 3)
+&gt;(test)
+&gt----------------
+&gtWhen compiling this file with LWW 4.3, I have got the following:
+&gt
+&gt**++++ Error in TEST:
+&gt  Object #&lt;interpreted closure (LAMBDA NIL (UNLESS Y (SETQ Y (* X 1000)))
+&gt(1+ Y))&gt is of type TYPE::INTERPRETED-FUNCTION which is not externalizable
+&gtto #&lt;STREAM::LATIN-1-FILE-STREAM E:\Lisp\Projects\t_cc.fsl&gt.
+&gt; (TOP-LEVEL-FORM 2)
+&gt; *** 1 error detected, no fasl file produced.
+&gt;;; Compilation finished with 0 warnings, 1 error.
+&gt
+&gtIs this a LW-specific problem or general CL issue?
+&gt
+&gtThe workaround could be not to compile the TEST function at all, but put
+&gtinto a separate file and load from the .lisp source instead of .fasl.
+&gtHowever, leaving the function interpreted means macroexpansion occurring
+&gtevery time it gets called, which is undermines the usefulness of the
+&gtclosure.
+&gtAny takers?
+&gt
+&gtBTW, is it possible to declare some function interpreted within the body of
+&gtthe file being compiled?
+&gt--
+&gtSincerely,
+&gtDmitri Ivanov
+&gtwww.ystok.ru
+&gt
+
+-- 
+
+
+</pre>
+                   </article>
+                  </section>
+                  <section class=tree>
+                   <article class=email>
+                    <h1>Re: Q: Compiling closure to file</h1>
+                    <pre>* Dmitri Ivanov wrote:
+
+&gt By experimenting, I have found out that leaving the test function
+&gt interpreted will do because it macroexpands cc only twice while evaluating
+&gt the defun (though rather unbelievable).
+
+I think you need to describe what you're trying to do more carefully.
+A solution which only works when bits of the code are left interpreted
+or only works by calling the compiler at runtime is usually an answer
+to the wrong problem.
+
+--tim
+
+
+</pre>
+                   </article>
+                  </section>
+                 </section>
+                </section>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:55 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

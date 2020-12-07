@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Windows socket messages stop arriving - ring any bells?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Windows socket messages stop arriving - ring any bells?</h1>
+                <pre>
+Hello list,
+
+I've been developing a client/server application on Windows for the
+last few years using LispWorks 5/6, and generally speaking it has all
+gone swimmingly. However I have one issue that I wanted to run past
+you all in the hope that someone might've seen it before.
+
+I have written a basic publish &amp; subscribe message bus where a server
+process sends simple text messages to subscribers. The server is
+written in Lisp, some clients are written in Lisp and some in Adobe
+Flex (i.e. they run in the Flash Player). As I say it all works pretty
+well, but after a (long) while the messages sent from the server are
+no longer received by the clients (both Lisp and Flash). No errors are
+seen at any point.
+
+Since the problem can be made to go away most effectively by
+restarting the server, that's where the finger of suspicion is
+currently pointing. Because it is a fairly rare problem (particularly
+on my development box) it's been very hard to nail down, but the end
+of the project is approaching and something must be done.
+
+My plan is to re-write the server (and possibly the client) socket
+part in C++ using the Boost ASIO networking library, which I am
+already using elsewhere in the project, to see whether the problem
+goes away. If anyone can suggest any lines of enquiry I should pursue
+first, I'd be very grateful.
+
+Cheers,
+
+John :^P
+--
+John Pallister
+john@johnp.net
+john@synchromesh.com
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Windows socket messages stop arriving - ring any bells?</h1>
+                 <pre>
+John Pallister &lt;john@synchromesh.com&gt writes:
+
+&gt I have written a basic publish &amp; subscribe message bus where a server
+&gt process sends simple text messages to subscribers. The server is
+&gt written in Lisp, some clients are written in Lisp and some in Adobe
+&gt Flex (i.e. they run in the Flash Player). As I say it all works pretty
+&gt well, but after a (long) while the messages sent from the server are
+&gt no longer received by the clients (both Lisp and Flash). No errors are
+&gt seen at any point.
+
+Hello!
+
+First: Are you 100% sure the messages are still being sent from the
+server and that the server is well and alive?
+Second: Are you using TCP connections for this? If so, could it be a
+simple networking timeout problem?
+-- 
+  regards,
+    Espen
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Windows socket messages stop arriving - ring any bells?</h1>
+                 <p>
+                  Unable to parse email body. Email id is 10864
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Windows socket messages stop arriving - ring any bells?</h1>
+                 <pre>
+Hi all,
+
+Thanks very much for your responses.
+
+@Espen:
+
+The pub/sub server process is logging messages that indicate it is
+still running and should be sending the messages to the clients. The
+testing with Wireshark on the client PC that we have done indicates
+that the messages weren't arriving from the server.
+
+We are using TCP connections for the pub/sub bus. Simultaneously there
+is RTP/UDP traffic running between the clients and a different process
+that is running on the same machine as the pub/sub server; the code
+for this is C/C++ at both ends, and seems to work fine.
+
+The two machines are on the same LAN (which is fairly lightly loaded,
+AFAICT) so I wouldn't expect timeouts to be a problem.
+
+@Martin:
+
+I hadn't thought of running netstat (I didn't know it was available on
+Windows), but I'll try this in future.
+
+I had seen this problem occasionally on my development machine (when
+that was a laptop running Windows; now I use VMware Fusion on a
+Hackintosh, and I haven't seen it recur), so it's not just on the
+production server, an IBM rackmount server (it's an intranet
+application). I haven't checked whether the drivers are up-to-date, I
+must admit; that's something else I could look at.
+
+I'm not trying to suggest there's a problem with the LispWorks server
+socket code on Windows, but I was hoping someone could suggest any
+"gotchas" that I might be missing. The problem is that the
+traditional(?) Lisp debugging technique of "adding more logging
+statements to see what's going on" falls down when the problem is this
+intermittent, so I'm at a loss as to how to debug it further.
+
+Anyway, thanks again for the responses.
+
+Cheers,
+
+John :^P
+--
+John Pallister
+john@johnp.net
+john@synchromesh.com
+
+
+
+On Fri, Feb 4, 2011 at 8:34 AM, Espen Vestre &lt;ev@netfonds.no&gt wrote:
+&gt John Pallister &lt;john@synchromesh.com&gt writes:
+&gt
+&gt&gt I have written a basic publish &amp; subscribe message bus where a server
+&gt&gt process sends simple text messages to subscribers. The server is
+&gt&gt written in Lisp, some clients are written in Lisp and some in Adobe
+&gt&gt Flex (i.e. they run in the Flash Player). As I say it all works pretty
+&gt&gt well, but after a (long) while the messages sent from the server are
+&gt&gt no longer received by the clients (both Lisp and Flash). No errors are
+&gt&gt seen at any point.
+&gt
+&gt Hello!
+&gt
+&gt First: Are you 100% sure the messages are still being sent from the
+&gt server and that the server is well and alive?
+&gt Second: Are you using TCP connections for this? If so, could it be a
+&gt simple networking timeout problem?
+&gt --
+&gt &nbsp;regards,
+&gt &nbsp; &nbsp;Espen
+&gt
+&gt
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:34 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

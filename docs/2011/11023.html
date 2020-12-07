@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>'PROCESS-WAIT called when scheduling not allowed'</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>'PROCESS-WAIT called when scheduling not allowed'</h1>
+                <pre>
+Hi all,
+
+LispWorks (LW 4.3.7 on 32bit Linux x86).  I know its pretty old but its
+what I have to work with until I get a chance to upgrade....
+
+I'm writing a CAPI app that creates 4 "worker processes", each of which
+uses open-pipe with :direction :io to invoke a child task.  Each each LW
+worker process reads the stdout of its respective child task (the latter
+being a little C app).  Commands to the child tasks are routed thru
+mailboxs owned by the respective LW worker process, which writes them to
+the child task's stdin.
+
+The top-level app reads bmp files out of a hot directory and submits
+them to worker processes.  Since there are 4 processes, each running the
+same child task, then four bmp's can be in process at once- taking
+advantage of the multicore system I'll be running it on.
+
+So the problem is I'm getting this fatal error
+
+"Wait function signalled non-repeating error
+'PROCESS-WAIT called when scheduling not allowed'"
+
+in each of the LW processes after the first few lines are read from
+their child task's stdout.  I am using (peek-char nil) to detect the
+presence of chars, then (read-line) to wait for &amp; read an entire line of
+text.  The child task guarantees line-oriented Lisp formatted sexp's
+output to its stdio.  Note I do get correct behavior for the first few
+lines, then the error is asserted.
+
+The debugger shows the error is coming from the process-wait invocation-
+not somewhere else.  Inside the process-wait polling function I use a
+(peek-char nil) to detect chars coming from the child task, so the LW
+task sleeps until it has something to process.
+
+If I replace the (read-line) related code with a (when (peek-char nil
+...) followed by a simple (read ..), then the error goes away.  The
+problem then is the process seems to eventually get stuck in the (read),
+I believe because there is whitespace that peek-char sees but there is
+not a complete sexp to read.
+
+I've tried variations with (read-char-no-hang) in a loop to accumulate a
+line &amp; had the same problem as (read-line). 
+
+I was hoping that any experienced in the nuances of process-wait as it
+relates to the reader might comment on the possibility of (read-line) or
+(read-char*) causing stream-related or process-related side-effects that
+(read) doesn't.  Since the child task's output is line-oriented,
+(read-line) seems a better choice.
+
+I'd be happy to supply code but figured it would be better to try and
+ask useful questions first.
+
+Thanks,
+
+Greg
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: 'PROCESS-WAIT called when scheduling not allowed'</h1>
+                 <pre>
+Hi all,
+
+Found the problem but I don't understand why it was a problem.  It seems
+to have been caused by the (peek-char) inside the process-wait polling
+function.  When I replaced it with a (read-char-no-hang) &amp; saved the
+char retrieved so I could prepend it to the results of the subsequent
+(read-line), then all the stdio acts as expected.
+
+Perhaps theres something inside (peek-char) that can interact with
+(process-wait) which was messing me up.
+
+Regards,
+
+Greg
+
+
+
+On 05/20/2011 04:00 AM, Greg Menke wrote:
+&gt Hi all,
+&gt
+&gt LispWorks (LW 4.3.7 on 32bit Linux x86).  I know its pretty old but its
+&gt what I have to work with until I get a chance to upgrade....
+&gt
+&gt I'm writing a CAPI app that creates 4 "worker processes", each of which
+&gt uses open-pipe with :direction :io to invoke a child task.  Each each LW
+&gt worker process reads the stdout of its respective child task (the latter
+&gt being a little C app).  Commands to the child tasks are routed thru
+&gt mailboxs owned by the respective LW worker process, which writes them to
+&gt the child task's stdin.
+&gt
+&gt The top-level app reads bmp files out of a hot directory and submits
+&gt them to worker processes.  Since there are 4 processes, each running the
+&gt same child task, then four bmp's can be in process at once- taking
+&gt advantage of the multicore system I'll be running it on.
+&gt
+&gt So the problem is I'm getting this fatal error
+&gt
+&gt "Wait function signalled non-repeating error
+&gt 'PROCESS-WAIT called when scheduling not allowed'"
+&gt
+&gt in each of the LW processes after the first few lines are read from
+&gt their child task's stdout.  I am using (peek-char nil) to detect the
+&gt presence of chars, then (read-line) to wait for &amp; read an entire line of
+&gt text.  The child task guarantees line-oriented Lisp formatted sexp's
+&gt output to its stdio.  Note I do get correct behavior for the first few
+&gt lines, then the error is asserted.
+&gt
+&gt The debugger shows the error is coming from the process-wait invocation-
+&gt not somewhere else.  Inside the process-wait polling function I use a
+&gt (peek-char nil) to detect chars coming from the child task, so the LW
+&gt task sleeps until it has something to process.
+&gt
+&gt If I replace the (read-line) related code with a (when (peek-char nil
+&gt ..) followed by a simple (read ..), then the error goes away.  The
+&gt problem then is the process seems to eventually get stuck in the (read),
+&gt I believe because there is whitespace that peek-char sees but there is
+&gt not a complete sexp to read.
+&gt
+&gt I've tried variations with (read-char-no-hang) in a loop to accumulate a
+&gt line &amp; had the same problem as (read-line). 
+&gt
+&gt I was hoping that any experienced in the nuances of process-wait as it
+&gt relates to the reader might comment on the possibility of (read-line) or
+&gt (read-char*) causing stream-related or process-related side-effects that
+&gt (read) doesn't.  Since the child task's output is line-oriented,
+&gt (read-line) seems a better choice.
+&gt
+&gt I'd be happy to supply code but figured it would be better to try and
+&gt ask useful questions first.
+&gt
+&gt Thanks,
+&gt
+&gt Greg
+&gt
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:34 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

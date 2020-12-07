@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Optimize vector of floats access</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Optimize vector of floats access</h1>
+                <pre>
+I have the following code to provide (ideally) efficient access to
+vectors of floats.  On my machine a call of (test-speed 1000000) under
+LW 5.1.1 for Linux 64 bit takes 0.440 seconds.  On the same machine
+using SBCL 1.0.22 it takes 0.051 seconds, so nearly 10 times faster.
+
+1. Is there something relatively simple I can do to get similar or even
+just improved performance under LispWorks?
+
+Note that I didn't start out with CFFI but ended up there when
+make-array ... :element-type 'single-float etc. didn't get me what I
+wanted.  I'd be happy to drop the CFFI if possible.
+
+2. I also tried typed-aref but (foo) below returns 0.0 for reasons I
+do not understand...
+
+3. Off topic but curiously if you change the 28.0 to 28 in test-speed
+and recompile under SBCL it only takes 0.016 seconds.  What's the
+reason for that?
+
+Cheers,
+
+Greg
+
+--
+
+(in-package :cl-user)
+
+(defun fill-float-vector (vector contents)
+  (loop for i from 0
+        for value in contents do
+        (setf (cffi:mem-aref vector :float i) value))
+  vector)
+
+(defmacro with-float-vector ((vector-name count contents) &amp;body body)
+  `(let ((,vector-name (cffi:foreign-alloc :float :count ,count)))
+     (fill-float-vector ,vector-name ,contents)
+     (unwind-protect
+          (progn
+            ,@body)
+       (cffi:foreign-free ,vector-name))))
+
+(defun lookup-uk-stake-range-value (price prices values length)
+  (declare (optimize speed (safety 0) #+:lispworks (float 0)))
+  (declare (type fixnum length))
+  (dotimes (i length)
+    (declare (type fixnum i) (type single-float price))
+    (when (&lt; price (cffi:mem-aref prices :float i))
+      (return-from lookup-uk-stake-range-value 
+        (cffi:mem-aref values :float i)))))
+
+(defun test-speed (iterations)
+  (let ((length 15))
+    (with-float-vector (prices length '(1.01 1.25 1.50 1.75 2.0 3.0 
+                                        4.0 5.0 7.0 9.0 12.0 15.0 
+                                        20.0 25.0 35.0))
+      (with-float-vector (values length '(1.0 1.0149 0.9653 1.0331 
+                                          1.1320 1.1390 0.9225 0.9014
+                                          0.9885 0.8312 0.9048 0.7822
+                                          0.9783 1.0267 0.9808))
+        (time 
+         (dotimes (i iterations)
+           (lookup-uk-stake-range-value 28.0 prices values length)))))))
+
+#+:lispworks
+(defun foo ()
+  (declare (optimize speed (safety 0) (float 0)))
+  (let ((vec (sys:make-typed-aref-vector 8)))
+    (dotimes (i 8)
+      (setf (sys:typed-aref 'single-float vec i) 1.0))
+    (sys:typed-aref 'single-float vec 0)))
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Optimize vector of floats access</h1>
+                 <pre>
+
+On Dec 7, 2008, at 7:05 AM, Gregory Tod wrote:
+
+&gt 1. Is there something relatively simple I can do to get similar or  
+&gt even
+&gt just improved performance under LispWorks?
+
+Have you tried:
+
+#+lispworks (declare (optimize (float 0))
+
+#+lispworks (declare (optimize (fixnum-safety 0))
+
+Also, (debug 0) might make some difference, though the two above seem  
+to do the most for my float array benchmarks.
+
+the latter only if you know the array indices will never be larger  
+than most-positive-fixnum of course.
+
+regards,
+
+Ralph
+
+
+
+
+
+
+
+
+Raffael Cavallaro, Ph.D.
+raffaelcavallaro@mac.com
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Optimize vector of floats access</h1>
+                 <p>
+                  Unable to parse email body. Email id is 8877
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:37 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

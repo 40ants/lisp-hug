@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Buffer overflow with CFFI callback</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Buffer overflow with CFFI callback</h1><html><head></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space; ">Hi all<div>Sorry about this being a long mail, but I want the information to be complete...</div><div><br>Using a Midishare DLL with LWW6.0.1, I experience an error during a callback (MidiSetRcvAlarm) from the DLL telling me that a new MIDI event has arrived. My callback function is called with seemingly appropriate data, but then the error arrives when returning from the callback.<div>Sending MIDI events works as expected. I use the same lisp bindings on LWM6.0.1 without problems.<br><br></div><div>Code snippet, where midishare-receive is used to set up the callback function&nbsp;*midishare-recv*, which is used in the midishare-callback:</div><div>---<br>(cffi:defcallback&nbsp;<b>midishare-callback</b>&nbsp;:void ((refnum :short))<br>&nbsp; (restart-case<br>&nbsp; &nbsp; &nbsp; (handler-bind ((error<br>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; #'(lambda (c)<br>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (declare (ignore c))<br>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (invoke-restart 'callback-error-exit))))<br>&nbsp; &nbsp; &nbsp; &nbsp; (do ((ev (MidiGetEv refnum)<br>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(MidiGetEv refnum)))<br>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ((or (not *midishare-recv*)<br>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(cffi:null-pointer-p ev))<br>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(values))<br>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (funcall *midishare-recv* ev)))<br>&nbsp; &nbsp; (callback-error-exit ()&nbsp;<br>&nbsp; &nbsp; &nbsp; (format<br>&nbsp; &nbsp; &nbsp; &nbsp;t "~&amp;Caught error under Midishare callback, aborting receive!~%")<br>&nbsp; &nbsp; &nbsp; (MidiFlushEvs refnum)<br>&nbsp; &nbsp; &nbsp; (MidiSetRcvAlarm refnum (cffi:null-pointer))<br>&nbsp; &nbsp; &nbsp; (values))))<br><br>(defun&nbsp;<b>midishare-receive</b>&nbsp;(refnum hook)<br>&nbsp; (when *midishare-recv*<br>&nbsp; &nbsp; (error "midishare-receive: already receiving."))<br>&nbsp; (setq *midishare-recv* hook)<br>&nbsp; (MidiSetRcvAlarm refnum (cffi:callback midishare-callback))<br>&nbsp; (values))<br>---<br></div><div><br></div><div>This is what I experience when the called back function returns:</div><div><br></div><div>Error in process: "Process for unknown thread42C"</div><div>Message:</div><div><div>Exception C0000005 [flags 0] at 10003A82&nbsp;</div><div>eax &nbsp; &nbsp; &nbsp; &nbsp;0 ebx &nbsp; &nbsp; &nbsp; &nbsp;0 ecx 10009288 edx 10009288</div><div>esp &nbsp;6C3FE60 ebp 20060001 esi &nbsp; &nbsp; &nbsp; 10 edi 100093CE</div><div>Restarts:</div><div>(abort) Quit process.</div><div><br></div><div>Here is the short backtrace (a longer is available further down)</div><div>CL-USER 1 : 1 &gt; :b<br>Call to INVOKE-DEBUGGER<br>Call to ERROR<br>Call to WIN32::SIGNAL-EXCEPTION-ERROR<br>Call to (SUBFUNCTION SYSTEM::|%FOREIGN-CALLABLE/lisp_signal_error_on_c_stack| (FLI:DEFINE-FOREIGN-CALLABLE "lisp_signal_error_on_c_stack"))<br>Call to MP::PROCESS-SG-FUNCTION<br></div><div><br></div><div>NOTES:</div><div>1. Exception&nbsp;C0000005 seems to mean Access Violation, which indicates a Buffer Overflow</div><div>2. By adding a sleep in the&nbsp;*midishare-recv*&nbsp;function, I have concluded that the exception happens when/after the midishare-callback returns.</div><div>3. If I make a minimal midishare-callback, which does not even call the&nbsp;*midishare-recv*, I still get the exception!?</div><div><br></div><div>Any thoughts?</div><div>Any help would be greatly appreciated!</div><div>Sven</div><div><br></div><div><br></div><div><br></div><div><br></div><div><br></div><div><br>
+
+<br></div></div><div><br></div><div>--- start of long backtrace ---</div><div>CL-USER 2 : 1 &gt; :bb</div><div>#&lt;The COMMON-LISP-USER package, 28/64 internal, 0/4 external&gt;<br>#&lt;MP:PROCESS Name "Process for unknown thread42C" Priority 0 State "Running"&gt;<br><br>Condition: Exception C0000005 [flags 0] at 10003A82&nbsp;<br>eax &nbsp; &nbsp; &nbsp; &nbsp;0 ebx &nbsp; &nbsp; &nbsp; &nbsp;0 ecx 10009288 edx 10009288<br>esp &nbsp;6C3FE60 ebp 20060001 esi &nbsp; &nbsp; &nbsp; 10 edi 100093CE<br><br>Call to ERROR (offset 67)<br>&nbsp; SYSTEM::ESTRING : WIN32::EXCEPTION<br>&nbsp; SYSTEM::EARGS &nbsp; : (:CODE 3221225477 :FLAGS 0 :ADDRESS 268450434 :FAULT-HANDLER-ARGS #(3221225477 0 0 268450434 2 0 0 65663 0 0 0 0 0 0 639&nbsp;288 65535 541236949 27 33548740 65663 0 0 0 0 0 0 639 288 65535 541236949 27 33548740 35 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1074109952 0 0 59 35 35&nbsp;268473294 16 0 268472968 268472968 0 537264129 268450434 27 66070 113507936 35 18875007 0 541236949 27 33548740 35 8064 65535 0 0 0 0 0 0 0 0 0 0&nbsp;0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2650800128 16389 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0&nbsp;0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2300794030 0 2520676604 2300811687 2520676628 2300811937 2240456264 0))<br><br>Call to WIN32::SIGNAL-EXCEPTION-ERROR (offset 666)<br><br>Binding frame:<br>&nbsp; SYSTEM::*LISP-SIGNAL-ERROR-ON-UNKNOWN* : NIL<br><br>Call to (SUBFUNCTION SYSTEM::|%FOREIGN-CALLABLE/lisp_signal_error_on_c_stack| (FLI:DEFINE-FOREIGN-CALLABLE "lisp_signal_error_on_c_stack")) (offset&nbsp;37)<br>&nbsp; FLI::%FOREIGN-CALL-STACK% : :DONT-KNOW<br><br>Call to SYSTEM::FOREIGN-CALLABLE-ENTRY-POINT-NEW-PROCESS-AUX (offset 36)<br>&nbsp; SYSTEM::FUNC : SYSTEM::|%FOREIGN-CALLABLE/lisp_signal_error_on_c_stack|<br><br>Catch frame: MP::PROCESS-TAG<br><br>Catch frame: (MP::PROCESS-SG-FUNCTION . 1)<br><br>Catch frame: (MP::PROCESS-SG-FUNCTION . 1)<br><br>Binding frame:<br>&nbsp; MP:*CURRENT-PROCESS* : NIL<br><br>Binding frame:<br>&nbsp; MP::*ACTIONS-AFTER-SLEEPING* : NIL<br><br>Binding frame:<br>&nbsp; MP::*ACTIONS-BEFORE-SLEEPING* : NIL<br><br>Binding frame:<br>&nbsp; SYSTEM::*READER-STATE* : #&lt;SYSTEM::READER-STATE In 0 out 17 2179CCFB&gt;<br><br>Binding frame:<br>&nbsp; *PACKAGE* : #&lt;The COMMON-LISP-USER package, 28/64 internal, 0/4 external&gt;<br><br>Binding frame:<br>&nbsp; WIN32::*PROCESS-DC* : NIL<br><br>Binding frame:<br>&nbsp; WIN32::*DDE-THREAD-INSTANCE* : #&lt;Unbound Marker&gt;<br><br>Binding frame:<br>&nbsp; EDITOR::*CURRENT-BUFFER* : NIL<br><br>Binding frame:<br>&nbsp; EDITOR::*CURRENT-WINDOW* : NIL<br><br>Binding frame:<br>&nbsp; EDITOR::*EDITOR-STATE* : NIL<br><br>Binding frame:<br>&nbsp; EDITOR::*EDITOR-INPUT-STYLE* : #S(EDITOR:EDITOR-INPUT-STYLE :KEY-BINDINGS #&lt;EDITOR::KEY-TABLE #&lt;EQUALP Hash Table{339} 2066CBAB&gt; 1 338&gt;&nbsp;:DELETE-SELECTION-MODE NIL :LOGICAL-CHARACTERS #&lt;EQUALP Hash Table{22} 2063A23B&gt; :EXECUTE-MODE #&lt;EDITOR::MODE-OBJECT "Execute"&nbsp;2070A86B&gt; :ECHO-MODE #&lt;EDITOR::MODE-OBJECT "Echo Area" 2070ACCF&gt; :PLIST NIL :INTERRUPT-KEYS (#S(SYSTEM::GESTURE-SPEC :DATA 103&nbsp;:MODIFIERS 2) #S(SYSTEM::GESTURE-SPEC :DATA 71 :MODIFIERS 2)) :STYLE :EMACS :POINT-ALWAYS-VISIBLE T :USE-FACE-TO-FULL-WIDTH-P T)<br><br>Binding frame:<br>&nbsp; CAPI::*USE-ACCELERATORS* : T<br><br>Binding frame:<br>&nbsp; CAPI-WIN32-LIB::*ALT-IS-META-KEY* : T<br><br>Catch frame: #:|progv-cathcer236969|<br><br>Call to MP::PROCESS-SG-FUNCTION (offset 509)<br>&nbsp; MP::STACK-ARG : NIL<br>&nbsp; MP::SYMBOLS &nbsp; : NIL<br>&nbsp; VALUES &nbsp; &nbsp; &nbsp; &nbsp;: NIL<br><br>Catch frame: SYSTEM::EXIT-FOREIGN-CALLABLE<br><br>Call to SYSTEM::FOREIGN-CALLABLE-ENTRY-POINT-NEW-PROCESS (offset 173)<br>&nbsp; SYSTEM::FUNC : SYSTEM::|%FOREIGN-CALLABLE/lisp_signal_error_on_c_stack|<br><br>Call to SYSTEM::%FUNCALL1-ON-LISP-STACK (offset 34)<br><br><br>SYSTEM::%FUNCALL1-ON-LISP-STACK<br>T<br><br>CL-USER 3 : 1 &gt;&nbsp;</div><div><div>--- end of long backtrace ---</div></div><div><br></div></div></body></html>
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Buffer overflow with CFFI callback</h1>
+                 <p>
+                  Unable to parse email body. Email id is 11297
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:33 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

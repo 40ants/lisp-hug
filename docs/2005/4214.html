@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>multiple undo</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>multiple undo</h1>
+                <pre>What is the trick to get multiple-undo to work in an editor-pane? In  
+my custom interface, I can only undo one command. If I execute undo a  
+second time, it just toggles back to the previous state.
+
+Undo works OK in the capi editor-pane example, so I'm wondering what  
+I could have done to mess this up. Right now the only difference I  
+see is that the example uses capi:call-editor and I'm using  
+editor:process-character. And now I just noticed that it does seem to  
+work correctly if I undo using ctrl-_ rather than the command-z menu  
+item (which calls editor:undo-command using process-character).
+
+
+John DeSoi, Ph.D.
+http://pgedit.com/
+Power Tools for PostgreSQL
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: multiple undo</h1>
+                 <p>
+                  Unable to parse email body. Email id is 4221
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: multiple undo</h1>
+                  <pre>Hi Martin,
+
+On Jul 25, 2005, at 12:40 PM, Martin Simmons wrote:
+
+&gt Sounds like some other editor command is running in between.  You  
+&gt could
+&gt investiate EDITOR::LAST-COMMAND-TYPE and its setter in source to  
+&gt possibly
+&gt track this down.
+
+Yes, it looks like the problem is related to using process-character  
+before undo is called to determine if editing is happening in the  
+echo area or not (i.e. I want to have editing commands work properly  
+in the echo area and the normal editor pane). Is there a documented  
+(or good) way to determine which is active so I can direct the  
+editing commands correctly?
+
+Thanks,
+
+
+
+John DeSoi, Ph.D.
+http://pgedit.com/
+Power Tools for PostgreSQL
+
+
+</pre>
+                 </article>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>Re: multiple undo</h1>
+                   <p>
+                    Unable to parse email body. Email id is 4280
+                  </article>
+                  <section class=tree>
+                   <article class=email>
+                    <h1>Re: multiple undo</h1>
+                    <pre>Hi Martin,
+
+On Aug 1, 2005, at 2:53 PM, Martin Simmons wrote:
+
+&gt No, I don't think there is an exported API that can query the  
+&gt redirection of
+&gt editor input to the echo area.
+&gt
+&gt Possibly you could check for the buffer's major mode?  The echo  
+&gt area already
+&gt has special keystokes selected by this ("Echo Area" or "Pc Echo"  
+&gt according to
+&gt the emulation style).
+
+
+I don't follow how I would check the buffer's major mode to  
+accomplish this. I'm in the capi interface process and my  
+understanding is that I need to use either capi:call-editor or  
+editor:process-character to call my command. So for this I need to  
+know the right pane. I'm using the ugly hack below to figure this  
+out, but making this call before the undo command is casing the problem.
+
+
+
+John DeSoi, Ph.D.
+http://pgedit.com/
+Power Tools for PostgreSQL
+
+
+
+(defun echo-pane-active (pane)
+   (let ((echo (echo-pane pane))) ;echo-pane returns the same pane
+     (when echo
+       (let ((echo-pane-active nil))
+         (editor:process-character
+          (list (lambda ()
+                  (setf echo-pane-active
+                        (if (and editor::*in-a-recursive-edit* (eq  
+(editor:current-buffer) editor::*echo-area-buffer*)) 1 0))))
+          (editor-window echo))
+         (mp:process-wait-with-timeout "Waiting for ECHO-PANE-ACTIVE"  
+1 (lambda () echo-pane-active))
+         (if (eql echo-pane-active 1)
+           echo nil)))))
+
+
+</pre>
+                   </article>
+                  </section>
+                 </section>
+                </section>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:47 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>How to use EDITOR:PROCESS-CHARACTER?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>How to use EDITOR:PROCESS-CHARACTER?</h1>
+                <pre>Hi!
+
+I'm trying to port my "Regex Coach" app[1] to Mac OS X. This basically
+looked like a no-brainer but there's a serious timing problem related
+to CAPI display updates. I searched around in the knowledgebase and in
+old mailing list articles and I'm pretty sure this is the kind of
+problem that has to be tackled with EDITOR:PROCESS-CHARACTER however I
+fail to understand how this function should be applied properly.
+
+I have specialized editor panes that are basically defined like this:
+
+  (defclass editor-pane* (editor-pane))
+
+  (defclass regex-editor-pane (editor-pane*) ())
+  (defmethod capi:call-editor :after ((pane regex-editor-pane) command)
+    (declare (ignore command))
+    (ignore-errors
+      (regex-editor-after-callback pane)))
+
+In the REGEX-EDITOR-AFTER-CALLBACK function I call
+X-HIGHLIGHT-WITH-FACE which is based on a function I once got from
+Xanalys support:
+
+  (defun x-highlight-with-face (pane start-index end-index face)
+    (let ((buffer (capi:editor-pane-buffer pane)))
+      (editor::buffer-save-excursion (buffer)
+        (editor:with-point ((start (editor:buffers-start buffer))
+                            (end (editor:buffers-start buffer)))
+          (editor:increment-point start start-index)
+          (editor:increment-point end end-index)
+          (cond (face 
+                 (editor::push-region-face face start end))
+                (t
+                 (editor:remove-text-properties start end
+                                                (list 'editor::face t)))))))))
+
+If I run this code (which works fine on Windows and Linux) unmodified
+on OS X the editor panes only get updated with a delay of one key
+pressed, i.e. the editor faces always reflect the state /before/ the
+last key was pressed.
+
+Now, where exactly do I use EDITOR:PROCESS-CHARACTER here? I tried to
+wrap it around the whole BUFFER-SAVE-EXCURSION form but that didn't do
+it. Then I wrapped it around PUSH-REGION-FACE and
+REMOVE-TEXT-PROPERTIES respectively but that didn't help
+either. Hmmm...
+
+Thanks in advance,
+Edi.
+
+[1] &lt;http://weitz.de/regex-coach/&gt
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: How to use EDITOR:PROCESS-CHARACTER?</h1>
+                 <pre>
+On Oct 19, 2004, at 6:29 PM, Edi Weitz wrote:
+
+&gt Hi!
+&gt
+&gt I'm trying to port my "Regex Coach" app[1] to Mac OS X. This basically
+&gt looked like a no-brainer but there's a serious timing problem related
+&gt to CAPI display updates. I searched around in the knowledgebase and in
+&gt old mailing list articles and I'm pretty sure this is the kind of
+&gt problem that has to be tackled with EDITOR:PROCESS-CHARACTER however I
+&gt fail to understand how this function should be applied properly.
+&gt
+&gt
+
+Think of editor:process-character like capi:execute-with-interface. You 
+basically want to call a function in the context of an editor pane. 
+process-character can take a list and execute it like a function call. 
+The name of the function does not exactly make this clear. So in your 
+capi callback try
+
+(editor:process-character (list 'x-highlight-with-face pane start-index 
+end-index face) (capi:editor-window pane))
+
+
+I use this function in my code to make things a little cleaner:
+
+(defun editor-call (editor-pane function &amp;rest args)
+   (editor:process-character (cons function args) (capi:editor-window 
+editor-pane)))
+
+
+Best,
+
+John DeSoi, Ph.D.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: How to use EDITOR:PROCESS-CHARACTER?</h1>
+                 <pre>On Tue, 19 Oct 2004 19:34:54 -0400, John DeSoi &lt;jd@icx.net&gt wrote:
+
+&gt Think of editor:process-character like
+&gt capi:execute-with-interface. You basically want to call a function
+&gt in the context of an editor pane. process-character can take a list
+&gt and execute it like a function call. The name of the function does
+&gt not exactly make this clear.
+
+Yes, that was my understanding of what I've read so far. It just
+wasn't clear to me which operations have to wrapped by
+PROCESS-CHARACTER and which haven't.
+
+&gt So in your capi callback try
+&gt
+&gt (editor:process-character (list 'x-highlight-with-face pane
+&gt start-index end-index face) (capi:editor-window pane))
+
+Thanks for the hint but that one also doesn't work. :(
+
+Hmmm...
+
+Cheers,
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: How to use EDITOR:PROCESS-CHARACTER?</h1>
+                 <pre>On Wed, 20 Oct 2004 10:24:48 -0400, John DeSoi &lt;jd@icx.net&gt wrote:
+
+&gt I'm not sure of another solution other than performing the command
+&gt and highlighting in the same process-character call.
+
+That was a good idea! I changed the relevant pieces of code from
+something like
+
+  (defmethod capi:call-editor :AFTER ((pane regex-editor-pane) command)
+    (declare (ignore command))
+    (regex-editor-after-callback pane))
+
+to
+
+  (defmethod capi:call-editor :AROUND ((pane regex-editor-pane) command)
+    (declare (ignore command))
+    (call-next-method)
+    (ignore-errors
+      (editor:process-character
+       (list 'regex-editor-after-callback pane)
+       (capi:editor-window pane))))
+
+I was hesitant to do this because the Knowledgebase says that "you
+should not perform CAPI operations using EDITOR:PROCESS-CHARACTER" but
+it seems to work.
+
+There are some minor problems left but the main obstacle seems to be
+out of the way.
+
+Thanks,
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: How to use EDITOR:PROCESS-CHARACTER?</h1>
+                 <pre>On Fri, 22 Oct 2004 00:55:43 +0200, Edi Weitz &lt;edi@agharta.de&gt wrote:
+
+&gt I changed the relevant pieces of code from something like
+&gt
+&gt   (defmethod capi:call-editor :AFTER ((pane regex-editor-pane) command)
+&gt     (declare (ignore command))
+&gt     (regex-editor-after-callback pane))
+&gt
+&gt to
+&gt
+&gt   (defmethod capi:call-editor :AROUND ((pane regex-editor-pane) command)
+&gt     (declare (ignore command))
+&gt     (call-next-method)
+&gt     (ignore-errors
+&gt       (editor:process-character
+&gt        (list 'regex-editor-after-callback pane)
+&gt        (capi:editor-window pane))))
+&gt
+&gt I was hesitant to do this because the Knowledgebase says that "you
+&gt should not perform CAPI operations using EDITOR:PROCESS-CHARACTER"
+&gt but it seems to work.
+
+Unfortunately it looks as if it was right to be hesitant. One part of
+my app is a graph pane which is usually not shown. The contents of
+this graph pane are updated from the function REGEX-EDITOR-CALLBACK
+above.
+
+Once I bring the graph pane to the foreground (even if I hide it again
+afterwards) I get this error when I invoke a command in the editor
+pane:
+
+  Error: Trying to CREATE an element #&lt;CL-PPCRE-INTERACTIVE::YELLOW-NODE-PANE "(a)bc" 10098F97&gt
+   in a process #&lt;MP:PROCESS Name "Editor Command Loop" Priority 60000000 State "Running"&gt
+   which is differet from the process #&lt;MP:PROCESS Name "Cocoa Event Loop" Priority 60000000 State "Running"&gt
+   of the top level interface #&lt;CL-PPCRE-INTERACTIVE::REGEX-INTERFACE "The Regex Coach" 1082D5B3&gt
+
+So my question actually is the same one I had at the beginning: Which
+functions should be wrapped with EDITOR:PROCESS-CHARACTER and which
+not? What exactly does this function do?
+
+Thanks,
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: How to use EDITOR:PROCESS-CHARACTER?</h1>
+                 <pre>On Sat, 23 Oct 2004 09:32:20 -0400, John DeSoi &lt;jd@icx.net&gt wrote:
+
+&gt [...]
+&gt
+&gt I know this does not answer your question directly, but hopefully it
+&gt provides some further insight into what you need to do.
+
+Thanks for all your input. I've spend another couple of hours with
+this problem last night and I'm now giving up officially. It turns out
+that I'm either too dumb or that the way my "Regex Coach" app works
+gets in the way of porting it cleanly to Mac OS X. I think I've
+inserted calls to EDITOR:PROCESS-CHARACTER in all the right places and
+I've played with various modifications but I always run into trouble
+somehow.
+
+I guess this is due to the fact that most of the action (including
+CAPI calls, calls to editor functions and calls into CL-PPCRE) happens
+in :BEFORE and :AFTER methods for CAPI:CALL-EDITOR. Changing this
+would imply a complete rewrite of the whole application and I'm not
+going to do that - this was supposed to be a fun project and I don't
+earn any money with it.
+
+Porting the "Regex Coach" from Win32 to Linux was a breeze with
+CAPI. Porting to Mac OS X is obviously too hard for me. The fact that
+I'm not familiar with OS X and always hit the wrong keys on my wife's
+slow iBook doesn't make it easier.
+
+Again, thanks for all your help.
+
+Cheers,
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:50 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

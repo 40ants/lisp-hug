@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Using Lispworks open-pipe in windows</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Using Lispworks open-pipe in windows</h1><font class="fixed_width" face="Courier, Monospaced">Hi all, <br> </font><p><font class="fixed_width" face="Courier, Monospaced">I have written a perl script that is running an infinite loop keeping <br> track of windows that come to the foreground (if anyone knows of a 
+<br> good way to do this in LISP, I&#39;d be thrilled). &nbsp;I am working on <br> Windows XP. &nbsp;When I run: <br> </font></p><p><font class="fixed_width" face="Courier, Monospaced">cmd /c &quot;D:\get-next-window.pl&quot; from the run menu, it works great. &nbsp;It 
+<br> opens up a DOS style window that shows the window handles of all the <br> windows as they come to the foreground. &nbsp;When I run: <br> </font></p><p><font class="fixed_width" face="Courier, Monospaced">(sys:call-system &quot;cmd /c D:\\Perl\\get-
+next-window.pl&quot;) it works <br> great. &nbsp;It even works great when I use call-system-showing-output. <br> Both bring up the DOS style window with the correct output. <br> </font></p><p><font class="fixed_width" face="Courier, Monospaced">
+But, I need some way to keep a handle on the windows that are being <br> returned, so I&#39;m trying to run it with: <br> </font></p><p><font class="fixed_width" face="Courier, Monospaced">(setf test (sys:open-pipe &quot;cmd /c D:\\Perl\\get-
+next-window.pl&quot;)). <br> </font></p><p><font class="fixed_width" face="Courier, Monospaced">That doesn&#39;t seem to run well at all! &nbsp;First of all, it creates a <br> process in my taskmgr called &quot;perl.exe&quot; that is taking up 99% of my 
+<br> CPU cycles. &nbsp;Nothing else can run while this is running. &nbsp;Second, I <br> can&#39;t seem to read anything that&#39;s there. &nbsp;(read-line test) just <br> hangs, and (read-char-no-hang test) returns NIL. <br> </font></p>
+<p><font class="fixed_width" face="Courier, Monospaced">Does anyone know what is going on, and how to use open-pipe correctly <br> on windows? <br> </font></p><p><font class="fixed_width" face="Courier, Monospaced">If it matters, here&#39;s a copy of the perl script: 
+<br> </font></p><p><font class="fixed_width" face="Courier, Monospaced">#!perl -w <br> </font></p><p><font class="fixed_width" face="Courier, Monospaced">use Win32::GuiTest qw{:ALL}; <br> use FileHandle; <br> use strict; 
+<br> use Socket; <br> use IO::Handle; # thousands of lines just for autoflush :-( <br> use IO::Select; <br> </font></p><p><font class="fixed_width" face="Courier, Monospaced">socketpair(CHILD, PARENT, AF_UNIX, SOCK_STREAM, PF_UNSPEC ) 
+<br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; or &nbsp;die &quot;socketpair: $!&quot;; <br> </font></p><p><font class="fixed_width" face="Courier, Monospaced">CHILD-&gt;autoflush(1); <br> PARENT-&gt;autoflush(1); <br> </font></p><p><font class="fixed_width" face="Courier, Monospaced">
+my @windows; <br> my $pid = fork(); <br> my $gotit = 1; <br> my $selchild = IO::Select-&gt;new; <br> my $selstdin = IO::Select-&gt;new; <br> my @childhandle; <br> my @parenthandle; <br> my $timeout = .1; <br> my $input; <br>
+ </font></p><p><font class="fixed_width" face="Courier, Monospaced">$selchild-&gt;add(\*CHILD); <br> $selstdin-&gt;add(\*STDIN); <br> </font></p><p><font class="fixed_width" face="Courier, Monospaced">if ($pid) { <br> &nbsp; &nbsp;while (1) { 
+<br> &nbsp; &nbsp; &nbsp; my @foreground = GetForegroundWindow(); <br> </font></p><p><font class="fixed_width" face="Courier, Monospaced">&nbsp; &nbsp; &nbsp; if (grep {$_ eq $foreground[0]} @windows) { <br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;; #do nothing <br> &nbsp; &nbsp; &nbsp; } else { 
+<br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;push(@windows, $foreground[0]); <br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;print &quot;@windows\n&quot;; <br> &nbsp; &nbsp; &nbsp; } <br> </font></p><p><font class="fixed_width" face="Courier, Monospaced">&nbsp; &nbsp; &nbsp; if (@childhandle = $selchild-&gt;can_read($timeout)) { 
+<br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;chomp(my $update = &lt;CHILD&gt;); <br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;print &quot;Update = $update\n&quot;; <br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;$gotit = 0; <br> &nbsp; &nbsp; &nbsp; } <br> </font></p><p><font class="fixed_width" face="Courier, Monospaced">&nbsp; &nbsp; &nbsp; if ($gotit == 0) { 
+<br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;my $winhandle = shift(@windows); <br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;print &quot;$winhandle\n&quot;; <br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;$gotit = 1; <br> &nbsp; &nbsp; &nbsp; } <br> &nbsp; &nbsp;} <br> </font></p><div id="qhide_8922" style="display: block;" class="qt"><font class="fixed_width" face="Courier, Monospaced">
+} else { <br> <br></font></div><font class="fixed_width" face="Courier, Monospaced">&nbsp; &nbsp;while (1) { <br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;$input = &lt;&gt;; <br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;if ($input) { <br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; print PARENT $input; <br> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;} <br> &nbsp; &nbsp;} 
+</font>
+
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Using Lispworks open-pipe in windows</h1>
+                 <pre>
+Disclaimer: I'm mostly a Linux guy.
+
+On Tue, Dec 04, 2007 at 10:47:23AM -0600, Jordan Sanders wrote:
+&gt I have written a perl script that is running an infinite loop
+&gt keeping track of windows that come to the foreground (if anyone
+&gt knows of a good way to do this in LISP, I'd be thrilled).  I am
+&gt working on Windows XP.  When I run:
+&gt 
+&gt cmd /c "D:\get-next-window.pl" from the run menu, it works great.
+&gt It opens up a DOS style window that shows the window handles of all
+&gt the windows as they come to the foreground.  When I run:
+&gt 
+&gt (sys:call-system "cmd /c D:\\Perl\\get-next-window.pl") it works
+&gt great.  It even works great when I use call-system-showing-output.
+&gt Both bring up the DOS style window with the correct output.
+
+That seems like a clue.  call-system-showing-output should show the
+output of the Perl script in the Lispworks window, not in the DOS
+window.  Your Perl script is not writing on the handle you think it's
+writing on.
+
+&gt But, I need some way to keep a handle on the windows that are being
+&gt returned, so I'm trying to run it with:
+&gt 
+&gt (setf test (sys:open-pipe "cmd /c D:\\Perl\\get-next-window.pl")).
+
+Not all that familiar with the ins and outs of running Perl on
+Windows, but I'd think you'd want something more like
+
+  (sys:open-pipe "perl c:\\Perl\\get-next-window.pl")
+
+and leave cmd.exe out of the picture.
+
+&gt That doesn't seem to run well at all!  First of all, it creates a
+&gt process in my taskmgr called "perl.exe" that is taking up 99% of my
+&gt CPU cycles.
+
+Well, yeah.  The parent process in your Perl script has no sleeps or
+(as near as I can tell) blocking IO.  So it'll happily use all the
+CPU.  At very least throw a "sleep(0.1)" or something in the inner
+loop.
+
+&gt Does anyone know what is going on, and how to use open-pipe
+&gt correctly on windows?
+
+My guess is you should figure out what GetForegroundWindow does and
+(if possible) rewrite it and the rest of your script in Lisp.  Failing
+that, start much smaller: call this Perl script from Lisp
+
+  print "Hello world";
+
+and fiddle with that until you can read "Hello world" using
+sys:open-pipe.  Then expand.
+
+-- L
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:41 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

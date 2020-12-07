@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Converting a string name into a function call</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Converting a string name into a function call</h1><!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML><HEAD>
+<META http-equiv=Content-Type content="text/html; charset=iso-8859-1">
+<META content="MSHTML 6.00.6000.16587" name=GENERATOR>
+<STYLE></STYLE>
+</HEAD>
+<BODY bgColor=#ffffff>
+<DIV><FONT face=Arial size=2>I have defined several functions with no arguments, 
+for example:</FONT></DIV>
+<DIV><FONT face=Arial size=2></FONT>&nbsp;</DIV>
+<DIV><FONT face=Arial size=2>(defun foo () etc)</FONT></DIV>
+<DIV><FONT face=Arial size=2></FONT>&nbsp;</DIV>
+<DIV>
+<DIV><FONT face=Arial size=2>(defun bar () etc)</FONT></DIV></DIV>
+<DIV><FONT face=Arial size=2></FONT>&nbsp;</DIV>
+<DIV><FONT face=Arial size=2>etc</FONT></DIV>
+<DIV><FONT face=Arial size=2></FONT>&nbsp;</DIV>
+<DIV><FONT face=Arial size=2>My program generates function names as strings like 
+this:</FONT></DIV>
+<DIV><FONT face=Arial size=2></FONT>&nbsp;</DIV>
+<DIV><FONT face=Arial size=2>"FOO"</FONT></DIV>
+<DIV><FONT face=Arial size=2></FONT>&nbsp;</DIV>
+<DIV><FONT face=Arial size=2>When my program gives me the name&nbsp;"FOO", I'd 
+like to then call and execute the corresponding function (FOO).&nbsp; Is there a 
+way to convert the string name into a callable function name?&nbsp; I can intern 
+the string, but that apparently doesn't bind it to the desired function.&nbsp; 
+(I was hoping to avoid a bunch of IF-THEN look-ups.)</FONT></DIV>
+<DIV><FONT face=Arial size=2></FONT>&nbsp;</DIV>
+<DIV><FONT face=Arial size=2>Bruce.</FONT></DIV>
+<DIV><FONT face=Arial size=2></FONT>&nbsp;</DIV>
+<DIV><FONT face=Arial size=2></FONT>&nbsp;</DIV>
+<DIV><FONT face=Arial size=2></FONT>&nbsp;</DIV></BODY></HTML>
+
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Converting a string name into a function call</h1>
+                 <pre>
+
+On Jan 17, 2008, at 17:02 , Bruce J Weimer MD wrote:
+
+&gt I have defined several functions with no arguments, for example:
+&gt
+&gt (defun foo () etc)
+&gt
+&gt (defun bar () etc)
+&gt
+
+In which file and package?
+
+
+&gt etc
+&gt
+&gt My program generates function names as strings like this:
+&gt
+&gt "FOO"
+
+Which program?
+
+&gt
+&gt When my program gives me the name "FOO", I'd like to then call and  
+&gt execute the corresponding function (FOO).  Is there a way to  
+&gt convert the string name into a callable function name?  I can  
+&gt intern the string, but that apparently doesn't bind it to the  
+&gt desired function.  (I was hoping to avoid a bunch of IF-THEN look- 
+&gt ups.)
+
+Interning seems the right thing.  You are probably missing the right  
+package.
+
+Cheers
+
+Marco
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Converting a string name into a function call</h1>
+                 <pre>
+Bruce J Weimer MD wrote:
+
+&gt When my program gives me the name "FOO", I'd like to then call and
+&gt execute the corresponding function (FOO).  Is there a way to convert
+&gt the string name into a callable function name?  I can intern the
+&gt string, but that apparently doesn't bind it to the desired function.
+
+That sounds a bit strange.  My guess is that you tried to call the
+function in the wrong way, or you have a package mismatch (when your
+function is defined in one package and you're interning your string
+in another package).
+
+Something like the following should work, I think:
+
+(defun find-and-call-function-in-package (string package)
+   (let ((function-name (find-symbol string package)))
+     ;; Check that the symbol exists.
+     (when (null function-name)
+       (error "~S does not exist in package ~S" string package))
+     ;; Check that the symbol names a function.
+     (unless (fboundp function-name)
+       (error "~S is not fbound" function-name))
+     ;; Everything looks fine: call the function.
+     (funcall function-name)))
+
+If your program gets this function name 'from outside', you'd
+better make very sure that you're not funcalling the function
+FORMAT-MY-HARD-DRIVE-AND-SEND-SOME-MISSILES-TO-CHINA...
+
+Arthur
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Converting a string name into a function call</h1>
+                 <pre>
+"Bruce J Weimer MD" &lt;bjweimer@charter.net&gt writes:
+
+&gt I have defined several functions with no arguments, for example:
+&gt  
+&gt (defun foo () etc)
+&gt  
+&gt (defun bar () etc)
+&gt  
+&gt etc
+&gt  
+&gt My program generates function names as strings like this:
+&gt  
+&gt "FOO"
+&gt  
+&gt When my program gives me the name "FOO", I'd like to then call and execute the corresponding function (FOO).  Is there a way to convert the string name into a callable function name?  I
+&gt can intern the string, but that apparently doesn't bind it to the desired function.  (I was hoping to avoid a bunch of IF-THEN look-ups.)
+
+Works for me:
+
+CL-USER 36 &gt (defun bar ()
+               "bar")
+BAR
+
+CL-USER 37 &gt (funcall (intern "BAR"))
+"bar"
+
+You probably defined the functions and interned the symbols in different packages.
+
+Nico
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Converting a string name into a function call</h1><html><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space; ">Does&nbsp;<div><br class="webkit-block-placeholder"></div><div>(funcall (symbol-function (intern "FOO")) etc)</div><div><br class="webkit-block-placeholder"></div><div>do what you want?</div><div><br><div><div>On Jan 17, 2008, at 17:02 , Bruce J Weimer MD wrote:</div><br class="Apple-interchange-newline"><blockquote type="cite"><span class="Apple-style-span" style="border-collapse: separate; color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant: normal; font-weight: normal; letter-spacing: normal; line-height: normal; orphans: 2; text-align: auto; text-indent: 0px; text-transform: none; white-space: normal; widows: 2; word-spacing: 0px; -webkit-border-horizontal-spacing: 0px; -webkit-border-vertical-spacing: 0px; -webkit-text-decorations-in-effect: none; -webkit-text-size-adjust: auto; -webkit-text-stroke-width: 0; "><div bgcolor="#ffffff"><div><font face="Arial" size="2">I have defined several functions with no arguments, for example:</font></div><div><font face="Arial" size="2"></font>&nbsp;</div><div><font face="Arial" size="2">(defun foo () etc)</font></div><div><font face="Arial" size="2"></font>&nbsp;</div><div><div><font face="Arial" size="2">(defun bar () etc)</font></div></div><div><font face="Arial" size="2"></font>&nbsp;</div><div><font face="Arial" size="2">etc</font></div><div><font face="Arial" size="2"></font>&nbsp;</div><div><font face="Arial" size="2">My program generates function names as strings like this:</font></div><div><font face="Arial" size="2"></font>&nbsp;</div><div><font face="Arial" size="2">"FOO"</font></div><div><font face="Arial" size="2"></font>&nbsp;</div><div><font face="Arial" size="2">When my program gives me the name&nbsp;"FOO", I'd like to then call and execute the corresponding function (FOO).&nbsp; Is there a way to convert the string name into a callable function name?&nbsp; I can intern the string, but that apparently doesn't bind it to the desired function.&nbsp; (I was hoping to avoid a bunch of IF-THEN look-ups.)</font></div><div><font face="Arial" size="2"></font>&nbsp;</div><div><font face="Arial" size="2">Bruce.</font></div><div><font face="Arial" size="2"></font>&nbsp;</div><div><font face="Arial" size="2"></font>&nbsp;</div><div><font face="Arial" size="2"></font>&nbsp;</div></div></span></blockquote></div><br></div></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Converting a string name into a function call</h1>
+                 <pre>
+CL-USER&gt (defun foo () 'etc)
+FOO
+CL-USER&gt (funcall (intern "FOO"))
+ETC
+
+Does that help?
+
+On Jan 17, 2008 8:02 AM, Bruce J Weimer MD &lt;bjweimer@charter.net&gt wrote:
+&gt
+&gt
+&gt I have defined several functions with no arguments, for example:
+&gt
+&gt (defun foo () etc)
+&gt
+&gt
+&gt (defun bar () etc)
+&gt
+&gt etc
+&gt
+&gt My program generates function names as strings like this:
+&gt
+&gt "FOO"
+&gt
+&gt When my program gives me the name "FOO", I'd like to then call and execute
+&gt the corresponding function (FOO).  Is there a way to convert the string name
+&gt into a callable function name?  I can intern the string, but that apparently
+&gt doesn't bind it to the desired function.  (I was hoping to avoid a bunch of
+&gt IF-THEN look-ups.)
+&gt
+&gt Bruce.
+&gt
+&gt
+&gt
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:41 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

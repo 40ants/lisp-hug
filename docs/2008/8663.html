@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Security concerns in Common Lisp</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Security concerns in Common Lisp</h1><div dir="ltr">I haven&#39;t really found much online about this, but I&#39;m a little worried about security with a current application I&#39;m writing. This is new territory for me, so I&#39;d appreciate any links or insights other who have dealt with this before can share...<div>
+<br></div><div>The basic concern I have boils down to EVAL. Let me give a quick example that doesn&#39;t seem to have problems, ask why, and that should give an idea of where I&#39;m going. Let&#39;s say I created a simple web server with LispWorks that had a simple edit box that allowed a visitor to play with Lisp, enter an expression, click submit, and see the results. What prevents the user from entering something akin to&nbsp;(run-shell-command &quot;format c:&quot;)?</div>
+<div><br></div><div>That example (the website) is probably a little easier given that one could make the Lisp process run as a guest and various shell commands would be completely unavailable. But, what if it was just an end application reading a configuration file with Lisp data for ease or (as in my case) a server/client sending Lisp data back and forth across the internet, where both users are most likely running as superusers (yay for Windows)?</div>
+<div><br></div><div>Anyway, any advice people have on this is much appreciated.</div><div><br></div><div>Thanks!</div><div><br></div><div>Jeff M.</div></div>
+
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Security concerns in Common Lisp</h1>
+                 <pre>
+On 25 Sep 2008, at 17:32, Jeff Massung wrote:
+&gt
+&gt The basic concern I have boils down to EVAL. Let me give a quick  
+&gt example that doesn't seem to have problems, ask why, and that should  
+&gt give an idea of where I'm going. Let's say I created a simple web  
+&gt server with LispWorks that had a simple edit box that allowed a  
+&gt visitor to play with Lisp, enter an expression, click submit, and  
+&gt see the results. What prevents the user from entering something akin  
+&gt to (run-shell-command "format c:")?
+&gt
+
+Nothing does unless you do.
+
+You need (at least) to set reader control variables to be safe, and  
+then walk the resulting form looking for toxins.
+
+I have some stuff which originated with this in mind, which I could  
+perhaps dig out.
+
+However it's important to realise that if you want a language which  
+completely unknown people can type completely unknown stuff at on your  
+machine, CL is probably not an ideal match for that.  For a start you  
+have the problem of defining what a "toxin" is above, cleaning up the  
+image after code has run in it, and you also have to trust things like  
+the reader not to misbehave when completely arbitrary junk is spewed  
+at it.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Security concerns in Common Lisp</h1>
+<br><font size=2 face="sans-serif">Their ethics.</font>
+<br>
+<br><font size=2 face="sans-serif">If you suspect they have none, please
+don't teach them Lisp. </font>
+<br>
+<br><font size=2 face="sans-serif">If you just have a general security
+concern with web-based services, run the server on a virtual machine, and
+nuke the machine (overwrite it with a new image) at the end of the session.
+Problem solved.<br>
+<br>
+</font><font size=2 color=#5f5f5f face="Arial"> </font>
+<br><font size=2 color=#5f5f5f face="Arial"><b>Bradford W. Miller</b></font><font size=1 color=#5f5f5f face="Arial"><br>
+Robopsychologist<br>
+Software Engineering Directorate<b><br>
+Raytheon Integrated Defense Systems <br>
+</b><br>
+(401) 842-3578 <br>
+Brad_Miller@Raytheon.com<br>
+</font>
+<br><font size=1 color=#5f5f5f face="Arial">1847 West Main Road <br>
+Portsmouth, RI 02871-1087 USA<br>
+</font>
+<br>
+<br>
+<br>
+<table width=100%>
+<tr valign=top>
+<td width=40%><font size=1 face="sans-serif"><b>&quot;Jeff Massung&quot;
+&lt;massung@gmail.com&gt;</b> </font>
+<br><font size=1 face="sans-serif">Sent by: owner-lisp-hug@lispworks.com</font>
+<p><font size=1 face="sans-serif">09/25/2008 12:37 PM</font>
+<table border>
+<tr valign=top>
+<td bgcolor=white>
+<div align=center><font size=1 face="sans-serif">Please respond to<br>
+&quot;Jeff Massung&quot; &lt;massung@gmail.com&gt;</font></div></table>
+<br>
+<td width=59%>
+<table width=100%>
+<tr valign=top>
+<td>
+<div align=right><font size=1 face="sans-serif">To</font></div>
+<td><font size=1 face="sans-serif">lisp-hug@lispworks.com</font>
+<tr valign=top>
+<td>
+<div align=right><font size=1 face="sans-serif">cc</font></div>
+<td>
+<tr valign=top>
+<td>
+<div align=right><font size=1 face="sans-serif">Subject</font></div>
+<td><font size=1 face="sans-serif">Security concerns in Common Lisp</font></table>
+<br>
+<table>
+<tr valign=top>
+<td>
+<td></table>
+<br></table>
+<br>
+<br>
+<br><font size=3>I haven't really found much online about this, but I'm
+a little worried about security with a current application I'm writing.
+This is new territory for me, so I'd appreciate any links or insights other
+who have dealt with this before can share...</font>
+<br>
+<br><font size=3>The basic concern I have boils down to EVAL. Let me give
+a quick example that doesn't seem to have problems, ask why, and that should
+give an idea of where I'm going. Let's say I created a simple web server
+with LispWorks that had a simple edit box that allowed a visitor to play
+with Lisp, enter an expression, click submit, and see the results. What
+prevents the user from entering something akin to (run-shell-command &quot;format
+c:&quot;)?</font>
+<br>
+<br><font size=3>That example (the website) is probably a little easier
+given that one could make the Lisp process run as a guest and various shell
+commands would be completely unavailable. But, what if it was just an end
+application reading a configuration file with Lisp data for ease or (as
+in my case) a server/client sending Lisp data back and forth across the
+internet, where both users are most likely running as superusers (yay for
+Windows)?</font>
+<br>
+<br><font size=3>Anyway, any advice people have on this is much appreciated.</font>
+<br>
+<br><font size=3>Thanks!</font>
+<br>
+<br><font size=3>Jeff M.</font>
+<br>
+<br>
+<br>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Security concerns in Common Lisp</h1>
+                 <pre>
+Jeff Massung writes:
+&gt I haven't really found much online about this, but I'm a little worried
+&gt about security with a current application I'm writing. This is new territory
+&gt for me, so I'd appreciate any links or insights other who have dealt with
+&gt this before can share...
+&gt The basic concern I have boils down to EVAL. Let me give a quick example
+&gt that doesn't seem to have problems, ask why, and that should give an idea of
+&gt where I'm going. Let's say I created a simple web server with LispWorks that
+&gt had a simple edit box that allowed a visitor to play with Lisp, enter an
+&gt expression, click submit, and see the results. What prevents the user from
+&gt entering something akin to (run-shell-command "format c:")?
+
+Your reputation is done!  ;-)
+
+What would prevent a user to enter something like that would be to put
+a chip in the brain of each newborn worldwide, to make them zombies
+unable to go beyond the law.
+
+In the meantime,  your web application will have to avoid executing
+such an expression, because I can assure you that you will get them
+with 100% probability.
+
+
+&gt That example (the website) is probably a little easier given that one could
+&gt make the Lisp process run as a guest and various shell commands would be
+&gt completely unavailable. But, what if it was just an end application reading
+&gt a configuration file with Lisp data for ease or (as in my case) a
+&gt server/client sending Lisp data back and forth across the internet, where
+&gt both users are most likely running as superusers (yay for Windows)?
+&gt 
+&gt Anyway, any advice people have on this is much appreciated.
+
+
+The standard advice in security matters is to allow only what is
+explicitely allowed.
+
+1- Either implement a safe lisp reader handling #\: safely
+   (eg. prevent access to unallowed packages such as SYSTEM or SB-EXT)
+   with only "safe" reader macros (eg. #\; and #\( would be ok, but
+   not #\# #\.).
+
+2- Implement a minimal compiler.
+
+3- Minimaly compile the expression (this removes the macro calls,
+   which can only come from the allowed safe macros, and therefore
+   cannot execute anything unsafe during macro expansion).
+
+4- Walk again the resulting form to check that all the remaining
+   special operators and functions are in the safe list.
+
+5- Eventually, you can either call EVAL, or run your own compiler or
+   interpreter. 
+
+(Don't forget to handle all the conditions).
+
+CL:+     could be added to the safe operator list.
+CL:OPEN  shouldn't be added to the safe operator list;
+         you could have a SAFE-VIRTUAL-CL:OPEN instead.
+etc...
+
+
+-- 
+__Pascal Bourguignon__                     http://www.informatimago.com/
+
+PLEASE NOTE: Some quantum physics theories suggest that when the
+consumer is not directly observing this product, it may cease to
+exist or will exist only in a vague and undetermined state.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Security concerns in Common Lisp</h1>
+                 <pre>
+Well, yeah, running an EVAL server means deliberately opening up
+your system and a free-for-all.  Web "scripting languages" and
+libraries (and all web applications) go to some trouble to make
+sure that such a service never happens.
+
+If you are just trying to READ some data, call READ (or more
+likely, READ-FROM-STRING) and bind *READ-EVAL* to NIL.
+
+If you are trying to give the user a server to some language,
+then write an interpreter that checks the input you READ as above.
+This language could be your own carefully implemented Lisp interpreter.
+
+If you are intending to give the user a server to the underlying Lisp,
+using EVAL will let the user do anything the Lisp process can do, 
+so you should take steps to limit that (eg. run in an operating system
+sandbox where they can't open any files, limit cpu and memory usage, etc).  
+That's a mouthful and I'm not sure how easy/possible it would be to do so.
+
+Your Lisp implementation may have features that allow it to be
+re-programmed from within itself.  This might make it harder
+to secure than some other dynamic languages.   But opening up
+what is essentially a general computing server to the web is
+a formidable idea regardless of the language.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Security concerns in Common Lisp</h1>
+                 <pre>
+
+
+Jeff Massung wrote:
+&gt
+&gt Let's say I created a simple web server with LispWorks that had a
+&gt simple edit box that allowed a visitor to play with Lisp, enter an
+&gt expression, click submit, and see the results. What prevents the user
+&gt from entering something akin to (run-shell-command "format c:")?
+Nothing, really.  Such a server is inherently highly unsafe.  I know of
+no Common Lisp
+implementation that attempts to implement a "sandbox" of the sort that
+Java attempts
+to implement.  You have to limit its privileges using the underlying
+operating system's
+facilities.
+&gt
+&gt That example (the website) is probably a little easier given that one
+&gt could make the Lisp process run as a guest and various shell commands
+&gt would be completely unavailable.
+Yes, that's what I mean.
+&gt But, what if it was just an end application reading a configuration
+&gt file with Lisp data for ease or (as in my case) a server/client
+&gt sending Lisp data back and forth across the internet, where both users
+&gt are most likely running as superusers (yay for Windows)?
+Ah.  First, it's really not a great idea to design your system so that your
+configuration files are Lisp forms to be evaluated.  First, it's just too
+easy for mistakes to have arbitrary, bad effects.  Second, full Lisp
+is usually "too powerful", in the sense that a simple declarative
+format can be parsed easily by a program, whereas a Lisp file
+might have arbitrarily complex Lisp forms that are hard for
+a program to understand. Yes, there are good reasons for
+programs that can read and understand config files.  You may not
+have one now, but you should design your architecture to allow
+for them in the future, IMHO based on years of experience.
+
+If you really are going to use Lisp, but not Lisp forms,
+then you'll find yourself using the Lisp "read" but not
+the Lisp "eval".  That's a lot safer, but there is one
+hazard that you need to know about: there is a reader
+macro, #., that means "read one form and evaluate it".
+
+Back in the Symbolics days, our mail reader supported
+a "Font:" header.  It would use the Lisp reader to read
+the name of the font.  One day some hacker figured out
+that you could send mail whose "Font:" header used this
+trick, and the victim would suffer from anything at all
+when reading that mail.  (Of course, nobody did anything
+that really hurt anyone; usually it popped up a window
+that said something silly.)
+
+There is a specific feature that exists entirely to deal
+with this problem (which we put in very shortly
+after the "Font:" hack was invented!).  What you do
+is bind the special variable *read-eval* to false (nil).
+(Or you could make a special readtable of your
+own, but that's more work unless you have some
+other reason to be doing it.)
+
+-- Dan
+
+
+&gt
+&gt Anyway, any advice people have on this is much appreciated.
+&gt
+&gt Thanks!
+&gt
+&gt Jeff M.
+
+-- 
+________________________________________
+Daniel Weinreb
+http://danweinreb.org/blog/
+Lisp: Implementation, Semantics, and Practice
+http://il09.org
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Security concerns in Common Lisp</h1><div dir="ltr">I&#39;d very much like to thank everyone for their advice and thoughts on this subject.<div><br></div><div>The error of my thinking was that I needed EVAL. For what I want to do, READ works just fine (all I care about is a list of symbols, strings, and integers, which READ can generate just fine). And a special thanks for those who noted this - and noted *REAL-EVAL* and #., as I probably wouldn&#39;t have remembered them.</div>
+<div><br></div><div>I assume that aside from #. the only potential problem with READ is macro expansion (if that happens at read time, which I can&#39;t remember), which could execute some code, although I can&#39;t think of any macros in CL that have system-level side-effects.&nbsp;</div>
+<div><br></div><div>Tim, if all I needed to do was just parse out literals, then would I need to worry about constraining READ? I could care less about QUOTE, FUNCTION, :: and other reader macros (except #.) as long as they don&#39;t result in code execution.</div>
+<div><br></div><div>Thanks again, everyone.</div><div><br></div><div>Jeff M.<br><br><div class="gmail_quote">On Fri, Sep 26, 2008 at 3:39 AM, Tim Bradshaw <span dir="ltr">&lt;<a href="mailto:tfb@cley.com">tfb@cley.com</a>&gt;</span> wrote:<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex;">
+
+This is good advice. &nbsp;Specificially I would say: implement your own reader because it is hard to constrain READ far enough (and it is also harder to know that READ does not have bugs than it is your own, much simpler reader). &nbsp;Having your own reader means you can leave out a huge amount of stuff such as packages and basically all the other interesting features of READ. &nbsp;You&#39;ll then know that what you end up with is &quot;good&quot;.<br>
+
+<br>
+My system used READ, with all the bad stuff turned off, and then walked the resulting form (remember when walking that the form may not be a tree: in particular you must deal with circular objects) checking that all the objects were &quot;good&quot;, where &quot;good&quot; means something like: symbol in a good package (hint: not CL), number, string, NIL, or cons whose elements were one of these.<br>
+
+<br>
+But that&#39;s not really good enough because by the time you check the form READ can *already* have dome damage such as interning symbols in bad packages, which you then have to work out how to undo. &nbsp;That&#39;s why you want your own reader.<br>
+
+<br>
+The &quot;symbol in a good package&quot; support eventually became my conduit packages system which turned out to be independently useful.<br><font color="#888888">
+<br>
+--tim<br>
+</font></blockquote></div><br></div></div>
+
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Security concerns in Common Lisp</h1><div dir="ltr"><br><br><div class="gmail_quote">On Fri, Sep 26, 2008 at 10:30 AM, Jochen Schmidt <span dir="ltr">&lt;<a href="mailto:jsc@crispylogics.com">jsc@crispylogics.com</a>&gt;</span> wrote:<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex;">
+<div class="Ih2E3d">
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+<br>
+Tim, if all I needed to do was just parse out literals, then would I need to worry about constraining READ? I could care less about QUOTE, FUNCTION, :: and other reader macros (except #.) as long as they don&#39;t result in code execution.<br>
+
+</blockquote>
+<br></div>
+circularity? limits? bugs? The reader is a complex beast - you might only need a fraction of its features and it is maybe much easier to proof your own stripped down reader as safe.<br>
+</blockquote><div><br></div><div>Can you provide me with a couple examples? I&#39;m not too worried about malformed data or breaking limits, as I (perhaps incorrectly) assume that the reader will just choke and signal an error that I can handle myself - basically toss that packet as if it never happened, ACK, and then wait for it again. I&#39;m curious about your &quot;circularity&quot; comment, though. Could you expand on that one a bit?</div>
+<div><br></div><div>I agree that most likely my own reader will be the way to go, but right now I&#39;m more interested in learning more about the details of the current reader than make that decision true. I hope no one minds lecturing me a bit. ;-)</div>
+<div><br></div><div>Jeff M.</div></div></div>
+
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Security concerns in Common Lisp</h1>
+                 <p>
+                  Unable to parse email body. Email id is 8680
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Security concerns in Common Lisp</h1>
+                 <pre>
+Gary King writes:
+&gt Hi Pascal,
+&gt 
+&gt What you wrote below is a good summary. Maybe we should look for  
+&gt volunteers to implement it for next years Summer of Code.
+&gt 
+&gt &gt&gt The standard advice in security matters is to allow only what is
+&gt &gt explicitely allowed.
+&gt &gt
+&gt &gt 1- Either implement a safe lisp reader handling #\: safely
+&gt &gt   (eg. prevent access to unallowed packages such as SYSTEM or SB-EXT)
+&gt &gt   with only "safe" reader macros (eg. #\; and #\( would be ok, but
+&gt &gt   not #\# #\.).
+
+
+Done.
+ http://darcs.informatimago.com/public/lisp/common-lisp/reader.lisp
+ http://darcs.informatimago.com/public/lisp/common-lisp/source-text.lisp
+
+&gt &gt 2- Implement a minimal compiler.
+
+I'm slowlydottedly working on it.
+
+&gt &gt 3- Minimaly compile the expression (this removes the macro calls,
+&gt &gt   which can only come from the allowed safe macros, and therefore
+&gt &gt   cannot execute anything unsafe during macro expansion).
+&gt &gt
+&gt &gt 4- Walk again the resulting form to check that all the remaining
+&gt &gt   special operators and functions are in the safe list.
+&gt &gt
+&gt &gt 5- Eventually, you can either call EVAL, or run your own compiler or
+&gt &gt   interpreter.
+&gt &gt
+&gt &gt (Don't forget to handle all the conditions).
+&gt &gt
+&gt &gt CL:+     could be added to the safe operator list.
+&gt &gt CL:OPEN  shouldn't be added to the safe operator list;
+&gt &gt         you could have a SAFE-VIRTUAL-CL:OPEN instead.
+&gt &gt etc...
+
+Then you may need some additionnal stuff, like a securised file
+system.  I started to implement a "VIRTUAL-FS", which implements all
+CL I/O, to a pseudo-file system in memory. (As is, it relies on saving
+the lisp image for persistency, but it could be extended to
+persistently store the data to a store such as S3 using Xach's CL-S3).
+
+
+-- 
+__Pascal Bourguignon__                     http://www.informatimago.com/
+You're always typing.
+Well, let's see you ignore my
+sitting on your hands.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Security concerns in Common Lisp</h1>
+                 <pre>
+Rainer Joswig writes:
+&gt 
+&gt 
+&gt Am 25.09.2008 um 20:53 schrieb Pascal J. Bourguignon:
+&gt &gt
+&gt 
+&gt &gt The standard advice in security matters is to allow only what is
+&gt &gt explicitely allowed.
+&gt &gt
+&gt &gt 1- Either implement a safe lisp reader handling #\: safely
+&gt &gt   (eg. prevent access to unallowed packages such as SYSTEM or SB-EXT)
+&gt &gt   with only "safe" reader macros (eg. #\; and #\( would be ok, but
+&gt &gt   not #\# #\.).
+&gt &gt
+&gt &gt 2- Implement a minimal compiler.
+&gt &gt
+&gt &gt 3- Minimaly compile the expression (this removes the macro calls,
+&gt &gt   which can only come from the allowed safe macros, and therefore
+&gt &gt   cannot execute anything unsafe during macro expansion).
+&gt &gt
+&gt &gt 4- Walk again the resulting form to check that all the remaining
+&gt &gt   special operators and functions are in the safe list.
+&gt &gt
+&gt &gt 5- Eventually, you can either call EVAL, or run your own compiler or
+&gt &gt   interpreter.
+&gt 
+&gt Better to run a special interpreter/compiler that runs the code
+&gt in some 'safe' environment (protected against taking all cpu time,
+&gt using all file handles, allocating all memory, ...).
+
+Yes.
+
+
+&gt &gt (Don't forget to handle all the conditions).
+&gt &gt
+&gt &gt CL:+     could be added to the safe operator list.
+&gt &gt CL:OPEN  shouldn't be added to the safe operator list;
+&gt &gt         you could have a SAFE-VIRTUAL-CL:OPEN instead.
+&gt &gt etc...
+&gt 
+&gt Executing Lisp expressions typed by a remote user in a server Lisp is  
+&gt not a good idea:
+&gt 
+&gt (loop)  will use 100% CPU and run until the thing gets killed.
+
+So you don't put LOOP in the safe list.
+ 
+
+&gt Something like
+&gt 
+&gt (loop (make-thread)) will allocate all threads
+
+So you don't put MAKE-THREAD in the safe list. 
+
+
+&gt (loop collect (make-array 100)) will allocate all memory.
+&gt 
+&gt (loop (write-string "foo0000" file-stream)) will keep the disk busy  
+&gt until some file gets too large.
+&gt 
+&gt (loop (open-file ...)) will get all file handles ...
+
+I already mentionned CL:OPEN above.
+
+
+&gt Having declarations and optimize safety 0 will create unsafe code that  
+&gt can crash the Lisp.
+
+Yes, in addition to mere code, we have also to filter declarations.
+
+
+I only presented the alternatives.  I agree with you that soon enough,
+it becomes easier to control things when you implement your own
+interpreter/compiler layer.  
+
+-- 
+__Pascal Bourguignon__                     http://www.informatimago.com/
+
+CONSUMER NOTICE: Because of the "uncertainty principle," it is
+impossible for the consumer to simultaneously know both the precise
+location and velocity of this product.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Security concerns in Common Lisp</h1>
+                 <pre>
+Daniel Weinreb writes:
+&gt 
+&gt 
+&gt 
+&gt Jeff Massung wrote:
+&gt &gt
+&gt &gt Let's say I created a simple web server with LispWorks that had a
+&gt &gt simple edit box that allowed a visitor to play with Lisp, enter an
+&gt &gt expression, click submit, and see the results. What prevents the user
+&gt &gt from entering something akin to (run-shell-command "format c:")?
+&gt
+&gt Nothing, really.  Such a server is inherently highly unsafe.  I know
+&gt of no Common Lisp implementation that attempts to implement a
+&gt "sandbox" of the sort that Java attempts to implement.  You have to
+&gt limit its privileges using the underlying operating system's
+&gt facilities.
+
+Well indeed, one good way would be to move the border further out. Use
+a virtual unix machine, such as a user-mode-linux VM or a xen VM,
+configured to avoid leaking network priviledges, and run the lisp
+inside it.  Configure it to allocate it a bound CPU time percentage.
+When a remote user connects, make a copy (or CoW) of the image, and
+then the remote user may do whatever evil it wants, it'll stay inside
+the VM.  When he's done, delete the image.
+
+
+
+&gt &gt But, what if it was just an end application reading a configuration
+&gt &gt file with Lisp data for ease or (as in my case) a server/client
+&gt &gt sending Lisp data back and forth across the internet, where both users
+&gt &gt are most likely running as superusers (yay for Windows)?
+&gt
+&gt Ah.  First, it's really not a great idea to design your system so that your
+&gt configuration files are Lisp forms to be evaluated.  First, it's just too
+&gt easy for mistakes to have arbitrary, bad effects.  Second, full Lisp
+&gt is usually "too powerful", in the sense that a simple declarative
+&gt format can be parsed easily by a program, whereas a Lisp file
+&gt might have arbitrarily complex Lisp forms that are hard for
+&gt a program to understand. 
+
+I don't agree. '.bashrc' and '.emacs' are two examples showing that
+it's good to have executable configuration, (not to mention ~/.sbclrc
+and such).
+
+
+&gt Yes, there are good reasons for
+&gt programs that can read and understand config files.  You may not
+&gt have one now, but you should design your architecture to allow
+&gt for them in the future, IMHO based on years of experience.
+&gt 
+&gt If you really are going to use Lisp, but not Lisp forms,
+&gt then you'll find yourself using the Lisp "read" but not
+&gt the Lisp "eval".  That's a lot safer, but there is one
+&gt hazard that you need to know about: there is a reader
+&gt macro, #., that means "read one form and evaluate it".
+
+Of course, if the application itself is not "an emacs", that is, if is
+not mainly a programming environment in which the application happens
+to _be_ developed, there's little need for executable configuration
+files.  But your application should probably be develoed as "an
+emacs"!
+
+
+Configuration files are (or should be) entirely controled by the user,
+the same user who can delete his own files himself already, so you're
+gaining nothing preventing him to delete his files from a
+configuration file.
+
+
+-- 
+__Pascal Bourguignon__                     http://www.informatimago.com/
+
+HANDLE WITH EXTREME CARE: This product contains minute electrically
+charged particles moving at velocities in excess of five hundred
+million miles per hour.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Security concerns in Common Lisp</h1>
+                 <p>
+                  Unable to parse email body. Email id is 8687
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:38 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

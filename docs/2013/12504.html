@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Extreme dynamic extent...</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Extreme dynamic extent...</h1>
+                <pre>
+Hi,
+
+I have been thinking for a while how to define functions in Common Lisp in such a way that their return values can be stack-allocated.
+
+Yesterday, I have come to realize that LispWorks already provides everything that is necessary to do this. The trick is to take advantage of stack allocation for struct constructors. Here is an example that illustrates this:
+
+(declaim (optimize (speed 3) (space 0) (debug 0) (safety 0)
+                   (compilation-speed 0) (fixnum-safety 0)))
+
+(declaim (inline vec vec+ vec- vec* vec/ svec*))
+
+(defstruct (vec (:constructor vec (x y z)))
+  (x 0 :type fixnum)
+  (y 0 :type fixnum)
+  (z 0 :type fixnum))
+
+(editor:setup-indent "defunc" 3 2 4)
+
+(defmacro defunc (name type (&amp;rest args) &amp;body body)
+  `(defstruct (,name (:include ,type)
+                     (:constructor ,name (,@args &amp;aux ,@body))
+                     (:copier nil)
+                     (:predicate nil))))
+
+(defunc vec+ vec (v0 v1)
+  (x (+ (vec-x v0) (vec-x v1)))
+  (y (+ (vec-y v0) (vec-y v1)))
+  (z (+ (vec-z v0) (vec-z v1))))
+
+(defunc vec- vec (v0 v1)
+  (x (- (vec-x v0) (vec-x v1)))
+  (y (- (vec-y v0) (vec-y v1)))
+  (z (- (vec-z v0) (vec-z v1))))
+
+(defunc vec* vec (v0 v1)
+  (x (* (vec-x v0) (vec-x v1)))
+  (y (* (vec-y v0) (vec-y v1)))
+  (z (* (vec-z v0) (vec-z v1))))
+
+(defunc vec/ vec (v0 v1)
+  (x (/ (vec-x v0) (vec-x v1)))
+  (y (/ (vec-y v0) (vec-y v1)))
+  (z (/ (vec-z v0) (vec-z v1))))
+
+(defunc svec* vec (s v)
+  (x (* s (vec-x v)))
+  (y (* s (vec-y v)))
+  (z (* s (vec-z v))))
+
+(editor:setup-indent "let1/de" 1 2 4)
+
+(defmacro let1/de ((var form) &amp;body body)
+  (let (bindings)
+    (labels ((transform (form)
+               (cons (car form)
+                     (loop for subform in (cdr form)
+                           collect (if (consp subform)
+                                       (let ((sym (gensym)))
+                                         (push (list sym (transform subform)) bindings)
+                                         sym)
+                                     subform)))))
+      (let ((transform (if (consp form) (transform form) form)))
+        (setq bindings (nreverse bindings))
+        `(let* (,@bindings (,var ,transform))
+           (declare (dynamic-extent ,@(mapcar 'car bindings) ,var))
+           ,@body)))))
+
+(editor:setup-indent "let*/de" 1 2 4)
+
+(defmacro let*/de ((&amp;rest bindings) &amp;body body)
+  (if bindings
+      `(let1/de ,(car bindings)
+         (let*/de ,(cdr bindings)
+           ,@body))
+    `(progn ,@body)))
+
+(editor:setup-indent "let/de" 1 2 4)
+
+(defmacro let/de ((&amp;rest bindings) &amp;body body)
+  (loop for binding in bindings
+        for var = (if (symbolp binding) binding (car binding))
+        for sym = (copy-symbol var)
+        for form = (if (symbolp binding) nil (cadr binding))
+        collect (list sym form) into new-bindings
+        collect (list var sym) into rebindings
+        finally
+        (return `(let*/de ,new-bindings
+                   (let ,rebindings
+                     ,@body)))))
+
+(defun test ()
+  (let*/de ((v0 (vec 1 2 3))
+            (v1 (vec 4 5 6))
+            (v2 (svec* 5 (vec+ (vec* v0 v0) (vec* v1 v1)))))
+    (print v2)
+    (assert (typep v2 'vec)))
+  (values))
+
+(defun foo (x y)
+  (print (* 5 (+ (* x x) (* y y)))))
+
+(defun test2 ()
+  (foo 1 4)
+  (foo 2 5)
+  (foo 3 6)
+  (values))
+
+
+This clearly needs more polishing, but I think this is quite impressive that you can do this with LispWorks. (Check out the disassembly for 'test, everything is done on the stack here even for nested expressions…)
+
+Even if this works only for structs, this should already be good for a lot of cases.
+
+
+Pascal
+
+--
+Pascal Costanza
+The views expressed in this email are my own, and not those of my employer.
+
+
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Extreme dynamic extent...</h1><html><head><meta http-equiv="Content-Type" content="text/html charset=windows-1252"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space; ">Hi Pascal,<div><br></div><div>Very interesting, but could you please elucidate on why this could be important?</div><div><br></div><div>- &nbsp;DM</div><div><br></div><div><br><div><div>On Oct 6, 2013, at 08:45 AM, Pascal Costanza &lt;<a href="mailto:pc@p-cos.net">pc@p-cos.net</a>&gt; wrote:</div><br class="Apple-interchange-newline"><blockquote type="cite"><br>Hi,<br><br>I have been thinking for a while how to define functions in Common Lisp in such a way that their return values can be stack-allocated.<br><br>Yesterday, I have come to realize that LispWorks already provides everything that is necessary to do this. The trick is to take advantage of stack allocation for struct constructors. Here is an example that illustrates this:<br><br>(declaim (optimize (speed 3) (space 0) (debug 0) (safety 0)<br> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(compilation-speed 0) (fixnum-safety 0)))<br><br>(declaim (inline vec vec+ vec- vec* vec/ svec*))<br><br>(defstruct (vec (:constructor vec (x y z)))<br> &nbsp;(x 0 :type fixnum)<br> &nbsp;(y 0 :type fixnum)<br> &nbsp;(z 0 :type fixnum))<br><br>(editor:setup-indent "defunc" 3 2 4)<br><br>(defmacro defunc (name type (&amp;rest args) &amp;body body)<br> &nbsp;`(defstruct (,name (:include ,type)<br> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(:constructor ,name (,@args &amp;aux ,@body))<br> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(:copier nil)<br> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(:predicate nil))))<br><br>(defunc vec+ vec (v0 v1)<br> &nbsp;(x (+ (vec-x v0) (vec-x v1)))<br> &nbsp;(y (+ (vec-y v0) (vec-y v1)))<br> &nbsp;(z (+ (vec-z v0) (vec-z v1))))<br><br>(defunc vec- vec (v0 v1)<br> &nbsp;(x (- (vec-x v0) (vec-x v1)))<br> &nbsp;(y (- (vec-y v0) (vec-y v1)))<br> &nbsp;(z (- (vec-z v0) (vec-z v1))))<br><br>(defunc vec* vec (v0 v1)<br> &nbsp;(x (* (vec-x v0) (vec-x v1)))<br> &nbsp;(y (* (vec-y v0) (vec-y v1)))<br> &nbsp;(z (* (vec-z v0) (vec-z v1))))<br><br>(defunc vec/ vec (v0 v1)<br> &nbsp;(x (/ (vec-x v0) (vec-x v1)))<br> &nbsp;(y (/ (vec-y v0) (vec-y v1)))<br> &nbsp;(z (/ (vec-z v0) (vec-z v1))))<br><br>(defunc svec* vec (s v)<br> &nbsp;(x (* s (vec-x v)))<br> &nbsp;(y (* s (vec-y v)))<br> &nbsp;(z (* s (vec-z v))))<br><br>(editor:setup-indent "let1/de" 1 2 4)<br><br>(defmacro let1/de ((var form) &amp;body body)<br> &nbsp;(let (bindings)<br> &nbsp;&nbsp;&nbsp;(labels ((transform (form)<br> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(cons (car form)<br> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(loop for subform in (cdr form)<br> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;collect (if (consp subform)<br> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(let ((sym (gensym)))<br> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(push (list sym (transform subform)) bindings)<br> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sym)<br> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;subform)))))<br> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(let ((transform (if (consp form) (transform form) form)))<br> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(setq bindings (nreverse bindings))<br> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`(let* (,@bindings (,var ,transform))<br> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(declare (dynamic-extent ,@(mapcar 'car bindings) ,var))<br> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,@body)))))<br><br>(editor:setup-indent "let*/de" 1 2 4)<br><br>(defmacro let*/de ((&amp;rest bindings) &amp;body body)<br> &nbsp;(if bindings<br> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`(let1/de ,(car bindings)<br> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(let*/de ,(cdr bindings)<br> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,@body))<br> &nbsp;&nbsp;&nbsp;`(progn ,@body)))<br><br>(editor:setup-indent "let/de" 1 2 4)<br><br>(defmacro let/de ((&amp;rest bindings) &amp;body body)<br> &nbsp;(loop for binding in bindings<br> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;for var = (if (symbolp binding) binding (car binding))<br> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;for sym = (copy-symbol var)<br> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;for form = (if (symbolp binding) nil (cadr binding))<br> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;collect (list sym form) into new-bindings<br> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;collect (list var sym) into rebindings<br> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;finally<br> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(return `(let*/de ,new-bindings<br> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(let ,rebindings<br> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,@body)))))<br><br>(defun test ()<br> &nbsp;(let*/de ((v0 (vec 1 2 3))<br> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(v1 (vec 4 5 6))<br> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(v2 (svec* 5 (vec+ (vec* v0 v0) (vec* v1 v1)))))<br> &nbsp;&nbsp;&nbsp;(print v2)<br> &nbsp;&nbsp;&nbsp;(assert (typep v2 'vec)))<br> &nbsp;(values))<br><br>(defun foo (x y)<br> &nbsp;(print (* 5 (+ (* x x) (* y y)))))<br><br>(defun test2 ()<br> &nbsp;(foo 1 4)<br> &nbsp;(foo 2 5)<br> &nbsp;(foo 3 6)<br> &nbsp;(values))<br><br><br>This clearly needs more polishing, but I think this is quite impressive that you can do this with LispWorks. (Check out the disassembly for 'test, everything is done on the stack here even for nested expressions…)<br><br>Even if this works only for structs, this should already be good for a lot of cases.<br><br><br>Pascal<br><br>--<br>Pascal Costanza<br>The views expressed in this email are my own, and not those of my employer.<br><br><br><br><br>_______________________________________________<br>Lisp Hug - the mailing list for LispWorks users<br><a href="mailto:lisp-hug@lispworks.com">lisp-hug@lispworks.com</a><br>http://www.lispworks.com/support/lisp-hug.html<br><br><br></blockquote></div><br><div apple-content-edited="true">
+<span class="Apple-style-span" style="border-collapse: separate; color: rgb(0, 0, 0); font-family: Helvetica; font-size: medium; font-style: normal; font-variant: normal; font-weight: normal; letter-spacing: normal; line-height: normal; orphans: 2; text-align: auto; text-indent: 0px; text-transform: none; white-space: normal; widows: 2; word-spacing: 0px; -webkit-border-horizontal-spacing: 0px; -webkit-border-vertical-spacing: 0px; -webkit-text-decorations-in-effect: none; -webkit-text-size-adjust: auto; -webkit-text-stroke-width: 0px; "><div>Dr. David McClain</div><div><a href="mailto:dbm@refined-audiometrics.com">dbm@refined-audiometrics.com</a></div><div><br></div></span><br class="Apple-interchange-newline">
+
+</div>
+<br></div></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Extreme dynamic extent...</h1>
+                 <pre>
+David McClain &lt;dbm@refined-audiometrics.com&gt wrote:
+
+&gt Very interesting, but could you please elucidate on why this could be
+&gt important?
+
+  Performance ?
+
+-- 
+Resistance is futile. You will be jazzimilated.
+
+Lisp, Jazz, Aïkido: http://www.didierverna.info
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Extreme dynamic extent...</h1>
+                 <pre>
+On Sun, 06 Oct 2013 17:33:54 +0100, Didier Verna &lt;didier@lrde.epita.fr&gt  
+wrote:
+
+&gt
+&gt David McClain &lt;dbm@refined-audiometrics.com&gt wrote:
+&gt
+&gt&gt Very interesting, but could you please elucidate on why this could be
+&gt&gt important?
+&gt
+&gt   Performance ?
+&gt
+
+When it comes to float performance in 32 bit Lispworks, no trick will save  
+you.
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Extreme dynamic extent...</h1>
+                 <pre>
+On Sun, 06 Oct 2013 18:09:20 +0100, Pascal Costanza &lt;pc@p-cos.net&gt wrote:
+
+&gt When it comes to float performance in 32 bit Lispworks, no trick will  
+&gt save you.
+&gt I don't think that's completely true. Consider:
+&gt (defun foo (result x y)
+&gt    (declare (vector result x y))
+&gt    (declare (optimize (speed 3) (space 0) (debug 0) (safety 0)
+&gt                       (compilation-speed 0) (float 0)))
+&gt    (setf (sys:typed-aref 'single-float result 0)
+&gt          (+ (sys:typed-aref 'single-float x 0)
+&gt             (sys:typed-aref 'single-float y 0)))
+&gt    (values))
+&gt This compiles to a function that doesn't cons. However, I don't know how  
+&gt general this is, i.e., to what extent this generalizes to more complex  
+&gt expressions.
+
+Hi Pascal,
+
+I tried your suggestion, unfortunately that did not seem to work on my  
+setup well enough, the slightly updated variant of the function above  
+consed on me rather extensively:
+
+CL-USER 39 &gt time (foo 10000000) ;that's ten million
+Timing the evaluation of (FOO 10000000)
+
+User time    =        0.000
+System time  =        0.000
+Elapsed time =        0.004
+Allocation   = 160048640 bytes
+0 Page faults
+NIL
+
+This is the version I used for testing:
+
+(defun foo (n)
+   (declare (optimize (speed 3) (space 0) (debug 0) (safety 0)
+                      (compilation-speed 0) (float 0)))
+   (let ((c (sys:make-typed-aref-vector (* n 8)))
+         (d (sys:make-typed-aref-vector (* n 8))))
+     (declare (vector c d))
+     (loop for x below (* n 8) by 8 do
+       (setf (sys:typed-aref 'double-float c x)
+             (+ (sys:typed-aref 'double-float c x)
+                (sys:typed-aref 'double-float d x))))))
+
+Did I change something inadvertently to mess up the performance?
+
+Yuri
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Extreme dynamic extent...</h1>
+                 <pre>
+On Mon, 07 Oct 2013 18:54:27 +0100, Yuri Davidovsky  
+&lt;yury.davidouski2@mail.dcu.ie&gt wrote:
+
+&gt
+&gt CL-USER 39 &gt time (foo 10000000) ;that's ten million
+&gt Timing the evaluation of (FOO 10000000)
+&gt
+&gt User time    =        0.000
+&gt System time  =        0.000
+&gt Elapsed time =        0.004
+&gt Allocation   = 160048640 bytes
+&gt 0 Page faults
+&gt NIL
+
+
+Hm, looks like I am wrong about it, those 160 megabytes appear to be 2 x  
+10M x 8 bytes allocated to the vectors. Quite interesting.
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Extreme dynamic extent...</h1>
+                 <pre>
+On Sun, Oct 6, 2013 at 7:09 PM, Pascal Costanza &lt;pc@p-cos.net&gt wrote:
+&gt However, I don't know how general this is, i.e., to what extent this generalizes to more complex expressions.
+
+My experience with the Mandelbrot program
+(http://weitz.de/mandelbrot/) was pretty positive in this regard.  I'd
+say you can write very fast non-consing FP code with LW if you're
+willing to invest some time in optimizing the hot spots.
+
+The compiler hints are cool and, as usual, LW support was also very
+helpful in a couple of cases.
+
+Edi.
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Extreme dynamic extent...</h1>
+                 <pre>
+On Sun, 06 Oct 2013 18:09:20 +0100, Pascal Costanza &lt;pc@p-cos.net&gt wrote:
+
+&gt (defun foo (result x y)
+&gt    (declare (vector result x y))
+&gt    (declare (optimize (speed 3) (space 0) (debug 0) (safety 0)
+&gt                       (compilation-speed 0) (float 0)))
+&gt    (setf (sys:typed-aref 'single-float result 0)
+&gt          (+ (sys:typed-aref 'single-float x 0)
+&gt             (sys:typed-aref 'single-float y 0)))
+&gt    (values))
+&gt
+&gt This compiles to a function that doesn't cons. However, I don't know how  
+&gt general this is, i.e., to what extent this generalizes to more complex  
+&gt expressions.
+
+Just a little chase up of the topic, apparently this works quite for more  
+complex expressions too. I tried to implement a FFT routine that I had my  
+head banging off for two weeks trying to get a 2048 transform to run in  
+under 8ms with convincing success. With typed double float array it can  
+run 1000 forward/inverse 2048 point transform pairs in a tad over 650  
+milliseconds, or .65ms per pair, or 25 times faster than the original  
+function. It runs at least as fast, or even faster for transforms bigger  
+than 1024 points, as my benchmark FFT algorithm written in C#.
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Extreme dynamic extent...</h1>
+                 <p>
+                  Unable to parse email body. Email id is 12521
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Extreme dynamic extent...</h1>
+                 <pre>
+On Tue, 15 Oct 2013 13:32:43 +0100, Martin Simmons &lt;martin@lispworks.com&gt  
+wrote:
+
+
+&gt It is also possible to code double-float FFT without any float  
+&gt allocation like
+&gt below (a minor modification of the Gabriel benchmark).
+
+Hi Martin,
+
+it does seem to be quite low on consing, it is about 60% slower than  
+typed-aref version but its allocation is about 30% of the typed-aref's.
+
+Would that be possible to somehow reduce the allocation for typed-aref in  
+a similar manner too? I see you are using
+
+(declare (type (simple-array double-float (*)) ar ai))
+
+which makes all the difference, is there a way to declare typed arrays  
+like that? Pascal in his example was using (declare (vector ...)) but I  
+found it did not make any noticeable difference.
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Extreme dynamic extent...</h1>
+                 <p>
+                  Unable to parse email body. Email id is 12523
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Extreme dynamic extent...</h1>
+                 <pre>
+On Wed, 16 Oct 2013 18:35:41 +0100, Martin Simmons &lt;martin@lispworks.com&gt  
+wrote:
+
+
+&gt&gt it does seem to be quite low on consing, it is about 60% slower than
+&gt&gt typed-aref version but its allocation is about 30% of the typed-aref's.
+&gt
+&gt It would be interesting to see the code.  Are both examples using the  
+&gt same
+&gt float type?
+
+I assume they both are using double-floats.  The performance difference  
+became less drastic once I used (debug 0) in your version. Also, in my  
+version I use lookup tables instead of multiplication of twiddle factors,  
+that seems to be faster.
+
+Following below is my code with typed arrays (I hope other humans can read  
+it too). Hopefully it should compile for you straight away, you'll only  
+need to call a couple of functions from the top level to get it working:
+
+(reinit 2048 1 'cos) ;will create two typed arrays A and B with B blank  
+and A containing a cosine wave of frequency 1, (reinit) will do it by  
+default
+or
+(reinit2 0 2048) ;will create two typed arrays A and B with B blank and A  
+containing a 1000.0d0 value at position 0 with the rest being 0.0d0,  
+(reinit2) will do it by default
+
+(forward a b) ;will preform a forward transform
+(inverse a b) ;will perform an inverse transform
+
+(test 1000) ;will perform a 1000 forward/inverse transform pairs using the  
+typed arrays A and B defined earlier by (reinit) and (reinit2)
+
+(defmacro with-gensyms ((&amp;rest vars) &amp;body body)
+   `(let ,(mapcar (lambda (x) `(,x (gensym))) vars)
+      ,@body))
+
+;;A faster trimmed down iterator
+(defmacro for ((num &amp;optional (var 'x) (incr 1) (from 0))&amp;body body)
+   (with-gensyms (count by start)
+     `(let ((,var ,from) (,count ,num) (,by ,incr))
+        (declare (fixnum ,var ,count ,by))
+        (tagbody
+         ,start
+         ,@body
+         (setq ,var (+ ,var ,by))
+         (if (&lt; ,var ,count) (go ,start))))))
+
+;;Number of stages calculator
+(defun logn (len)
+   (declare (optimize (float 0) (safety 0) (debug 0) (speed 3)
+                        (space 0) (compilation-speed 0)))
+   (declare (fixnum len))
+   (truncate (log len 2)))
+
+;;Shorthands of some lengthy access expressions
+(defmacro mtav (float-num) `(sys:make-typed-aref-vector (* 8 ,float-num)))
+(defmacro faref (tar x) `(sys:typed-aref 'double-float ,tar ,x))
+(defmacro ar (x) `(faref rex ,x))
+(defmacro ai (x) `(faref img ,x))
+;;Multiplication of the real part of two complex numbers (a + bj)*(c + dj)
+(defmacro cr* (a b c d) `(- (* ,a ,c) (* ,b ,d)))
+;;Multiplication of the imaginary part of two complex numbers (a + bj)*(c  
++ dj)
+(defmacro ci* (a b c d) `(+ (* ,a ,d) (* ,c ,b)))
+;;This retrieves sr and si values from lookup array by using variable  
+capture
+(define-symbol-macro sr (faref cos x))
+(define-symbol-macro si (faref sin x))
+
+;;Default length
+(defparameter *len* 2048)
+
+;;Generates a lookup array for a specific DFT length len and a function,  
+either cos, or -sin
+(defun tri (&amp;optional (len *len*)(fn (lambda (x) (- (sin x)))))
+   (declare (optimize (float 0) (safety 0) (debug 0)))
+   (loop with stages = (logn len)
+         with out = (make-array stages)
+         for stage below stages
+         for size = (expt 2 stage)
+         for w = (/ pi size)
+         for arr = (setf (aref out stage) (mtav size))
+         do (for (size)
+              (setf (faref arr (* x 8))
+                    (funcall fn (* w x))))
+         finally return out))
+
+;;Bit-reverse sorting
+(defun bsort (rex img)
+   (declare (optimize (float 0) (safety 0) (debug 0) (speed 3)
+                      (space 0) (compilation-speed 0)))
+   (let* ((len (length rex))
+           (n/2 (* len 4))
+           (j n/2)
+           (k 0) (tr 0.0d0) (ti 0.0d0))
+      (declare (fixnum len n/2 j k)
+               (double-float tr ti))
+      (for ((* 8 (1- len)) i 8 8)
+        (if (&gt= i j) (go l1190))
+        (setq tr (ar j)
+              ti (ai j))
+        (setf (ar j) (ar i)
+              (ai j) (ai i)
+              (ar i) tr
+              (ai i) ti)
+      l1190
+        (setq k n/2)
+      l1200
+        (if (&gt k j) (go l1240))
+        (setq j (- j k)
+              k (/ k 2))
+        (go l1200)
+      l1240
+        (setq j (+ j k)))))
+
+(let ((sins (tri *len*))
+       (coss (tri *len* 'cos)))
+   (defun forward (rex img)
+     (declare (optimize (float 0) (safety 0) (debug 0)))
+     (let* ((len (length rex))
+            (stages (logn len))
+            (len8 (* 8 len)))
+       (declare (fixnum len stages len8))
+       (bsort rex img)
+       (let ((dft-size 0) (2x-dft-size 0) (end 0)
+             (tr 0.0d0) (ti 0.0d0) cos sin)
+         (declare (fixnum dft-size 2x-dft-size end)
+                  (double-float tr ti))
+         (for (stages stage)
+           (setq dft-size (expt 2 (+ stage 3))
+                 2x-dft-size (* dft-size 2)
+                 cos (svref coss stage)
+                 sin (svref sins stage))
+           (for (dft-size x 8)
+             (for (len8 pos 2x-dft-size x)
+               (setq end (+ pos dft-size)
+                     tr (cr* (ar end) (ai end) sr si)
+                     ti (ci* (ar end) (ai end) sr si))
+               (setf (ar end) (- (ar pos) (the double-float tr)) ;Seems  
+like specifying temp values as double floats
+                     (ai end) (- (ai pos) (the double-float ti)) ;made it a  
+tad faster
+                     (ar pos) (+ (ar pos) (the double-float tr))
+                     (ai pos) (+ (ai pos) (the double-float ti))))))))))
+
+(defmacro for8 (num &amp;rest body) `(for ((* 8 ,num) x 8) ,@body)) ;Just a  
+little shorthand
+(defun inverse (rex img)
+   (declare (optimize (float 0) (safety 0) (debug 0) (speed 3)
+                      (space 0) (compilation-speed 0)))
+   (let* ((len (length rex))
+          (lenf (coerce len 'double-float)))
+     (declare (fixnum len) (double-float lenf))
+     (for8 len
+       (setf (ai x) (- (/ (ai x) lenf))
+             (ar x) (/ (ar x) lenf)))
+     (forward rex img)
+     (for8 len
+       (setf (ai x) (- (ai x))))))
+
+(defun reinit (&amp;optional (size *len*) (f 1) (fn 'cos))
+   (setf a (mtav size)
+         b (mtav size))
+   (loop for x below size
+         for y by 8
+         with w = (* 2 pi (/ f size))
+         do (setf (faref a y) (* 1000 (funcall fn (* x w)))
+                  (faref b y) 0.0d0)))
+
+(defun reinit2 (&amp;optional (pos 0) (size *len*))
+   (setf a (mtav size)
+         b (mtav size))
+   (for ((* size 8) x 8)
+     (setf (faref a x) 1000.0d0 (faref b x) 0.0d0))
+   (setf (faref a (* 8 pos)) 1000.0d0
+         (faref b (* 8 pos)) 0.0d0)
+   (values a b))
+
+(defun test (n)
+   (declare (optimize (float 0) (safety 0) (debug 0) (speed 3)
+                      (space 0) (compilation-speed 0)))
+   (for (n)
+     (forward a b)
+     (inverse a b)))
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>(Lisp-HUG) Printer Issue/CAPI(?)</h1>
+                 <pre>
+Greetings to the HUG List...
+
+Question: Has anyone dealt with printing weird sized paper forms from 
+within Lisp/CAPI??
+
+This two-sided paper form - actually, an FBI fingerprint card made 
+out of fairly heavy cardstock - is about 8" square and I am 
+endeavoring to print the wretched thing on a "full duplex" HP 
+Laserjet Pro 400 printer.
+
+"Full duplex" means that the printer automatically prints the front 
+side and then flips the paper and automatically prints the other 
+side. It is a behold to watch all that flipping, but it is not quite right.
+
+
+I set the form size using a "capi:set-printer-metrics" call which 
+sets the left-margin, top-margin, width, height of the document and 
+generate the image.
+
+What happens is that the forms prints the front side and then kicks 
+out the form too far and the printer is not able to pull the card 
+back into the printer for the flip to the back side.
+
+
+Duplex printing works fine using 8 1/2 x 11" plain paper, but does 
+not work with the smaller physical sized form.
+
+
+It appears that even though the form size has been set with 
+(set-printer-metrics) that the printer sees the full 11-inch length to a page.
+
+That size is also defined as a "custom form" to the printer from the 
+Windoze desktop. That appears to be correct...  ...however, setting 
+the physical form size from the printer preferences dialog (WIndoze) 
+seems to have no effect.
+
+
+Is this, perhaps, a CAPI issue - or am I (as usual) missing something??
+
+
+Thoughts???
+
+Regards to the List -
+
+Jack Harper
+Secure Outcomes Inc
+Evergreen, Colorado
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: (Lisp-HUG) Printer Issue/CAPI(?)</h1>
+                 <pre>
+2013/10/30 Jack Harper:
+&gt What happens is that the forms prints the front side and then kicks out the
+&gt form too far and the printer is not able to pull the card back into the
+&gt printer for the flip to the back side.
+&gt
+&gt
+&gt Duplex printing works fine using 8 1/2 x 11" plain paper, but does not work
+&gt with the smaller physical sized form.
+&gt
+&gt
+&gt It appears that even though the form size has been set with
+&gt (set-printer-metrics) that the printer sees the full 11-inch length to a
+&gt page.
+
+My best guess is that this is a physical limitation of the printer,
+most probably it was not designed to flip anything smaller than a
+vertical paper sheet of about Letter size (11") or A4 (29.7cm).
+
+&gt Is this, perhaps, a CAPI issue - or am I (as usual) missing something??
+
+To know for sure, try printing with a custom size from another
+program.  The easiest way I can think of is with Word or some other
+application where you can easily set a custom paper size.
+
+In case you don't have any publishing or advanced printing application
+at hand, another way is to create a printer paper size of the size you
+want and printing from Wordpad selecting the new paper size.
+
+However, try checking the printer's manual, it might be faster.
+
+Best regards,
+
+Paulo Madeira
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:31 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

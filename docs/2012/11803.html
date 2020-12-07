@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Problems with animated pinboard objects</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Problems with animated pinboard objects</h1>
+                <pre>
+Hi everybody,
+
+I've just hacked together a little demo app for my students to
+demonstrate the well-known "Towers of Hanoi" problem.  I have a
+couple of questions, though:
+
+The program uses a pinboard layout for the main window and the
+disks are pinboard objects which are drawn using two calls to
+DRAW-RECTANGLE - one for the golden color, one for the black
+outline.  To move a disk, I update its position using (SETF
+PINBOARD-PANE-POSITION) and then call REDRAW-PINBOARD-OBJECT.
+This is more or less based on the "balloons" example that comes
+with LW except that I use a separate process where the example
+uses a timer.
+
+Question 1: This works if done from a separate process via
+APPLY-IN-PANE-PROCESS as described above.  If, however, I
+manipulate and redraw the pinboard objects directly from the
+interface's process, the pinboard layout is never updated.  Why
+is that?
+
+Question 2: I'm on Windows 7 and I usually use a "classic"
+desktop theme.  The whole animation looks fine like this.  But if
+I instead switch to one of the "Aero" themes, the moving pinboard
+objects are only partially drawn and the animation looks ugly.
+Any explanation for that?  (I've tried buffered and unbuffered
+drawing as well the new "quality" mode vs. the old compatible
+mode, but none of this seems to make a difference.)
+
+Question 3: The same app builds fine on Linux (with GTK) and Mac
+OS as well, but the outcome is a disaster.  This is not so
+important to me, but nevertheless I'd be happy to know where in
+my code I'm making Windows-specific assumptions.
+
+The apps for Windows and Linux can be downloaded from
+&lt;http://weitz.de/files/Hanoi.zip&gt and
+&lt;http://weitz.de/files/hanoi.tar.gz&gt if you're interested.  If
+you have an idea what the problem might be and want to see the
+source code, please drop me an email.
+
+Thanks for your help,
+Edi.
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Problems with animated pinboard objects</h1>
+                 <p>
+                  Unable to parse email body. Email id is 11804
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>RE: Problems with animated pinboard objects</h1><html>
+<head>
+<style><!--
+..hmmessage P
+{
+margin:0px;
+padding:0px
+}
+body.hmmessage
+{
+font-size: 10pt;
+font-family:Tahoma
+}
+--></style></head>
+<body class='hmmessage'><div dir='ltr'>
+Hi Edi,<br><BR>Tried the app on my Win XP box and I don't see any of the issues you describe there. Off the top of my head, and without seeing your code, I'd make two suggestions:<br><BR><br><BR>1. I had some redisplay problems with (SETF PINBOARD-PANE-POSITION), which went away when I switched to SET-HINT-TABLE.<BR>2. This might be something due to the fact that WM_PAINT messages are of low priority, and so can get delayed in the message queue. I removed some quite serious redisplay glitches when I introduced calls to <a href="http://msdn.microsoft.com/en-gb/library/windows/desktop/dd145167(v=vs.85).aspx">UpdateWindow</a> at selected points in my low-level drawing routines. This function causes the WM_PAINT message to be sent immediately, bypassing the message queue.<BR><br><BR>(fli:define-c-typedef hwnd (:unsigned :long))<BR><br><BR>(fli:define-foreign-function (update-window "UpdateWindow")<br>&nbsp; ((hwnd hwnd))<BR>&nbsp; :result-type :boolean)<BR><br><BR>I don't use Windows 7, however, so apologies if these suggestions are way-off.<BR><br><BR>Best,<BR>Chris<BR><br><div>&gt; From: edi@agharta.de<br>&gt; Date: Wed, 14 Nov 2012 13:28:54 +0100<br>&gt; Subject: Problems with animated pinboard objects<br>&gt; To: lisp-hug@lispworks.com<br>&gt; <br>&gt; <br>&gt; Hi everybody,<br>&gt; <br>&gt; I've just hacked together a little demo app for my students to<br>&gt; demonstrate the well-known "Towers of Hanoi" problem.  I have a<br>&gt; couple of questions, though:<br>&gt; <br>&gt; The program uses a pinboard layout for the main window and the<br>&gt; disks are pinboard objects which are drawn using two calls to<br>&gt; DRAW-RECTANGLE - one for the golden color, one for the black<br>&gt; outline.  To move a disk, I update its position using (SETF<br>&gt; PINBOARD-PANE-POSITION) and then call REDRAW-PINBOARD-OBJECT.<br>&gt; This is more or less based on the "balloons" example that comes<br>&gt; with LW except that I use a separate process where the example<br>&gt; uses a timer.<br>&gt; <br>&gt; Question 1: This works if done from a separate process via<br>&gt; APPLY-IN-PANE-PROCESS as described above.  If, however, I<br>&gt; manipulate and redraw the pinboard objects directly from the<br>&gt; interface's process, the pinboard layout is never updated.  Why<br>&gt; is that?<br>&gt; <br>&gt; Question 2: I'm on Windows 7 and I usually use a "classic"<br>&gt; desktop theme.  The whole animation looks fine like this.  But if<br>&gt; I instead switch to one of the "Aero" themes, the moving pinboard<br>&gt; objects are only partially drawn and the animation looks ugly.<br>&gt; Any explanation for that?  (I've tried buffered and unbuffered<br>&gt; drawing as well the new "quality" mode vs. the old compatible<br>&gt; mode, but none of this seems to make a difference.)<br>&gt; <br>&gt; Question 3: The same app builds fine on Linux (with GTK) and Mac<br>&gt; OS as well, but the outcome is a disaster.  This is not so<br>&gt; important to me, but nevertheless I'd be happy to know where in<br>&gt; my code I'm making Windows-specific assumptions.<br>&gt; <br>&gt; The apps for Windows and Linux can be downloaded from<br>&gt; &lt;http://weitz.de/files/Hanoi.zip&gt; and<br>&gt; &lt;http://weitz.de/files/hanoi.tar.gz&gt; if you're interested.  If<br>&gt; you have an idea what the problem might be and want to see the<br>&gt; source code, please drop me an email.<br>&gt; <br>&gt; Thanks for your help,<br>&gt; Edi.<br>&gt; <br>&gt; _______________________________________________<br>&gt; Lisp Hug - the mailing list for LispWorks users<br>&gt; lisp-hug@lispworks.com<br>&gt; http://www.lispworks.com/support/lisp-hug.html<br>&gt; <br></div> 		 	   		  </div></body>
+</html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Problems with animated pinboard objects</h1>
+                 <pre>
+It seems I was able to fix the issues I mentioned below.  In case
+you're interested, you can download the program (Windows, Mac OS,
+Linux) here: &lt;http://weitz.de/hanoi/&gt.  Please let me know if you
+encounter any problems.
+
+Christopher, thanks for your suggestion.  It didn't help in this case,
+but I'll keep it in mind for the future.
+
+Cheers,
+Edi.
+
+
+On Wed, Nov 14, 2012 at 1:28 PM, Edi Weitz &lt;edi@agharta.de&gt wrote:
+&gt Hi everybody,
+&gt
+&gt I've just hacked together a little demo app for my students to
+&gt demonstrate the well-known "Towers of Hanoi" problem.  I have a
+&gt couple of questions, though:
+&gt
+&gt The program uses a pinboard layout for the main window and the
+&gt disks are pinboard objects which are drawn using two calls to
+&gt DRAW-RECTANGLE - one for the golden color, one for the black
+&gt outline.  To move a disk, I update its position using (SETF
+&gt PINBOARD-PANE-POSITION) and then call REDRAW-PINBOARD-OBJECT.
+&gt This is more or less based on the "balloons" example that comes
+&gt with LW except that I use a separate process where the example
+&gt uses a timer.
+&gt
+&gt Question 1: This works if done from a separate process via
+&gt APPLY-IN-PANE-PROCESS as described above.  If, however, I
+&gt manipulate and redraw the pinboard objects directly from the
+&gt interface's process, the pinboard layout is never updated.  Why
+&gt is that?
+&gt
+&gt Question 2: I'm on Windows 7 and I usually use a "classic"
+&gt desktop theme.  The whole animation looks fine like this.  But if
+&gt I instead switch to one of the "Aero" themes, the moving pinboard
+&gt objects are only partially drawn and the animation looks ugly.
+&gt Any explanation for that?  (I've tried buffered and unbuffered
+&gt drawing as well the new "quality" mode vs. the old compatible
+&gt mode, but none of this seems to make a difference.)
+&gt
+&gt Question 3: The same app builds fine on Linux (with GTK) and Mac
+&gt OS as well, but the outcome is a disaster.  This is not so
+&gt important to me, but nevertheless I'd be happy to know where in
+&gt my code I'm making Windows-specific assumptions.
+&gt
+&gt The apps for Windows and Linux can be downloaded from
+&gt &lt;http://weitz.de/files/Hanoi.zip&gt and
+&gt &lt;http://weitz.de/files/hanoi.tar.gz&gt if you're interested.  If
+&gt you have an idea what the problem might be and want to see the
+&gt source code, please drop me an email.
+&gt
+&gt Thanks for your help,
+&gt Edi.
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:32 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>how to get a window reference</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>how to get a window reference</h1>
+                <pre>Lots of Windows API functions take a window reference parameter (HWND). 
+I inspected an interface and came up with this
+
+(defmethod window-reference ((self interface))
+   #+win32
+   (slot-value (capi-internals:representation self) 'win32:hwnd))
+
+It works except at high delivery levels (4) where it crashes:
+
+Error: An error of type CONDITIONS::SLOT-MISSING-ERROR....
+
+I tried adding the representation class (win32:r-top-level-interface) 
+to the :classes-to-keep-effective-slots delivery keyword, but still the 
+same error.
+
+Is there a better way to get the window HWND reference that works at 
+all delivery levels?
+
+BTW, the reason I need this is because I want to create an interface 
+that is the height of the screen minus the task bar height. I don't see 
+any way to do that in capi.
+
+Thanks,
+
+John DeSoi, Ph.D.
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: how to get a window reference</h1>
+                 <pre>Hello John,
+
+| Lots of Windows API functions take a window reference parameter (HWND).
+| I inspected an interface and came up with this
+| 
+| (defmethod window-reference ((self interface))
+|    #+win32
+|    (slot-value (capi-internals:representation self) 'win32:hwnd))
+| 
+| It works except at high delivery levels (4) where it crashes:
+| 
+| Error: An error of type CONDITIONS::SLOT-MISSING-ERROR....
+| 
+| I tried adding the representation class (win32:r-top-level-interface) 
+| to the :classes-to-keep-effective-slots delivery keyword, but still the
+| same error.
+| 
+| Is there a better way to get the window HWND reference that works at 
+| all delivery levels?
+| 
+| BTW, the reason I need this is because I want to create an interface 
+| that is the height of the screen minus the task bar height. I don't see
+| any way to do that in capi.
+
+CAPI:SIMPLE-PANE-HANDLE
+--
+Sincerely,
+Dmitri Ivanov
+lisp.ystok.ru
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: how to get a window reference</h1>
+                 <pre>At 9:00 AM +0400 10/27/04, Dmitri Ivanov wrote:
+&gtHello John,
+&gt
+&gt| Lots of Windows API functions take a window reference parameter (HWND).
+&gt| I inspected an interface and came up with this
+&gt|
+&gt| (defmethod window-reference ((self interface))
+&gt|    #+win32
+&gt|    (slot-value (capi-internals:representation self) 'win32:hwnd))
+&gt|
+&gt| It works except at high delivery levels (4) where it crashes:
+&gt|
+&gt| Error: An error of type CONDITIONS::SLOT-MISSING-ERROR....
+&gt|
+&gt| I tried adding the representation class (win32:r-top-level-interface)
+&gt| to the :classes-to-keep-effective-slots delivery keyword, but still the
+&gt| same error.
+&gt|
+&gt| Is there a better way to get the window HWND reference that works at
+&gt| all delivery levels?
+&gt|
+&gt| BTW, the reason I need this is because I want to create an interface
+&gt| that is the height of the screen minus the task bar height. I don't see
+&gt| any way to do that in capi.
+&gt
+&gtCAPI:SIMPLE-PANE-HANDLE
+
+Also, check with Xanalys.  They gave me a private patch that returns 
+the geometry of the screen, taking the task bar height into account. 
+(It also works on the Mac w.r.t. the Dock)
+
+   - Gary
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:50 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

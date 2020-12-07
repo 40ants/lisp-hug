@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Writing and reading multidimensional arrays of floats</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Writing and reading multidimensional arrays of floats</h1>
+                <pre>I have a nine dimensional array of single-floats (specialized).
+
+Writing this with write-with-fasl-file, writes this out quite quickly, but 
+writes a 20Mb fasl file.
+Reading this fasl file takes a looong time. Presumably because it creates a 
+non-specialized array and doesn't know the size in advance.
+
+How do people generally read and write such arrays? I would also prefer to 
+use a compressed format.
+
+I am quite happy to loop over the array, but how do I best write out the 
+data?
+
+Rene.
+
+
+
+______________________________________________________________________
+This email has been scanned by the MessageLabs Email Security System.
+For more information please visit http://www.messagelabs.com/email 
+______________________________________________________________________
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Writing and reading multidimensional arrays of floats</h1>
+                 <pre>Rene de Visser wrote:
+
+&gt I have a nine dimensional array of single-floats (specialized).
+
+Based on what I have seen below try to dump this nine-dimensional
+array as a specialized one-dimensional single-float array.
+
+It seems you cannot specialize a multi-dimensional array of floats in LW,
+
+Simple example,
+
+CL-USER 26 &gt (type-of (make-array 10 :element-type 'single-float))
+(SIMPLE-ARRAY SINGLE-FLOAT (10))
+
+CL-USER 27 &gt (type-of (make-array '(10 10) :element-type 'single-float))
+SIMPLE-ARRAY
+
+With the following functions defined,
+
+(defvar *working-array* nil)
+
+(defun dump-marray (array)
+  (hcl:dump-forms-to-file
+   (compile-file-pathname "marray")
+   (list `(setf *working-array* ,array))))
+
+(defun load-marray ()
+  (sys:load-data-file (compile-file-pathname "marray")))
+
+CL-USER 19 &gt (progn (setf array (make-array '(2 2 2 7 7 7 7 7 7)
+                                           :element-type 'single-float
+                                           :initial-element 1.0s10))
+              nil)
+NIL
+
+CL-USER 20 &gt (dump-marray array)
+2
+
+CL-USER 21 &gt (load-marray)
+; Loading fasl file d:\cygwin\home\wade\marray.fsl
+
+..... Takes forever, (breaking into the debugger shows load-array calling 
+adjust-array (alot))
+
+However doing this instead is much faster, (single dimension array)
+
+CL-USER 28 &gt (progn (setf array (make-array (* 2 2 2 7 7 7 7 7 7)
+                                           :element-type 'single-float
+                                           :initial-element 1.0s10))
+              nil)
+NIL
+
+CL-USER 29 &gt (type-of array)
+(SIMPLE-ARRAY SINGLE-FLOAT (941192))
+
+CL-USER 30 &gt (dump-marray array)
+2
+
+CL-USER 31 &gt (load-marray)
+; Loading fasl file d:\cygwin\home\wade\marray.fsl
+#P"d:/cygwin/home/wade/marray.fsl"
+
+Is nearly instantaneous.
+
+Wade
+
+
+______________________________________________________________________
+This email has been scanned by the MessageLabs Email Security System.
+For more information please visit http://www.messagelabs.com/email 
+______________________________________________________________________
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: Writing and reading multidimensional arrays of floats</h1>
+                  <pre>&gtFrom: Wade Humeniuk &lt;whumeniu@telus.net&gt
+&gtIt seems you cannot specialize a multi-dimensional array of floats in LW,
+&gt
+&gtSimple example,
+&gt
+&gtCL-USER 26 &gt (type-of (make-array 10 :element-type 'single-float))
+&gt(SIMPLE-ARRAY SINGLE-FLOAT (10))
+&gt
+&gtCL-USER 27 &gt (type-of (make-array '(10 10) :element-type 'single-float))
+&gtSIMPLE-ARRAY
+
+I think it is type-of that gives the wrong information here. Try and store 
+something else in that 2d array and you will see what I mean.
+
+&gt.... Takes forever, (breaking into the debugger shows load-array calling 
+&gtadjust-array (alot))
+&gt
+&gtHowever doing this instead is much faster, (single dimension array)
+&gt
+&gtCL-USER 28 &gt (progn (setf array (make-array (* 2 2 2 7 7 7 7 7 7)
+&gt                                           :element-type 'single-float
+&gt                                           :initial-element 1.0s10))
+&gt              nil)
+&gtNIL
+&gt
+&gtCL-USER 29 &gt (type-of array)
+&gt(SIMPLE-ARRAY SINGLE-FLOAT (941192))
+&gt
+&gtCL-USER 30 &gt (dump-marray array)
+&gt2
+&gt
+&gtCL-USER 31 &gt (load-marray)
+&gt; Loading fasl file d:\cygwin\home\wade\marray.fsl
+&gt#P"d:/cygwin/home/wade/marray.fsl"
+&gt
+&gtIs nearly instantaneous.
+&gt
+&gtWade
+&gt
+Interesting, thankyou for your reply.
+
+I since written my own serializer that works at byte level. It is fast 
+enough for me and results in a much smaller file. However it is special 
+purpose, not a general solutuion.
+
+Rene.
+
+
+
+______________________________________________________________________
+This email has been scanned by the MessageLabs Email Security System.
+For more information please visit http://www.messagelabs.com/email 
+______________________________________________________________________
+
+
+</pre>
+                 </article>
+                </section>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:47 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

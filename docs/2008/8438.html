@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Obj-C subclassing behavior</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Obj-C subclassing behavior</h1><div dir="ltr">I have a possible bug, but wondering if this was normal (or even desired) behavior in the :objc package...&nbsp;I&#39;ve created a framework using Cocoa and created a simple class like so:<div><br></div><div>@interface foo : NSObject { }</div>
+<div>- (void)bar: (id)anObject;</div><div>- (void)setup;</div><div>@end</div><div><br></div><div>And it is implemented.</div><div><br></div><div>In LW, I then want to sublcass this and send -bar: messages to it. So, I go for it:</div>
+<div><br></div><div>(define-objc-class my-foo ()</div><div>&nbsp;&nbsp;()</div><div>&nbsp;&nbsp;(:objc-class-name &quot;my-foo&quot;)</div><div>&nbsp;&nbsp;(:objc-superclass-name &quot;foo&quot;))</div><div><br></div><div>Now I&#39;ll override -setup (that the framework will call automagically when I use the object):</div>
+<div><br></div><div>(define-objc-method (&quot;setup&quot; :void)</div><div>&nbsp;&nbsp; &nbsp;((self my-foo))</div><div>&nbsp;&nbsp;(invoke self &quot;bar:&quot; nil))</div><div><br></div><div>The above call to -bar: will now either crash with an unrecoverable error that&#39;s something like &quot;&lt;object my-foo&gt; is an invalid parameter to function null-pointer-p&quot;. Please note that the two additional pieces of info:</div>
+<div><br></div><div>(let ((o (alloc-init-object &quot;my-foo&quot;)))</div><div>&nbsp;&nbsp;(can-invoke-p o &quot;bar:&quot;))</div><div><br></div><div>--&gt; T</div><div><br></div><div>Also, if I change the call in the setup method to:</div>
+<div><br></div><div>(invoke (current-super) &quot;bar:&quot; nil)</div><div><br></div><div>Everything works as expected. Any ideas?</div><div><br></div><div>Jeff M.</div></div>
+
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Obj-C subclassing behavior</h1>
+                 <pre>
+Nevermind. I just figured out that I needed to use
+(objc-object-pointer self). I didn't realize that self would be a lisp
+object and not the objective-c object.
+
+Duh. ;-)
+
+Jeff M.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Obj-C subclassing behavior</h1>
+                 <pre>
+
+On Jul 28, 2008, at 5:26 PM, Jeff Massung wrote:
+
+&gt Nevermind. I just figured out that I needed to use
+&gt (objc-object-pointer self). I didn't realize that self would be a lisp
+&gt object and not the objective-c object.
+
+I've run into this myself - kind of counterintuitive for "self" to not  
+be an objective-c object.
+
+regards,
+
+Ralph
+
+
+
+
+
+
+
+Raffael Cavallaro, Ph.D.
+raffaelcavallaro@mac.com
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:38 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

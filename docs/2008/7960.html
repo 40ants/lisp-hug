@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>emun values defined in Mac OS headers</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>emun values defined in Mac OS headers</h1><html><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space; ">I am trying to access constant values defined in enum statements.&nbsp;<div>This should be easy to do but I cannot figure this one out.</div><div><br><div>The following code segment is taken out of the file AEDataModel.h</div><div><br></div><div><div style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; font: normal normal normal 10px/normal Monaco; color: rgb(170, 13, 145); ">enum<span style="color: #000000"> {</span></div><div style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; font: normal normal normal 10px/normal Monaco; ">&nbsp; <span style="color: #2e0d6e">typeAEList</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; = <span style="color: #1c00cf">'list'</span>,</div><div style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; font: normal normal normal 10px/normal Monaco; ">&nbsp; <span style="color: #2e0d6e">typeAERecord</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; = <span style="color: #1c00cf">'reco'</span>,</div><div style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; font: normal normal normal 10px/normal Monaco; ">&nbsp; <span style="color: #2e0d6e">typeAppleEvent</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; = <span style="color: #1c00cf">'aevt'</span>,</div><div style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; font: normal normal normal 10px/normal Monaco; ">&nbsp;&nbsp;... };</div><div><font class="Apple-style-span" face="Monaco" size="2"><span class="Apple-style-span" style="font-size: 10px;"><br></span></font></div>The problem seems that in these C statements, the enum type is not specified so that the functions enum-value-symbol or enum-symbol-value are useless.&nbsp;</div><div>A desparte trial to define these as foreign variables does not work either, leading to an unresolved external function error as if the module was not registered.</div><div><br></div><div><div><font class="Apple-style-span" color="#2E0D6E" face="Monaco" size="2"><span class="Apple-style-span" style="font-size: 10px;"><div>(fli:register-module :AE</div><div>&nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; :real-name (namestring (truename "/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/AE.framework/Versions/A/AE"))</div><div>&nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; :connection-style :immediate)</div><div><br></div><div>(fli:define-foreign-variable (typeAppleEvent "typeAppleEvent")</div><div>&nbsp;&nbsp;:module :AE</div><div>&nbsp;&nbsp;:accessor :constant)</div><div><br></div><div><div>CL-USER 27 > (typeAppleEvent)</div><div><br></div><div>Error: Foreign function TYPEAPPLEEVENT trying to call to unresolved external function "typeAppleEvent".</div><div>&nbsp;&nbsp;1 (abort) Return to level 0.</div><div>&nbsp;&nbsp;2 Return to top loop level 0.</div><br></div><div><br></div></span></font></div></div><div>Thanks</div><div><br></div><div>Bruno<br><div><br></div>
+</div></div></body></html>
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: emun values defined in Mac OS headers</h1>
+                 <pre>
+On Friday 11 April 2008 8:52:24 am Bruno Emond wrote:
+&gt I am trying to access constant values defined in enum statements.
+&gt This should be easy to do but I cannot figure this one out.
+&gt
+&gt The following code segment is taken out of the file AEDataModel.h
+&gt
+&gt enum {
+&gt    typeAEList                    = 'list',
+&gt    typeAERecord                  = 'reco',
+&gt    typeAppleEvent                = 'aevt',
+&gt    ... };
+
+Enums are ints.
+
+The dirty syntax 'list' is an int.  Note the single-quotes, denoting that the 
+item contains characters (bytes).
+
+So 'list' is 0x6c697374.  (Hmm, check the endian-ness).
+
+The enum declaration is the same as writing a bunch of #defines, e.g.
+
+#define typeAEList 0x6c697374
+...
+
+As far as I can tell, the foreign parser (on LWL), does not accept the 
+syntax 'list' when parsing an enum.
+
+From the rest of your email, it appears that you might be expecting to find 
+the constants in the compiled object file in mac-os.  Enums, like #defines, 
+are 'compiled away' - their values are simply substituted by the C compiler 
+at compile time.
+
+You cannot find these constants by name in the C module.
+
+You need to create a .h file and run it through the foreign parser to create a 
+lisp file so that lisp can know what the final values are.  Or create the 
+lisp constants by hand - this might be the simplest option, since you have to 
+convert the constants manually anyway (due to the dirty syntax).  Or, if 
+you're feeling exceptionally lazy (or there are 1000's of these things), you 
+could whip up a C program that printf's the name and value (as numbers) of 
+each of the enums, then edit this file to be in lisp synax.
+
+hth
+pt
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:39 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

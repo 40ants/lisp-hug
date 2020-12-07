@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Compiler's type inference bug with (&lt; safety 3) ?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Compiler's type inference bug with (&lt; safety 3) ?</h1><!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML><HEAD>
+<META http-equiv=Content-Type content="text/html; charset=koi8-r">
+<META content="MSHTML 6.00.2900.2180" name=GENERATOR>
+<STYLE></STYLE>
+</HEAD>
+<BODY bgColor=#ffffff>
+<DIV><FONT face=Arial>Hi<BR>&nbsp;<BR>Trying to check out ray tracing example 
+from c.c.l in LispWorks 4.4.6 Personal Edition for Windows, I found that 
+compiler with declarations where safety &lt; 3 counts that any summation result 
+has fixnum type. Example:<BR>&nbsp;<BR>(defun test (n)<BR>&nbsp; (declare 
+(fixnum n))<BR>&nbsp; (let ((some-var (+ (/ (float n 1.0) 2.0) 
+1.0)))<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (declare (double-float 
+some-var))<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; some-var))<BR>&nbsp;<BR>When 
+you try to compile it with (declaim (optimize (safety 0))) you'll get<BR>;;;*** 
+Warning in TEST: Variable SOME-VAR is declared type FLOAT, but is bound to a 
+value of type FIXNUM</FONT></DIV>
+<DIV>&nbsp;</DIV>
+<DIV><FONT face=Arial>Same without (+ expr 1.0) compiles without 
+warnings.<BR>&nbsp;<BR>Is it bug 
+?<BR>&nbsp;<BR>Regards<BR>Lisper<BR>&nbsp;<BR>&nbsp;<BR>&nbsp;<BR>&nbsp;<BR>&nbsp;<BR>&nbsp;</FONT></DIV></BODY></HTML>
+
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Compiler's type inference bug with (&lt; safety 3) ?</h1>
+                 <pre>(defun test (n)
+  (declare (fixnum n) (optimize (safety 0) (fixnum-safety 3)))
+  (let ((some-var (+ (/ (float n 1.0) 2.0) 1.0)))
+       (declare (double-float some-var))
+       some-var))
+
+This compiles fine.
+
+(defun test (n)
+  (declare (fixnum n) (optimize (safety 0) (fixnum-safety 2)))
+  (let ((some-var (+ (/ (float n 1.0) 2.0) 1.0)))
+       (declare (double-float some-var))
+       some-var))
+
+This causes your error, see
+
+http://www.lispworks.com/documentation/lw445/LWUG/html/lwuser-89.htm#pgfId-886019
+
+This behaviour is documented.  Return fixnum-safety to 3 for the 
+compilation.  This is problem with
+declaim, its too global.
+
+Wade
+
+&gt Hi
+&gt  
+&gt Trying to check out ray tracing example from c.c.l in LispWorks 4.4.6 
+&gt Personal Edition for Windows, I found that compiler with declarations 
+&gt where safety &lt; 3 counts that any summation result has fixnum type. 
+&gt Example:
+&gt  
+&gt (defun test (n)
+&gt   (declare (fixnum n))
+&gt   (let ((some-var (+ (/ (float n 1.0) 2.0) 1.0)))
+&gt        (declare (double-float some-var))
+&gt        some-var))
+&gt  
+&gt When you try to compile it with (declaim (optimize (safety 0))) you'll get
+&gt ;;;*** Warning in TEST: Variable SOME-VAR is declared type FLOAT, but 
+&gt is bound to a value of type FIXNUM
+&gt  
+&gt Same without (+ expr 1.0) compiles without warnings.
+&gt  
+&gt Is it bug ?
+&gt  
+&gt Regards
+&gt Lisper
+&gt  
+&gt  
+&gt  
+&gt  
+&gt  
+&gt  
+
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:46 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

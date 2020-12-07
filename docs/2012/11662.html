@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Newbie question</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Newbie question</h1>
+                <pre>
+Hi!
+
+I'm trying to work through some of the examples in "Object-Oriented
+Progamming in Common Lisp" by Sonja Keene, and I'm kind-of stuck with
+the example on pg. 38, which uses a function "sys:%pointer" to obtain
+the address of an object in memory. The book states that this function
+isn't part of Common Lisp, but is defined in some implementations. I'm
+guessing that the Lisp Works implementation doesn't define it (I got
+the error "Symbol "%POINTER" not found at all in the SYSTEM package"
+when I tried it). Is there some other way to obtain the address of an
+object? I tried using "(string ...)" and "(coerce ... '(string))", but
+neither worked.
+
+Thanks.
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Newbie question</h1>
+                 <pre>
+David &lt;dfkettle@gmail.com&gt writes:
+
+&gt Hi!
+&gt
+&gt I'm trying to work through some of the examples in "Object-Oriented
+&gt Progamming in Common Lisp" by Sonja Keene, and I'm kind-of stuck with
+&gt the example on pg. 38, which uses a function "sys:%pointer" to obtain
+&gt the address of an object in memory. The book states that this function
+&gt isn't part of Common Lisp, but is defined in some implementations. I'm
+&gt guessing that the Lisp Works implementation doesn't define it (I got
+&gt the error "Symbol "%POINTER" not found at all in the SYSTEM package"
+&gt when I tried it). Is there some other way to obtain the address of an
+&gt object? I tried using "(string ...)" and "(coerce ... '(string))", but
+&gt neither worked.
+
+It's not really interesting to have the address of an object.  IIRC, the
+book mentions that it can even change between garbage collection, so
+while it may be unique identifier of an object at a given time, it may
+not stay unique during the execution of the program. (And since printing
+an object may invoke the garbage collector, this address may be wrong as
+soon as it's obtained).
+
+Nonetheless, it's pretty to have rows of numbers.
+
+Now you have two choices if you want to get that kind of numbers in a
+conforming way:
+
+- generate them  yourself:
+
+     (defvar *last-address* #x1000000)
+     (defvar *objects-with-addresses* (make-hash-table)
+             "maps objects to addresses.")
+     (defun %pointer (object)
+        (format nil "#x~8,'0X"
+            (or (gethash object *objects-with-addresses*)
+                (setf (gethash object *objects-with-addresses*)
+                      (incf *last-address* 8)))))
+
+     (defclass object () ())
+     (let* ((a (make-instance 'object))
+            (b (make-instance 'object))
+            (c (make-instance 'object))
+            (d (list a b c a b c)))
+       (mapcar '%pointer d))
+     --&gt ("#x01000020" "#x01000028" "#x01000030" "#x01000020" "#x01000028" "#x01000030")
+
+
+    The inconvenient of this solution is that it registers the objects into
+    a hash-table, preventing their garbage collection, or you would have to
+    use an extension such as weak hash tables.
+
+
+- use CL:PRINT-UNREADABLE-OBJECT to obtain those "addresses".
+
+      (defun %pointer (object)
+        "
+      RETURN:         A string containing the object identity as printed by
+                      PRINT-UNREADABLE-OBJECT.
+      "
+        (let ((*print-readably* nil))
+          (let ((ident
+                 (with-output-to-string (stream)
+                   (print-unreadable-object (object stream :type nil :identity t)))))
+            (string-trim " " (subseq ident 2 (1- (length ident)))))))
+
+
+     (let* ((a (make-instance 'object))
+            (b (make-instance 'object))
+            (c (make-instance 'object))
+            (d (list a b c a b c)))
+       (mapcar '%pointer d))
+     --&gt ("#x302001D3E92D" "#x302001D3E8FD" "#x302001D3E8CD"
+          "#x302001D3E92D" "#x302001D3E8FD" "#x302001D3E8CD")
+
+
+Since the format of print-unreadable-object imposes #&lt; and &gt, this
+%pointer function should be conforming and return similar results
+everywhere.  Notice, the standard doesn't specify the format of object
+identities, it's not necessarily anything readable, so we leave it as
+string.
+
+
+-- 
+__Pascal Bourguignon__                     http://www.informatimago.com/
+A bad day in () is better than a good day in {}.
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Newbie question</h1>
+                 <p>
+                  Unable to parse email body. Email id is 11664
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Newbie question</h1>
+                 <pre>
+On 17 Jul 2012, at 16:08, David wrote:
+
+&gt 
+&gt Hi!
+&gt 
+&gt I'm trying to work through some of the examples in "Object-Oriented
+&gt Progamming in Common Lisp" by Sonja Keene, and I'm kind-of stuck with
+&gt the example on pg. 38, which uses a function "sys:%pointer" to obtain
+&gt the address of an object in memory. The book states that this function
+&gt isn't part of Common Lisp, but is defined in some implementations. 
+
+In LW an equivalent is SYSTEM:OBJECT-ADDRESS, and note that the manual explicitly says: "Note that the address is likely to change during garbage collection so this integer should be used for debugging purposes only." (And indeed you can see things move around).
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Newbie question</h1>
+                 <pre>
+Thanks, everyone. Sounds like it's a bad practice in the first place,
+I'm not sure why it's in the book. It seems somewhat peripheral to the
+subject of the book (CLOS), anyway. But the example works now.
+
+On Tue, Jul 17, 2012 at 12:32 PM, Dave Fox &lt;davef@lispworks.com&gt wrote:
+&gt
+&gt  &gt Hi!
+&gt  &gt
+&gt  &gt I'm trying to work through some of the examples in "Object-Oriented
+&gt  &gt Progamming in Common Lisp" by Sonja Keene, and I'm kind-of stuck with
+&gt  &gt the example on pg. 38, which uses a function "sys:%pointer" to obtain
+&gt  &gt the address of an object in memory. The book states that this function
+&gt  &gt isn't part of Common Lisp, but is defined in some implementations. I'm
+&gt  &gt guessing that the Lisp Works implementation doesn't define it (I got
+&gt  &gt the error "Symbol "%POINTER" not found at all in the SYSTEM package"
+&gt  &gt when I tried it). Is there some other way to obtain the address of an
+&gt  &gt object?
+&gt
+&gt Yes, SYS:OBJECT-ADDRESS
+&gt
+&gt
+&gt
+&gt --
+&gt Dave Fox
+&gt LispWorks Ltd
+&gt http://www.lispworks.com/
+&gt
+&gt Registered Office: St John's Innovation Centre, Cowley Road, Cambridge CB4 0WS
+&gt Registered in England: No. 5114963
+&gt EC VAT ID: GB 833329531
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Newbie question</h1>
+                 <pre>
+I would suggest using the macro 'PRINT-UNREADABLE-OBJECT'.
+
+this macro has a keyword argument that when set to 'T' will typically
+print the storage address of the object
+
+the example in p38 can be done using the macro as follows:
+
+(defmethod print-object ((l lock) stream)
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(print-unreadable-object (l stream :type t :identity t)
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(format stream "~A" (if (slot-boundp l 'name)
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(lock-name l)
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;"(no name)"))))
+
+HIH
+
+Ala'a
+
+On Tue, Jul 17, 2012 at 7:08 PM, David &lt;dfkettle@gmail.com&gt wrote:
+&gt
+&gt
+&gt Hi!
+&gt
+&gt I'm trying to work through some of the examples in "Object-Oriented
+&gt Progamming in Common Lisp" by Sonja Keene, and I'm kind-of stuck with
+&gt the example on pg. 38, which uses a function "sys:%pointer" to obtain
+&gt the address of an object in memory. The book states that this function
+&gt isn't part of Common Lisp, but is defined in some implementations. I'm
+&gt guessing that the Lisp Works implementation doesn't define it (I got
+&gt the error "Symbol "%POINTER" not found at all in the SYSTEM package"
+&gt when I tried it). Is there some other way to obtain the address of an
+&gt object? I tried using "(string ...)" and "(coerce ... '(string))", but
+&gt neither worked.
+&gt
+&gt Thanks.
+&gt
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+&gt
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Newbie question</h1><div dir="ltr">Side question if i tried the following in the repl (LWL 6.1 - x86 32-bit)<div><br></div><div>(defclass x () ()) =&gt;  #&lt;STANDARD-CLASS X 200A7C83&gt;</div><div>(sys:object-address *) =&gt; 537558144</div>
+
+<div>(format nil &quot;~X&quot; *) =&gt; &quot;200A7C80&quot;</div><div><br></div><div><div>The last one gave an address that differ from the address in the first result with &#39;3&#39;.</div><div><br></div><div>and using the documentation example</div>
+
+<div><pre class="RCode-first">(let ((gf #&#39;initialize-instance))</pre>
+<pre class="RCode-body"><a name="pgfId-886390"></a>               (format t &quot;address = ~X~%gf = ~S&quot; </pre>
+<pre class="RCode-body"><a name="pgfId-886391"></a>                  (sys:object-address gf) gf))</pre><pre class="RCode-body"><br></pre><pre class="RCode-body"><div style="font-family:arial;white-space:normal">I get</div>
+
+<div><div><font face="arial"><span style="white-space:normal">address = 2080F9E0</span></font></div><div><font face="arial"><span style="white-space:normal">gf = #&lt;STANDARD-GENERIC-FUNCTION INITIALIZE-INSTANCE 2080F9E2&gt;</span></font></div>
+
+<div><font face="arial"><span style="white-space:normal">NIL</span></font></div><div style="font-family:arial;white-space:normal"><br></div></div><div style="font-family:arial;white-space:normal">which seems to differ by &#39;2&#39;</div>
+
+<div style="font-family:arial;white-space:normal"><br></div><div style="font-family:arial;white-space:normal">Is this a bug?</div><div style="font-family:arial;white-space:normal"><br></div><div style="font-family:arial;white-space:normal">
+
+</div></pre><pre class="RCode-body"><br></pre><pre class="RCode-body">Ala&#39;a</pre></div><div><br></div><div><br></div><div class="gmail_quote">On Tue, Jul 17, 2012 at 8:32 PM, Dave Fox <span dir="ltr">&lt;<a href="mailto:davef@lispworks.com" target="_blank">davef@lispworks.com</a>&gt;</span> wrote:<br>
+
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div class="im"><br>
+<br>
+ &gt; Hi!<br>
+ &gt;<br>
+ &gt; I&#39;m trying to work through some of the examples in &quot;Object-Oriented<br>
+ &gt; Progamming in Common Lisp&quot; by Sonja Keene, and I&#39;m kind-of stuck with<br>
+ &gt; the example on pg. 38, which uses a function &quot;sys:%pointer&quot; to obtain<br>
+ &gt; the address of an object in memory. The book states that this function<br>
+ &gt; isn&#39;t part of Common Lisp, but is defined in some implementations. I&#39;m<br>
+ &gt; guessing that the Lisp Works implementation doesn&#39;t define it (I got<br>
+ &gt; the error &quot;Symbol &quot;%POINTER&quot; not found at all in the SYSTEM package&quot;<br>
+ &gt; when I tried it). Is there some other way to obtain the address of an<br>
+ &gt; object?<br>
+<br>
+</div>Yes, SYS:OBJECT-ADDRESS<br>
+<span class="HOEnZb"><font color="#888888"><br>
+<br>
+<br>
+--<br>
+Dave Fox<br>
+LispWorks Ltd<br>
+<a href="http://www.lispworks.com/" target="_blank">http://www.lispworks.com/</a><br>
+<br>
+Registered Office: St John&#39;s Innovation Centre, Cowley Road, Cambridge CB4 0WS<br>
+Registered in England: No. 5114963<br>
+EC VAT ID: GB 833329531<br>
+</font></span><div class="HOEnZb"><div class="h5"><br>
+_______________________________________________<br>
+Lisp Hug - the mailing list for LispWorks users<br>
+<a href="mailto:lisp-hug@lispworks.com">lisp-hug@lispworks.com</a><br>
+<a href="http://www.lispworks.com/support/lisp-hug.html" target="_blank">http://www.lispworks.com/support/lisp-hug.html</a><br>
+<br>
+</div></div></blockquote></div><br></div></div>
+
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Newbie question</h1>
+                 <pre>
+On Tue, Jul 17, 2012 at 12:50 PM, Ala'a Mohammad &lt;amalawi@gmail.com&gt wrote:
+&gt Side question if i tried the following in the repl (LWL 6.1 - x86 32-bit)
+&gt
+&gt (defclass x () ()) =&gt  #&lt;STANDARD-CLASS X 200A7C83&gt
+&gt (sys:object-address *) =&gt 537558144
+&gt (format nil "~X" *) =&gt "200A7C80"
+&gt
+&gt The last one gave an address that differ from the address in the first
+&gt result with '3'.
+&gt
+&gt and using the documentation example
+&gt
+&gt (let ((gf #'initialize-instance))
+&gt
+&gt                (format t "address = ~X~%gf = ~S"
+&gt
+&gt                   (sys:object-address gf) gf))
+&gt
+&gt
+&gt I get
+&gt
+&gt address = 2080F9E0
+&gt gf = #&lt;STANDARD-GENERIC-FUNCTION INITIALIZE-INSTANCE 2080F9E2&gt
+&gt
+&gt NIL
+&gt
+&gt which seems to differ by '2'
+&gt
+&gt
+&gt Is this a bug?
+
+It's probably tagging in the low bits of the object.  Lots (most?
+all?) lisps do something like this.
+
+ECL : http://ecls.sourceforge.net/new-manual/ch33.html
+SBCL : http://sbcl-internals.cliki.net/tag%20bit
+a list for a bunch of implementations : http://lars.nocrew.org/lisptags.html
+
+More generally, see tagged pointers:
+http://en.wikipedia.org/wiki/Tagged_pointer
+
+//JT
+-- 
+Joshua Taylor, http://www.cs.rpi.edu/~tayloj/
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Newbie question</h1>
+                 <pre>
+On Tue, Jul 17, 2012 at 9:06 PM, Joshua TAYLOR &lt;jtaylor@alum.rpi.edu&gt wrote:
+&gt
+&gt On Tue, Jul 17, 2012 at 12:50 PM, Ala'a Mohammad &lt;amalawi@gmail.com&gt wrote:
+&gt&gt Side question if i tried the following in the repl (LWL 6.1 - x86 32-bit)
+&gt&gt
+&gt&gt (defclass x () ()) =&gt  #&lt;STANDARD-CLASS X 200A7C83&gt
+&gt&gt (sys:object-address *) =&gt 537558144
+&gt&gt (format nil "~X" *) =&gt "200A7C80"
+&gt&gt
+&gt&gt The last one gave an address that differ from the address in the first
+&gt&gt result with '3'.
+&gt&gt
+&gt&gt and using the documentation example
+&gt&gt
+&gt&gt (let ((gf #'initialize-instance))
+&gt&gt
+&gt&gt                (format t "address = ~X~%gf = ~S"
+&gt&gt
+&gt&gt                   (sys:object-address gf) gf))
+&gt&gt
+&gt&gt
+&gt&gt I get
+&gt&gt
+&gt&gt address = 2080F9E0
+&gt&gt gf = #&lt;STANDARD-GENERIC-FUNCTION INITIALIZE-INSTANCE 2080F9E2&gt
+&gt&gt
+&gt&gt NIL
+&gt&gt
+&gt&gt which seems to differ by '2'
+&gt&gt
+&gt&gt
+&gt&gt Is this a bug?
+&gt
+&gt It's probably tagging in the low bits of the object.  Lots (most?
+&gt all?) lisps do something like this.
+
+from LW 6.1 sys:object-address documentation:
+
+"the address returned by sys:object-address **is the same** as the one
+printed by the print-object method"
+
+emphasis is mine.
+
+check the doc here:
+http://www.lispworks.com/documentation/lw61/LW/html/lw-1410.htm#marker-887327
+
+--
+Ala'a
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Newbie question</h1>
+                 <pre>
+On Tue, Jul 17, 2012 at 1:35 PM, Ala'a Mohammad &lt;amalawi@gmail.com&gt wrote:
+&gt On Tue, Jul 17, 2012 at 9:06 PM, Joshua TAYLOR &lt;jtaylor@alum.rpi.edu&gt wrote:
+&gt&gt
+&gt&gt On Tue, Jul 17, 2012 at 12:50 PM, Ala'a Mohammad &lt;amalawi@gmail.com&gt wrote:
+&gt&gt&gt Side question if i tried the following in the repl (LWL 6.1 - x86 32-bit)
+&gt&gt&gt
+&gt&gt&gt (defclass x () ()) =&gt  #&lt;STANDARD-CLASS X 200A7C83&gt
+&gt&gt&gt (sys:object-address *) =&gt 537558144
+&gt&gt&gt (format nil "~X" *) =&gt "200A7C80"
+&gt&gt&gt
+&gt&gt&gt The last one gave an address that differ from the address in the first
+&gt&gt&gt result with '3'.
+&gt&gt&gt
+&gt&gt&gt and using the documentation example
+&gt&gt&gt
+&gt&gt&gt (let ((gf #'initialize-instance))
+&gt&gt&gt
+&gt&gt&gt                (format t "address = ~X~%gf = ~S"
+&gt&gt&gt
+&gt&gt&gt                   (sys:object-address gf) gf))
+&gt&gt&gt
+&gt&gt&gt
+&gt&gt&gt I get
+&gt&gt&gt
+&gt&gt&gt address = 2080F9E0
+&gt&gt&gt gf = #&lt;STANDARD-GENERIC-FUNCTION INITIALIZE-INSTANCE 2080F9E2&gt
+&gt&gt&gt
+&gt&gt&gt NIL
+&gt&gt&gt
+&gt&gt&gt which seems to differ by '2'
+&gt&gt&gt
+&gt&gt&gt
+&gt&gt&gt Is this a bug?
+&gt&gt
+&gt&gt It's probably tagging in the low bits of the object.  Lots (most?
+&gt&gt all?) lisps do something like this.
+&gt
+&gt from LW 6.1 sys:object-address documentation:
+&gt
+&gt "the address returned by sys:object-address **is the same** as the one
+&gt printed by the print-object method"
+&gt
+&gt emphasis is mine.
+&gt
+&gt check the doc here:
+&gt http://www.lispworks.com/documentation/lw61/LW/html/lw-1410.htm#marker-887327
+
+Ah, I see what you mean.  Sounds like a documentation bug, though I'd
+point out that the relevant text might be read as a description of the
+example code rather than a general claim (since its in the example
+section, and there's no mention of object-address/print-object
+correspondence in the rest of the description).  That said, if the
+example doesn't work, something should  be fixed (probably the
+documentation).  //JT
+
+-- 
+Joshua Taylor, http://www.cs.rpi.edu/~tayloj/
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:32 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

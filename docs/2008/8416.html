@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Problems with replace-foreign-array</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Problems with replace-foreign-array</h1><div dir="ltr"><span class="Apple-style-span" style="font-family: &#39;courier new&#39;, monospace;">Hoping someone can help with with this and it&#39;s something really stupid I&#39;m doing...<br><br></span><div><span class="Apple-style-span" style="font-family: &#39;courier new&#39;, monospace;">I have a binary data (an image) loaded, that I&#39;m going to increase in size to the next power of 2 for OpenGL. Simple enough (in C). I have the image data as a foreign array of unsigned bytes (note: I&#39;ve gotten this through the Objective-C interface and NSBitmapImageRep -bitmapData).</span></div>
+<div><span class="Apple-style-span" style="font-family: &#39;courier new&#39;, monospace;"><br>Next is to increase the size - easy enough - and then copy the data over. Everything seems to work just fine except the copying. I just keep running into problems. Here&#39;s some sample code. It&#39;s not exact, but should give the idea of what I&#39;m doing:<br>
+<br></span><div><span class="Apple-style-span" style="font-family: &#39;courier new&#39;, monospace;">(let ((src-data (invoke image-rep &quot;bitmapData&quot;)))</span><div><span class="Apple-style-span" style="font-family: &#39;courier new&#39;, monospace;"><br>
+; note: the above fails with &quot;Error: External format :ASCII got error<br>; reading #&lt;Pointer to type (:UNSIGNED :CHAR) = #x0061B000&gt; at<br>; position 0: Non-ASCII code 255.&quot; unless I do&nbsp;<br>; (set-locale-encodings :latin-1 nil).<br>
+;<br>; I have no idea why, but would appreciate any info here, too. :-)</span></div><div><span class="Apple-style-span" style="font-family: &#39;courier new&#39;; font-size: 12px;"><br></span></div><div><span class="Apple-style-span" style="font-family: &#39;courier new&#39;, monospace;"><br>
+; Assume here I get width, height, bytes-per-row, etc, and these are all correct,<br>; and that I&#39;ve increased width and height to the next powers of 2.<br><br>(let* ((size (* new-height new-bytes-per-row))<br>&nbsp;&nbsp; &nbsp; &nbsp; (buffer (allocate-foreign-object :type &#39;(:unsigned :char) :nelems size))</span></div>
+<div><span class="Apple-style-span" style="font-family: &#39;courier new&#39;; font-size: 12px;"><br></span></div><div><span class="Apple-style-span" style="font-family: &#39;courier new&#39;; font-size: 12px;">; Okay, everything is good so far, now we&#39;ll copy the data from the</span></div>
+<div><span class="Apple-style-span" style="font-family: &#39;courier new&#39;; font-size: 12px;">; smaller image into the larger image.</span></div><div><span class="Apple-style-span" style="font-family: &#39;courier new&#39;; font-size: 12px;"><br>
+</span></div><div><span class="Apple-style-span" style="font-family: &#39;courier new&#39;; font-size: 12px;">(dotimes (y old-height)</span></div><div><span class="Apple-style-span" style="font-family: &#39;courier new&#39;; font-size: 12px;">&nbsp;&nbsp;(replace-foreign-array&nbsp;</span></div>
+<div><span class="Apple-style-span" style="font-family: &#39;courier new&#39;; font-size: 12px;">&nbsp;&nbsp; buffer &nbsp; &nbsp; &nbsp;; target location</span></div><div><span class="Apple-style-span" style="font-family: &#39;courier new&#39;; font-size: 12px;">&nbsp;&nbsp; src-data &nbsp; &nbsp;; source location</span></div>
+<div><span class="Apple-style-span" style="font-family: &#39;courier new&#39;; font-size: 12px;">&nbsp;&nbsp; :start1 (* y new-bytes-per-row)</span></div><div><span class="Apple-style-span" style="font-family: &#39;courier new&#39;; font-size: 12px;">&nbsp;&nbsp; :start2 (* y old-bytes-per-row)</span></div>
+<div><span class="Apple-style-span" style="font-family: &#39;courier new&#39;; font-size: 12px;">&nbsp;&nbsp; :end2 &nbsp; (* (1+ y) old-bytes-per-row))</span></div><div><span class="Apple-style-span" style="font-family: &#39;courier new&#39;; font-size: 12px;"><br>
+</span></div><div><span class="Apple-style-span" style="font-family: &#39;courier new&#39;; font-size: 12px;"><br></span></div><div><span class="Apple-style-span" style="font-family: &#39;courier new&#39;; font-size: 12px;">And this is where things go wrong. I&#39;ve gotten a slew of different errors depending on what I put for start1, start2, and end2. I&#39;m pretty sure from the documentation that 1&#39;s are for the destination and 2&#39;s are for the source. In my test case this actually doesn&#39;t matter since the bytes per row are the same in the old and new, and in fact, the source image is already powers of 2, so everything should be the same.</span></div>
+<div><span class="Apple-style-span" style="font-family: &#39;courier new&#39;; font-size: 12px;"><br></span></div><div><span class="Apple-style-span" style="font-family: &#39;courier new&#39;; font-size: 12px;">The errors I get are flavors of: &quot;Error: Bounds 128, NIL are incorrect for array &quot;ÿö÷&quot;.&quot; I&#39;ve been trying everything I can think of and am at a loss. Any help is much appreciated! :)</span></div>
+<div><span class="Apple-style-span" style="font-family: &#39;courier new&#39;; font-size: 12px;"><br></span></div><div><span class="Apple-style-span" style="font-family: &#39;courier new&#39;; font-size: 12px;">Jeff M..</span></div>
+</div></div></div>
+
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Problems with replace-foreign-array</h1>
+                 <p>
+                  Unable to parse email body. Email id is 8423
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Problems with replace-foreign-array</h1><div dir="ltr"><div class="gmail_quote"><div dir="ltr">Thank you, this did it. I also needed to provide the :end1 parameter, but that was simple enough.&nbsp;<div><br></div><div>Thanks again!</div><div><br></div><div>Jeff M.<div class="Ih2E3d">
+<br><br><div class="gmail_quote">On Fri, Jul 25, 2008 at 7:36 AM, Martin Simmons &lt;<a href="mailto:martin@lispworks.com" target="_blank">martin@lispworks.com</a>&gt; wrote:<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+
+<div>
+<br>
+</div>The error occurs because the string is too short. &nbsp;When a char pointer is<br>
+converted to a Lisp string, the conversion stops at the first null byte as per<br>
+normal C convention.<br>
+<br>
+To avoid this, you need to keep the data as a foreign object, by using<br>
+COM:INVOKE-INTO like this:<br>
+<br>
+(let ((src-data (invoke-into &#39;(:pointer (:unsigned :char))<br>
+ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; image-rep &quot;bitmapData&quot;)))<br>
+ &nbsp;...)<br>
+<font color="#888888"><br>
+--<br>
+Martin Simmons<br>
+LispWorks Ltd<br>
+<a href="http://www.lispworks.com/" target="_blank">http://www.lispworks.com/</a><br>
+<br>
+</font></blockquote></div><br></div></div></div>
+</div><br></div>
+
+
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:38 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

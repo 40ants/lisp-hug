@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Help with optimization</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Help with optimization</h1>
+                <pre>
+Here's a simple macro/function pair from our system, used for tokenizing a
+string:
+
+(defmacro with-string-tokenizer ((str predicate) &amp;body body)
+  (let ((index (gensym))
+	(data (gensym))
+	(start (gensym))
+	(end (gensym))
+        (test-func (gensym)))
+    `(let* ((,data ,str)
+	    (,start 0)
+	    (,end (length ,data))
+	    (,index ,start)
+            (,test-func ,predicate))
+       (declare (optimize (speed 3) (debug 0) (hcl:fixnum-safety 0)))
+       (flet ((next-token ()
+                (if (not ,index)
+                    nil
+                  (let* ((i (position-if (complement ,test-func)
+                                         ,data :start ,index))
+                         (j (position-if ,test-func ,data :start i)))
+                    (prog1
+                        (subseq ,data i j)
+                      (setf ,index j))))))
+         ,@body))))
+
+(defun tokenize (str &amp;key delim)
+  (let ((test-func (if delim (lambda (char)
+                               (char= char delim))
+                     'lw:whitespace-char-p)))
+    (with-string-tokenizer (str test-func)
+      (loop for tok = (next-token)
+            while tok collect tok))))
+
+It shows up during profiling (on the top of stack about 1% of the time).
+&gtFrom my point of view that's not too bad, but I'm wondering if either a)
+there's more optimizations that can be done; or b) a better way to write
+this utility. Thanks for the comments.
+
+-- david
+
+For wisdom is more precious than rubies,
+and nothing you desire can compare with her.
+  -- Proverbs 8:11
+
+But all the world understands my language.
+  -- Franz Joseph Haydn
+
+
+This email message is for the sole use of the intended recipients(s) and may contain confidential and privileged information of Bloodhound Software, Inc.. Any unauthorized review, use, disclosure is prohibited. If you are not the intended recipient, please contact the sender by reply email and destroy all copies of the original message.
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Help with optimization</h1>
+                 <pre>
+Most likely you can get it to work much quicker, but if it is only taking up
+1% of the time, it wouldn't be worth it.
+
+On 3/8/07, Young, David &lt;deyoung@bloodhoundinc.com&gt wrote:
+&gt
+&gt Here's a simple macro/function pair from our system, used for tokenizing a
+&gt string:
+&gt
+&gt (defmacro with-string-tokenizer ((str predicate) &amp;body body)
+&gt  (let ((index (gensym))
+&gt        (data (gensym))
+&gt        (start (gensym))
+&gt        (end (gensym))
+&gt        (test-func (gensym)))
+&gt    `(let* ((,data ,str)
+&gt            (,start 0)
+&gt            (,end (length ,data))
+&gt            (,index ,start)
+&gt            (,test-func ,predicate))
+&gt       (declare (optimize (speed 3) (debug 0) (hcl:fixnum-safety 0)))
+&gt       (flet ((next-token ()
+&gt                (if (not ,index)
+&gt                    nil
+&gt                  (let* ((i (position-if (complement ,test-func)
+&gt                                         ,data :start ,index))
+&gt                         (j (position-if ,test-func ,data :start i)))
+&gt                    (prog1
+&gt                        (subseq ,data i j)
+&gt                      (setf ,index j))))))
+&gt         ,@body))))
+&gt
+&gt (defun tokenize (str &amp;key delim)
+&gt  (let ((test-func (if delim (lambda (char)
+&gt                               (char= char delim))
+&gt                     'lw:whitespace-char-p)))
+&gt    (with-string-tokenizer (str test-func)
+&gt      (loop for tok = (next-token)
+&gt            while tok collect tok))))
+&gt
+&gt It shows up during profiling (on the top of stack about 1% of the time).
+&gt &gtFrom my point of view that's not too bad, but I'm wondering if either a)
+&gt there's more optimizations that can be done; or b) a better way to write
+&gt this utility. Thanks for the comments.
+&gt
+&gt -- david
+&gt
+&gt For wisdom is more precious than rubies,
+&gt and nothing you desire can compare with her.
+&gt  -- Proverbs 8:11
+&gt
+&gt But all the world understands my language.
+&gt  -- Franz Joseph Haydn
+&gt
+&gt
+&gt This email message is for the sole use of the intended recipients(s) and may contain confidential and privileged information of Bloodhound Software, Inc.. Any unauthorized review, use, disclosure is prohibited. If you are not the intended recipient, please contact the sender by reply email and destroy all copies of the original message.
+&gt
+&gt
+
+
+-- 
+~jrm
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: Help with optimization</h1>
+                  <pre>
+
+&gt &gt ... I'm wondering if either a)
+&gt &gt there's more optimizations that can be done; or b) a better way to write
+&gt &gt this utility. Thanks for the comments.
+&gt &gt
+&gt &gt -- david
+....
+
+Concerning (b) above, with-string-tokenizer fails with trailing white space.
+A fix may be:
+
+(defmacro with-string-tokenizer ((str predicate) &amp;body body)
+  (let ((index (gensym))
+        (data (gensym))
+        (start (gensym))
+        (end (gensym))
+        (test-func (gensym)))
+    `(let* ((,data ,str)
+            (,start 0)
+            (,end (length ,data))
+            (,index ,start)
+            (,test-func ,predicate))
+       (declare (optimize (speed 3) (debug 0) (hcl:fixnum-safety 0)))
+       (flet ((next-token ()
+                (if (not ,index)
+                  nil
+                  (let ((i (position-if (complement ,test-func)
+                                        ,data :start ,index)))
+                    (when i
+                      (let ((j (position-if ,test-func ,data :start i)))
+                        (prog1
+                            (subseq ,data i j)
+                          (setf ,index j))))))))
+         ,@body))))
+
+Jeff Caldwell
+
+
+
+ 
+____________________________________________________________________________________
+8:00? 8:25? 8:40? Find a flick in no time 
+with the Yahoo! Search movie showtime shortcut.
+http://tools.search.yahoo.com/shortcuts/#news
+
+
+</pre>
+                 </article>
+                </section>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Help with optimization</h1>Ah, ok. So as a rule of thumb, code that shows up in this range isn&#39;t generally worth looking at? <br><br>We&#39;ve optimized our system to the point where this utility is the only piece of our code showing up, so it was next on my list of things to look at.
+<br><br>Thanks.<br><br><div><span class="gmail_quote">On 3/8/07, <b class="gmail_sendername">Joe Marshall</b> &lt;<a href="mailto:jmarshall@alum.mit.edu">jmarshall@alum.mit.edu</a>&gt; wrote:</span><blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+<br>Most likely you can get it to work much quicker, but if it is only taking up<br>1% of the time, it wouldn&#39;t be worth it.<br><br>On 3/8/07, Young, David &lt;<a href="mailto:deyoung@bloodhoundinc.com">deyoung@bloodhoundinc.com
+</a>&gt; wrote:<br>&gt;<br>&gt; Here&#39;s a simple macro/function pair from our system, used for tokenizing a<br>&gt; string:<br>&gt;<br>&gt; (defmacro with-string-tokenizer ((str predicate) &amp;body body)<br>&gt;&nbsp;&nbsp;(let ((index (gensym))
+<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(data (gensym))<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(start (gensym))<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(end (gensym))<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(test-func (gensym)))<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp;`(let* ((,data ,str)<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(,start 0)<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(,end (length ,data))
+<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(,index ,start)<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(,test-func ,predicate))<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (declare (optimize (speed 3) (debug 0) (hcl:fixnum-safety 0)))<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (flet ((next-token ()<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(if (not ,index)
+<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;nil<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(let* ((i (position-if (complement ,test-func)<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ,data :start ,index))<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (j (position-if ,test-func ,data :start i)))
+<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(prog1<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(subseq ,data i j)<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(setf ,index j))))))<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ,@body))))<br>&gt;<br>&gt; (defun tokenize (str &amp;key delim)<br>&gt;&nbsp;&nbsp;(let ((test-func (if delim (lambda (char)
+<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (char= char delim))<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &#39;lw:whitespace-char-p)))<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp;(with-string-tokenizer (str test-func)<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(loop for tok = (next-token)<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;while tok collect tok))))
+<br>&gt;<br>&gt; It shows up during profiling (on the top of stack about 1% of the time).<br>&gt; &gt;From my point of view that&#39;s not too bad, but I&#39;m wondering if either a)<br>&gt; there&#39;s more optimizations that can be done; or b) a better way to write
+<br>&gt; this utility. Thanks for the comments.<br>&gt;<br>&gt; -- david<br>&gt;<br>&gt; For wisdom is more precious than rubies,<br>&gt; and nothing you desire can compare with her.<br>&gt;&nbsp;&nbsp;-- Proverbs 8:11<br>&gt;<br>&gt; But all the world understands my language.
+<br>&gt;&nbsp;&nbsp;-- Franz Joseph Haydn<br>&gt;<br>&gt;<br>&gt; This email message is for the sole use of the intended recipients(s) and may contain confidential and privileged information of Bloodhound Software, Inc.. Any unauthorized review, use, disclosure is prohibited. If you are not the intended recipient, please contact the sender by reply email and destroy all copies of the original message.
+<br>&gt;<br>&gt;<br><br><br>--<br>~jrm<br><br></blockquote></div><br><br clear="all"><br>-- <br>And now these three remain: faith, hope, and love.<br>But the greatest of these is love.<br>&nbsp;&nbsp;-- 1 Corinthians 13:13<br><br>For wisdom is more precious than rubies,
+<br>and nothing you desire can compare with her.<br>&nbsp;&nbsp;-- Proverbs 8:11
+
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Help with optimization</h1>And that&#39;s precisely the issue. I wrote this utility because the list of strings *is* needed. Good idea, though, and worth remember. Thanks very much...<br><br>david<br><br><div><span class="gmail_quote">On 3/9/07, <b class="gmail_sendername">
+Gary King</b> &lt;<a href="mailto:gwking@metabang.com">gwking@metabang.com</a>&gt; wrote:</span><blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+<div style="">Hi David,<div><br></div><div><div><div>This way you could process all the tokens without necessarily needing to ever call subseq... Of course, if you _need_ the strings, then this won&#39;t work!</div><div><span class="e" id="q_1113722335e03c81_1">
+<div><br></div></span></div></div><span class="sg"></span><br clear="all"></div></div></blockquote></div><br>-- <br>And now these three remain: faith, hope, and love.<br>But the greatest of these is love.<br>&nbsp;&nbsp;-- 1 Corinthians 13:13
+<br><br>For wisdom is more precious than rubies,<br>and nothing you desire can compare with her.<br>&nbsp;&nbsp;-- Proverbs 8:11
+
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Help with optimization</h1>
+                 <p>
+                  Unable to parse email body. Email id is 6477
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>RE: Help with optimization</h1>
+                  <pre>
+So, for what it's worth I changed the original function/macro implementation to this:
+
+(defun tokenize (string &amp;key delim)
+  "This version is the final result of a lot of optimization attempts"
+  (declare (optimize (speed 3) (debug 0) (safety 0) (hcl:fixnum-safety 0))
+           (type simple-string string)
+           (type simple-string str))
+  (let ((tokens (list))
+        (str (if (char= delim #\Space)
+                 (string-trim '(#\Space) string)
+               string)))
+    (loop for i from 0 below (length str)
+          with start = 0 do
+            (let ((char (schar str i)))
+              (when (char= char delim)
+                (push (subseq str start i) tokens)
+                (setf start (1+ i))))
+          finally (push (subseq str start i) tokens))
+    (nreverse tokens)))
+
+Profiling this version reveals that it drops below the 1% stack-top threshold. That's good enough for me. Thanks to all who offered advice, especially Martin who suggested replacing POSITION-IF with LOOP and SCHAR.
+
+-- david
+
+
+</pre>
+                 </article>
+                </section>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Help with optimization</h1>Doh! You&#39;re absolutely right; even it I don&#39;t bother optimizing it further, (COMPLEMENT ,TEST-FUNC) should *not* be in the loop. I&#39;ll also check the bug noticed by Jeff Caldwell.<br><br>Thanks, david<br><br><div>
+<span class="gmail_quote">On 3/9/07, <b class="gmail_sendername">Martin Simmons</b> &lt;<a href="mailto:martin@lispworks.com">martin@lispworks.com</a>&gt; wrote:</span><blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+<br><br>If you were to optimize it, then a couple of things that spring to mind are:<br><br>1) Take (COMPLEMENT ,TEST-FUNC) out of the loop.<br><br>2) Consider implementing the calls to POSITION-IF as loops using CHAR (or
+<br>&nbsp;&nbsp; SCHAR if you know the string is simple).&nbsp;&nbsp;That also removes the need for<br>&nbsp;&nbsp; COMPLEMENT.<br><br>--<br>Martin Simmons<br>LispWorks Ltd<br><a href="http://www.lispworks.com/">http://www.lispworks.com/</a><br><br><br>
+</blockquote></div><br><br clear="all"><br>-- <br>And now these three remain: faith, hope, and love.<br>But the greatest of these is love.<br>&nbsp;&nbsp;-- 1 Corinthians 13:13<br><br>For wisdom is more precious than rubies,<br>and nothing you desire can compare with her.
+<br>&nbsp;&nbsp;-- Proverbs 8:11
+
+
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:43 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

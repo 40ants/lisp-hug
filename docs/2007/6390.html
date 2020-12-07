@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>dumb optimation problem</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>dumb optimation problem</h1>
+                <pre>
+Made the following agorithm:
+
+(defmacro a= (val1 func)
+   `(let ((it ,val1))
+      (= it (funcall ,func it))))
+
+(defun lame-prime-check (p)
+   (declare (fixnum p i)
+            (optimize (safety 0) (fixnum-safety 0)))
+    (cond ((&lt; p 2) nil)
+           ((a= (/ p 2) #'floor) nil)
+           (t
+            (loop for i from 3 to (isqrt p) by 2 do
+                  (when (a= (/ p i) #'floor)
+                    (return-from lame-prime-check nil)))
+            t))
+
+CAPI-TUTOR 97 &gt (time (loop for i from 0 to 1000000 do
+                             (lame-prime-check i)))
+Timing the evaluation of (LOOP FOR I FROM 0 TO 1000000 DO  
+(LAME-PRIME-CHECK I))
+
+User time    =       19.656
+System time  =        0.000
+Elapsed time =       19.719
+Allocation   = 428171796 bytes
+0 Page faults
+Calls to %EVAL    15000061
+NIL
+
+(Managed to save 11 s of the original version.)
+Why do I get the large allocation value?
+I suspect (/ p i) has something to do with it.
+Before the macro optimation the value was exactly double this.
+
+-- 
+Using Opera's revolutionary e-mail client: http://www.opera.com/mail/
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: dumb optimation problem</h1>
+                 <pre>
+On 6 Feb 2007, at 20:11, John Thingstad wrote:
+
+&gt
+&gt I suspect (/ p i) has something to do with it.
+&gt Before the macro optimation the value was exactly double this.
+&gt
+
+Me too.  if you divide two integers you will cons a rational in  
+almost all cases.  You probably want either the second value of FLOOR  
+or MOD.
+
+--tim
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: dumb optimation problem</h1>
+                 <pre>
+Tim Bradshaw &lt;tfb@cley.com&gt writes:
+
+&gt Me too.  if you divide two integers you will cons a rational in  
+&gt almost all cases.  You probably want either the second value of FLOOR  
+&gt or MOD.
+
+Probably REM:
+
+(defun lame-prime-check (p)
+  (declare (fixnum p i)
+           (optimize (safety 0) (fixnum-safety 0)))
+  (cond ((&lt; p 2) nil)
+        ((= (rem p 2) 0) nil)
+        (t
+         (loop for i from 3 to (isqrt p) by 2 do
+               (when (= (rem p i) 0)
+                 (return-from lame-prime-check nil)))
+         t)))
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: dumb optimation problem</h1>Yeah, does seem to be the divide.&nbsp; Here&#39;s what I came up with, using the second val of floor as suggested above:<br><br>(proclaim &#39;(inline candidate-prime))<br>(defun candidate-prime (p v)<br>&nbsp; (multiple-value-bind (q r) (floor p v) 
+<br>&nbsp;&nbsp;&nbsp; (declare (ignorable q))<br>&nbsp;&nbsp;&nbsp; (not (or (&lt; p 2) (zerop r)))))<br><br>(defun cb-lame-prime-check (p)<br>&nbsp; (when (candidate-prime p 2)<br>&nbsp;&nbsp;&nbsp; (loop for i from 3 to (isqrt p) by 2 <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; always (candidate-prime p i))))
+<br><br>CL-USER 1 &gt; (extended-time (dotimes (idx 100000) (cb-lame-prime-check idx)))<br>Timing the evaluation of (PROGN (DOTIMES (IDX 100000) (CB-LAME-PRIME-CHECK IDX)))<br><br>User time&nbsp;&nbsp;&nbsp; =&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 0.390<br>System time&nbsp; =&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+0.002<br>Elapsed time =&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 0.545<br>Allocation&nbsp;&nbsp; = 2411780 bytes<br>18 Page faults<br>Calls to %EVAL&nbsp;&nbsp;&nbsp; 1300057<br><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; total&nbsp;&nbsp;&nbsp; /&nbsp;&nbsp; user&nbsp;&nbsp;&nbsp;&nbsp; /&nbsp;&nbsp; system<br>total gc activity&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; =&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+0.012675 /&nbsp;&nbsp; 0.012605 /&nbsp;&nbsp; 0.000070<br>main promote (&nbsp;&nbsp;&nbsp; 0 calls)&nbsp;&nbsp;&nbsp;&nbsp; =&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 0.000000 /&nbsp;&nbsp; 0.000000 /&nbsp;&nbsp; 0.000000<br>mark and sweep (&nbsp;&nbsp;&nbsp; 2 calls)&nbsp;&nbsp; =&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 0.012675 /&nbsp;&nbsp; 0.012605 /&nbsp;&nbsp; 0.000070<br>internal promote (&nbsp;&nbsp;&nbsp; 0 calls) =&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+0.000000 /&nbsp;&nbsp; 0.000000 /&nbsp;&nbsp; 0.000000<br>promote (&nbsp;&nbsp;&nbsp; 0 calls)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; =&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 0.000000 /&nbsp;&nbsp; 0.000000 /&nbsp;&nbsp; 0.000000<br>fixup (&nbsp;&nbsp;&nbsp; 0 calls)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; =&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 0.000000 /&nbsp;&nbsp; 0.000000 /&nbsp;&nbsp; 0.000000<br>compact (&nbsp;&nbsp;&nbsp; 0 calls)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; =&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+0.000000 /&nbsp;&nbsp; 0.000000 /&nbsp;&nbsp; 0.000000<br>NIL<br><br><br>Cheers,<br>Chris<br><br><br><div><span class="gmail_quote">On 2/7/07, <b class="gmail_sendername">Espen Vestre</b> &lt;<a href="mailto:ev@netfonds.no">ev@netfonds.no</a>
+&gt; wrote:</span><blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;"><br>Tim Bradshaw &lt;<a href="mailto:tfb@cley.com">tfb@cley.com</a>&gt; writes:
+<br><br>&gt; Me too.&nbsp;&nbsp;if you divide two integers you will cons a rational in<br>&gt; almost all cases.&nbsp;&nbsp;You probably want either the second value of FLOOR<br>&gt; or MOD.<br><br>Probably REM:<br><br>(defun lame-prime-check (p)
+<br>&nbsp;&nbsp;(declare (fixnum p i)<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (optimize (safety 0) (fixnum-safety 0)))<br>&nbsp;&nbsp;(cond ((&lt; p 2) nil)<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;((= (rem p 2) 0) nil)<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(t<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (loop for i from 3 to (isqrt p) by 2 do<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (when (= (rem p i) 0)
+<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (return-from lame-prime-check nil)))<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; t)))<br>--<br>&nbsp;&nbsp;(espen)<br><br></blockquote></div><br>
+
+
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:43 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

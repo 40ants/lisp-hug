@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Circular data-structures not printing correctly?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Circular data-structures not printing correctly?</h1><html><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space; ">
+If I :<div><br></div><div>(setq p (list 1 2 3 4))</div><div><br></div><div>then,</div><div><br></div><div>(setq p (rplaca (cons 5 p) (cadddr p)))</div><div><br></div><div>shouldn't I get a circular data structure involving at least one "#1=" ?</div><div>Instead I get a "flat" data structure.<br><br><div> <span class="Apple-style-span" style="border-collapse: separate; border-spacing: 0px 0px; color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant: normal; font-weight: normal; letter-spacing: normal; line-height: normal; text-align: auto; -khtml-text-decorations-in-effect: none; text-indent: 0px; -apple-text-size-adjust: auto; text-transform: none; orphans: 2; white-space: normal; widows: 2; word-spacing: 0px; "><div>Randall Blanchard</div><div><a hre
+ f="mailto:blancha2@earthlink.net">blancha2@earthlink.net</a></div><div><br class="khtml-block-placeholder"></div><br class="Apple-interchange-newline"></span> </div><br></div></body></html>
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Circular data-structures not printing correctly?</h1>
+                 <pre>
+On 9/2/08, Randall Blanchard &lt;blancha2@earthlink.net&gt wrote:
+&gt If I :
+&gt
+&gt (setq p (list 1 2 3 4))
+&gt
+&gt then,
+&gt
+&gt (setq p (rplaca (cons 5 p) (cadddr p)))
+&gt
+&gt shouldn't I get a circular data structure involving at least one "#1=" ?
+&gt Instead I get a "flat" data structure.
+
+Normally, you only get that kind of output when *print-circle* is
+bound to a non-NIL value (which is not the default because of the
+computational overhead involved).
+
+Bye,
+
+Erik.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Circular data-structures not printing correctly?</h1>
+                 <pre>
+Randall Blanchard wrote:
+&gt If I :
+&gt 
+&gt (setq p (list 1 2 3 4))
+&gt 
+&gt then,
+&gt 
+&gt (setq p (rplaca (cons 5 p) (cadddr p)))
+&gt 
+&gt shouldn't I get a circular data structure involving at least one "#1=" ?
+
+No. You're creating a new pair, and changing the car of that pair to 4. 
+There's no shared cons cell, much less any circularity. Sharing atoms is 
+not sharing structure requiring #n=
+
+-- 
+Chris Riesbeck
+
+Home page: http://www.cs.northwestern.edu/~riesbeck/
+Calendar: http://calendar.yahoo.com/criesbeck
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Circular data-structures not printing correctly?</h1>
+                 <pre>
+Chris Riesbeck writes:
+&gt 
+&gt Randall Blanchard wrote:
+&gt &gt If I :
+&gt &gt 
+&gt &gt (setq p (list 1 2 3 4))
+&gt &gt 
+&gt &gt then,
+&gt &gt 
+&gt &gt (setq p (rplaca (cons 5 p) (cadddr p)))
+&gt &gt 
+&gt &gt shouldn't I get a circular data structure involving at least one "#1=" ?
+&gt 
+&gt No. You're creating a new pair, and changing the car of that pair to 4. 
+&gt There's no shared cons cell, much less any circularity. Sharing atoms is 
+&gt not sharing structure requiring #n=
+
+However, in the case of non interned atoms, #= references are still
+used when *PRINT-CIRCLE*.
+
+
+C/USER[37]&gt (let* ((a (list 'a #\+ 1 "i" #(b #\- 2 "ii")))
+                   (b (append a a))
+                   (*print-circle* t))
+              (print b)
+              (values))
+
+(A #\+ 1 #1="i" #2=#(B #\- 2 "ii") A #\+ 1 #1# #2#) 
+
+C/USER[38]&gt 
+
+
+The reason is that symbols, characters and numbers are immutable, and
+reading twice the same (string=) representation gives always the same
+(eql) object.
+
+
+C/USER[43]&gt (every (lambda (s) (eql (read-from-string s) (read-from-string s))) 
+                    '("1" "a" "#\\c"))
+T
+
+Therefore there's no need to refer explicitely to the previous
+occurence.
+
+
+
+On the other hand, other atoms (most of them are not even atomic), are
+mutable, and not interned in anyways. Reading their representation
+again produces a distinct copy:
+
+C/USER[45]&gt (some (lambda (s) (eql (read-from-string s) (read-from-string s))) 
+                  '("\"a\"" "#(a b c)" "#*10101010"))
+NIL
+
+So for these objects, it may be important to distinguish references to
+a unique objects, from occurence of a copy:
+
+
+
+C/USER[51]&gt (let* ((a (list (make-string 3 :initial-element #\a)))
+                   (b (append a a (list (make-string 3 :initial-element #\a)))))
+              (let ((*print-circle* t))   (print b))
+              (let ((*print-circle* nil)) (print b))
+              (setf (aref (car a) 0) #\X)
+              (let ((*print-circle* t))   (print b))
+              (let ((*print-circle* nil)) (print b))
+              (values))
+
+(#1="aaa" #1# "aaa") 
+("aaa" "aaa" "aaa") 
+(#1="Xaa" #1# "aaa") 
+("Xaa" "Xaa" "aaa") 
+
+C/USER[52]&gt 
+
+
+
+Oh, and finally, here is how you can make a circular list:
+
+C/USER[52]&gt (setf *print-circle* t)
+T
+C/USER[53]&gt (let ((a (list 1 2 3)))
+              (rplacd (last a) a) ; notice that (last a) returns the last CONS cell.
+              a)
+#1=(1 2 3 . #1#)
+C/USER[54]&gt 
+
+
+Or a random circular structure:
+
+C/USER[55]&gt (let ((a (list 1 2 3)))
+              (rplaca (cdr a) a) ; notice that (cdr a) returns aCONS cell..
+              a)
+#1=(1 #1# 3)
+
+C/USER[56]&gt (setf *print-circle* nil *print-length* nil *print-level* 4)
+4
+C/USER[57]&gt (let ((a (list 1 2 3)))
+              (rplaca (cdr a) a) ; notice that (cdr a) returns aCONS cell..
+              a)
+(1 (1 (1 (1 # 3) 3) 3) 3)
+C/USER[58]&gt 
+
+
+-- 
+__Pascal Bourguignon__                     http://www.informatimago.com/
+
+HEALTH WARNING: Care should be taken when lifting this product,
+since its mass, and thus its weight, is dependent on its velocity
+relative to the user.
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:38 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

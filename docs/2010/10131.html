@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>unexpectedly "assumed special" warnings</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>unexpectedly "assumed special" warnings</h1>
+                <pre>
+Hi all,
+Can anyone tell me why I get this warning?  (I don't get similar
+warnings under SBCL or CCL.)
+
+;;;*** Warning in NEGATIVE: #:*NEGATIVE* assumed special
+
+The code follows. I'd have thought that the macroexpansion for 3)
+would be just like the manually coded 2), but I get the warning in 3),
+but not in 2).  Does this have something to do with the fact that the
+symbol isn't interned anywhere?  In case 3) I can add a (declare
+(special …)) to the function definition that gets rid of the warning,
+but since progn's contents are top level forms, I'd have through that
+the preceding defparameter should have already made the special
+declaration pervasive.  Am I missing something?
+
+;; lookup and maybe store a value in a hash-table (interning)
+
+(defun get-or-set-interned-value (key hash-table value-function)
+  (multiple-value-bind (value presentp)
+      (gethash key hash-table)
+    (if presentp value
+      (setf (gethash key hash-table)
+            (funcall value-function)))))
+
+
+;; 1) here's a interner for squares (with no progn)
+
+(defparameter *square* (make-hash-table))
+
+(defun square (x)
+  (get-or-set-interned-value
+   x *square* #'(lambda () (* x x))))
+
+;; 2) and an interner for cubes (in a progn)
+
+(progn
+(defparameter *cube* (make-hash-table))
+
+(defun cube (x)
+  (get-or-set-interned-value
+   x *cube* #'(lambda () (* x x x))))
+) ; progn
+
+;; 3) here's a macro for defining interners, but I get an "... assumed
+special" warning
+
+(defmacro definterner (name (key) &amp;body body)
+  (let ((hash-table (make-symbol (concatenate 'string "*" (string name) "*"))))
+  `(progn
+     (defparameter ,hash-table (make-hash-table))
+     (defun ,name (,key)
+       (get-or-set-interned-value
+        ,key ,hash-table #'(lambda () ,@body))))))
+
+(definterner negative (x)
+  (- x))
+
+Thanks in advance.  I'll use the special declaration for now, but I'd
+like to know why it's necessary.
+
+-- 
+Joshua Taylor, http://www.cs.rpi.edu/~tayloj/
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: unexpectedly "assumed special" warnings</h1>
+                 <pre>
+Joshua TAYLOR &lt;tayloj@cs.rpi.edu&gt writes:
+
+&gt Hi all,
+&gt Can anyone tell me why I get this warning?  (I don't get similar
+&gt warnings under SBCL or CCL.)
+&gt
+&gt ;;;*** Warning in NEGATIVE: #:*NEGATIVE* assumed special
+&gt
+&gt The code follows. I'd have thought that the macroexpansion for 3)
+&gt would be just like the manually coded 2), but I get the warning in 3),
+&gt but not in 2).  Does this have something to do with the fact that the
+&gt symbol isn't interned anywhere?  In case 3) I can add a (declare
+&gt (special …)) to the function definition that gets rid of the warning,
+&gt but since progn's contents are top level forms, I'd have through that
+&gt the preceding defparameter should have already made the special
+&gt declaration pervasive.  Am I missing something?
+&gt
+&gt ;; lookup and maybe store a value in a hash-table (interning)
+&gt
+&gt (defun get-or-set-interned-value (key hash-table value-function)
+&gt   (multiple-value-bind (value presentp)
+&gt       (gethash key hash-table)
+&gt     (if presentp value
+&gt       (setf (gethash key hash-table)
+&gt             (funcall value-function)))))
+&gt
+&gt
+&gt ;; 1) here's a interner for squares (with no progn)
+&gt
+&gt (defparameter *square* (make-hash-table))
+&gt
+&gt (defun square (x)
+&gt   (get-or-set-interned-value
+&gt    x *square* #'(lambda () (* x x))))
+&gt
+&gt ;; 2) and an interner for cubes (in a progn)
+&gt
+&gt (progn
+&gt (defparameter *cube* (make-hash-table))
+&gt
+&gt (defun cube (x)
+&gt   (get-or-set-interned-value
+&gt    x *cube* #'(lambda () (* x x x))))
+&gt ) ; progn
+&gt
+&gt ;; 3) here's a macro for defining interners, but I get an "... assumed
+&gt special" warning
+&gt
+&gt (defmacro definterner (name (key) &amp;body body)
+&gt   (let ((hash-table (make-symbol (concatenate 'string "*" (string name) "*"))))
+&gt   `(progn
+&gt      (defparameter ,hash-table (make-hash-table))
+&gt      (defun ,name (,key)
+&gt        (get-or-set-interned-value
+&gt         ,key ,hash-table #'(lambda () ,@body))))))
+&gt
+&gt (definterner negative (x)
+&gt   (- x))
+&gt
+&gt Thanks in advance.  I'll use the special declaration for now, but I'd
+&gt like to know why it's necessary.
+&gt
+&gt -- 
+&gt Joshua Taylor, http://www.cs.rpi.edu/~tayloj/
+
+
+After the macro expansion ...
+
+ &gt (macroexpand-1 '(definterner negative (x) (- x)))
+(PROGN
+  (DEFPARAMETER #:*NEGATIVE* (MAKE-HASH-TABLE))
+  (DEFUN NEGATIVE (X)
+  (GET-OR-SET-INTERNED-VALUE X #:*NEGATIVE* (FUNCTION (LAMBDA NIL (- X))))))
+T
+
+.... the two occurrences of #:*negative* are not the same symbol, so the
+second one is assumed special (because it was not declared special).
+The reader macro #: "introduces an uninterned symbol ... Every time this
+syntax is encountered, a distinct uninterned symbol is created."
+(http://www.lispworks.com/documentation/HyperSpec/Body/02_dhe.htm)
+
+Your problem is with the use of MAKE-SYMBOL, which "creates and returns
+a fresh, uninterned symbol whose name is the given name", i.e. why
+*negative* is preceded by #: in the macro expansion.
+(http://www.lispworks.com/documentation/HyperSpec/Body/f_mk_sym.htm)
+
+What you want to use is the INTERN function:
+(http://www.lispworks.com/documentation/HyperSpec/Body/f_intern.htm)
+
+(defmacro definterner (name (key) &amp;body body)
+  (let ((hash-table (intern (concatenate 'string "*" (string name) "*"))))
+    `(progn
+       (defparameter ,hash-table (make-hash-table))
+       (defun ,name (,key)
+         (get-or-set-interned-value
+          ,key ,hash-table #'(lambda () ,@body))))))
+
+HTH.
+Nico
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: unexpectedly "assumed special" warnings</h1>
+                 <pre>
+Joshua TAYLOR &lt;tayloj@cs.rpi.edu&gt writes:
+
+&gt On Tue, Mar 30, 2010 at 4:23 PM, Nico de Jager &lt;ndj@bitart.cc&gt wrote:
+&gt&gt After the macro expansion ...
+&gt&gt
+&gt&gt &nbsp;&gt (macroexpand-1 '(definterner negative (x) (- x)))
+&gt&gt (PROGN
+&gt&gt &nbsp;(DEFPARAMETER #:*NEGATIVE* (MAKE-HASH-TABLE))
+&gt&gt &nbsp;(DEFUN NEGATIVE (X)
+&gt&gt &nbsp;(GET-OR-SET-INTERNED-VALUE X #:*NEGATIVE* (FUNCTION (LAMBDA NIL (- X))))))
+&gt&gt T
+&gt&gt
+&gt&gt ... the two occurrences of #:*negative* are not the same symbol, so the
+&gt&gt second one is assumed special (because it was not declared special).
+&gt&gt The reader macro #: "introduces an uninterned symbol ... Every time this
+&gt&gt syntax is encountered, a distinct uninterned symbol is created."
+&gt&gt (http://www.lispworks.com/documentation/HyperSpec/Body/02_dhe.htm)
+&gt
+&gt They are the same symbol. The macroexpansion has the same
+&gt (uninterned) symbol in two places.  Printing the macroexpansion with
+&gt *print-circle* bound to T shows this:
+&gt
+&gt CL-USER 5 &gt (let ((*print-circle* t))
+&gt               (pprint (macroexpand-1 '(definterner negative (x) (- x)))))
+&gt
+&gt (PROGN
+&gt   (DEFPARAMETER #1=#:*NEGATIVE* (MAKE-HASH-TABLE))
+&gt   (DEFUN NEGATIVE (X) (GET-OR-SET-INTERNED-VALUE X #1# #'(LAMBDA () (- X)))))
+
+My mental model of this, is that they are the same uninterned symbol
+during macroexpansion time, but not afterwards: 
+
+CL-USER 61 &gt (with-output-to-string (s)
+               (prin1 (macroexpand-1 '(definterner negative (x) (- x))) s))
+"(PROGN (DEFPARAMETER #:*NEGATIVE* (MAKE-HASH-TABLE)) (DEFUN NEGATIVE (X) (GET-OR-SET-INTERNED-VALUE X #:*NEGATIVE* (FUNCTION (LAMBDA NIL (- X))))))"
+
+CL-USER 62 &gt (defparameter *full* (read-from-string *))
+*FULL*
+
+CL-USER 63 &gt *full*
+(PROGN (DEFPARAMETER #:*NEGATIVE* (MAKE-HASH-TABLE)) (DEFUN NEGATIVE (X) (GET-OR-SET-INTERNED-VALUE X #:*NEGATIVE* (FUNCTION (LAMBDA NIL (- X))))))
+
+CL-USER 64 &gt (defparameter *neg1* (cadadr *full*))
+*NEG1*
+
+CL-USER 65 &gt (defparameter *neg2* (third (cadddr (third  *full*))))
+*NEG2*
+
+CL-USER 66 &gt *neg1*
+#:*NEGATIVE*
+
+CL-USER 67 &gt *neg2*
+#:*NEGATIVE*
+
+CL-USER 68 &gt (eq *neg1* *neg2*)
+NIL
+
+
+&gt&gt Your problem is with the use of MAKE-SYMBOL, which "creates and returns
+&gt&gt a fresh, uninterned symbol whose name is the given name", i.e. why
+&gt&gt *negative* is preceded by #: in the macro expansion.
+&gt&gt (http://www.lispworks.com/documentation/HyperSpec/Body/f_mk_sym.htm)
+&gt&gt
+&gt&gt What you want to use is the INTERN function:
+&gt&gt (http://www.lispworks.com/documentation/HyperSpec/Body/f_intern.htm)
+&gt
+&gt My intention is for the symbol not to be interned in any package;
+
+Off course, you did not state this in your original post.
+
+
+&gt I
+&gt don't intend to provide (easy) access to the hash-table except through
+&gt the provided interface.  (In my example, making the name begin with
+&gt #\* and #\* might have made this unclear.  I'd only done that to
+&gt ensure that LW wasn't applying some heuristic that warned about
+&gt unconventionally-name specials.)
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: unexpectedly "assumed special" warnings</h1>
+                 <pre>
+On 30 Mar 2010, at 19:17, Joshua TAYLOR wrote:
+
+&gt Hi all,
+&gt Can anyone tell me why I get this warning?  (I don't get similar
+&gt warnings under SBCL or CCL.)
+
+I can't, and I don't think you should. I think I'd probably do it  
+differently (for instance have a single secret global hashtable in  
+which you store the other hashtables rather than lots of global  
+gensymmed specials), but I think what you're doing is OK.
+
+In particular the expansion of the macro looks like
+
+(progn
+   (defparameter X ...)
+   (defun ... (...)
+     ... use variable X ...))
+
+where X is a gensym. If this is at top-level, then the DEFPARAMETER  
+and DEFUN are also at toplevel, and the compiler is required to notice  
+that the variable is special (see http://www.lispworks.com/documentation/HyperSpec/Body/m_defpar.htm) 
+..
+
+The only thing I can see which would cause problems is if the thing is  
+*not* being evaluated at top-level, and that might be the case if you  
+are evaluating it in the editor or something like that.  Do you get  
+these warnings if you put everything in a file and compile it in a  
+cold lisp?
+
+--tim
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: unexpectedly "assumed special" warnings</h1>
+                 <p>
+                  Unable to parse email body. Email id is 10137
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: unexpectedly "assumed special" warnings</h1>
+                 <pre>
+Joshua TAYLOR &lt;tayloj@cs.rpi.edu&gt writes:
+
+&gt If the macroexpansion created a string which was then re-read by the
+&gt reader, your mental model would be correct, but the actual Lisp object
+&gt that the macro produces is given to the system.  That's why we can do
+&gt things like:
+&gt ....
+&gt Hope this makes things a bit clearer.
+
+Yes, it does. I should have realized from my general understanding of
+macros and gensym that my explanation is wrong (stupid, in fact). Thank
+you for taking the time to show it explicitly.
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:35 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

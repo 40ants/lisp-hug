@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Delivery with pretty printer?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Delivery with pretty printer?</h1>
+                <pre>I've run into some sillyness trying to deliver an executable on
+Linux that uses the pretty printer.
+
+Okay, so for the first shot:
+
+cat &gttest-pp.lisp &lt;&lt;EOF
+(load-all-patches)
+
+(defun foo ()
+  (format t "foo~_bar~_baz~_~%"))
+
+(compile 'foo)
+
+(deliver 'foo "test-pp" 0
+         :keep-pretty-printer t)
+EOF
+
+:; lispworks -siteinit - -init test-pp.lisp
+LispWorks(R): The Common Lisp Programming Environment
+Copyright (C) 1987-2005 LispWorks Ltd.  All rights reserved.
+Version 4.4.5
+Saved by LispWorks as lispworks-4450, at 11 Apr 2005 20:06
+User bdowning on tiamat
+; Loading text file /home/bdowning/projects/riverglass/rgdev/analytics/lisp/test-pp.lisp
+[...]
+;;; Delivery function    FOO
+;;; Destination file     #P"test-pp"
+;;; Delivery severity    0
+;;; Delivery parameters  (:KEEP-PRETTY-PRINTER T)
+[...]
+Total Size 19942K, Allocated 18877K, Free 1032K
+[...]
+;;; Finished delivery
+
+:; ./test-pp
+; Loading /usr/local/encap/lispworks-4.4.5/lib/lispworks/lib/4-4-0-0/load-on-demand/pcl/concat/xp-fancyformat.ufsl on demand...
+foo
+bar
+baz
+
+Okay, it worked, but it loaded something on demand, which will fail if moved
+to a machine that doesn't have Lispworks on it.  This is fixable by adding
+a dummy format before the deliver - annoying, but by no means fatal.
+
+Now I want to try and raise the delivery severity:
+
+cat &gttest-pp.lisp &lt;&lt;EOF
+(load-all-patches)
+
+(defun foo ()
+  (format t "foo~_bar~_baz~_~%"))
+
+(compile 'foo)
+
+(format t ";; foo~_;; bar~%")
+
+(deliver 'foo "test-pp" 1
+         :keep-pretty-printer t)
+EOF
+
+:; lispworks --siteinit - -init test-pp.lisp
+LispWorks(R): The Common Lisp Programming Environment
+[...]
+;;; Delivery function    FOO
+;;; Destination file     #P"test-pp"
+;;; Delivery severity    1
+;;; Delivery parameters  (:KEEP-PRETTY-PRINTER T)
+[...]
+;;; Finished delivery
+
+Now to try it:
+
+:; ./test-pp
+foo
+Error: Unrecognized format directive ~_.
+  1 (abort) Abort initialization.
+
+Type :b for backtrace, :c &lt;option number&gt to proceed,  or :? for other options
+
+CL-USER 1 : 1 &gt :bb
+#&lt;PACKAGE COMMON-LISP-USER&gt
+
+Condition: Unrecognized format directive ~_.
+Call to DBG::GET-CALL-FRAME
+  DBG::FRAME-POINTER : NIL
+  DBG::PREV-FRAME    : #&lt;pointer out of bounds 20031163&gt
+
+Binding frame:
+  IO:*TL-COMMANDS* : NIL
+
+Call to DBG::DEBUG1 (offset 218)
+  DBG::DATUM     : #&lt;SIMPLE-ERROR 206F9E3C&gt
+  DBG::ARGUMENTS : NIL
+
+Binding frame:
+  *EVALHOOK* : NIL
+
+Binding frame:
+  MP::*PROCESSING-INTERRUPTS* : NIL
+
+Call to INVOKE-DEBUGGER (offset 117)
+  DBG::X : (#&lt;SIMPLE-ERROR 206F9E3C&gt)
+
+Binding frame:
+  CONDITIONS::*BROKEN-ON-SIGNALS* : NIL
+
+Call to IO:TILDE (offset 523)
+  FORMAT::STR      : "foo~_bar~_baz~_~%"
+  FORMAT::I        : 4
+  FORMAT::ARGS     : NIL
+  FORMAT::ALL-ARGS : NIL
+
+Catch frame: IO:HUT
+
+Call to IO:RECURSIVE-FORMAT (offset 166)
+  IO::FORMATTING : "foo~_bar~_baz~_~%"
+  IO::ARGS       : NIL
+  IO::ALL-ARGS   : NIL
+
+Binding frame:
+  IO::*FORMAT-ITERATION-OUTER-ARGS* : NIL
+
+Catch frame: IO::FORMAT-ESCAPE
+
+Binding frame:
+  IO:*ACTIVE-OUTPUT* : #&lt;unbound&gt
+
+Catch frame: #&lt;unbound&gt
+
+Call to FORMAT (offset 266)
+  LW-XP::DESTINATION      : T
+  LW-XP::CONTROL-STRING   : "foo~_bar~_baz~_~%"
+  LW-XP::FORMAT-ARGUMENTS : NIL
+
+Call to DELIVERY::MAYBE-RYB-TOP-LEVEL (offset 268)
+
+Catch frame: (NIL)
+
+Call to SYSTEM::DV-TOP-LEVEL-ENTRY-FUNCTION (offset 457)
+
+Catch frame: DELIVER
+
+Binding frame:
+  MEMORY-MANAGER::*IN-MAIN-LOOP* : NIL
+
+Catch frame: #&lt;unbound&gt
+
+Call to COMMON-LISP::MAIN (offset 404)
+
+Catch frame: SYSTEM::EXIT-LISPWORKS
+
+Call to MEMORY-MANAGER::INIT-WORLD (offset 185)
+  MEMORY-MANAGER::RAW-OFFSET : :DONT-KNOW
+  MEMORY-MANAGER::SSEG       : NIL
+  MEMORY-MANAGER::SOFF       : NIL
+
+Call to SYSTEM::%FUNCALL1-ON-LISP-STACK (offset 34)
+
+
+SYSTEM::%FUNCALL1-ON-LISP-STACK
+T
+
+Now, the deliver documentation mentions a :FORMAT keyword, which
+controls which format declarations get kept.  The docs claim that
+the default is always T (keep everything), but just in case I
+specifically tried it:
+
+:; lispworks --siteinit - -init test-pp.lisp
+LispWorks(R): The Common Lisp Programming Environment
+[...]
+;;; Delivery function    FOO
+;;; Destination file     #P"test-pp"
+;;; Delivery severity    1
+;;; Delivery parameters  (:KEEP-PRETTY-PRINTER T :FORMAT T)
+[...]
+;;; Finished delivery
+
+:; ./test-pp
+foo
+Error: Unrecognized format directive ~_.
+[...]
+
+I also tried :FORMAT '(#\_) specifically, because the docs said it also
+accepted a list of characters to keep.
+
+Any ideas whether this can work at all?
+
+-bcd
+-- 
+*** Brian Downing &lt;bdowning at lavos dot net&gt 
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Delivery with pretty printer?</h1>
+                 <pre>On Mon, Nov 07, 2005 at 05:11:02PM -0600, Brian Downing wrote:
+&gt I've run into some sillyness trying to deliver an executable on
+&gt Linux that uses the pretty printer.
+
+&gt Version 4.4.5
+
+I just got the 4.4.6 patch, and the behavior is the same.
+
+-bcd
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Delivery with pretty printer?</h1>
+                 <pre>On Mon, 7 Nov 2005 17:11:02 -0600, Brian Downing &lt;bdowning@lavos.net&gt wrote:
+
+&gt I've run into some sillyness trying to deliver an executable on
+&gt Linux that uses the pretty printer.
+
+That was discussed here before - search the archives (gmane.org) for a
+thread with the subject "Delivering with FORMAT and Pretty Printing,"
+specifically for a message from Dave Fox from March 10, 2003.
+
+Cheers,
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:46 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>BROWSER-PANE question</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>BROWSER-PANE question</h1>
+                <pre>
+Hi everybody,
+
+The code below works fine for me (LWW 6.1.1 on Win7) - if you change
+the selection in the option pane, a different website is shown.
+However, if you uncomment the three additional lines, the browser
+doesn't do anything anymore.  Is that expected behavior?
+
+Thanks,
+Edi.
+
+
+
+(capi:define-interface foo-interface ()
+  ()
+  (:panes
+   (the-pane
+    capi:browser-pane
+    :url (capi:choice-selected-item the-list)
+    :before-navigate-callback (lambda (pane url &amp;key &amp;allow-other-keys)
+                                (declare (ignore pane url))
+                                t)
+    :visible-min-width 600
+    :visible-min-height 400)
+   (the-list
+    capi:option-pane
+    :items '("http://lispworks.com/" "http://alu.org/")
+    :interaction :single-selection
+    :callback-type :item
+    :selection-callback (lambda (item)
+                          ;; (capi:browser-pane-navigate the-pane
+"http://weitz.de/")
+                          ;; (capi:browser-pane-stop the-pane)
+                          ;; (sleep .2)
+                          (capi:browser-pane-navigate the-pane item))))
+  (:layouts
+   (main-layout
+    capi:column-layout
+    '(the-list the-pane))))
+
+(defun test ()
+  (capi:display (make-instance 'foo-interface)))
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: BROWSER-PANE question</h1>
+                 <pre>
+2014-02-26 8:35 GMT+00:00 Edi Weitz:
+&gt The code below works fine for me (LWW 6.1.1 on Win7) - if you change
+&gt the selection in the option pane, a different website is shown.
+&gt However, if you uncomment the three additional lines, the browser
+&gt doesn't do anything anymore.  Is that expected behavior?
+
+It seems threre is a related (and corrected?) problem:
+
+http://article.gmane.org/gmane.lisp.lispworks.general/12434
+
+Best regards,
+
+Paulo Madeira
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: BROWSER-PANE question</h1>
+                 <pre>
+Sorry, this is not related to the problem you mentioned.  The
+before-navigate-callback is irrelevant and I should have deleted it
+before I sent the example code.
+
+On Wed, Feb 26, 2014 at 5:21 PM, Paulo Madeira &lt;acelent@gmail.com&gt wrote:
+&gt
+&gt 2014-02-26 8:35 GMT+00:00 Edi Weitz:
+&gt&gt The code below works fine for me (LWW 6.1.1 on Win7) - if you change
+&gt&gt the selection in the option pane, a different website is shown.
+&gt&gt However, if you uncomment the three additional lines, the browser
+&gt&gt doesn't do anything anymore.  Is that expected behavior?
+&gt
+&gt It seems threre is a related (and corrected?) problem:
+&gt
+&gt http://article.gmane.org/gmane.lisp.lispworks.general/12434
+&gt
+&gt Best regards,
+&gt
+&gt Paulo Madeira
+&gt
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+&gt
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: BROWSER-PANE question</h1>
+                 <pre>
+2014-02-26 18:29 GMT+00:00 Edi Weitz:
+&gt Sorry, this is not related to the problem you mentioned.  The
+&gt before-navigate-callback is irrelevant and I should have deleted it
+&gt before I sent the example code.
+
+Well, at least the following hack seems to make it through:
+
+;; Hack before capi:browser-pane-navigate
+(setf (capi::internet-explorer-pane-inside-navigate-p
+       (capi-internals::pane-implementation the-pane))
+      nil)
+
+Best regards,
+
+Paulo Madeira
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: BROWSER-PANE question</h1>
+                 <pre>
+That did the trick.  Thanks again!
+
+On Wed, Feb 26, 2014 at 8:05 PM, Paulo Madeira &lt;acelent@gmail.com&gt wrote:
+&gt
+&gt 2014-02-26 18:29 GMT+00:00 Edi Weitz:
+&gt&gt Sorry, this is not related to the problem you mentioned.  The
+&gt&gt before-navigate-callback is irrelevant and I should have deleted it
+&gt&gt before I sent the example code.
+&gt
+&gt Well, at least the following hack seems to make it through:
+&gt
+&gt ;; Hack before capi:browser-pane-navigate
+&gt (setf (capi::internet-explorer-pane-inside-navigate-p
+&gt        (capi-internals::pane-implementation the-pane))
+&gt       nil)
+&gt
+&gt Best regards,
+&gt
+&gt Paulo Madeira
+&gt
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+&gt
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:30 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

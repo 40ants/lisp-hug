@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>RE: Tab-control problems: Panes on 2., 3. etc tabs not created initially - 
+             how am I notified?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>RE: Tab-control problems: Panes on 2., 3. etc tabs not created initially - 
+                 how am I notified?</h1>
+                <pre>
+ 
+
+&gt From: Martin Simmons [mailto:martin@lispworks.com] 
+&gt 
+&gt Could you explain what you mean by "fill" please?  The panes 
+&gt are available via the slots in the interface and it should be 
+&gt posible to set the text before they are created, unless you 
+&gt need to do something that depends on the size of the pane.
+
+I just try to set the text, that's what I mean by 'fill'.
+
+I try to set the text in the pane, using this function:
+
+(defun report-message-to-window (type message)
+  "Reports a message to the window. Message may be a list of strings, or a string."
+	(capi:apply-in-pane-process (get-window-messages)
+				    #'(lambda (pane text type)
+					(let ((old-text (capi:text-input-pane-text pane)))
+					  (setf (capi:text-input-pane-text pane) 
+						(if (listp text)
+						    (progn
+						      (concatenate 'string 
+								   (format nil "~:{~A~A~^~%~}~%" text)
+								   old-text))
+						    (progn
+						      (concatenate 'string type ": " text (format nil "~%") old-text))))))
+					  (get-window-messages) message type))
+
+with
+
+(defparameter *main-window* (make-instance 'scenario-status-window 
+					   :visible-min-height '(character 30) 
+					   :visible-min-width '(character 120)))
+
+(defun get-window-messages ()
+  (slot-value *main-window* 'runtime-messages))
+
+(defun display-main-window ()
+  (capi:display *main-window* :process t))
+
+and the tab-window from my first post. Then
+
+CL-USER&gt (display-main-window)
+#&lt;SCENARIO-STATUS-WINDOW "Scenario status" 206AA2A4&gt
+CL-USER&gt (report-message-to-window "serious" "no window today")
+
+gives a backtrace
+
+No applicable methods for #&lt;STANDARD-GENERIC-FUNCTION CAPI-INTERNALS:INTERFACE-PROCESS 20F3C20A&gt with args (#&lt;CAPI:MULTI-LINE-TEXT-INPUT-PANE RUNTIME-MESSAGES  20687D54&gt)
+   [Condition of type SIMPLE-ERROR]
+
+Restarts:
+  0: [CONTINUE] Call #&lt;STANDARD-GENERIC-FUNCTION CAPI-INTERNALS:INTERFACE-PROCESS 20F3C20A&gt again
+  1: [ABORT] Abort handling SLIME request.
+  2: [ABORT] Quit process.
+
+Backtrace:
+  0: CONDITIONS::CONDITIONS-ERROR (:INVISIBLEP T "No applicable methods for ~S with args ~S" (#&lt;STANDARD-GENERIC-FUNCTION CAPI-INTERNALS:INTERFACE-PROCESS 20F3C20A&gt (#&lt;CAPI:MULTI-LINE-TEXT-INPUT-PANE RUNTIME-MESSAGES  20687D54&gt)))
+  1: CERROR ("Call ~S again" "No applicable methods for ~S with args ~S" &amp;REST (#&lt;STANDARD-GENERIC-FUNCTION CAPI-INTERNALS:INTERFACE-PROCESS 20F3C20A&gt (#&lt;CAPI:MULTI-LINE-TEXT-INPUT-PANE RUNTIME-MESSAGES  20687D54&gt)))
+  2: (METHOD NO-APPLICABLE-METHOD (T)) (#&lt;STANDARD-GENERIC-FUNCTION CAPI-INTERNALS:INTERFACE-PROCESS 20F3C20A&gt &amp;REST (#&lt;CAPI:MULTI-LINE-TEXT-INPUT-PANE RUNTIME-MESSAGES  20687D54&gt))
+  3: CAPI:EXECUTE-WITH-INTERFACE (#1=#&lt;CAPI:MULTI-LINE-TEXT-INPUT-PANE RUNTIME-MESSAGES  20687D54&gt #'(LAMBDA (PANE TEXT TYPE) (LET (#) (SETF # #))) &amp;REST (#1# "no window today" "serious"))
+  4: REPORT-MESSAGE-TO-WINDOW NIL
+  5: SPECIAL::%EVAL-NOHOOK ((REPORT-MESSAGE-TO-WINDOW "serious" "no window today"))
+  6: IV:PROCESS-TOP-LEVEL (DSPEC:*CURRENT-FORM* #S(LEXICAL::ENVIRONMENT :VARIABLES NIL :FUNCTIONS NIL :REMOTE-ENVIRONMENT NIL) #&lt;function LEXICAL:EVAL-WITH-ENV 20141812&gt &amp;OPTIONAL :EXECUTE)
+ --more--
+
+Also,
+
+CL-USER&gt (get-window-messages)
+#&lt;CAPI:MULTI-LINE-TEXT-INPUT-PANE RUNTIME-MESSAGES  20687D54&gt
+CL-USER&gt (capi:simple-pane-handle (get-window-messages))
+NIL
+
+until I have visited the third pane by clicking on its tab with the mouse, then
+
+CL-USER&gt (get-window-messages)
+#&lt;CAPI:MULTI-LINE-TEXT-INPUT-PANE RUNTIME-MESSAGES  20687D54&gt
+CL-USER&gt (capi:simple-pane-handle (get-window-messages))
+1379516
+CL-USER&gt 
+
+
+I gather from your comment that I probably do something wrong, so if you could enlighten me, I'd be very grateful.
+
+-- 
+Eivind
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Tab-control problems: Panes on 2., 3. etc tabs not created initially - 
+                  how am I notified?</h1>
+                 <p>
+                  Unable to parse email body. Email id is 5440
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:45 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

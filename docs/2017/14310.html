@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Minor Breakthrough in Thinking, Leads to Major Breakthrough in Performance</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Minor Breakthrough in Thinking, Leads to Major Breakthrough in Performance</h1><html><head><meta http-equiv="Content-Type" content="text/html charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">My Butterfly system has been in use since about 2008. Butterfly is somewhat akin to Erlang in Lisp, offering simplified command and coordination of multiple threads across distributed architectures, with no limits on separation of nodes.<div class=""><br class=""></div><div class="">Up to now, Butterfly has used Lispwork threads, which since the early 2000’s have been native OS threads. Hence these are quite heavyweight, compared to Erlang’s green thread approach. As a result, where Erlang would spin off thousands of worker threads, we had to be more conservative in our thinking.</div><div class=""><br class=""></div><div class="">To make life easier for programmers, I developed the notion of a STANDARD-HANDLER, and a higher order version called PROTECTED-STANDARD-HANDLER. STANDARD-HANDLERS look a lot like Doug Hoyte’s DLAMBDA routines - a list of clauses that represent simple message headers and associated args, accompanied by routines that deal with each message kind. PROTECTED-STANDARD-HANDLERS envelope STANDARD-HANDLERS with around methods that understand the details of RPC packet handling so that STANDARD-HANDLERS can just blithely assume a “normal” working environment where whatever the routines return is their result. Not necessary to understand RPC packetizing in STANDARD-HANDLERS.</div><div class=""><br class=""></div><div class="">Last night it occurred to me... STANDARD-HANDLERS are essentially simple enter-at-the-top, dispatch on message header, execute some code, and return a value to the caller. The outer communication layers are unseen by STANDARD-HANDLERS — how messages are exchanged between threads / nodes / machines. Hence STANDARD-HANDLERS can just as easily operate at the direct function call level, over a Lispworks Mailbox, a synchronous Reppy-Channel, or a Butterfly asynchronous distribution. The STANDARD-HANDLER is just a computing element, nothing more.</div><div class=""><br class=""></div><div class="">Now when you examine an Erlang system with thousands of green threads in operation, many of those threads are nothing more than computing elements too. And many of them are very lightly loaded, in terms of communications per unit time. Hence, instead of launching a green thread to manage a minor computation, why not multiplex multiple handlers off a single communication node?</div><div class=""><br class=""></div><div class="">So I came up with an HMUX server - Handler Multiplexer - that is a simple layering of STANDARD-HANDLER. It is the main handler operated by some communication channel (function, mailbox, Reppy Channel, Butterfly connection), and it keeps a simple hash table to which any number of service handlers can be registered. It examines the prefix of every incoming message, taken as the name of the service to look up in the hash table, and then dispatches the remainder of the message to the intended service handler.</div><div class=""><br class=""></div><div class="">Hence, we can pack the equivalent of many many service threads into a single machine-level thread. Whereas previously you might form an RPC call to our TKV database handler as:</div><div class=""><br class=""></div><div class=""><font face="Menlo" class=""><span class="Apple-tab-span" style="white-space:pre">	</span>(!? <font color="#b92d5d" class="">:TKV</font> ‘(read-key :DATAPOOL … ))</font></div><div class=""><br class=""></div><div class="">you can now reach the TKV manager as:</div><div class=""><br class=""></div><div class=""><font face="Menlo" class=""><span class="Apple-tab-span" style="white-space:pre">	</span>(!? <font color="#b92d5d" class="">:HMUX.TKV</font> &nbsp;‘(read-key :DATAPOOL … ))</font></div><div class=""><br class=""></div><div class="">The ideas works wonderfully well, and makes far better use of limited thread resources under Lisp.</div><div class=""><br class=""></div><div class="">Obviously, the decision of when and which MUX server to assign a particular service depends on its performance / communications load, and you wouldn’t want to just pile in all your handlers, willy nilly, without giving some serious consideration to the possible creation of communication bottlenecks. But many (most?) services that I encounter are quite lightly loaded - system logging, exit monitoring, NoSQL database queries, echo services, remote evaluation services, etc.</div><div class=""><br class=""></div><div class="">The difference between assigning a handler to a thread, or to a multiplexer, is either to call a SPAWN with the handler to create a new thread, or an RPC call directly to the multiplexer to register the handler under its service key.</div><div class=""><br class=""></div><div class="">You don’t really need tons of green threads. There are no continuations needing bookkeeping / tracking. Most situations have simple execution control structure.</div><div class=""><br class=""></div><div class="">- DM</div><div class=""><br class=""></div></body></html>
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Minor Breakthrough in Thinking, Leads to Major Breakthrough in 
+                  Performance</h1>
+                 <pre>Hi David
+
+I haven't read your code and I may misunderstand your problem space, but 
+your post did trigger a number of thoughts.
+
+I've been working with event-based programming (similar to Flow-Based, 
+similar to Actors) for several decades...
+
+ &gt ... Up to now, Butterfly has used Lispwork threads, which since the 
+early 2000’s have been native OS threads. Hence these are quite 
+heavyweight, compared to Erlang’s green thread approach. As a result, 
+where Erlang would spin off thousands of worker threads, we had to be 
+more conservative in our thinking.
+
+What I have read about Erlang (and goroutines) suggests that it uses 
+full preemption.  That is a waste of resources and could be further 
+optimized (!).
+
+....
+ &gt Last night it occurred to me... STANDARD-HANDLERS are essentially 
+simple enter-at-the-top, dispatch on message header, execute some code, 
+and return a value to the caller. ...
+
+Enter, execute, leave.  No need for full preemption.
+
+Full preemption requires (a) a stack for each green thread and (b) 
+context switching (register pushes), since the runtime has no idea where 
+in the code the interruption has occurred, hence, no idea which 
+registers are still live.
+
+If one uses code that enters / executes / leaves, then one doesn't need 
+full preemption.  This leads to (a) a single stack, (b) no context 
+switching (since at the time of leaving, all registers are dead).  
+Recently this has been named "turn-based" programming.  It was also 
+known as mutual multi-tasking.  Mutual multi-tasking was given a bad 
+name by Windows 3.  The only place one needs full preemption is inside 
+an operating system where the apps can be hostile to one another, i.e. 
+in Widows 3, but not in concurrent languages.
+
+Turn-based is a kind of co-routining.  The technique is useful in 
+creating concurrent programming languages.
+
+Long-running loops are "the exception".  Chop them up by coming up for 
+air every few times through the loop, e.g. send yourself an event.
+
+ &gt  ... Reppy Channel, Butterfly connection), and it keeps a simple hash 
+table to which any number of service handlers can be registered. It 
+examines the prefix of every incoming message, taken as the name of the 
+service to look up in the hash table, and then dispatches the remainder 
+of the message to the intended service handler.
+
+I don't see the need for a hash table in CL (and JS !), just a list 
+(array, etc.) of closures.  Funcall the closure, store the result back 
+into the list.
+
+Hoyte's state machines show one way to do this.  His state machine is a 
+closure which encapsulates state and a bunch of functions (each 
+representing one state).  The state-machine closure returns a 
+funcall-able function.  When that function is funcalled, it executes 
+then returns the "next" function to be funcalled (contained within the 
+same closure).  [Somewhere, I have a macro that does this].
+
+ &gt ... You don’t really need tons of green threads...
+
+The ideal is exactly one thread per core.
+
+Anything else is less efficient.
+
+The only reason to use more than one thread is when one is forced to 
+build this atop of an operating system (sigh), where one cannot directly 
+handle the asynch I/O, because the O/S hides this from the code.  An I/O 
+thread(s) needs to be spawned and that thread needs to safely insert I/O 
+messages into the turn-based's ready queue.
+
+If I understand correctly, Hoyte's "anti-web" is a server based on 
+no-process principles.
+
+The biggest advantage of event-based programming (turn-based) is that 
+one's code becomes concurrent.  See Rob Pike's talk "Concurrency is not 
+Parallelism".
+
+Concurrent code leads to composable systems (something functional 
+programming promises) and leads to enhanced encapsulation (something OOP 
+promised but failed to deliver), which leads to fewer bugs (IMO).
+
+pt
+
+ps. My blog on this subject are at 
+https://bittarvydas.wordpress.com/2014/08/31/bits-about-software-architecture-and-development/ 
+
+
+pps. Maybe I'll try to track down the macro and post it to my github.
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Minor Breakthrough in Thinking, Leads to Major Breakthrough in 
+                  Performance</h1>
+                 <pre>Hi Paul,
+
+I think we might be obliquely glancing a bit here… But I was thinking about how would I implement green threads if I needed to do so. And then I realized that these are application managed entities. Of course you are correct about the ideal number of machine threads matching number of cores - at least for this kind of communication structure.
+
+And so what I would do is exactly what Erlang’s green thread manager probably did, was to provide one real mailbox on the manager, who then dispatches to virtual mailboxes on each green thread. And at that point, after seeing how simple my control flow really was, I realized there is no need for continuations either. So it all becomes just a service with multiple handlers. But surely there are situations where green threads, (aka continuations) would be useful to have. We just don’t have those in Common Lisp.
+
+Since no handler shares state with any other, they can all go on thinking that they are isolated processes… which some of them might become anyway when services migrate elsewhere.
+
+But when I stated that you don’t need tons of green threads after all, you really do still need the illusion of such. Erlang simply chose to spin off small modules into green threads as the basic and default manner of providing services. Researching further shows me that in large part that was because Erlang lacks a decent Error facility, such as we have in Lisp. Erlang uses the side channels, known as Links, to communicate out of band information - such as a routine failing to produce a result and dying off. Erlang’s philosophy is “let it die”, don’t do error trapping.
+
+But Links do also offer real facility to the overall program, in that a service can be linked to multiple observers, and all observers will become notified on the death of the service. That is somewhat different from what I was trying to solve last night. So I do still have those kinds of Links when I need them, but they are tied to threads - we need to know when an IP Channel gets disconnected. For error situations, however, my PROTECTED-STANDARD-HANDLER is also called protected because it knows how to intercept Errors, and reflect them back across the RPC interface to a client when that is called for.
+
+But Links offer the possibility of supervisor / worker pool “threads” and automatic restarts. I have KEEP-ALIVE processes, and EXIT-MONITOR processes running in my Butterfly environment.
+
+My STANDARD-HANDLERS all respond to :REPLACE-HANDLER messages too, so that they can be upgraded in situ.
+
+I spent the entire morning looking up CORBA because I’m about to lose that capability. But I have never actually ever used CORBA. I did use COM/OLE decades ago, and I didn’t much care for the experience. I don’t think I’m losing anything by giving up the CORBA in my Lispworks. It looks like the RPC way of distributed programming has more or less died. But Actors still seem very much alive in the research community.
+
+I do think that Joe Armstrong was onto a very powerful solution method with his Erlang. I don’t see stupid things like XML/RPC as being anywhere near the equivalent. I wanted a Joe Armstrong living in my Lisp, hence Butterfly. It has been hugely successful for me in the lab, controlling instrumentation across the local network. And in theory it should work equally well across an Internet. But I’m not an Internet programmer, and have no wish to be one.
+
+- DM
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Minor Breakthrough in Thinking, Leads to Major Breakthrough in 
+                  Performance</h1>
+                 <pre>Well, I just realized today, yet another reason for the Green Threads in languages like Erlang. Not just because they have weak error handling, but also because you never know when a body of code will perform a blocking action - a query followed by a wait for an answer.
+
+Hence if all blocking is done away with, by way of only sending asynchronous messages, it becomes safe. Attempting to receive a message is a blocking action. 
+
+We get control inversion if we try to manage blindly with a table of simple handlers… And to properly manage control inversion you need continuations and CPS code. No thanks...
+
+So I’m trying out an approach were only sending message is permitted. This is non-blocking and asynchronous. At the same time, all code must be rewritten to become behaviors in the even of a message receipt. There can be no ask-receive interactions. No RPC. What would life like that be?
+
+We have seen plenty of it in GUI’s. What about for programming in the large?
+
+How to best handle mutating state during program execution when only responders can be written?
+
+So far it is working with a dozen lines of code, thanks to trusty old Lisp. But what about programming in anger? (I think this is homing in on your reactive programming style)
+
+- DM
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Minor Breakthrough in Thinking, Leads to Major Breakthrough in 
+                  Performance</h1>
+                 <pre> &gt Well, I just realized today, yet another reason for the Green Threads 
+in languages like Erlang. Not just because they have weak error 
+handling, but also because you never know when a body of code will 
+perform a blocking action - a query followed by a wait for an answer.
+
+That's why Erlang uses full preemption, to the best of my knowledge.
+
+An inability to step back from the call-return paradigm and examine 
+other possibilities.
+
+ &gt
+ &gt ... Attempting to receive a message is a blocking action.
+
+Yes.
+
+ &gt
+ &gt We get control inversion if we try to manage blindly with a table of 
+simple handlers… And to properly manage control inversion you need 
+continuations and CPS code. No thanks...
+
+[I only talk about closures / continuations in Lisp company.  The method 
+below even works in assembler and C.]
+
+ &gt ...
+ &gt (I think this is homing in on your reactive programming style)
+
+The answer is simple (if I've understood you correctly), but maybe not 
+obvious.
+
+Communicating state machines.
+
+A software component resembles, on the outside, a digital logic IC. It 
+has a number of input pins and a number of output pins.
+
+To implement this in software, I use a single input queue, a case 
+statement, and a single output queue.
+
+When an event is sent to a component, the event is tagged with the input 
+pin that the event data is destined for, then the {pin, data} event is 
+placed on the component's input queue.
+
+The component cannot ask for input.  It processes events in a FIFO 
+manner.  A scheduler pulls the first event from the component's input 
+queue, then invokes the component to process that event (and only that 
+event).
+
+The component can produce as many output events {out-pin, data} as it 
+wishes.  These outputs are deferred (borrowed from Turing+ deferred 
+monitors concept).  Hence, outputs are non-blocking.  The output events 
+are placed on the component's output queue.  When the component finishes 
+processing a single input event, the scheduler pops all of the output 
+events from the output queue and distributes them to the input queues of 
+the receiving components.
+
+The component's output pins are mapped to nets of receivers.
+
+See working example CL code at https://github.com/guitarvydas/ebp .
+
+Rough description of the algorithm...
+
+scheduler:
+loop
+   component = pop ready-queue
+   ;; processing step
+   foreach in-event on component.in-queue do
+     process in-event
+     push out-event(s) onto output queue
+   done-foreach
+   ;; distribution of outputs
+   foreach out-event on component.out-queue do
+     net = component.out-pins[out-event.pin]
+     lock net
+       foreach receiver on net do
+         in-pin = map out-event.pin to receiver's input pin
+         new-in-event = { receiver.pin, copy out-event.data }
+         enqueue net-in-event onto receiver.in-queue
+       done-foreach
+     unlock net
+   done-foreach
+end loop
+
+(the locking is necessary only if there is more than one receiver)
+
+
+pt
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Minor Breakthrough in Thinking, Leads to Major Breakthrough in 
+                  Performance</h1><html><head><meta http-equiv="Content-Type" content="text/html charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">Yes, already been there. I presented this at ECLM 2009 in Hamburg:<div class=""><br class=""></div><div class=""><a href="http://weitz.de/eclm2009/GigaDSP presentation.pdf" class="">http://weitz.de/eclm2009/GigaDSP%20presentation.pdf</a></div><div class=""><br class=""></div><div class=""><br class=""></div><div class="">- DM</div><div class=""><br class=""></div><div class=""><br class=""></div><div style=""><blockquote type="cite" class=""><div class="">On Apr 14, 2017, at 08:34, Paul Tarvydas &lt;<a href="mailto:paultarvydas@gmail.com" class="">paultarvydas@gmail.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><div class="">&gt; Well, I just realized today, yet another reason for the Green Threads in languages like Erlang. Not just because they have weak error handling, but also because you never know when a body of code will perform a blocking action - a query followed by a wait for an answer.<br class=""><br class="">That's why Erlang uses full preemption, to the best of my knowledge.<br class=""><br class="">An inability to step back from the call-return paradigm and examine other possibilities.<br class=""><br class="">&gt;<br class="">&gt; ... Attempting to receive a message is a blocking action.<br class=""><br class="">Yes.<br class=""><br class="">&gt;<br class="">&gt; We get control inversion if we try to manage blindly with a table of simple handlers… And to properly manage control inversion you need continuations and CPS code. No thanks...<br class=""><br class="">[I only talk about closures / continuations in Lisp company. &nbsp;The method below even works in assembler and C.]<br class=""><br class="">&gt; ...<br class="">&gt; (I think this is homing in on your reactive programming style)<br class=""><br class="">The answer is simple (if I've understood you correctly), but maybe not obvious.<br class=""><br class="">Communicating state machines.<br class=""><br class="">A software component resembles, on the outside, a digital logic IC. It has a number of input pins and a number of output pins.<br class=""><br class="">To implement this in software, I use a single input queue, a case statement, and a single output queue.<br class=""><br class="">When an event is sent to a component, the event is tagged with the input pin that the event data is destined for, then the {pin, data} event is placed on the component's input queue.<br class=""><br class="">The component cannot ask for input. &nbsp;It processes events in a FIFO manner. &nbsp;A scheduler pulls the first event from the component's input queue, then invokes the component to process that event (and only that event).<br class=""><br class="">The component can produce as many output events {out-pin, data} as it wishes. &nbsp;These outputs are deferred (borrowed from Turing+ deferred monitors concept). &nbsp;Hence, outputs are non-blocking. &nbsp;The output events are placed on the component's output queue. &nbsp;When the component finishes processing a single input event, the scheduler pops all of the output events from the output queue and distributes them to the input queues of the receiving components.<br class=""><br class="">The component's output pins are mapped to nets of receivers.<br class=""><br class="">See working example CL code at <a href="https://github.com/guitarvydas/ebp" class="">https://github.com/guitarvydas/ebp</a> .<br class=""><br class="">Rough description of the algorithm...<br class=""><br class="">scheduler:<br class="">loop<br class=""> &nbsp;component = pop ready-queue<br class=""> &nbsp;;; processing step<br class=""> &nbsp;foreach in-event on component.in-queue do<br class=""> &nbsp;&nbsp;&nbsp;process in-event<br class=""> &nbsp;&nbsp;&nbsp;push out-event(s) onto output queue<br class=""> &nbsp;done-foreach<br class=""> &nbsp;;; distribution of outputs<br class=""> &nbsp;foreach out-event on component.out-queue do<br class=""> &nbsp;&nbsp;&nbsp;net = component.out-pins[out-event.pin]<br class=""> &nbsp;&nbsp;&nbsp;lock net<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;foreach receiver on net do<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;in-pin = map out-event.pin to receiver's input pin<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;new-in-event = { receiver.pin, copy out-event.data }<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;enqueue net-in-event onto receiver.in-queue<br class=""> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;done-foreach<br class=""> &nbsp;&nbsp;&nbsp;unlock net<br class=""> &nbsp;done-foreach<br class="">end loop<br class=""><br class="">(the locking is necessary only if there is more than one receiver)<br class=""><br class=""><br class="">pt<br class=""><br class="">_______________________________________________<br class="">Lisp Hug - the mailing list for LispWorks users<br class=""><a href="mailto:lisp-hug@lispworks.com" class="">lisp-hug@lispworks.com</a><br class="">http://www.lispworks.com/support/lisp-hug.html<br class=""><br class=""></div></div></blockquote></div><br class=""></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Trouble on the Horizon for CLOS?</h1>
+                 <pre>It has been a whirlwind weed of study and investigations…
+
+Some private communications had me dig back into my Rubber-Objects code, an emulation of Self in Lisp. Along the way we looked into making things like Rubber-Objects and the CMU TK library into thread-safe code. After two days, I had a workable solution, but probably not entirely satisfactory.
+
+OO Code, like my Rubber-Objects, CMU’s TK, and CLOS are inherently widely scattered mutable state, and a fully thread safe application program can only be achieved by coordinated transactional mutations among collections of objects. Locking individual objects is not sufficient, even if the individual objects become thread safe by those means. But such coordination requires choreography directed by the application programmer, and is not something that could be figured out by a compiler.
+
+And I notice that Lispworks now implements locks inside of instantiated CLOS objects, and they make mention of rather less than desirable performance hits if you attempt atomic actions on the slots of such instances.
+
+So, moving along, I find reviews from Steele’s group at Sun talking about suitable data structures for multi-core parallel architectures (conc-cells, instead of cdr-cells), Sun's own marketing team worrying about OO code on multi-cores. OO simply isn’t safe anymore, once outside the realm of single-threaded code.
+
+I see a resurgence of interest in Haskell, and its poor cousin Clojure. Both are touted as inherently thread-safe because of their immutable data structures, and STM approach to shared global state. I still think even they must have to worry about the choreography mentioned above. Meanwhile back in CLOS we have been noticeably silent about the hazards facing us. At the very least, if we are safe because of object locking, we must surely be paying a price for suboptimal locking granularity.
+
+I have written tons of ML, SML, OCaml code. Not much Haskell. But regardless, I dread being forced in that direction, and away from our Lisp. Pattern matching is very nice to have, when you need it. But it can’t offer everything we have become accustomed to in Lisp. And it stands in the way of ad-hoc extensibility by demanding an augmentation of all prior pattern groups whenever you extend your type notions. With Lisp and CLOS, we simply implement additional Methods and Classes. We have a choice to treat instances as immutable if we like.
+
+Looking around at the landscape, Lispworks has long had multi-threading, and OS level threads, probably longer than any competing approach. Allegro was very late in coming, and Bordeaux Threads are the only other implementations that I’m aware of. But the landscape seems eerily quiet in the Lisp corner…
+
+- DM
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Trouble on the Horizon for CLOS?</h1><html><head><meta http-equiv="Content-Type" content="text/html charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">Hi,<div class=""><br class=""></div><div class="">A couple of thoughts.</div><div class=""><br class=""></div><div class="">- It’s important to distinguish between concurrency and parallelisms. Concurrency is about coordinating conceptually independent domain-relevant pieces of work, especially their interactions. Parallelism is about executing algorithms on multiple compute resources at the same time (multiple cores, multiple CPUs, etc.). Concurrency and parallelism are strictly orthogonal: You can have a concurrent application that runs on a single CPU/core, and still have the same coordination/synchronization issues, because the domain requires this. On the other hand, you can execute an algorithm on multiple CPUs/cores for performance, without having any resemblance of that parallelism in the problem domain whatsoever&nbsp;&nbsp;- you may have synchronization issues because of the parallelism, but you can easily switch to a sequential algorithm, and they would completely disappear. There are cases where you are using parallelism to improve the performance of concurrent applications, but that’s just a coincidence.</div><div class=""><br class=""></div><div class="">- If you want to use parallelism for performance, then CLOS is not a good option to begin with. Slot access in CLOS objects, and generic function dispatch, have a performance penalty already in sequential code, compared to plain structs and functions, so before going to a parallel solution to improve performance, you may first want to investigate how to improve the sequential version of the code. (Due to Amdahl’s law, it’s a good idea anyway to look at the sequential performance before going parallel.) This is not CLOS-specific, there are similar considerations even with, say, C++, where you want to avoid virtual method dispatch if you care about performance, etc.</div><div class=""><br class=""></div><div class="">- STM may look like it simplifies things, but I doubt it does so in practice. If you care about parallelism for performance, STM is actually not a good option anyway, because STM comes with a major performance overhead, which very likely makes the parallel version of an algorithm run slower than the sequential version that doesn’t use parallelism. Even for concurrent applications (which I am admittedly less familiar with), I have my doubts, because just like with locks, the real hard problem is to determine the (transactional) boundaries that need to be protected. With some discipline, locks are actually not that problematic (taking the same locks always in the same order prevents deadlocks), and have advantages for debugging (it’s easy to figure which parts of a code cause a deadlock, whereas it’s hard to figure out which parts of some STM code cause a livelock when that occurs, which are the STM-dual of deadlocks).</div><div class=""><br class=""></div><div class="">- Functional data structures which are thread-safe “by design” existed in Common Lisp already before Clojure. See&nbsp;<a href="https://common-lisp.net/project/fset/Site/" class="">https://common-lisp.net/project/fset/Site/</a>&nbsp;(I have no experience with that library myself, but what I see looks promising to my eyes.)</div><div class=""><br class=""></div><div class="">- Having said that, I believe the warnings about side effects being unsafe for multi-threaded code are typically exaggerated IMHO. Side effects require discipline, already with single-threaded code. The rules-of-thumb for such discipline are not that hard, though, and with some experience, it becomes quite obvious what is dangerous and should be avoided, and what is safe and can be used in fairly straightforward ways.</div><div class=""><br class=""></div><div class="">- For example, in my experience, LispWorks’s mailboxes (which exist in one way or the other in other CL implementations as well, and also in variations in more recent languages, like Go or Rust) are extremely good synchronization primitives which cover a lot of ground. If you follow a pattern where you give up “ownership” of objects when sending them over mailboxes to other threads, side effects become perfectly safe. Actor languages enforce a strict separation of heap spaces, which is again too exaggerated and too academic for my taste, because occasionally, you need shared memory accesses to improve performance. But if you can indeed reduce shared memory accesses to something that you need only occasionally, then it’s easy to protect them with the occasional lock, and suddenly, parallel programming is not that hard anymore. ;)</div><div class=""><br class=""></div><div class="">- Steele’s conc cells probably inspired Sparks’ resilient distributed datasets, but their performance is not very good, as far as I can tell. (Better than Hadoop, which is a very low bar. ;)</div><div class=""><br class=""></div><div class="">Just my 0.02€, YMMV, etc., etc.</div><div class=""><br class=""></div><div class="">Pascal</div><div class=""><br class=""><div><blockquote type="cite" class=""><div class="">On 15 Apr 2017, at 07:24, David McClain &lt;<a href="mailto:dbm@refined-audiometrics.com" class="">dbm@refined-audiometrics.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><div class="">It has been a whirlwind weed of study and investigations…<br class=""><br class="">Some private communications had me dig back into my Rubber-Objects code, an emulation of Self in Lisp. Along the way we looked into making things like Rubber-Objects and the CMU TK library into thread-safe code. After two days, I had a workable solution, but probably not entirely satisfactory.<br class=""><br class="">OO Code, like my Rubber-Objects, CMU’s TK, and CLOS are inherently widely scattered mutable state, and a fully thread safe application program can only be achieved by coordinated transactional mutations among collections of objects. Locking individual objects is not sufficient, even if the individual objects become thread safe by those means. But such coordination requires choreography directed by the application programmer, and is not something that could be figured out by a compiler.<br class=""><br class="">And I notice that Lispworks now implements locks inside of instantiated CLOS objects, and they make mention of rather less than desirable performance hits if you attempt atomic actions on the slots of such instances.<br class=""><br class="">So, moving along, I find reviews from Steele’s group at Sun talking about suitable data structures for multi-core parallel architectures (conc-cells, instead of cdr-cells), Sun's own marketing team worrying about OO code on multi-cores. OO simply isn’t safe anymore, once outside the realm of single-threaded code.<br class=""><br class="">I see a resurgence of interest in Haskell, and its poor cousin Clojure. Both are touted as inherently thread-safe because of their immutable data structures, and STM approach to shared global state. I still think even they must have to worry about the choreography mentioned above. Meanwhile back in CLOS we have been noticeably silent about the hazards facing us. At the very least, if we are safe because of object locking, we must surely be paying a price for suboptimal locking granularity.<br class=""><br class="">I have written tons of ML, SML, OCaml code. Not much Haskell. But regardless, I dread being forced in that direction, and away from our Lisp. Pattern matching is very nice to have, when you need it. But it can’t offer everything we have become accustomed to in Lisp. And it stands in the way of ad-hoc extensibility by demanding an augmentation of all prior pattern groups whenever you extend your type notions. With Lisp and CLOS, we simply implement additional Methods and Classes. We have a choice to treat instances as immutable if we like.<br class=""><br class="">Looking around at the landscape, Lispworks has long had multi-threading, and OS level threads, probably longer than any competing approach. Allegro was very late in coming, and Bordeaux Threads are the only other implementations that I’m aware of. But the landscape seems eerily quiet in the Lisp corner…<br class=""><br class="">- DM<br class=""><br class="">_______________________________________________<br class="">Lisp Hug - the mailing list for LispWorks users<br class=""><a href="mailto:lisp-hug@lispworks.com" class="">lisp-hug@lispworks.com</a><br class="">http://www.lispworks.com/support/lisp-hug.html<br class=""></div></div></blockquote></div><br class=""><div class="">
+<div class=""><span style="font-family: Menlo-Regular; font-size: 11px;" class="">--</span><br style="font-family: Menlo-Regular; font-size: 11px;" class=""><span style="font-family: Menlo-Regular; font-size: 11px;" class="">Pascal Costanza</span><br style="font-family: Menlo-Regular; font-size: 11px;" class=""><span style="font-family: Menlo-Regular; font-size: 11px;" class="">The views expressed in this email are my own, and not those of my employer.</span></div><div class=""><span style="font-family: Menlo-Regular; font-size: 11px;" class=""><br class=""></span></div><br class="Apple-interchange-newline">
+
+</div>
+
+
+
+<br class=""></div></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Trouble on the Horizon for CLOS?</h1><html><head><meta http-equiv="Content-Type" content="text/html charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">Hi Pascal,<div class=""><br class=""></div><div class="">I always look forward to your edifications! Excellent points all.</div><div class=""><br class=""></div><div class="">Indeed, after once again playing around with STM under Lisp with translations of Herlihy’s DSTM, and Fraser’s FSTM, I do see your notion that transactional boundaries could be just as difficult to spot as for locking granularities. And FSTM directly exemplifies your cautionary that locks must be acquired in specific order to prevent deadlock. FSTM illustrates both the possibility of deadlock and livelock, although the deadlock is dealt with properly beneath the programmer.</div><div class=""><br class=""></div><div class="">I have been migrating toward functional data structures in much of my own code. The simplest ones to apply just call for using REPLACE instead of DELETE on lists. But I routinely use my translation of OCaml binary trees for Sets, Maps, Queues.</div><div class=""><br class=""></div><div class="">But I am intrigued that you think the side effecting warnings have been overplayed. And I do see your point about the performance benefits of shared memory. But Actors languages, like Erlang and my Butterfly, have a very important characteristic that transcends local performance, and that is the innate ability to migrate their processes to remote nodes with zero change to client code. All that has to happen is a change to the name / service directory for where to find them. And I make frequent use of that ability here in my lab for controlling instrumentation.</div><div class=""><br class=""></div><div class="">I would think your comments apply more pointedly to the notion of Agents, as found in Clojure, rather than Actors. And I do agree with you in my own experience with respect to LW Mailboxes.</div><div class=""><br class=""></div><div class="">From what I have been experiencing, functional data structures fall short in that while they often copy the skeleton of a structure, they do not protect the inner contents in the same way you get with deep copy semantics for remote Actor message passing. It is very easy to forget this when programming, and go ahead and mutate a cell of an array that was passed as a slot value in a “safe” copied structure or instance object.</div><div class=""><br class=""></div><div class="">I hadn’t thought about Steele’s “conc-cells” in relation to databases. But I do see the performance advantages for many scientific computing problems. It becomes so easy and quick to split embarrassingly parallel data problems into portions that can be distributed to individual cores. The price to pay, however, may come when it is time to join back together. These kinds of problems showed up in the many SIMD and MIMD architectures of the late 1980’s and early 1990’s. I had several massively parallel machines at my disposal in those days. I don’t know how those problems would scale to todays GPU’s and multi-core CPU’s.</div><div class=""><br class=""></div><div class="">Thanks for chiming in, Pascal!</div><div class=""><br class=""></div><div class="">- DM</div><div class=""><br class=""></div><div class=""><div><blockquote type="cite" class=""><div class="">On Apr 15, 2017, at 04:33, Pascal Costanza &lt;<a href="mailto:pc@p-cos.net" class="">pc@p-cos.net</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><meta http-equiv="Content-Type" content="text/html charset=utf-8" class=""><div style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">Hi,<div class=""><br class=""></div><div class="">A couple of thoughts.</div><div class=""><br class=""></div><div class="">- It’s important to distinguish between concurrency and parallelisms. Concurrency is about coordinating conceptually independent domain-relevant pieces of work, especially their interactions. Parallelism is about executing algorithms on multiple compute resources at the same time (multiple cores, multiple CPUs, etc.). Concurrency and parallelism are strictly orthogonal: You can have a concurrent application that runs on a single CPU/core, and still have the same coordination/synchronization issues, because the domain requires this. On the other hand, you can execute an algorithm on multiple CPUs/cores for performance, without having any resemblance of that parallelism in the problem domain whatsoever&nbsp;&nbsp;- you may have synchronization issues because of the parallelism, but you can easily switch to a sequential algorithm, and they would completely disappear. There are cases where you are using parallelism to improve the performance of concurrent applications, but that’s just a coincidence.</div><div class=""><br class=""></div><div class="">- If you want to use parallelism for performance, then CLOS is not a good option to begin with. Slot access in CLOS objects, and generic function dispatch, have a performance penalty already in sequential code, compared to plain structs and functions, so before going to a parallel solution to improve performance, you may first want to investigate how to improve the sequential version of the code. (Due to Amdahl’s law, it’s a good idea anyway to look at the sequential performance before going parallel.) This is not CLOS-specific, there are similar considerations even with, say, C++, where you want to avoid virtual method dispatch if you care about performance, etc.</div><div class=""><br class=""></div><div class="">- STM may look like it simplifies things, but I doubt it does so in practice. If you care about parallelism for performance, STM is actually not a good option anyway, because STM comes with a major performance overhead, which very likely makes the parallel version of an algorithm run slower than the sequential version that doesn’t use parallelism. Even for concurrent applications (which I am admittedly less familiar with), I have my doubts, because just like with locks, the real hard problem is to determine the (transactional) boundaries that need to be protected. With some discipline, locks are actually not that problematic (taking the same locks always in the same order prevents deadlocks), and have advantages for debugging (it’s easy to figure which parts of a code cause a deadlock, whereas it’s hard to figure out which parts of some STM code cause a livelock when that occurs, which are the STM-dual of deadlocks).</div><div class=""><br class=""></div><div class="">- Functional data structures which are thread-safe “by design” existed in Common Lisp already before Clojure. See&nbsp;<a href="https://common-lisp.net/project/fset/Site/" class="">https://common-lisp.net/project/fset/Site/</a>&nbsp;(I have no experience with that library myself, but what I see looks promising to my eyes.)</div><div class=""><br class=""></div><div class="">- Having said that, I believe the warnings about side effects being unsafe for multi-threaded code are typically exaggerated IMHO. Side effects require discipline, already with single-threaded code. The rules-of-thumb for such discipline are not that hard, though, and with some experience, it becomes quite obvious what is dangerous and should be avoided, and what is safe and can be used in fairly straightforward ways.</div><div class=""><br class=""></div><div class="">- For example, in my experience, LispWorks’s mailboxes (which exist in one way or the other in other CL implementations as well, and also in variations in more recent languages, like Go or Rust) are extremely good synchronization primitives which cover a lot of ground. If you follow a pattern where you give up “ownership” of objects when sending them over mailboxes to other threads, side effects become perfectly safe. Actor languages enforce a strict separation of heap spaces, which is again too exaggerated and too academic for my taste, because occasionally, you need shared memory accesses to improve performance. But if you can indeed reduce shared memory accesses to something that you need only occasionally, then it’s easy to protect them with the occasional lock, and suddenly, parallel programming is not that hard anymore. ;)</div><div class=""><br class=""></div><div class="">- Steele’s conc cells probably inspired Sparks’ resilient distributed datasets, but their performance is not very good, as far as I can tell. (Better than Hadoop, which is a very low bar. ;)</div><div class=""><br class=""></div><div class="">Just my 0.02€, YMMV, etc., etc.</div><div class=""><br class=""></div><div class="">Pascal</div><div class=""><br class=""><div class=""><blockquote type="cite" class=""><div class="">On 15 Apr 2017, at 07:24, David McClain &lt;<a href="mailto:dbm@refined-audiometrics.com" class="">dbm@refined-audiometrics.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><div class="">It has been a whirlwind weed of study and investigations…<br class=""><br class="">Some private communications had me dig back into my Rubber-Objects code, an emulation of Self in Lisp. Along the way we looked into making things like Rubber-Objects and the CMU TK library into thread-safe code. After two days, I had a workable solution, but probably not entirely satisfactory.<br class=""><br class="">OO Code, like my Rubber-Objects, CMU’s TK, and CLOS are inherently widely scattered mutable state, and a fully thread safe application program can only be achieved by coordinated transactional mutations among collections of objects. Locking individual objects is not sufficient, even if the individual objects become thread safe by those means. But such coordination requires choreography directed by the application programmer, and is not something that could be figured out by a compiler.<br class=""><br class="">And I notice that Lispworks now implements locks inside of instantiated CLOS objects, and they make mention of rather less than desirable performance hits if you attempt atomic actions on the slots of such instances.<br class=""><br class="">So, moving along, I find reviews from Steele’s group at Sun talking about suitable data structures for multi-core parallel architectures (conc-cells, instead of cdr-cells), Sun's own marketing team worrying about OO code on multi-cores. OO simply isn’t safe anymore, once outside the realm of single-threaded code.<br class=""><br class="">I see a resurgence of interest in Haskell, and its poor cousin Clojure. Both are touted as inherently thread-safe because of their immutable data structures, and STM approach to shared global state. I still think even they must have to worry about the choreography mentioned above. Meanwhile back in CLOS we have been noticeably silent about the hazards facing us. At the very least, if we are safe because of object locking, we must surely be paying a price for suboptimal locking granularity.<br class=""><br class="">I have written tons of ML, SML, OCaml code. Not much Haskell. But regardless, I dread being forced in that direction, and away from our Lisp. Pattern matching is very nice to have, when you need it. But it can’t offer everything we have become accustomed to in Lisp. And it stands in the way of ad-hoc extensibility by demanding an augmentation of all prior pattern groups whenever you extend your type notions. With Lisp and CLOS, we simply implement additional Methods and Classes. We have a choice to treat instances as immutable if we like.<br class=""><br class="">Looking around at the landscape, Lispworks has long had multi-threading, and OS level threads, probably longer than any competing approach. Allegro was very late in coming, and Bordeaux Threads are the only other implementations that I’m aware of. But the landscape seems eerily quiet in the Lisp corner…<br class=""><br class="">- DM<br class=""><br class="">_______________________________________________<br class="">Lisp Hug - the mailing list for LispWorks users<br class=""><a href="mailto:lisp-hug@lispworks.com" class="">lisp-hug@lispworks.com</a><br class=""><a href="http://www.lispworks.com/support/lisp-hug.html" class="">http://www.lispworks.com/support/lisp-hug.html</a><br class=""></div></div></blockquote></div><br class=""><div class="">
+<div class=""><span style="font-family: Menlo-Regular; font-size: 11px;" class="">--</span><br style="font-family: Menlo-Regular; font-size: 11px;" class=""><span style="font-family: Menlo-Regular; font-size: 11px;" class="">Pascal Costanza</span><br style="font-family: Menlo-Regular; font-size: 11px;" class=""><span style="font-family: Menlo-Regular; font-size: 11px;" class="">The views expressed in this email are my own, and not those of my employer.</span></div><div class=""><span style="font-family: Menlo-Regular; font-size: 11px;" class=""><br class=""></span></div><br class="Apple-interchange-newline">
+
+</div>
+
+
+
+<br class=""></div></div></div></blockquote></div><br class=""></div></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Trouble on the Horizon for CLOS?</h1>
+                 <pre>Hi Greg,
+
+Well, we do have Locks, Semaphores, Mailboxes etc. I could not imagine having a language without them. Even if you adopt a “higher order” facility like STM, down at the base level (the “C” level, if you will) we are still dependent on Locks or CAS instructions. 
+
+What alternative would you propose for these low level concurrency constructs?
+
+- DM
+
+
+&gt On Apr 15, 2017, at 06:05, Greg Menke &lt;gregm32768@comcast.net&gt wrote:
+&gt 
+&gt 
+&gt 
+&gt On 04/15/2017 01:24 AM, David McClain wrote:
+&gt&gt 
+&gt&gt So, moving along, I find reviews from Steele’s group at Sun talking about suitable data structures for multi-core parallel architectures (conc-cells, instead of cdr-cells), Sun's own marketing team worrying about OO code on multi-cores. OO simply isn’t safe anymore, once outside the realm of single-threaded code.
+&gt&gt 
+&gt&gt 
+&gt 
+&gt I'm inclined to think it never was safe from day 1 and continues to be so, and not just OO code.  Its trivially easy to run into the same old concurrency &amp; race issues even if writing plain old C with structs etc.  In a way C is a good training ground for handling the issue because the language offers no help whatsoever, the 1st move is to pthread mutexes and semaphores at which point the costs of many (and/or undisciplined use of) semaphores/mutexes becomes apparent.  I've done some multithread Lisp (Lispworks) apps as well and the issue appears identical- though the lock resolution tools are more convenient than pthreads and semaphores thankfully. Lock-free and fancier algorithms all offer various alternatives to the DIY mutex/semaphore model, but they all present their own interface a
+ nd API protocols with inevitable consequences.  I'm dubious that building such features into a language will result in efficient concurrency, particularly given the infinite complexity of m!
+ anipulation of data at the application-layer.
+&gt 
+&gt 
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+&gt 
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Minor Breakthrough in Thinking, Leads to Major Breakthrough in 
+                  Performance</h1>
+                 <pre>
+&gt On Apr 15, 2017, at 12:59 AM, David McClain &lt;dbm@refined-audiometrics.com&gt wrote:
+&gt 
+&gt Yes, already been there. I presented this at ECLM 2009 in Hamburg:
+
+I was there - it's been a long time :-).  Skimming the slides, the biggest differences I see are (a) I don't use clocks (completely asynchronous, feedback allowed) and (b) components are hierarchical (a component can contain a network of components). 
+
+&gt So far it is working with a dozen lines of code, thanks to trusty old Lisp. But what about programming in anger? (I think this is homing in on your reactive programming style)
+
+
+Largest system we've built consisted of 20,000 components.  A full IDE.  I don't remember how deep the hierarchy was.
+
+pt
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Minor Breakthrough in Thinking, Leads to Major Breakthrough in 
+                  Performance</h1>
+                 <pre>Yes, we have feedback and hierarchical components - so called “Macro Blocks”. Our application arenas were quite different. I think the notion of clocking came about because of the close adherence to electronic test equipment. We also have clock subsequencers to support subdivision of clocks so that things like RK4 can be applied to differential equations - 4 sub-steps per clock. This is also used for multi-rate DSP algorithms.
+
+I don’t know how large our largest network ever was.  It was pretty deep, trying to estimate the BER on a 64 QAM FEC system at 115 GHz. What mattered more to us were the major blocks - modulators, error checking, oscilloscopes, spectrum analyzers, etc. Each of those major blocks were likely 2-3 layers of macro blocks to reach the primitives of the system.
+
+Many decades ago I started out in the bowels of data processing, while I was a kid in college paying my own way. But once I hit grad school in Astrophysics, I never looked back. The worlds of commerce and science have very different notions of what a computer is good for...
+
+- DM
+
+&gt On Apr 15, 2017, at 07:38, Paul Tarvydas &lt;paultarvydas@gmail.com&gt wrote:
+&gt 
+&gt 
+&gt&gt On Apr 15, 2017, at 12:59 AM, David McClain &lt;dbm@refined-audiometrics.com&gt wrote:
+&gt&gt 
+&gt&gt Yes, already been there. I presented this at ECLM 2009 in Hamburg:
+&gt 
+&gt I was there - it's been a long time :-).  Skimming the slides, the biggest differences I see are (a) I don't use clocks (completely asynchronous, feedback allowed) and (b) components are hierarchical (a component can contain a network of components). 
+&gt 
+&gt&gt So far it is working with a dozen lines of code, thanks to trusty old Lisp. But what about programming in anger? (I think this is homing in on your reactive programming style)
+&gt 
+&gt 
+&gt Largest system we've built consisted of 20,000 components.  A full IDE.  I don't remember how deep the hierarchy was.
+&gt 
+&gt pt
+&gt 
+&gt 
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+&gt 
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:27 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

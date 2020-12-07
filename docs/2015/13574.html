@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>capi:list-panel selection-callback issues</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>capi:list-panel selection-callback issues</h1><html><head><meta http-equiv="Content-Type" content="text/html charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class=""><div style="margin: 0px;" class="">Hi</div><div style="margin: 0px;" class=""><br class=""></div><div style="margin: 0px;" class="">Situation</div><div style="margin: 0px;" class="">I use list-panels to show items depending on the selection in a previous list-panel.</div><div style="margin: 0px;" class="">For example: list-panel 1 shows body regions. Depending on the selection of the body region in list-panel 1, the second list-panel has to show a list of possible sub-regions for that body region.</div><div style="margin: 0px;" class="">If a sub-region is selected, a third list-panel shows the muscles in that sub-region.</div><div style="margin: 0px;" class="">All data is displayed in the lists, however, there seems to be a challenge with selection.</div><div style="margin: 0px;" class="">I’m using LispWorks 7.0 Pro (32-bit) in a Mac (OS X 10.10.5 Yosemite)</div><div style="margin: 0px; min-height: 14px;" class=""><br class=""></div><div style="margin: 0px; min-height: 14px;" class="">One item in the list-panel</div><div style="margin: 0px;" class="">If there is only one possible sub-region, it is displayed in the second list-panel.&nbsp;</div><div style="margin: 0px;" class="">Then the user may decide if he/she wants to see the muscles for this sub-region or not.</div><div style="margin: 0px;" class="">Say, the user wants to see more and selects it … nothing happens because the selection-callback is not activated.</div><div style="margin: 0px;" class="">Thus, if the list-panel only has one item, you first have to click somewhere in the list-panel to deselect the item (the retract callback is called then) and the select it again. Then the selection-callback is activated, which in my case populates the third list-panel with muscle names.</div><div style="margin: 0px; min-height: 14px;" class=""><br class=""></div><div style="margin: 0px; min-height: 14px;" class="">Multiple items in the list-panel</div><div style="margin: 0px;" class="">When there are many sub-region, they are displayed in the second list-panel, with the first item in grey (auto selected by the system).</div><div style="margin: 0px;" class="">However, the user did not select this one, so the muscle list-panel doesn’t show any items.</div><div style="margin: 0px;" class="">When the user clicks on this ‘grey’ item, the selection-callback is not called.</div><div style="margin: 0px;" class="">Again, first the users needs to select an item he/she doesn’t want to see and then select the first item again.</div><div style="margin: 0px;" class="">Only then is the selection-callback called.</div><div style="margin: 0px; min-height: 14px;" class=""><br class=""></div><div style="margin: 0px;" class="">The CAPI User Manual on page 338 writes:</div><div style="margin: 0px;" class=""><i class="">“With interaction :single-selection, the choice can only have one item selected at a time. When a new selection is made, the old selection is cleared and its selection-callback is called.&nbsp;</i></div><div style="margin: 0px;" class=""><i class="">The selection-callback is also called when the user invokes the selection gesture on the selected item.”</i></div><div style="margin: 0px; min-height: 14px;" class=""><br class=""></div><div style="margin: 0px;" class="">The last sentence suggests that when clicking on a selected item, the selection-callback is called again?</div><div style="margin: 0px;" class="">Which it isn’t.</div><div style="margin: 0px; min-height: 14px;" class=""><br class=""></div><div style="margin: 0px;" class="">Question: how to let the list-panel call the selection-callback of an item even if it was already selected by the user, or the system?</div><div style="margin: 0px;" class="">i.e. it always calls the selection-callback even when selected before.</div><div style="margin: 0px;" class="">Or even shorter, when selecting an item in a list-panel with the mouse, always call the selection-callback.</div><div style="margin: 0px; min-height: 14px;" class=""><br class=""></div><div style="margin: 0px;" class="">The code below from the user manual is presenting this issue.</div><div style="margin: 0px;" class="">Just click on the selected item. The selection-callback is not fired.</div><div style="margin: 0px; min-height: 14px;" class=""><br class=""></div><div style="margin: 0px;" class="">Example 1 - one item</div><div style="margin: 0px;" class="">(capi:contain (make-instance</div><div style="margin: 0px;" class="">&nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; 'capi:list-panel</div><div style="margin: 0px;" class="">&nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; :items '(:grey)</div><div style="margin: 0px;" class="">&nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; :print-function 'string-capitalize</div><div style="margin: 0px;" class="">&nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; :interaction :single-selection</div><div style="margin: 0px;" class="">&nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; :selection-callback</div><div style="margin: 0px;" class="">&nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; #'(lambda (data interface) (capi:display-message "~S" data))))</div><div style="margin: 0px; min-height: 14px;" class=""><br class=""></div><div style="margin: 0px;" class="">Example 2 - multiple items</div><div style="margin: 0px;" class="">(setq capi-test (capi:contain (make-instance</div><div style="margin: 0px;" class="">&nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; 'capi:list-panel</div><div style="margin: 0px;" class="">&nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; :items '(:red :blue :green)</div><div style="margin: 0px;" class="">&nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; :print-function 'string-capitalize</div><div style="margin: 0px;" class="">&nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; :interaction :single-selection</div><div style="margin: 0px;" class="">&nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; :selection-callback</div><div style="margin: 0px;" class="">&nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; #'(lambda (data interface) (capi:display-message "~S" data)))))</div><div style="margin: 0px; min-height: 14px;" class=""><br class=""></div><div style="margin: 0px;" class="">When you use the following function to change the selection:</div><div style="margin: 0px;" class="">(capi:apply-in-pane-process</div><div style="margin: 0px;" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; list #'(setf capi:choice-selected-item) ':green capi-test)</div><div style="margin: 0px; min-height: 14px;" class=""><br class=""></div><div style="margin: 0px;" class="">This does not activate the selection-callback. Try now to click on the newly selected item. The selection-callback is not called.</div><div style="margin: 0px; min-height: 14px;" class=""><br class=""></div><div style="margin: 0px;" class="">After many hours of trying, I ran out of ideas.</div><div style="margin: 0px;" class="">Any hints and tips would be greatly appreciated.</div><div style="margin: 0px; min-height: 14px;" class=""><br class=""></div><div style="margin: 0px;" class="">Thanks,</div><div style="margin: 0px;" class="">Kris</div><div class=""><br class=""></div></body></html>
+
+               </article>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:28 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

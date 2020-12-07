@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>another try</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>another try</h1>
+                <pre>Strange, it seem my mails don't find their way to this list. 
+So here we go again: 
+I have read the Common Lisp cookbbook and looked at how to call an
+external C function. (example (calling gethostname)
+
+Well I extracted that function from the header and let the
+foreign-parser do the job
+
+I than have come up with this (IMHO wrong solution, which should
+crash)
+(defun get-hostname ()
+  (let* ((limit 256))
+    (fli:with-dynamic-foreign-objects ((buffer (:char)))
+      (let ((ret-val (gethostname buffer limit)))
+        (if (&gt ret-val 0)
+            (break)
+          (fli:convert-from-foreign-string buffer))))))
+
+
+Well why do I think it should crash? I'm not allocating any space for
+the external buffer. 
+
+One correct way seem to be:
+(defun get-hostname-2 ()
+  (let ((limit 256))
+    (fli:with-dynamic-foreign-objects ()
+      (let* ((buffer (fli:allocate-dynamic-foreign-object :pointer-type
+`(:pointer :char)
+                                                          :nelems
+limit))
+             (ret-val (gethostname buffer limit)))
+        (if (= ret-val 0)
+            (fli:convert-from-foreign-string buffer)
+          (break))))))
+
+Well there may be a better solution available. This seems to be a bit
+too ugly. Can anyone give me a hand?
+
+Another thing. It seems the Documenation is wrong. For :ef-mb-string I
+find:
+:ef-mb-string limit &amp;optional external-format 
+
+but trying it in the listener yields this:
+The lambda list of foreign type :EF-MB-STRING is (&amp;KEY LIMIT
+EXTERNAL-FORMAT (NULL-TERMINATED-P T))
+
+
+Well this is probably the correct version: Than this should work
+(IIUC)
+(defun get-hostname-3 ()
+  (let* ((limit 256)
+         (buffer (make-string limit)))
+    (fli:with-dynamic-foreign-objects ((buffer (:ef-mb-string :limit 256
+                                                :external-format
+:ascii)))
+      (let ((ret-val (gethostname buffer limit)))
+        (if (= ret-val 0)
+            (fli:convert-from-foreign-string buffer)
+          (break))))))
+            
+
+according to the sources of cl-http tcp-list where one can find this
+(defun getdomainname (&amp;optional (where "/etc/defaultdomain"))
+  (or *domainname*
+      #+unix
+      (fli:with-dynamic-foreign-objects ((buffer (:ef-mb-string
+						  :external-format :ascii
+						  :limit 256)))
+                                        (and (eql (c-getdomainname
+buffer 256) 0)
+                                             (setq *domainname*
+(fli:convert-from-foreign-string buffer))))
+      ;; Try using DNS name lookup: on some machines this 
+      (let* ((self-name (comm:get-host-entry (machine-instance)
+					     :fields '(:name)))
+	     (dot (and self-name (position #\. self-name))))
+	(and dot (subseq self-name (1+ dot))))
+      (if (probe-file where)
+	  (with-open-file (stream where :direction :input)
+	    (setq *domainname* (read-line stream))))
+      (error 'www-utils:domain-resolver-error)))
+
+I extracted the main logic and got this:
+(defun getdomainname (&amp;optional (where "/etc/defaultdomain"))
+  (or *domainname*
+      #+unix
+      (fli:with-dynamic-foreign-objects ((buffer (:ef-mb-string
+						  :external-format :ascii
+						  :limit 256)))
+        (and (eql (ipc::c-getdomainname buffer 256) 0)
+             (setq *domainname* (fli:convert-from-foreign-string
+buffer))))))
+
+
+Well this seem to work:
+CL-USER 73 : 6 &gt (getdomainname)
+"(none)"
+
+but get-hostname-3 fails with:
+(get-hostname-3)
+
+Error: #&lt;Pointer to type (:EF-MB-STRING :LIMIT) = #x0805D090&gt cannot be
+converted to foreign type (:POINTER :CHAR).
+   1 (abort) Return to level 6.
+   2 Return to debug level 6.
+   3 Return to level 5.
+   4 Return to debug level 5.
+   5 Try invoking C-GETDOMAI
+
+well than I tried this 
+(fli:define-foreign-function (c-gethostname "gethostname" :source)
+    ((name :pointer) (len size-t))
+  :result-type :int 
+  :language :c)
+  
+and
+(defun get-hostname-4 ()
+  (let ((limit 256))
+    (fli:with-dynamic-foreign-objects ((buffer (:reference
+(:ef-mb-string
+                                                           
+:external-format :ascii
+                                                            :limit
+256))))
+      (let ((ret-val (c-gethostname buffer limit)))
+        (if (= ret-val 0)
+            (fli:convert-from-foreign-string buffer)
+          (break))))))
+
+this works. 
+
+but not 
+(defun get-hostname-4-1 ()
+  (let ((limit 256))
+    (fli:with-dynamic-foreign-objects ((buffer (:reference
+(:ef-mb-string
+                                                           
+:external-format :ascii
+                                                            :limit
+limit))))
+      (let ((ret-val (c-gethostname buffer limit)))
+        (if (= ret-val 0)
+            (fli:convert-from-foreign-string buffer)
+          (break))))))
+
+WellI got the messag that limit is not bound. But it is!
+
+
+
+
+but again the queston is should it? 
+
+I than checked the knowledgebase and bound 17004, but that confuses me
+even more. 
+
+So maybe someone can bring into some light.
+What I want to do
+I want to allocate a Lisp String (such that it can be handled by the
+Lisp GC) than I wont to hand this string over to C which fills it well
+on return it should be still a valid Lisp string.
+
+What is the right way doing it?
+
+Thanks
+Friedrich
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Q: anyone have a wrapper for XSB (prolog)?</h1>
+                 <pre>The latest version of XSB looks great (a LGPLed
+Prolog implementation - xsb.sourceforge.net).
+
+Does anyone already have a LispWorks wrapper for the
+XSB DLL?
+
+Thanks,
+Mark
+
+-- Mark Watson
+-- Open Source and Open Content: www.markwatson.com
+-- Commercial Software: www.knowledgebooks.com
+
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:58 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Deliver on snow leopard</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Deliver on snow leopard</h1>
+                <pre>
+Hi,
+
+I have a problem to delivering an application on Mac OS 10.6.2 :
+
+When using objc:ensure-objc-initialized to initialize the cocoa library,
+definitions of the capi-cocoa-library seem to be lost and the creation of
+output-panes crashes the application :
+
+The console says :
+++++++++
+ *** NSInvocation: warning: object 0x400620 of class
+'LWCAPIOutputPaneRepresentation' does not implement
+doesNotRecognizeSelector: -- abort
++++++++++
+
+But in fact, when debugging I see that the objc class
+LWCAPIOutputPaneRepresentation simply does not exist anymore.
+
+If I don¹t call objc:ensure-objc-initialized, the creation of output panes
+works normally, but I cannot use the objc package : all the objc methods are
+undefined.
+
+This problem can be tested with the test-cocoa-application-full of the file
+"examples/capi/applications/cocoa-application.lisp" of the library. This
+example doesn't use the objc package, so it works normally. But if you add a
+call to objc:ensure-objc-initialized at the beginning of the launch
+function, like this :
+
+(defun test-cocoa-application-full ()
+  (objc:ensure-objc-initialized :modules
+'("/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation"
+"/System/Library/Frameworks/Cocoa.framework/Versions/A/Cocoa"))
+  (capi:set-application-interface
+   (make-instance 'cocoa-application-interface-full-test))
+  ;; Start the application with no windows initially.
+  (capi:convert-to-screen nil))
+
+After delivering, the application crashes when you try to create the first
+window with the menu "circle" (because it creates an output pane at this
+moment). 
+
+My question is : is it the same on Leopard ? I have 10.4 and 10.6 and I
+cannot test 10.5...
+
+Thanks in advance !
+
+Denis
+
+
+-------------------------------------------------------
+Denis Pousseur
+70 rue de Wansijn
+1180 Bruxelles, Belgique
+
+Tel : 32 (0)2 219 31 09
+Mail :  denis.pousseur@gmail.com
+-------------------------------------------------------
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Deliver on snow leopard</h1>
+                 <p>
+                  Unable to parse email body. Email id is 9555
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: Deliver on snow leopard</h1><HTML>
+<HEAD>
+<TITLE>Re: Deliver on snow leopard</TITLE>
+</HEAD>
+<BODY>
+<FONT SIZE="4"><FONT FACE="Arial"><SPAN STYLE='font-size:13.0px'>Hi Sven,<BR>
+<BR>
+thanks for the test !<BR>
+Finally, I found a temporary fix. I replace objc:ensure-objc-initialized with fli:register-module :<BR>
+<BR>
+(defun initialize-objc ()<BR>
+&nbsp;&nbsp;(let ((cocoa &quot;/System/Library/Frameworks/Cocoa.framework/Versions/A/Cocoa&quot;)<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(foundation &quot;/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation&quot;))<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;(unless (fli:connected-module-pathname cocoa) (fli:register-module cocoa :connection-style :immediate))<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;(unless (fli:connected-module-pathname foundation) (fli:register-module foundation :connection-style :immediate))))<BR>
+<BR>
+And now it works on SL &nbsp;and on Tiger (so I suppose on Leopard too).<BR>
+I hope that LW will get us some information about this problem (bug ?).<BR>
+<BR>
+cordialement<BR>
+<BR>
+Denis<BR>
+</SPAN></FONT></FONT><FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'><BR>
+<BR>
+<BR>
+Le 21/11/09 9:36, &laquo; [NOM] &raquo; &lt;[ADRESSE]&gt; a &eacute;crit :<BR>
+<BR>
+</SPAN></FONT><BLOCKQUOTE><FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'>Hi Denis,<BR>
+<BR>
+I have tried it on 10.5.8 and I get the following:<BR>
+---<BR>
+&nbsp;*** NSInvocation: warning: object 0x10cd60 of class 'LWCAPIOutputPaneRepresentation' does not implement methodSignatureForSelector: -- trouble ahead<BR>
+&nbsp;*** NSInvocation: warning: object 0x10cd60 of class 'LWCAPIOutputPaneRepresentation' does not implement doesNotRecognizeSelector: -- abort<BR>
+---<BR>
+/Sven<BR>
+<BR>
+<BR>
+<BR>
+20 nov 2009 kl. 22.52 skrev Denis Pousseur:<BR>
+<BR>
+</SPAN></FONT><BLOCKQUOTE><FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'><BR>
+<BR>
+&nbsp;<BR>
+<BR>
+</SPAN></FONT><FONT SIZE="4"><FONT FACE="Helvetica, Verdana, Arial"><SPAN STYLE='font-size:14.0px'>Hi,<BR>
+</SPAN></FONT></FONT><FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'> <BR>
+<BR>
+<BR>
+&nbsp;<BR>
+<BR>
+</SPAN></FONT><FONT SIZE="4"><FONT FACE="Helvetica, Verdana, Arial"><SPAN STYLE='font-size:14.0px'>I have a problem to delivering an application on Mac OS 10.6.2 :<BR>
+</SPAN></FONT></FONT><FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'> <BR>
+<BR>
+<BR>
+&nbsp;<BR>
+<BR>
+</SPAN></FONT><FONT SIZE="4"><FONT FACE="Helvetica, Verdana, Arial"><SPAN STYLE='font-size:14.0px'>When using objc:ensure-objc-initialized to initialize the cocoa library,<BR>
+</SPAN></FONT></FONT><FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'> <BR>
+<BR>
+</SPAN></FONT><FONT SIZE="4"><FONT FACE="Helvetica, Verdana, Arial"><SPAN STYLE='font-size:14.0px'>definitions of the capi-cocoa-library seem to be lost and the creation of<BR>
+</SPAN></FONT></FONT><FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'> <BR>
+<BR>
+</SPAN></FONT><FONT SIZE="4"><FONT FACE="Helvetica, Verdana, Arial"><SPAN STYLE='font-size:14.0px'>output-panes crashes the application :<BR>
+</SPAN></FONT></FONT><FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'> <BR>
+<BR>
+<BR>
+&nbsp;<BR>
+<BR>
+</SPAN></FONT><FONT SIZE="4"><FONT FACE="Helvetica, Verdana, Arial"><SPAN STYLE='font-size:14.0px'>The console says :<BR>
+</SPAN></FONT></FONT><FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'> <BR>
+<BR>
+</SPAN></FONT><FONT SIZE="4"><FONT FACE="Helvetica, Verdana, Arial"><SPAN STYLE='font-size:14.0px'>++++++++<BR>
+</SPAN></FONT></FONT><FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'> <BR>
+<BR>
+</SPAN></FONT><FONT SIZE="4"><FONT FACE="Helvetica, Verdana, Arial"><SPAN STYLE='font-size:14.0px'> </SPAN></FONT></FONT><FONT FACE="Helvetica, Verdana, Arial"><SPAN STYLE='font-size:12.0px'>*** NSInvocation: warning: object 0x400620 of class<BR>
+</SPAN></FONT><SPAN STYLE='font-size:12.0px'><FONT FACE="Verdana, Helvetica, Arial"> <BR>
+<BR>
+</FONT></SPAN><FONT SIZE="4"><FONT FACE="Helvetica, Verdana, Arial"><SPAN STYLE='font-size:14.0px'>'LWCAPIOutputPaneRepresentation' does not implement<BR>
+</SPAN></FONT></FONT><FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'> <BR>
+<BR>
+</SPAN></FONT><FONT SIZE="4"><FONT FACE="Helvetica, Verdana, Arial"><SPAN STYLE='font-size:14.0px'>doesNotRecognizeSelector: -- abort<BR>
+</SPAN></FONT></FONT><FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'> <BR>
+<BR>
+</SPAN></FONT><FONT SIZE="4"><FONT FACE="Helvetica, Verdana, Arial"><SPAN STYLE='font-size:14.0px'>+++++++++<BR>
+</SPAN></FONT></FONT><FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'> <BR>
+<BR>
+<BR>
+&nbsp;<BR>
+<BR>
+</SPAN></FONT><FONT SIZE="4"><FONT FACE="Helvetica, Verdana, Arial"><SPAN STYLE='font-size:14.0px'>But in fact, when debugging I see that the objc class<BR>
+</SPAN></FONT></FONT><FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'> <BR>
+<BR>
+</SPAN></FONT><FONT SIZE="4"><FONT FACE="Helvetica, Verdana, Arial"><SPAN STYLE='font-size:14.0px'>LWCAPIOutputPaneRepresentation simply does not exist anymore.<BR>
+</SPAN></FONT></FONT><FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'> <BR>
+<BR>
+<BR>
+&nbsp;<BR>
+<BR>
+</SPAN></FONT><FONT SIZE="4"><FONT FACE="Helvetica, Verdana, Arial"><SPAN STYLE='font-size:14.0px'>If I don&#8217;t call &#8216;objc:ensure-objc-initialized, the creation of output panes<BR>
+</SPAN></FONT></FONT><FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'> <BR>
+<BR>
+</SPAN></FONT><FONT SIZE="4"><FONT FACE="Helvetica, Verdana, Arial"><SPAN STYLE='font-size:14.0px'>works normally, but I cannot use the objc package : all the objc methods are<BR>
+</SPAN></FONT></FONT><FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'> <BR>
+<BR>
+</SPAN></FONT><FONT SIZE="4"><FONT FACE="Helvetica, Verdana, Arial"><SPAN STYLE='font-size:14.0px'>undefined.<BR>
+</SPAN></FONT></FONT><FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'> <BR>
+<BR>
+<BR>
+&nbsp;<BR>
+<BR>
+</SPAN></FONT><FONT SIZE="4"><FONT FACE="Helvetica, Verdana, Arial"><SPAN STYLE='font-size:14.0px'>This problem can be tested with the test-cocoa-application-full of the file<BR>
+</SPAN></FONT></FONT><FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'> <BR>
+<BR>
+</SPAN></FONT><FONT SIZE="4"><FONT FACE="Helvetica, Verdana, Arial"><SPAN STYLE='font-size:14.0px'>&quot;examples/capi/applications/cocoa-application.lisp&quot; of the library. This<BR>
+</SPAN></FONT></FONT><FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'> <BR>
+<BR>
+</SPAN></FONT><FONT SIZE="4"><FONT FACE="Helvetica, Verdana, Arial"><SPAN STYLE='font-size:14.0px'>example doesn't use the objc package, so it works normally. But if you add a<BR>
+</SPAN></FONT></FONT><FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'> <BR>
+<BR>
+</SPAN></FONT><FONT SIZE="4"><FONT FACE="Helvetica, Verdana, Arial"><SPAN STYLE='font-size:14.0px'>call to objc:ensure-objc-initialized at the beginning of the launch<BR>
+</SPAN></FONT></FONT><FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'> <BR>
+<BR>
+</SPAN></FONT><FONT SIZE="4"><FONT FACE="Helvetica, Verdana, Arial"><SPAN STYLE='font-size:14.0px'>function, like this :<BR>
+</SPAN></FONT></FONT><FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'> <BR>
+<BR>
+<BR>
+&nbsp;<BR>
+<BR>
+</SPAN></FONT><FONT SIZE="4"><FONT FACE="Helvetica, Verdana, Arial"><SPAN STYLE='font-size:14.0px'>(defun test-cocoa-application-full ()<BR>
+</SPAN></FONT></FONT><FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'> <BR>
+<BR>
+</SPAN></FONT><FONT SIZE="4"><FONT FACE="Helvetica, Verdana, Arial"><SPAN STYLE='font-size:14.0px'> &nbsp;</SPAN></FONT></FONT><FONT FACE="Helvetica, Verdana, Arial"><SPAN STYLE='font-size:12.0px'>(objc:ensure-objc-initialized :modules<BR>
+</SPAN></FONT><SPAN STYLE='font-size:12.0px'><FONT FACE="Verdana, Helvetica, Arial"> <BR>
+<BR>
+</FONT></SPAN><FONT SIZE="4"><FONT FACE="Helvetica, Verdana, Arial"><SPAN STYLE='font-size:14.0px'>'(&quot;/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation&quot;<BR>
+</SPAN></FONT></FONT><FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'> <BR>
+<BR>
+</SPAN></FONT><FONT SIZE="4"><FONT FACE="Helvetica, Verdana, Arial"><SPAN STYLE='font-size:14.0px'>&quot;/System/Library/Frameworks/Cocoa.framework/Versions/A/Cocoa&quot;))<BR>
+</SPAN></FONT></FONT><FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'> <BR>
+<BR>
+</SPAN></FONT><FONT SIZE="4"><FONT FACE="Helvetica, Verdana, Arial"><SPAN STYLE='font-size:14.0px'> &nbsp;</SPAN></FONT></FONT><FONT FACE="Helvetica, Verdana, Arial"><SPAN STYLE='font-size:12.0px'>(capi:set-application-interface<BR>
+</SPAN></FONT><SPAN STYLE='font-size:12.0px'><FONT FACE="Verdana, Helvetica, Arial"> <BR>
+<BR>
+</FONT></SPAN><FONT SIZE="4"><FONT FACE="Helvetica, Verdana, Arial"><SPAN STYLE='font-size:14.0px'> &nbsp;&nbsp;</SPAN></FONT></FONT><FONT FACE="Helvetica, Verdana, Arial"><SPAN STYLE='font-size:12.0px'>(make-instance 'cocoa-application-interface-full-test))<BR>
+</SPAN></FONT><SPAN STYLE='font-size:12.0px'><FONT FACE="Verdana, Helvetica, Arial"> <BR>
+<BR>
+</FONT></SPAN><FONT SIZE="4"><FONT FACE="Helvetica, Verdana, Arial"><SPAN STYLE='font-size:14.0px'> &nbsp;</SPAN></FONT></FONT><FONT FACE="Helvetica, Verdana, Arial"><SPAN STYLE='font-size:12.0px'>;; Start the application with no windows initially.<BR>
+</SPAN></FONT><SPAN STYLE='font-size:12.0px'><FONT FACE="Verdana, Helvetica, Arial"> <BR>
+<BR>
+</FONT></SPAN><FONT SIZE="4"><FONT FACE="Helvetica, Verdana, Arial"><SPAN STYLE='font-size:14.0px'> &nbsp;</SPAN></FONT></FONT><FONT FACE="Helvetica, Verdana, Arial"><SPAN STYLE='font-size:12.0px'>(capi:convert-to-screen nil))<BR>
+</SPAN></FONT><SPAN STYLE='font-size:12.0px'><FONT FACE="Verdana, Helvetica, Arial"> <BR>
+<BR>
+<BR>
+&nbsp;<BR>
+<BR>
+</FONT></SPAN><FONT SIZE="4"><FONT FACE="Helvetica, Verdana, Arial"><SPAN STYLE='font-size:14.0px'>After delivering, the application crashes when you try to create the first<BR>
+</SPAN></FONT></FONT><FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'> <BR>
+<BR>
+</SPAN></FONT><FONT SIZE="4"><FONT FACE="Helvetica, Verdana, Arial"><SPAN STYLE='font-size:14.0px'>window with the menu &quot;circle&quot; (because it creates an output pane at this<BR>
+</SPAN></FONT></FONT><FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'> <BR>
+<BR>
+</SPAN></FONT><FONT SIZE="4"><FONT FACE="Helvetica, Verdana, Arial"><SPAN STYLE='font-size:14.0px'>moment). <BR>
+</SPAN></FONT></FONT><FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'> <BR>
+<BR>
+<BR>
+&nbsp;<BR>
+<BR>
+</SPAN></FONT><FONT SIZE="4"><FONT FACE="Helvetica, Verdana, Arial"><SPAN STYLE='font-size:14.0px'>My question is : is it the same on Leopard ? I have 10.4 and 10.6 and I<BR>
+</SPAN></FONT></FONT><FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'> <BR>
+<BR>
+</SPAN></FONT><FONT SIZE="4"><FONT FACE="Helvetica, Verdana, Arial"><SPAN STYLE='font-size:14.0px'>cannot test 10.5...<BR>
+</SPAN></FONT></FONT><FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'> <BR>
+<BR>
+<BR>
+&nbsp;<BR>
+<BR>
+</SPAN></FONT><FONT SIZE="4"><FONT FACE="Helvetica, Verdana, Arial"><SPAN STYLE='font-size:14.0px'>Thanks in advance !<BR>
+</SPAN></FONT></FONT><FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'> <BR>
+<BR>
+<BR>
+&nbsp;<BR>
+<BR>
+</SPAN></FONT><FONT SIZE="4"><FONT FACE="Helvetica, Verdana, Arial"><SPAN STYLE='font-size:14.0px'>Denis<BR>
+</SPAN></FONT></FONT><FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'> <BR>
+<BR>
+<BR>
+&nbsp;<BR>
+<BR>
+<BR>
+&nbsp;<BR>
+<BR>
+</SPAN></FONT><FONT SIZE="4"><FONT FACE="Helvetica, Verdana, Arial"><SPAN STYLE='font-size:14.0px'>-------------------------------------------------------<BR>
+</SPAN></FONT></FONT><FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'> <BR>
+<BR>
+</SPAN></FONT><FONT SIZE="4"><FONT FACE="Helvetica, Verdana, Arial"><SPAN STYLE='font-size:14.0px'>Denis Pousseur<BR>
+</SPAN></FONT></FONT><FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'> <BR>
+<BR>
+</SPAN></FONT><FONT SIZE="4"><FONT FACE="Helvetica, Verdana, Arial"><SPAN STYLE='font-size:14.0px'>70 rue de Wansijn<BR>
+</SPAN></FONT></FONT><FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'> <BR>
+<BR>
+</SPAN></FONT><FONT SIZE="4"><FONT FACE="Helvetica, Verdana, Arial"><SPAN STYLE='font-size:14.0px'>1180 Bruxelles, Belgique<BR>
+</SPAN></FONT></FONT><FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'> <BR>
+<BR>
+<BR>
+&nbsp;<BR>
+<BR>
+</SPAN></FONT><FONT SIZE="4"><FONT FACE="Helvetica, Verdana, Arial"><SPAN STYLE='font-size:14.0px'>Tel : 32 (0)2 219 31 09<BR>
+</SPAN></FONT></FONT><FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'> <BR>
+<BR>
+</SPAN></FONT><FONT SIZE="4"><FONT FACE="Helvetica, Verdana, Arial"><SPAN STYLE='font-size:14.0px'>Mail : &nbsp;</SPAN></FONT></FONT><FONT FACE="Helvetica, Verdana, Arial"><SPAN STYLE='font-size:12.0px'>denis.pousseur@gmail.com<BR>
+</SPAN></FONT><SPAN STYLE='font-size:12.0px'><FONT FACE="Verdana, Helvetica, Arial"> <BR>
+<BR>
+</FONT></SPAN><FONT SIZE="4"><FONT FACE="Helvetica, Verdana, Arial"><SPAN STYLE='font-size:14.0px'>-------------------------------------------------------<BR>
+</SPAN></FONT></FONT><FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'> <BR>
+<BR>
+<BR>
+&nbsp;<BR>
+<BR>
+<BR>
+&nbsp;<BR>
+</SPAN></FONT></BLOCKQUOTE><FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'><BR>
+<BR>
+</SPAN></FONT></BLOCKQUOTE><FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'><BR>
+<BR>
+-------------------------------------------------------<BR>
+Denis Pousseur<BR>
+70 rue de Wansijn<BR>
+1180 Bruxelles, Belgique<BR>
+<BR>
+Tel : 32 (0)2 219 31 09<BR>
+Mail : &nbsp;denis.pousseur@gmail.com<BR>
+-------------------------------------------------------<BR>
+</SPAN></FONT>
+</BODY>
+</HTML>
+
+
+
+                 </article>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>Re: Deliver on snow leopard</h1>
+                   <p>
+                    Unable to parse email body. Email id is 9568
+                  </article>
+                  <section class=tree>
+                   <article class=email>
+                    <h1>Re: Deliver on snow leopard</h1><HTML>
+<HEAD>
+<TITLE>Re: Deliver on snow leopard</TITLE>
+</HEAD>
+<BODY>
+<FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'>Hi Martin,<BR>
+<BR>
+I generally use register-module for my own modules but, especially for the objc libraries, the doc says :<BR>
+<BR>
+</SPAN></FONT><FONT SIZE="4"><FONT FACE="Times, Times New Roman"><SPAN STYLE='font-size:14.0px'>&#8220;<I>The function ensure-objc-initialized must be called before any other functions in the objc package to initialize the Objective-C system. [...]<BR>
+The modules argument can be a list of strings specifying foreign modules to load. Typically, this needs to be the paths to the Cocoa .dylib files to make Objective-C work. See fli:register-module .<BR>
+</I></SPAN></FONT></FONT><FONT FACE="Times, Times New Roman"><I><SPAN STYLE='font-size:12.0px'><BR>
+</SPAN><FONT SIZE="4"><SPAN STYLE='font-size:14.0px'>LispWorks Objective-C and Cocoa Interface User Guide and Reference Manual</SPAN></FONT><SPAN STYLE='font-size:12.0px'>&#8221;<BR>
+</SPAN></I></FONT><I><FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:11.0px'><BR>
+</SPAN></FONT></I><FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'>Anyway there is no problem with the solution I use now. It's just a good thing to now that it seems correct to you too.<BR>
+<BR>
+Best regards<BR>
+<BR>
+Denis<BR>
+<BR>
+<BR>
+Le 24/11/09 22:26, &laquo; [NOM] &raquo; &lt;[ADRESSE]&gt; a &eacute;crit :<BR>
+<BR>
+<FONT COLOR="#660098">&gt;&gt;&gt;&gt;&gt;&gt; On Sat, 21 Nov 2009 11:38:47 +0100, Denis Pousseur said:<BR>
+</FONT><FONT COLOR="#006600">&gt;&gt; <BR>
+&gt;&gt; Finally, I found a temporary fix. I replace objc:ensure-objc-initialized<BR>
+&gt;&gt; with fli:register-module :<BR>
+&gt;&gt; <BR>
+&gt;&gt; (defun initialize-objc ()<BR>
+&gt;&gt; &nbsp;&nbsp;(let ((cocoa=20<BR>
+&gt;&gt; &quot;/System/Library/Frameworks/Cocoa.framework/Versions/A/Cocoa&quot;)<BR>
+&gt;&gt; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(foundation<BR>
+&gt;&gt; &quot;/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation&quot;))<BR>
+&gt;&gt; &nbsp;&nbsp;&nbsp;&nbsp;(unless (fli:connected-module-pathname cocoa) (fli:register-module cocoa<BR>
+&gt;&gt; :connection-style :immediate))<BR>
+&gt;&gt; &nbsp;&nbsp;&nbsp;&nbsp;(unless (fli:connected-module-pathname foundation) (fli:register-module<BR>
+&gt;&gt; foundation :connection-style :immediate))))<BR>
+&gt;&gt; <BR>
+&gt;&gt; And now it works on SL &nbsp;and on Tiger (so I suppose on Leopard too).<BR>
+&gt;&gt; I hope that LW will get us some information about this problem (bug ?).<BR>
+</FONT><FONT COLOR="#000098">&gt; <BR>
+&gt; The CAPI Cocoa library will only work if it initializes Objective-C itself, so<BR>
+&gt; I think that using fli:register-module for your own modules is the correct<BR>
+&gt; solution. &nbsp;Is there a problem with doing it that way?<BR>
+</FONT><BR>
+-------------------------------------------------------<BR>
+Denis Pousseur<BR>
+70 rue de Wansijn<BR>
+1180 Bruxelles, Belgique<BR>
+<BR>
+Tel : 32 (0)2 219 31 09<BR>
+Mail : &nbsp;denis.pousseur@gmail.com<BR>
+-------------------------------------------------------<BR>
+</SPAN></FONT>
+</BODY>
+</HTML>
+
+
+
+                   </article>
+                  </section>
+                 </section>
+                </section>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:36 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

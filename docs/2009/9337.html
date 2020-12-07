@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Multiple calls to draw-line</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Multiple calls to draw-line</h1>
+                <pre>
+I have a display-callback that draws a grayscale sonogram from fft data. To do 
+this I'm making a lot of calls to draw-line, since (obviously) I need to draw 
+each line, representing a frequency bin, with a different grayscale value 
+(hence I can't use draw-lines or draw-polygon). This seems to slow the code up 
+considerably. Here is the core loop within the function:
+
+(let ((fft/2 (/ *fft-size* 2))
+      (bin-width (round (/ %scroll-height% (/ *sample-rate* *fft-size*))))
+      (delta (round (/ %scroll-width% *n-frames*))))
+  (loop for k of-type fixnum being the hash-key of *spectrum*
+        for fr of-type (simple-array double-float (*)) = (gethash k *spectrum*)
+	for time of-type fixnum = (* delta k)
+        do		  
+	(loop for i of-type fixnum from 0 below fft/2
+	      for freq = (the fixnum (rescale (* i bin-width) 
+                                              (* bin-width fft/2) 
+                                              %scroll-height%)) 
+              for mag = (the double-float (aref fr (- fft/2 1 i)))
+	      when (&gt= mag *cut-off*)
+	      do
+	      (gp:draw-line pixmap 
+			    time freq (+ time delta) freq
+		            :thickness bin-width
+			    :foreground (make-gray (rescale (float mag 0.0s0)
+                                                            *cut-off* 
+                                                            1))))))
+
+I have of course profiled, and whilst draw-line didn't seem to be on top of the 
+stack a lot I still feel it's the culprit. I can't see a way to optimize this 
+any more, so is there a different way I could do this, without having to make 
+so many calls to draw-line?
+
+Help/suggestions greatly appreciated,
+Chris
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Multiple calls to draw-line</h1>
+                 <pre>
+Hello Christopher,
+
+The biggest speedup comes from avoiding I/O to the screen. So draw  
+into an off-screen pixmap first, and then render all at once as an  
+image copy operation from that pixmap to the screen.
+
+Dr. David McClain
+dbm@refined-audiometrics.com
+
+
+
+On Jul 22, 2009, at 16:14 PM, Christopher Melen wrote:
+
+&gt
+&gt I have a display-callback that draws a grayscale sonogram from fft  
+&gt data. To do
+&gt this I'm making a lot of calls to draw-line, since (obviously) I  
+&gt need to draw
+&gt each line, representing a frequency bin, with a different grayscale  
+&gt value
+&gt (hence I can't use draw-lines or draw-polygon). This seems to slow  
+&gt the code up
+&gt considerably. Here is the core loop within the function:
+&gt
+&gt (let ((fft/2 (/ *fft-size* 2))
+&gt      (bin-width (round (/ %scroll-height% (/ *sample-rate* *fft- 
+&gt size*))))
+&gt      (delta (round (/ %scroll-width% *n-frames*))))
+&gt  (loop for k of-type fixnum being the hash-key of *spectrum*
+&gt        for fr of-type (simple-array double-float (*)) = (gethash k  
+&gt *spectrum*)
+&gt 	for time of-type fixnum = (* delta k)
+&gt        do		
+&gt 	(loop for i of-type fixnum from 0 below fft/2
+&gt 	      for freq = (the fixnum (rescale (* i bin-width)
+&gt                                              (* bin-width fft/2)
+&gt                                              %scroll-height%))
+&gt              for mag = (the double-float (aref fr (- fft/2 1 i)))
+&gt 	      when (&gt= mag *cut-off*)
+&gt 	      do
+&gt 	      (gp:draw-line pixmap
+&gt 			    time freq (+ time delta) freq
+&gt 		            :thickness bin-width
+&gt 			    :foreground (make-gray (rescale (float mag 0.0s0)
+&gt                                                            *cut-off*
+&gt                                                            1))))))
+&gt
+&gt I have of course profiled, and whilst draw-line didn't seem to be on  
+&gt top of the
+&gt stack a lot I still feel it's the culprit. I can't see a way to  
+&gt optimize this
+&gt any more, so is there a different way I could do this, without  
+&gt having to make
+&gt so many calls to draw-line?
+&gt
+&gt Help/suggestions greatly appreciated,
+&gt Chris
+&gt
+&gt
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Multiple calls to draw-line</h1>
+                 <pre>
+
+On Jul 23, 2009, at 1:14 AM, Christopher Melen wrote:
+
+&gt
+&gt I have a display-callback that draws a grayscale sonogram from fft  
+&gt data. To do
+&gt this I'm making a lot of calls to draw-line, since (obviously) I  
+&gt need to draw
+&gt each line, representing a frequency bin, with a different grayscale  
+&gt value
+&gt (hence I can't use draw-lines or draw-polygon). This seems to slow  
+&gt the code up
+&gt considerably. Here is the core loop within the function:
+&gt
+&gt (let ((fft/2 (/ *fft-size* 2))
+&gt      (bin-width (round (/ %scroll-height% (/ *sample-rate* *fft- 
+&gt size*))))
+&gt      (delta (round (/ %scroll-width% *n-frames*))))
+&gt  (loop for k of-type fixnum being the hash-key of *spectrum*
+&gt        for fr of-type (simple-array double-float (*)) = (gethash k  
+&gt *spectrum*)
+&gt 	for time of-type fixnum = (* delta k)
+&gt        do		
+&gt 	(loop for i of-type fixnum from 0 below fft/2
+&gt 	      for freq = (the fixnum (rescale (* i bin-width)
+&gt                                              (* bin-width fft/2)
+&gt                                              %scroll-height%))
+&gt              for mag = (the double-float (aref fr (- fft/2 1 i)))
+&gt 	      when (&gt= mag *cut-off*)
+&gt 	      do
+&gt 	      (gp:draw-line pixmap
+&gt 			    time freq (+ time delta) freq
+&gt 		            :thickness bin-width
+&gt 			    :foreground (make-gray (rescale (float mag 0.0s0)
+&gt                                                            *cut-off*
+&gt                                                            1))))))
+&gt
+&gt I have of course profiled, and whilst draw-line didn't seem to be on  
+&gt top of the
+&gt stack a lot I still feel it's the culprit. I can't see a way to  
+&gt optimize this
+&gt any more, so is there a different way I could do this, without  
+&gt having to make
+&gt so many calls to draw-line?
+&gt
+&gt Help/suggestions greatly appreciated,
+&gt Chris
+&gt
+
+
+I don't know if it's possible with the API you use, but with X or  
+other drawing systems, we could  speed this up by filling a polyline  
+with a pattern (pixmap) having the wanted grayscale shades.
+
+Or even easier, using that grayscale shade as a background and fill  
+the complement polyline in black.
+
+In either case, things could be cached in the window server and only  
+one polyline drawing instruction would have to be issued.
+
+
+-- 
+__Pascal Bourguignon__
+http://www.informatimago.com
+
+
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:37 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

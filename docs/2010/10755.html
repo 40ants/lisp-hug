@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>capi::update-automatic-resize-object</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>capi::update-automatic-resize-object</h1>
+                <pre>
+
+What would be a correct place to specify a call to
+`capi:set-object-automatic-resize'?  Placing it in a `:create-callback'
+like this causes problems when trying to put up a representation later:
+
+(capi:define-interface test ()
+  ()
+  (:panes
+   (ellipse capi:ellipse))
+  (:layouts
+   (pinboard capi:pinboard-layout '(ellipse)))
+  (:default-initargs
+   :create-callback (lambda (self)
+                      (with-slots (ellipse pinboard) self
+                        (capi:set-object-automatic-resize
+                         ellipse :height-ratio 1 :width-ratio 1
+                         :pinboard pinboard)))
+   :visible-min-height 300 
+   :visible-min-width 300))
+
+(capi:display (make-instance 'capi:interface
+		:layout (make-instance 'capi:simple-layout
+			  :description (list (make-instance test)))))
+
+
+Would I be justified in expecting the above to work?
+--  
+Madhu
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>RE: capi::update-automatic-resize-object</h1><html>
+<head>
+<style><!--
+..hmmessage P
+{
+margin:0px;
+padding:0px
+}
+body.hmmessage
+{
+font-size: 10pt;
+font-family:Tahoma
+}
+--></style>
+</head>
+<body class='hmmessage'>
+I have used set-object-automatic-resize a few times and each time I ended up placing it in an interface-display :after method specialized on my interface. That way you're guaranteed to be working with a displayed pane (a create-callback will run before the pane is actually displayed).<br><br>I think it would be nice to have some better examples for the use of this function..<br><br>Chris<br><br>&gt; To: lisp-hug@lispworks.com<br>&gt; From: enometh@meer.net<br>&gt; Subject: capi::update-automatic-resize-object<br>&gt; Date: Tue, 23 Nov 2010 20:59:36 +0530<br>&gt; <br>&gt; <br>&gt; <br>&gt; What would be a correct place to specify a call to<br>&gt; `capi:set-object-automatic-resize'?  Placing it in a `:create-callback'<br>&gt; like this causes problems when trying to put up a representation later:<br>&gt; <br>&gt; (capi:define-interface test ()<br>&gt;   ()<br>&gt;   (:panes<br>&gt;    (ellipse capi:ellipse))<br>&gt;   (:layouts<br>&gt;    (pinboard capi:pinboard-layout '(ellipse)))<br>&gt;   (:default-initargs<br>&gt;    :create-callback (lambda (self)<br>&gt;                       (with-slots (ellipse pinboard) self<br>&gt;                         (capi:set-object-automatic-resize<br>&gt;                          ellipse :height-ratio 1 :width-ratio 1<br>&gt;                          :pinboard pinboard)))<br>&gt;    :visible-min-height 300 <br>&gt;    :visible-min-width 300))<br>&gt; <br>&gt; (capi:display (make-instance 'capi:interface<br>&gt; 		:layout (make-instance 'capi:simple-layout<br>&gt; 			  :description (list (make-instance test)))))<br>&gt; <br>&gt; <br>&gt; Would I be justified in expecting the above to work?<br>&gt; --  <br>&gt; Madhu<br>&gt; <br> 		 	   		  </body>
+</html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: capi::update-automatic-resize-object</h1>
+                 <pre>
+
+* Christopher Melen &lt;SNT136-w34E69E3562CADC26252813813E0@phx.gbl&gt :
+Wrote on Tue, 23 Nov 2010 20:45:38 +0000:
+
+| I have used set-object-automatic-resize a few times and each time I
+| ended up placing it in an interface-display :after method specialized
+| on my interface.  That way you're guaranteed to be working with a
+| displayed pane (a create-callback will run before the pane is actually
+| displayed).
+|
+| I think it would be nice to have some better examples for the use of
+| this function.
+|
+
+Thanks.  I wanted to note that there is an issue with putting it in an
+INTERFACE-DISPLAY :AFTER method---it interacts badly with
+capi:calculate-constraints.  Consider a use of calculate-constraints
+like this in `my-ellipse', where, say, i want to calculate just the
+height and later have it adapt to its parent's width:
+
+(defclass my-ellipse (capi:ellipse)
+  ()
+  (:default-initargs
+   :visible-min-height :no-hint))
+
+(defmethod capi:calculate-constraints ((self my-ellipse))
+  (let ((height 65))
+    (capi:with-geometry self
+      (setf capi:%min-height% height capi:%max-height% t))))
+
+(capi:define-interface test2 ()
+  ()
+  (:panes
+   (ellipse my-ellipse))
+  (:layouts
+   (pinboard capi:pinboard-layout '(ellipse)))
+  (:default-initargs
+   :visible-min-height 300 
+   :visible-min-width 300))
+
+(defmethod capi:interface-display :after ((self test2))
+  (with-slots (ellipse pinboard) self
+    (capi:set-object-automatic-resize ellipse
+     :width-ratio 1
+     :pinboard pinboard)))
+
+(capi:contain (make-instance 'test2))  ;; &lt;-- expected behaviour
+
+;; unexpected behaviour:
+(capi:display (make-instance 'capi:interface
+		:layout (make-instance 'capi:simple-layout
+			  :description (list (make-instance 'test2)))))
+
+
+[Placing the call to SET-OBJECT-AUTOMATIC-RESIZE in the create callback
+seems to be the way to go, if I could just ignore the error that is
+signalled]
+
+--
+Regards
+Madhu
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: capi::update-automatic-resize-object</h1>
+                 <p>
+                  Unable to parse email body. Email id is 10768
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:34 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

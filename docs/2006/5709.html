@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>capi:apply-in-pane-process</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>capi:apply-in-pane-process</h1>
+                <pre>
+Hello all,
+
+I'm doing some work with OpenGL and Lispworks (on OS X).  I have a slot in my
+opengl-pane called redraw-p  which is non-nil when the pane needs to be redrawn.
+I've written a function, post-redisplay, which does the following:
+
+(defun post-redisplay (pane rect)  ;; rect is the region to be redrawn.
+  "Redisplays the pane, but only if the request has not already been made."
+  (with-slots (redraw-p redraw-rect) pane
+    (if redraw-p
+      (setf redraw-rect (rectangle-union redraw-rect rect))  ;;
+include rect in the area to be redrawn
+      (progn
+        (setf redraw-p    t
+              redraw-rect  rect)
+        (capi:apply-in-pane-process pane #'redraw-pane pane)))))
+
+The idea, here, is that if I made two calls to post-redisplay before
+the redraw-pane function was called, then rather than redrawing two
+regions consecutively, I could combine the two regions into one and
+draw them both at the same time.
+
+The problem that I've run into, is that I had (perhaps incorrectly)
+assumed that a call to capi:apply-in-pane-process would put the
+draw-object call into some sort of queue of actions to perform so that
+the following *could* have the desired behavior of not making
+consecutive calls to redraw-pane
+
+(progn
+  (post-redisplay p 10 50 10 10)
+  (post-redisplay p 100 100 10 10))
+
+It seems, however, that appy-in-pane-process when called from the same
+process that it will be applied into has the effect of executing
+immediately.  Is this the correct behaviour?  And if so, might you
+have any suggestions for achieving the desired results (without
+creating a new process to watch for the redraw-p slot to change)
+
+Thanks!
+Andrew
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: capi:apply-in-pane-process</h1>
+                 <pre>
+On Jul 25, 2006, at 2:55 PM, Andrew Shilliday wrote:
+
+&gt
+&gt Hello all,
+&gt
+&gt I'm doing some work with OpenGL and Lispworks (on OS X).  I have a  
+&gt slot in my
+&gt opengl-pane called redraw-p  which is non-nil when the pane needs  
+&gt to be redrawn.
+&gt I've written a function, post-redisplay, which does the following:
+&gt
+&gt (defun post-redisplay (pane rect)  ;; rect is the region to be  
+&gt redrawn.
+&gt  "Redisplays the pane, but only if the request has not already been  
+&gt made."
+&gt  (with-slots (redraw-p redraw-rect) pane
+&gt    (if redraw-p
+&gt      (setf redraw-rect (rectangle-union redraw-rect rect))  ;;
+&gt include rect in the area to be redrawn
+&gt      (progn
+&gt        (setf redraw-p    t
+&gt              redraw-rect  rect)
+&gt        (capi:apply-in-pane-process pane #'redraw-pane pane)))))
+&gt
+&gt The idea, here, is that if I made two calls to post-redisplay before
+&gt the redraw-pane function was called, then rather than redrawing two
+&gt regions consecutively, I could combine the two regions into one and
+&gt draw them both at the same time.
+&gt
+&gt The problem that I've run into, is that I had (perhaps incorrectly)
+&gt assumed that a call to capi:apply-in-pane-process would put the
+&gt draw-object call into some sort of queue of actions to perform so that
+&gt the following *could* have the desired behavior of not making
+&gt consecutive calls to redraw-pane
+&gt
+&gt (progn
+&gt  (post-redisplay p 10 50 10 10)
+&gt  (post-redisplay p 100 100 10 10))
+&gt
+&gt It seems, however, that appy-in-pane-process when called from the same
+&gt process that it will be applied into has the effect of executing
+&gt immediately.  Is this the correct behaviour?  And if so, might you
+&gt have any suggestions for achieving the desired results (without
+&gt creating a new process to watch for the redraw-p slot to change)
+
+That's the intended effect.
+
+In InspireData, we used the following function to always ensure that  
+operations are queued:
+
+   ;;; Invokes FUNCTION on ARGS in the process of INTERFACE like  
+CAPI:EXECUTE-WITH-INTERFACE
+   ;;; but always queues the execution request.  Consequently, if  
+this is called from code
+   ;;; which is already running in INTERFACE's process, the execution  
+of FUNCTION will be
+   ;;; deferred until the interface is idle.
+
+   (defun execute-with-interface-when-idle (interface function &amp;rest  
+args)
+     (let ((process (capi-internals:interface-process interface)))
+       (if process
+         (mp:process-send process (list (invoke-with-tabletop- 
+toplevel-error-handlers ()
+                                          (apply function args))))
+         (apply function args))))
+
+   - Gary Palter
+     Principal Software Engineer
+     Clozure Associates
+     Cell:  617-947-0536
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: capi:apply-in-pane-process</h1>
+                 <pre>
+Thanks, the use of mp:send-message was exactly what I was looking for.
+ I would have thought I would get the same behavior with
+apply-in-pane-process, but I suppose I don't understand the inner
+workings of that function.
+
+Again, thanks
+Andrew
+
+On 7/25/06, Gary Palter &lt;palter@clozure.com&gt wrote:
+&gt On Jul 25, 2006, at 2:55 PM, Andrew Shilliday wrote:
+&gt
+&gt &gt
+&gt &gt Hello all,
+&gt &gt
+&gt &gt I'm doing some work with OpenGL and Lispworks (on OS X).  I have a
+&gt &gt slot in my
+&gt &gt opengl-pane called redraw-p  which is non-nil when the pane needs
+&gt &gt to be redrawn.
+&gt &gt I've written a function, post-redisplay, which does the following:
+&gt &gt
+&gt &gt (defun post-redisplay (pane rect)  ;; rect is the region to be
+&gt &gt redrawn.
+&gt &gt  "Redisplays the pane, but only if the request has not already been
+&gt &gt made."
+&gt &gt  (with-slots (redraw-p redraw-rect) pane
+&gt &gt    (if redraw-p
+&gt &gt      (setf redraw-rect (rectangle-union redraw-rect rect))  ;;
+&gt &gt include rect in the area to be redrawn
+&gt &gt      (progn
+&gt &gt        (setf redraw-p    t
+&gt &gt              redraw-rect  rect)
+&gt &gt        (capi:apply-in-pane-process pane #'redraw-pane pane)))))
+&gt &gt
+&gt &gt The idea, here, is that if I made two calls to post-redisplay before
+&gt &gt the redraw-pane function was called, then rather than redrawing two
+&gt &gt regions consecutively, I could combine the two regions into one and
+&gt &gt draw them both at the same time.
+&gt &gt
+&gt &gt The problem that I've run into, is that I had (perhaps incorrectly)
+&gt &gt assumed that a call to capi:apply-in-pane-process would put the
+&gt &gt draw-object call into some sort of queue of actions to perform so that
+&gt &gt the following *could* have the desired behavior of not making
+&gt &gt consecutive calls to redraw-pane
+&gt &gt
+&gt &gt (progn
+&gt &gt  (post-redisplay p 10 50 10 10)
+&gt &gt  (post-redisplay p 100 100 10 10))
+&gt &gt
+&gt &gt It seems, however, that appy-in-pane-process when called from the same
+&gt &gt process that it will be applied into has the effect of executing
+&gt &gt immediately.  Is this the correct behaviour?  And if so, might you
+&gt &gt have any suggestions for achieving the desired results (without
+&gt &gt creating a new process to watch for the redraw-p slot to change)
+&gt
+&gt That's the intended effect.
+&gt
+&gt In InspireData, we used the following function to always ensure that
+&gt operations are queued:
+&gt
+&gt    ;;; Invokes FUNCTION on ARGS in the process of INTERFACE like
+&gt CAPI:EXECUTE-WITH-INTERFACE
+&gt    ;;; but always queues the execution request.  Consequently, if
+&gt this is called from code
+&gt    ;;; which is already running in INTERFACE's process, the execution
+&gt of FUNCTION will be
+&gt    ;;; deferred until the interface is idle.
+&gt
+&gt    (defun execute-with-interface-when-idle (interface function &amp;rest
+&gt args)
+&gt      (let ((process (capi-internals:interface-process interface)))
+&gt        (if process
+&gt          (mp:process-send process (list (invoke-with-tabletop-
+&gt toplevel-error-handlers ()
+&gt                                           (apply function args))))
+&gt          (apply function args))))
+&gt
+&gt    - Gary Palter
+&gt      Principal Software Engineer
+&gt      Clozure Associates
+&gt      Cell:  617-947-0536
+&gt
+&gt
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:44 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

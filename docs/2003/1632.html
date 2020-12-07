@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Shared Memory</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Shared Memory</h1>
+                <pre>I'm trying to get at data that's in a "C" type structure in shared memory.
+I can link to the shared memory, but I can't quite get at the structure -
+here's what I have so far:
+
+;;;;  TYPE DEFINITIONS
+(fli:define-c-typedef fli-long :long)
+(fli:define-c-typedef fli-dword :long)
+(fli:define-c-typedef fli-bool (:boolean :int))
+(fli:define-c-typedef fli-hwnd (:unsigned :long))
+(fli:define-c-typedef fli-handle (:unsigned :long))
+(fli:define-c-typedef fli-void (:pointer :void))
+
+;;;;  I'M NOT SURE ABOUT THIS
+;;;;  DEFINITION BUT IT SEEMS TO BE WORKING
+(fli:define-c-typedef fli-lpctstr :pointer)
+
+
+
+;;;;  THIS IS WHERE KERNAL32 IS ON MY COMPUTER
+(fli:register-module :kernal32-dll :real-name
+"C:\\WINDOWS\\system32\\Kernel32")
+
+
+;;;;  THIS IS THE "C" DEFINITION FOR "OpenFileMapping"
+;HANDLE OpenFileMapping(
+;  DWORD dwDesiredAccess,  // access mode
+;  BOOL bInheritHandle,    // inherit flag
+;  LPCTSTR lpName          // pointer to name of file-mapping object
+; )
+
+
+;;;;  THIS IS MY FLI VERSION OF "OpenFileMapping"
+;;;;  KERNAL32 EXTERNALIZES IT AS "OpenFileMappingW"
+(fli:define-foreign-function
+  (open-file-mapping "OpenFileMappingW")
+  ((dwDesiredAccess  fli-dword)
+   (bInheritHandle fli-bool)
+   (lpName fli-lpctstr))
+   :result-type fli-handle)
+
+
+;;;;  THIS FUNCTION USES "OpenFileMapping"
+;;;;  TO GET THE HANDLE TO SHARED MEMORY:SERVER1
+(defun get-mem-handle (msg-name)
+  (let ((mem-handle nil)
+        (external-format (if (string= (software-type) "Windows NT")
+     :unicode
+     :ascii)))
+       (fli:with-foreign-string (name-ptr element-count byte-count
+    :external-format external-format)
+  msg-name
+  (declare (ignore element-count byte-count))
+  (setf mem-handle (open-file-mapping 983071 nil name-ptr))
+                :module :kernal32-dll)
+       mem-handle))
+
+
+;;;;  "hFileMapping" IS THEN THE HANDLE TO SHARED MEMORY:SERVER1
+(setf hFileMapping (get-mem-handle "Server1"))
+
+
+
+;;;;  THIS IS THE "C" DEFINITION FOR "MapViewOfFile"
+;LPVOID MapViewOfFile(
+;  HANDLE hFileMappingObject,  // file-mapping object to map into address
+space
+;  DWORD dwDesiredAccess,      // access mode
+;  DWORD dwFileOffsetHigh,     // high-order 32 bits of file offset
+;  DWORD dwFileOffsetLow,      // low-order 32 bits of file offset
+;  DWORD dwNumberOfBytesToMap  // number of bytes to map
+; );
+
+
+;;;;  THIS IS MY FLI VERSION OF "MapViewOfFile"
+;;;;  KERNAL32 EXTERNALIZES IT AS "MapViewOfFile"
+(fli:define-foreign-function
+  (map-view-of-file "MapViewOfFile")
+  ((hFileMappingObject  fli-handle)
+   (dwDesiredAccess fli-dword)
+   (dwFileOffsetHigh fli-dword)
+   (dwFileOffsetLow fli-dword)
+   (dwNumberOfBytesToMap fli-dword))
+   :result-type fli-void)
+
+
+;;;;  THIS FUNCTION USES "MapViewOfFile" TO GET THE MAP's ADDRESS
+(defun get-map-address (mem-handle)
+  (map-view-of-file mem-handle 983071 0 0 0))
+
+
+
+;;;;  "pSharedMem" IS THEN THE ADDRESS OF THE SHARED MEMORY
+(setf pSharedMem (get-map-address hFileMapping))
+
+
+;;;;  AND SO FAR SO GOOD  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; THEN THIS IS THE "C" DATA STRUCTURE IN SHARED MEMORY THAT I'M AFTER
+;   struct msg
+;   { DWORD seqnum;  //sequential number of message (new message flag)
+;     DWORD timetag;  //time in millisec since computer start
+;  DWORD cmd1;  //generic single word command messages
+;  DWORD cmd2;
+;  DWORD cmd3;
+;  DWORD data1;  //generic single word data (e.g distances)
+;  DWORD data2;
+;  DWORD data3;
+;  char  str1[121]; //generic string commands or data.
+;  char  str2[121];
+;  char  str3[121];
+;   } msg1;
+
+;;;;  THE "C" USERS ARE THEN DOING THIS
+;;;;  memcpy(&amp;msg1, pSharedMem, sizeof(msg))   //copy from shared memory
+
+;;;;  BUT NOW I'M STUCK
+;;;;  ISN'T THERE A STRAIGHT FORWARD WAY TO DO THIS IN LISP?
+
+;;;;  FOR EXAMPLE, THIS SHOULD CREATE THE "MSG" STRUCTURE,
+;;;;  BUT THEN HOW DOES THIS GET LINKED TO SHARED MEMORY?
+(fli:define-c-struct msg
+  (seqnum fli-dword)
+  (timetag fli-dword)
+  (cmd1 fli-dword)
+  (cmd2 fli-dword)
+  (cmd3 fli-dword)
+  (data1 fli-dword)
+  (data2 fli-dword)
+  (data3 fli-dword)
+  (str1 :char) ;BTW, ":CHAR" MIGHT NOT BE THE RIGHT "TYPE"
+  (str2 :char) ;TO USE HERE SINCE THESE ARE STRINGS??
+  (str3 :char))
+
+
+;;;;  THIS SETS "my-msg" TO BE AN INSTANCE OF THE STRUCTURE
+;(setq my-msg (fli:allocate-foreign-object :type 'msg))
+
+
+;;;;  THIS THEN RETURNS THE VALUE OF THE "data1" SLOT
+;(fli:foreign-slot-value my-msg 'data1)
+
+Anyway, so that's where I am - any help or suggestions as to how I can get
+at the data structure will be greatly appreciated.  And thanks in advance.
+
+Bruce.
+
+
+
+</pre>
+               </article>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:54 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

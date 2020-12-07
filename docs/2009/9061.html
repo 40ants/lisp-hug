@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>compiler error involving #+ and an undefined reader macro, #_</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>compiler error involving #+ and an undefined reader macro, #_</h1>
+                <pre>
+Trying to compile the local-time library, available at
+common-lisp.net.  It has this function definition, which gets an error
+at the #_gettimeofday:
+
+  (defun %unix-gettimeofday ()
+    "Cross-implementation gettimeofday abstraction"
+    #+cmu
+    (unix:unix-gettimeofday)
+    #+sbcl
+    (sb-unix:unix-gettimeofday)
+    #+ccl
+    (ccl::rlet ((tv :timeval))
+      (#_gettimeofday tv (ccl::%null-ptr)) ;; &lt;=== ERROR on #_
+      (values t (ccl::pref tv :timeval.tv_sec) (ccl::pref tv :timeval.tv_usec)))
+    #-(or cmu sbcl ccl)
+    (values t (get-universal-time) 0))
+
+:ccl is not in *FEATURES*.
+
+I got around it by 
+
+  #-ccl
+  (set-dispatch-macro-character #\# #\_ (constantly nil))
+
+which seems to work.  (On the other hand, I'm not terribly familiar
+with reader macros, so this may've been, uh, sub-optimal.  :)
+
+My question is, why does LW try to process the reader macro at all,
+since it's protected (if that's the right word) by #+ccl?
+
+-- Larry
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: compiler error involving #+ and an undefined reader macro, #_</h1>
+                 <p>
+                  Unable to parse email body. Email id is 9068
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: compiler error involving #+ and an undefined reader macro, #_</h1>
+                 <pre>
+Larry Clapp &lt;larry@theclapp.org&gt writes:
+
+&gt I patched my LOCAL-TIME's ASDF file (and submitted it to their devel
+&gt mailing list):
+&gt
+&gt     #+lispworks
+&gt     (defmethod perform :around ((op compile-op) c)
+&gt       ;; Make %unix-gettimeofday compile under Lispworks, which doesn't ignore the
+&gt       ;; #_ reader macro in #_gettimeofday.
+&gt       (let ((*readtable* (copy-readtable)))
+&gt 	(set-dispatch-macro-character #\# #\_ (constantly nil))
+&gt 	(call-next-method)))
+
+On CCL, #_ presumably has an equivalent non-read syntax. I think the
+upstream package should just use that.
+
+  -T.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: compiler error involving #+ and an undefined reader macro, #_</h1>
+                 <pre>
+Larry Clapp &lt;larry@theclapp.org&gt writes:
+
+&gt I don't understand what you mean.  Do you want the LOCAL-TIME library
+&gt to copy CCL's #_ read macro for every other implementation?  That
+&gt would be both non-trivial and pointless.  (See
+&gt http://ccl.clozure.com/ccl-documentation.html#The-Interface-Database).
+
+No I mean instead of using the syntax it should use whatever the syntax
+expands to. E.g. instead of 'foo it should use (QUOTE FOO). From
+glancing at the documentation, (#_foo ...) is equivalent to
+(EXTERNAL-CALL "foo" ...)  or something similiar.
+
+  -T.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: compiler error involving #+ and an undefined reader macro, #_</h1>
+                 <pre>
+Tim Bradshaw &lt;tfb@cley.com&gt writes:
+
+&gt On 24 Mar 2009, at 17:55, Larry Clapp wrote:
+&gt
+&gt&gt Since (in LW) reader macros are called even in a #+/#-, the issue
+&gt&gt isn't what the macro does, it's that it's undefined, so LW signals a
+&gt&gt READER-ERROR.  If we define it (even if it does nothing, as in my
+&gt&gt patch), then everybody's happy.
+&gt
+&gt Well, everyone who doesn't already have a reader macro defined which
+&gt does something different.  Read macros are horribly global things.
+
+Actually they're not so horrible. Not more than packages that
+is.[*] 
+
+What makes them horrible is that readtables are too opaque.
+
+See http://common-lisp.net/~trittweiler/with-readtable-iterator.pdf for
+a start. (I've got to fundamentally revise it before publishing which I
+haven't done due to lack of time.)
+
+  -T.
+
+[*] COMPILE-FILE and LOAD are required to bind *READTABLE* just like
+    *PACKAGE*
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:37 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

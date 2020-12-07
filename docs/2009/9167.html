@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>CAPI - scrolling pane question</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>CAPI - scrolling pane question</h1>
+                <pre>I'm trying out CAPI on LWF 5.1 (openmotif 2.2.3).
+
+When removing elements from a column-layout contained within a scrolling
+pane, the siblings of the column expand in height and the bottom of the
+scrolled content becomes unreachable (can't see actual bottom of content
+with slug at bottom position).  Manually resizing the containing window
+fixes the issue.  If the scrolled content is inside a switchable-layout,
+switching between layouts also fixes the issue.
+
+Attached is a demo with a couple of possible workarounds.  What is the
+proper way to solve this issue?  Or am I just doing it wrong by 
+modifying column layouts in this manner?
+
+Thanks.
+
+
+Mike
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: CAPI - scrolling pane question</h1>
+                 <pre>
+It worked the way you described also on LW Professional OS X 5.1.2.
+
+If you want that the instruction box does not expand, perhaps you
+should put some minimum and maximum height constraints on instruction
+box? I typically use visible box constraints for limiting the real
+pane size, external box constraints just limit how much of the box is
+embedded in the parent pane so they not necessarily limit the actual
+pane size.
+
+:visible-min-height '(character 30)
+:visible-max-height t
+
+I tested your code and adding these to the instruction box seem to
+change the behavior.
+
+Some other comments from a CAPI beginner
+
+(1) Is setting parent of child to nil legal way to remove elements
+from layouts? I thought the official way is remove the child from the
+layout-description of the parent. I.e.
+
+(setf (capi:layout-description parent) (remove child
+(capi:layout-description parent)))
+
+(2) Modifying the layout-description has side-effects, so I have
+avoided using destructive operations such as appendf. Also, appendf
+seems to expand to setq, which may also behave differently for complex
+slot values than setf.
+
+Hope this helps,
+
+Mikko
+
+On Sat, Apr 25, 2009 at 12:30 AM, Mike Watters &lt;mike@mwatters.net&gt wrote:
+&gt I'm trying out CAPI on LWF 5.1 (openmotif 2.2.3).
+&gt
+&gt When removing elements from a column-layout contained within a scrolling
+&gt pane, the siblings of the column expand in height and the bottom of the
+&gt scrolled content becomes unreachable (can't see actual bottom of content
+&gt with slug at bottom position). &nbsp;Manually resizing the containing window
+&gt fixes the issue. &nbsp;If the scrolled content is inside a switchable-layout,
+&gt switching between layouts also fixes the issue.
+&gt
+&gt Attached is a demo with a couple of possible workarounds. &nbsp;What is the
+&gt proper way to solve this issue? &nbsp;Or am I just doing it wrong by modifying
+&gt column layouts in this manner?
+&gt
+&gt Thanks.
+&gt
+&gt
+&gt Mike
+&gt
+&gt
+&gt (in-package :cl-user)
+&gt
+&gt (eval-when (:compile-toplevel :load-toplevel :execute)
+&gt &nbsp;(use-package '(:lw :capi)))
+&gt
+&gt (defun column (&amp;rest things)
+&gt &nbsp;(make-instance 'column-layout :description things))
+&gt
+&gt (defun row (&amp;rest things)
+&gt &nbsp;(make-instance 'row-layout :description things))
+&gt
+&gt (defun colored-box (color)
+&gt &nbsp;(make-instance 'output-pane
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; :background color
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; :internal-min-height '(:character 10)))
+&gt
+&gt (defun button-doing (cb &amp;rest args)
+&gt &nbsp;(apply #'make-instance 'push-button
+&gt &nbsp; &nbsp; &nbsp; &nbsp; :callback-type :item
+&gt &nbsp; &nbsp; &nbsp; &nbsp; :selection-callback cb
+&gt &nbsp; &nbsp; &nbsp; &nbsp; args))
+&gt
+&gt (defun make-delete-button (how)
+&gt &nbsp;(button-doing (or how
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;#'(lambda (button)
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(setf (element-parent
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (element-parent button)) nil)))
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;:text "[DEL]"
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;:foreground :red))
+&gt
+&gt
+&gt (defun solution-1 (button)
+&gt &nbsp;(symbol-macrolet ((parent (element-parent
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (element-parent button))))
+&gt &nbsp; &nbsp;(let ((outer-parent (element-parent parent)))
+&gt &nbsp; &nbsp; &nbsp;(setf parent nil)
+&gt &nbsp; &nbsp; &nbsp;(capi::force-change-size
+&gt &nbsp; &nbsp; &nbsp; (element-parent outer-parent) outer-parent))))
+&gt
+&gt (defun solution-2 (button)
+&gt &nbsp;(let ((iface (top-level-interface button)))
+&gt &nbsp; &nbsp;(setf (element-parent
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (element-parent button)) nil)
+&gt &nbsp; &nbsp;(with-geometry iface
+&gt &nbsp; &nbsp; &nbsp;(let ((h %height%))
+&gt &nbsp; &nbsp; &nbsp; &nbsp;(set-top-level-interface-geometry
+&gt &nbsp; &nbsp; &nbsp; &nbsp; iface
+&gt &nbsp; &nbsp; &nbsp; &nbsp; :x %x% :y %y%
+&gt &nbsp; &nbsp; &nbsp; &nbsp; :width %width%
+&gt &nbsp; &nbsp; &nbsp; &nbsp; :height (1+ h))
+&gt &nbsp; &nbsp; &nbsp; &nbsp;(set-top-level-interface-geometry
+&gt &nbsp; &nbsp; &nbsp; &nbsp; iface
+&gt &nbsp; &nbsp; &nbsp; &nbsp; :x %x% :y %y%
+&gt &nbsp; &nbsp; &nbsp; &nbsp; :width %width%
+&gt &nbsp; &nbsp; &nbsp; &nbsp; :height h)))))
+&gt
+&gt
+&gt (defun make-add-button (text delete-fun)
+&gt &nbsp;(button-doing #'(lambda (button)
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(appendf
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (layout-description
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(element-parent button))
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; `(,(row (make-delete-button delete-fun)
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (colored-box :yellow)))))
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;:text text))
+&gt
+&gt (defun make-instructions-pane (bt)
+&gt &nbsp;(let ((p (make-instance 'collector-pane
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;:external-min-width '(:character 48)
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;:external-max-width '(:character 72))))
+&gt &nbsp; &nbsp;(format (collector-pane-stream p)
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;"Click ~S a few times &amp; scroll to the bottom, noting ~
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; visibility of blue box. &nbsp;Delete a couple, scroll ~
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; down, and note lack of blue box visibility."
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;bt)
+&gt &nbsp; &nbsp;p))
+&gt
+&gt (defun conundrum (&amp;optional solution)
+&gt &nbsp;(let ((bottom-column
+&gt &nbsp; &nbsp; &nbsp; &nbsp; (apply #'column "Thing 2"
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(mapcar #'colored-box '(:red :green :blue))))
+&gt &nbsp; &nbsp; &nbsp; &nbsp;(button (make-add-button "Add box" solution))
+&gt &nbsp; &nbsp; &nbsp; &nbsp;(ip (make-instructions-pane "Add box")))
+&gt &nbsp; &nbsp;(make-instance 'simple-layout
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; :title (if solution
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;"Solution?"
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;"Problem")
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; :child
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (column (column "Thing 1"
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ip
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; button)
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; bottom-column)
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; :vertical-scroll t)))
+&gt
+&gt (defun do-it ()
+&gt &nbsp;(list
+&gt &nbsp; (contain (conundrum))
+&gt &nbsp; (contain (conundrum #'solution-1))
+&gt &nbsp; (contain (conundrum #'solution-2))))
+&gt
+&gt
+&gt
+&gt
+&gt
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:37 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

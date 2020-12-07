@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>File-global compilation options</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>File-global compilation options</h1><div dir="ltr"><div><div><div><div><div><div><div>Hi,<br><br></div>I&#39;m trying to understand how to use proclaim and declaim to set the file-wide compilation options. However I can&#39;t see in LW compiler output what the options take place.<br><br></div>For example when I have in my file:<br>(defpackage py.path<br>  (:use :cl))<br><br>(in-package py.path)<br>(proclaim &#39;(optimize (safety 0) (speed 3)))<br><br></div>and try to compile the files using either Ctrl-c Ctrl-k or (compile-file &quot;path-to-file&quot;),<br></div>in the compiler output I see the same<br>;;; Compiling file C:\Sources\pypath\py-path.lisp ...<br>;;; Safety = 3, Speed = 1, Space = 1, Float = 1, Interruptible = 1<br>;;; Compilation speed = 1, Debug = 2, Fixnum safety = 3<br>;;; Source level debugging is on<br>;;; Source file recording is  on<br>;;; Cross referencing is on<br><br><br></div>Why my declarations do not reflected in this output? How can I understand what they are actually taking place?<br><br></div>Br,<br></div>/Alexey <br><div><div><div><div><div><br></div></div></div></div></div></div>
+
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: File-global compilation options</h1>
+                 <pre>
+Proclaim on the top level will  have a runtime effect. Use declaim which wraps a proclaim in an eval-when to get compilation time effects. 
+
+-- 
+__Pascal Bourguignon__
+
+&gt Le 6 juil. 2016 à 15:46, Alexey Veretennikov &lt;txm.fourier@gmail.com&gt a écrit :
+&gt 
+&gt Hi,
+&gt 
+&gt I'm trying to understand how to use proclaim and declaim to set the file-wide compilation options. However I can't see in LW compiler output what the options take place.
+&gt 
+&gt For example when I have in my file:
+&gt (defpackage py.path
+&gt   (:use :cl))
+&gt 
+&gt (in-package py.path)
+&gt (proclaim '(optimize (safety 0) (speed 3)))
+&gt 
+&gt and try to compile the files using either Ctrl-c Ctrl-k or (compile-file "path-to-file"),
+&gt in the compiler output I see the same
+&gt ;;; Compiling file C:\Sources\pypath\py-path.lisp ...
+&gt ;;; Safety = 3, Speed = 1, Space = 1, Float = 1, Interruptible = 1
+&gt ;;; Compilation speed = 1, Debug = 2, Fixnum safety = 3
+&gt ;;; Source level debugging is on
+&gt ;;; Source file recording is  on
+&gt ;;; Cross referencing is on
+&gt 
+&gt 
+&gt Why my declarations do not reflected in this output? How can I understand what they are actually taking place?
+&gt 
+&gt Br,
+&gt /Alexey 
+&gt 
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: File-global compilation options</h1>
+                 <pre>
+Hi Alexey,
+
+I asked a similar question to LW support, and here is the answer I got from Martin Simmons :
+
+&gt If you want to change the settings for a specific function, then use declare:
+&gt 
+&gt (defun testfunction ()
+&gt   (declare (optimize (speed 3) (safety 0) (debug 0)))
+&gt   (let* ((n 10000)
+&gt          (a (make-array n)))
+&gt   (dotimes (i n)
+&gt     (setf (aref a i) i))))
+&gt 
+&gt If you want to change the setting for a whole file, then use declaim:
+&gt 
+&gt (declaim (optimize (speed 3) (safety 0) (debug 0)))
+&gt 
+&gt (defun testfunction ()
+&gt   (let* ((n 10000)
+&gt          (a (make-array n)))
+&gt   (dotimes (i n)
+&gt     (setf (aref a i) i))))
+&gt 
+&gt (defun testfunction2 () ...)
+&gt 
+&gt Note that LispWorks will still display Safety = 3 etc in both cases, because
+&gt that is the initial setting at the start of the file.
+&gt 
+&gt You can change the initial setting by calling proclaim (or declaim) before
+&gt compiling the file, but that is not recommended, except within a build script
+&gt used in batch mode, because it will affect all compilation.
+
+It looks like it’s what you are looking for.
+
+Best,
+
+Dimitri
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: File-global compilation options</h1><div dir="ltr">Hi,<div class="gmail_extra"><br><div class="gmail_quote">2016-07-06 16:46 GMT+03:00 Alexey Veretennikov <span dir="ltr">&lt;<a href="mailto:txm.fourier@gmail.com" target="_blank">txm.fourier@gmail.com</a>&gt;</span>:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div dir="ltr"><div><div><div><div><div><div><div>Hi,<br><br></div>I&#39;m trying to understand how to use proclaim and declaim to set the file-wide compilation options. However I can&#39;t see in LW compiler output what the options take place.<br><br></div>For example when I have in my file:<br>(defpackage py.path<br>  (:use :cl))<br><br>(in-package py.path)<br>(proclaim &#39;(optimize (safety 0) (speed 3)))<br><br></div>and try to compile the files using either Ctrl-c Ctrl-k or (compile-file &quot;path-to-file&quot;),<br></div>in the compiler output I see the same<br>;;; Compiling file C:\Sources\pypath\py-path.lisp ...<br>;;; Safety = 3, Speed = 1, Space = 1, Float = 1, Interruptible = 1<br>;;; Compilation speed = 1, Debug = 2, Fixnum safety = 3<br>;;; Source level debugging is on<br>;;; Source file recording is  on<br>;;; Cross referencing is on<br><br><br></div>Why my declarations do not reflected in this output?</div></div></div></blockquote><div>Probably because the output shows the global compilation settings, rather than proclaimed by you.</div><div><br></div><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div dir="ltr"><div><div> How can I understand what they are actually taking place?<br></div></div></div></blockquote><div>Probably, by disasembling?</div></div></div></div>
+
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: File-global compilation options</h1>
+                 <pre>
+Thanks! Now I understand it.
+
+
+Dimitri Bouche &lt;Dimitri.Bouche@ircam.fr&gt writes:
+
+&gt Hi Alexey,
+&gt
+&gt I asked a similar question to LW support, and here is the answer I got from
+&gt Martin Simmons :
+&gt
+&gt&gt If you want to change the settings for a specific function, then use declare:
+&gt&gt 
+&gt&gt (defun testfunction ()
+&gt&gt   (declare (optimize (speed 3) (safety 0) (debug 0)))
+&gt&gt   (let* ((n 10000)
+&gt&gt          (a (make-array n)))
+&gt&gt   (dotimes (i n)
+&gt&gt     (setf (aref a i) i))))
+&gt&gt 
+&gt&gt If you want to change the setting for a whole file, then use declaim:
+&gt&gt 
+&gt&gt (declaim (optimize (speed 3) (safety 0) (debug 0)))
+&gt&gt 
+&gt&gt (defun testfunction ()
+&gt&gt   (let* ((n 10000)
+&gt&gt          (a (make-array n)))
+&gt&gt   (dotimes (i n)
+&gt&gt     (setf (aref a i) i))))
+&gt&gt 
+&gt&gt (defun testfunction2 () ...)
+&gt&gt 
+&gt&gt Note that LispWorks will still display Safety = 3 etc in both cases, because
+&gt&gt that is the initial setting at the start of the file.
+&gt&gt 
+&gt&gt You can change the initial setting by calling proclaim (or declaim) before
+&gt&gt compiling the file, but that is not recommended, except within a build script
+&gt&gt used in batch mode, because it will affect all compilation.
+&gt
+&gt It looks like it’s what you are looking for.
+&gt
+&gt Best,
+&gt
+&gt Dimitri
+
+-- 
+Br,
+/Alexey
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:27 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Drawing in the background and multiple threads</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Drawing in the background and multiple threads</h1>
+                <pre>
+I'm of course aware that CAPI operations should always use
+apply-in-pane-process or execute-with-interface in order to make sure
+that things happen in the right thread.  However, the user guide only
+says that "all operations on DISPLAYED CAPI elements need to be in the
+thread that runs their interface."  (Emphasis mine.)
+
+Am I right to assume that if I'm for example drawing to an output pane
+which is NOT displayed and only used as a background buffer that I can
+draw to it from whichever thread I like, presumably from several
+threads at the same time?  Does anybody have experience with such an
+approach?
+
+Thanks,
+Edi.
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Drawing in the background and multiple threads</h1>
+                 <pre>
+Hi Edi, et al,
+
+That is what I do in our GigaDSP that you have seen demoed in Hamburg. I use backing stores and manage that myself. CAPI is completely unaware that I'm doing such things. I do use GP (Graphic Ports) during these operations.
+
+- DM
+
+On Jan 24, 2013, at 00:26 AM, Edi Weitz &lt;edi@weitz.de&gt wrote:
+
+&gt 
+&gt I'm of course aware that CAPI operations should always use
+&gt apply-in-pane-process or execute-with-interface in order to make sure
+&gt that things happen in the right thread.  However, the user guide only
+&gt says that "all operations on DISPLAYED CAPI elements need to be in the
+&gt thread that runs their interface."  (Emphasis mine.)
+&gt 
+&gt Am I right to assume that if I'm for example drawing to an output pane
+&gt which is NOT displayed and only used as a background buffer that I can
+&gt draw to it from whichever thread I like, presumably from several
+&gt threads at the same time?  Does anybody have experience with such an
+&gt approach?
+&gt 
+&gt Thanks,
+&gt Edi.
+&gt 
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+&gt 
+&gt 
+
+Dr. David McClain
+CTO &amp; Co-Founder
+Acudora (TM)
+e-mail: david@acudora.com
+Tel: (+1) 520-529-2437
+
+
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Drawing in the background and multiple threads</h1>
+                 <pre>
+Hi Edi,
+
+
+On 24 janv. 2013, at 08:26, Edi Weitz &lt;edi@weitz.de&gt wrote:
+
+&gt Am I right to assume that if I'm for example drawing to an output pane
+&gt which is NOT displayed and only used as a background buffer that I can
+&gt draw to it from whichever thread I like, presumably from several
+&gt threads at the same time?
+
+Just my 2 cents…  I have never done such thing, but I am wondering if it wouldn't be needed to at least serialize access to the graphics-state, unless there is one graphics-state for each thread.
+
+
+Best,
+Cam
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Drawing in the background and multiple threads</h1>
+                 <pre>
+David, Camille,
+
+Thanks to you both.  I wasn't planning to manipulate the Graphics
+State, so that won't be a problem.  Otherwise, it's good to hear that
+you're also doing this and that it works.
+
+Cheers,
+Edi.
+
+
+On Thu, Jan 24, 2013 at 7:25 PM, David McClain &lt;david@acudora.com&gt wrote:
+&gt
+&gt ... so Yes, I believe Camille is correct. You need to exercise prudent multi-thread access if the state becomes shared across multiple threads.
+&gt
+&gt - DM
+&gt
+&gt On Jan 24, 2013, at 11:18 AM, David McClain &lt;david@acudora.com&gt wrote:
+&gt
+&gt&gt
+&gt&gt My understanding has been that the Graphics State belongs to individual Graphics Ports, not threads.
+&gt&gt
+&gt&gt - DM
+&gt&gt
+&gt&gt On Jan 24, 2013, at 11:03 AM, Camille Troillard &lt;camille@osculator.net&gt wrote:
+&gt&gt
+&gt&gt&gt
+&gt&gt&gt Hi Edi,
+&gt&gt&gt
+&gt&gt&gt
+&gt&gt&gt On 24 janv. 2013, at 08:26, Edi Weitz &lt;edi@weitz.de&gt wrote:
+&gt&gt&gt
+&gt&gt&gt&gt Am I right to assume that if I'm for example drawing to an output pane
+&gt&gt&gt&gt which is NOT displayed and only used as a background buffer that I can
+&gt&gt&gt&gt draw to it from whichever thread I like, presumably from several
+&gt&gt&gt&gt threads at the same time?
+&gt&gt&gt
+&gt&gt&gt Just my 2 cents…  I have never done such thing, but I am wondering if it wouldn't be needed to at least serialize access to the graphics-state, unless there is one graphics-state for each thread.
+&gt&gt&gt
+&gt&gt&gt
+&gt&gt&gt Best,
+&gt&gt&gt Cam
+&gt&gt&gt
+&gt&gt&gt
+&gt&gt&gt _______________________________________________
+&gt&gt&gt Lisp Hug - the mailing list for LispWorks users
+&gt&gt&gt lisp-hug@lispworks.com
+&gt&gt&gt http://www.lispworks.com/support/lisp-hug.html
+&gt&gt&gt
+&gt&gt&gt
+&gt&gt
+&gt&gt Dr. David McClain
+&gt&gt CTO &amp; Co-Founder
+&gt&gt Acudora (TM)
+&gt&gt e-mail: david@acudora.com
+&gt&gt Tel: (+1) 520-529-2437
+&gt&gt
+&gt&gt
+&gt&gt
+&gt&gt
+&gt&gt _______________________________________________
+&gt&gt Lisp Hug - the mailing list for LispWorks users
+&gt&gt lisp-hug@lispworks.com
+&gt&gt http://www.lispworks.com/support/lisp-hug.html
+&gt&gt
+&gt&gt
+&gt
+&gt Dr. David McClain
+&gt CTO &amp; Co-Founder
+&gt Acudora (TM)
+&gt e-mail: david@acudora.com
+&gt Tel: (+1) 520-529-2437
+&gt
+&gt
+&gt
+&gt
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+&gt
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Drawing in the background and multiple threads</h1>
+                 <pre>
+If my program does nothing but drawing lines, all in the same color,
+it doesn't manipulate the Graphics State, or does it?  It has to draw
+a lot of small line segments, but nothing else - no transformations,
+no colors, etc.
+
+On Thu, Jan 24, 2013 at 8:26 PM, David McClain &lt;david@acudora.com&gt wrote:
+&gt Hi Edi,
+&gt
+&gt I don't know how you could hope to draw anything without manipulating the Graphics State of a Port? Such things as foreground and background colors, line stipple, coordinate transformations, etc -- all reflected in the Graphics State.
+&gt
+&gt - DM
+&gt
+&gt On Jan 24, 2013, at 12:19 PM, Edi Weitz &lt;edi@agharta.de&gt wrote:
+&gt
+&gt&gt David, Camille,
+&gt&gt
+&gt&gt Thanks to you both.  I wasn't planning to manipulate the Graphics
+&gt&gt State, so that won't be a problem.  Otherwise, it's good to hear that
+&gt&gt you're also doing this and that it works.
+&gt&gt
+&gt&gt Cheers,
+&gt&gt Edi.
+&gt&gt
+&gt&gt
+&gt&gt On Thu, Jan 24, 2013 at 7:25 PM, David McClain &lt;david@acudora.com&gt wrote:
+&gt&gt&gt
+&gt&gt&gt ... so Yes, I believe Camille is correct. You need to exercise prudent multi-thread access if the state becomes shared across multiple threads.
+&gt&gt&gt
+&gt&gt&gt - DM
+&gt&gt&gt
+&gt&gt&gt On Jan 24, 2013, at 11:18 AM, David McClain &lt;david@acudora.com&gt wrote:
+&gt&gt&gt
+&gt&gt&gt&gt
+&gt&gt&gt&gt My understanding has been that the Graphics State belongs to individual Graphics Ports, not threads.
+&gt&gt&gt&gt
+&gt&gt&gt&gt - DM
+&gt&gt&gt&gt
+&gt&gt&gt&gt On Jan 24, 2013, at 11:03 AM, Camille Troillard &lt;camille@osculator.net&gt wrote:
+&gt&gt&gt&gt
+&gt&gt&gt&gt&gt
+&gt&gt&gt&gt&gt Hi Edi,
+&gt&gt&gt&gt&gt
+&gt&gt&gt&gt&gt
+&gt&gt&gt&gt&gt On 24 janv. 2013, at 08:26, Edi Weitz &lt;edi@weitz.de&gt wrote:
+&gt&gt&gt&gt&gt
+&gt&gt&gt&gt&gt&gt Am I right to assume that if I'm for example drawing to an output pane
+&gt&gt&gt&gt&gt&gt which is NOT displayed and only used as a background buffer that I can
+&gt&gt&gt&gt&gt&gt draw to it from whichever thread I like, presumably from several
+&gt&gt&gt&gt&gt&gt threads at the same time?
+&gt&gt&gt&gt&gt
+&gt&gt&gt&gt&gt Just my 2 cents…  I have never done such thing, but I am wondering if it wouldn't be needed to at least serialize access to the graphics-state, unless there is one graphics-state for each thread.
+&gt&gt&gt&gt&gt
+&gt&gt&gt&gt&gt
+&gt&gt&gt&gt&gt Best,
+&gt&gt&gt&gt&gt Cam
+&gt&gt&gt&gt&gt
+&gt&gt&gt&gt&gt
+&gt&gt&gt&gt&gt _______________________________________________
+&gt&gt&gt&gt&gt Lisp Hug - the mailing list for LispWorks users
+&gt&gt&gt&gt&gt lisp-hug@lispworks.com
+&gt&gt&gt&gt&gt http://www.lispworks.com/support/lisp-hug.html
+&gt&gt&gt&gt&gt
+&gt&gt&gt&gt&gt
+&gt&gt&gt&gt
+&gt&gt&gt&gt Dr. David McClain
+&gt&gt&gt&gt CTO &amp; Co-Founder
+&gt&gt&gt&gt Acudora (TM)
+&gt&gt&gt&gt e-mail: david@acudora.com
+&gt&gt&gt&gt Tel: (+1) 520-529-2437
+&gt&gt&gt&gt
+&gt&gt&gt&gt
+&gt&gt&gt&gt
+&gt&gt&gt&gt
+&gt&gt&gt&gt _______________________________________________
+&gt&gt&gt&gt Lisp Hug - the mailing list for LispWorks users
+&gt&gt&gt&gt lisp-hug@lispworks.com
+&gt&gt&gt&gt http://www.lispworks.com/support/lisp-hug.html
+&gt&gt&gt&gt
+&gt&gt&gt&gt
+&gt&gt&gt
+&gt&gt&gt Dr. David McClain
+&gt&gt&gt CTO &amp; Co-Founder
+&gt&gt&gt Acudora (TM)
+&gt&gt&gt e-mail: david@acudora.com
+&gt&gt&gt Tel: (+1) 520-529-2437
+&gt&gt&gt
+&gt&gt&gt
+&gt&gt&gt
+&gt&gt&gt
+&gt&gt&gt _______________________________________________
+&gt&gt&gt Lisp Hug - the mailing list for LispWorks users
+&gt&gt&gt lisp-hug@lispworks.com
+&gt&gt&gt http://www.lispworks.com/support/lisp-hug.html
+&gt&gt&gt
+&gt
+&gt Dr. David McClain
+&gt CTO &amp; Co-Founder
+&gt Acudora (TM)
+&gt e-mail: david@acudora.com
+&gt Tel: (+1) 520-529-2437
+&gt
+&gt
+&gt
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Drawing in the background and multiple threads</h1>
+                 <pre>
+It really IS some kind of "turtle graphics" that I'm working on.
+Another one of those demos for the students... :)
+
+
+On Thu, Jan 24, 2013 at 10:50 PM, David McClain &lt;david@acudora.com&gt wrote:
+&gt
+&gt Your description of what you want to do reminds me of the concurrent "Turtles" in early Smalltalk all drawing paths at the same time...
+&gt
+&gt - DM
+&gt
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+&gt
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:32 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

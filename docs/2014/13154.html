@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>objective-c question</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>objective-c question</h1>
+                <pre>
+Hello list,
+
+is it safe to call an objective-c method defined in lisp from an external objective-c frameworks ?
+
+I did that without problem in the past, but now I experiment some trouble with a more complex situation :
+
+A delegate method is defined in objective-c that is called by a notification of the system. This delegate does a certain job and then calls another method on another class, the two defined in lisp (using performSelector to avoid compilation warning). Finally, the lisp-objc method calls the objective-c frameworks again to finish the job using some data processed in lisp. All of these codes run in the main thread. 
+
+During the lisp part of the process, I got some very strange errors, like structure writers that are suddenly declared undefined… Because of the common objective-c runtime, I thought that I can go from objective-c codes to lisp codes and vice-versa without any problem, but maybe I forget an important thing… 
+
+Thanks for any help
+
+Denis
+
+------------------------------------------------
+Denis Pousseur
+70 rue de Wansijn
+1180 Bruxelles
++ 32 2 219 31 09
+http://www.denispousseur.com
+------------------------------------------------
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: objective-c question</h1>
+                 <pre>
+Denis Pousseur &lt;denis.pousseur@gmail.com&gt writes:
+
+&gt Hello list,
+&gt
+&gt is it safe to call an objective-c method defined in lisp from an
+&gt external objective-c frameworks ?
+
+It depends.
+
+
+&gt I did that without problem in the past, but now I experiment some
+&gt trouble with a more complex situation :
+&gt
+&gt A delegate method is defined in objective-c that is called by a
+&gt notification of the system. This delegate does a certain job and then
+&gt calls another method on another class, the two defined in lisp (using
+&gt performSelector to avoid compilation warning). Finally, the lisp-objc
+&gt method calls the objective-c frameworks again to finish the job using
+&gt some data processed in lisp. All of these codes run in the main
+&gt thread.
+
+If all is done from the Objective-C main thread, it should be ok (from
+the point of view of Objective-C).
+
+&gt During the lisp part of the process, I got some very strange errors,
+&gt like structure writers that are suddenly declared undefined… Because
+&gt of the common objective-c runtime, I thought that I can go from
+&gt objective-c codes to lisp codes and vice-versa without any problem,
+&gt but maybe I forget an important thing…
+
+There could be problems from the point of view of Lisp, with respect to
+the garbage collector, or with interactions between the  lisp condition
+system and the Objective-C exception system.  If the implementation
+doesn't handle it, then your functions and methods should (use try/catch
+and handler-case in all those embedded functions)
+
+-- 
+__Pascal Bourguignon__                 http://www.informatimago.com/
+“The factory of the future will have only two employees, a man and a
+dog. The man will be there to feed the dog. The dog will be there to
+keep the man from touching the equipment.” -- Carl Bass CEO Autodesk
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: objective-c question</h1>
+                 <pre>
+&gt&gt&gt&gt&gt On Sat, 9 Aug 2014 11:49:16 +0200, Denis Pousseur said:
+&gt 
+&gt Hello list,
+&gt 
+&gt is it safe to call an objective-c method defined in lisp from an external
+&gt objective-c frameworks ?
+&gt 
+&gt I did that without problem in the past, but now I experiment some trouble
+&gt with a more complex situation :
+&gt 
+&gt A delegate method is defined in objective-c that is called by a notification
+&gt of the system. This delegate does a certain job and then calls another
+&gt method on another class, the two defined in lisp (using performSelector to
+&gt avoid compilation warning). Finally, the lisp-objc method calls the
+&gt objective-c frameworks again to finish the job using some data processed in
+&gt lisp. All of these codes run in the main thread.
+
+Yes, this should all work.
+
+
+&gt During the lisp part of the process, I got some very strange errors, like
+&gt structure writers that are suddenly declared undefined… Because of the
+&gt common objective-c runtime, I thought that I can go from objective-c codes
+&gt to lisp codes and vice-versa without any problem, but maybe I forget an
+&gt important thing…
+
+Possibly you are compiling calls to the structure writers before defining the
+defstruct?  That would fail with an error like "Undefined function (SETF
+FOO-BAR)" because defstruct defines the writers using defsetf rather than as
+setf functions.
+
+-- 
+Martin Simmons
+LispWorks Ltd
+http://www.lispworks.com/
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:29 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

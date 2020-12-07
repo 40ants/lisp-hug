@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Command Line Arguments in Delivered Applications</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Command Line Arguments in Delivered Applications</h1>
+                <pre>Hello,
+
+I'm trying to build a command line program with lispworks that takes
+arguments.  I am attempting to get them from
+system:*line-argument-list*, but in the delivered application they are
+the values given at delivery rather than when I run the program:
+
+(defparameter *command-line-arguments*
+  system:*line-arguments-list*)
+
+(defun main ()
+  (dolist (sound-file (cdr *command-line-arguments*))
+    (format *error-output* "Playing: ~S~%" sound-file)
+    (capi:play-sound
+     (capi:load-sound
+      sound-file))))
+
+using this as the delivery file:
+
+(in-package "CL-USER")
+(load-all-patches)
+(load "~/lispworks/play-sound.lisp")
+(deliver #'main
+	"play-sound"
+         0
+         :interface :capi
+         :startup-bitmap-file nil)
+
+Built using "-build play-sound.deliver".
+
+When I run the program, I get:
+
+:~/lispworks# ./play-sound ~/audio/Utility\ Sub.wav
+Playing: "-build"
+Playing: "play-sound.deliver"
+
+How does one get the correct command line arguments from a delivered
+application?
+
+--
+Burton Samograd
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Command Line Arguments in Delivered Applications</h1>
+                 <pre>You're setting up *command-line-arguments* with the value of system:*line-arguments-list* at delivery time, and then you use that value when you run your application.
+
+You need to either use system:*line-arguments-list* directly in #'main, or give *command-line-arguments* its value in #'main.
+
+&gt On 4 Feb 2017, at 04:16 , Burton Samograd &lt;busfactor1@gmail.com&gt wrote:
+&gt 
+&gt Hello,
+&gt 
+&gt I'm trying to build a command line program with lispworks that takes
+&gt arguments.  I am attempting to get them from
+&gt system:*line-argument-list*, but in the delivered application they are
+&gt the values given at delivery rather than when I run the program:
+&gt 
+&gt (defparameter *command-line-arguments*
+&gt  system:*line-arguments-list*)
+&gt 
+&gt (defun main ()
+&gt  (dolist (sound-file (cdr *command-line-arguments*))
+&gt    (format *error-output* "Playing: ~S~%" sound-file)
+&gt    (capi:play-sound
+&gt     (capi:load-sound
+&gt      sound-file))))
+&gt 
+&gt using this as the delivery file:
+&gt 
+&gt (in-package "CL-USER")
+&gt (load-all-patches)
+&gt (load "~/lispworks/play-sound.lisp")
+&gt (deliver #'main
+&gt 	"play-sound"
+&gt         0
+&gt         :interface :capi
+&gt         :startup-bitmap-file nil)
+&gt 
+&gt Built using "-build play-sound.deliver".
+&gt 
+&gt When I run the program, I get:
+&gt 
+&gt :~/lispworks# ./play-sound ~/audio/Utility\ Sub.wav
+&gt Playing: "-build"
+&gt Playing: "play-sound.deliver"
+&gt 
+&gt How does one get the correct command line arguments from a delivered
+&gt application?
+&gt 
+&gt --
+&gt Burton Samograd
+&gt 
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:27 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

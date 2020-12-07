@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Code Walkers?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Code Walkers?</h1><html><head><meta http-equiv="Content-Type" content="text/html charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">I just finished studying a post by Christophe Rhodes &nbsp;<a href="http://christophe.rhodes.io/notes/blog/posts/2014/naive_vs_proper_code-walking/" class="">naive vs proper code-walking</a>&nbsp;, in which he rightly points out some weaknesses inherent in the quick and dirty code scanner used by Doug Hoyte’s LOL macro system. And I gather that Christophe is the current maintainer of SBCL.<div class=""><br class=""></div><div class="">So I looked in hidden places, and indeed I found a WALKER:WALK-FORM and WALKER:VARIABLE-LEXICAL-P. These appear to work identically with those in SBCL. I also examined the recommended alternates for portable code walking mentioned in his article.&nbsp;</div><div class=""><br class=""></div><div class="">WALK-FORM usefully calls a function on every subform that will be evaluated or macro expanded when the parent form is evaluated. That function receives a subform, a context, and an environment which can be introspected with VARIABLE-LEXICAL-P and a very few other functions.</div><div class=""><br class=""></div><div class="">One does have to bear in mind that we are higher order than LISP-1, and so you have to be careful when looking at forms like ‘(XXX) — arg lists anyone?. Those won’t get opened for examination because, I presume, it appears to have its sole symbol in function position, and would not be evaluated or macroexpanded. Only forms that would be evaluated or macroexpanded get walked. So you have to reform the query as `(LIST ,XXX) in order to scan XXX.</div><div class=""><br class=""></div><div class="">It strikes me that the macro system offered in CL is deficient for not also offering these code walkers. You could try to build a parallel tower on your own, and you’d likely miss a few corner cases during development. But who is the greater authority in any CL system than the code walker actually used by the compiler in that system?</div><div class=""><br class=""></div><div class="">I understand that code walking is likely not publicly offered because it exceeds the charter of CLTL2 and environments were considered implementation dependent. But then so is CAPI. And I’d venture to state that we are more likely to suffer changes to the public API of CAPI than we are to that of the WALKER package.</div><div class=""><br class=""></div><div class="">I welcome any thoughts from others.</div><div class=""><br class=""></div><div class=""><br class=""></div><div class="">- Cheers,</div><div class=""><br class=""></div><div class="">David McClain</div><div class="">Refined Audiometrics Laboratory, LLC<br class=""><div class=""><br class=""></div></div></body></html>
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Code Walkers?</h1>
+                 <pre>
+David McClain &lt;dbm@refined-audiometrics.com&gt writes:
+
+&gt It strikes me that the macro system offered in CL is deficient for
+&gt not also offering these code walkers. You could try to build a
+&gt parallel tower on your own, and you’d likely miss a few corner cases
+&gt during development. But who is the greater authority in any CL system
+&gt than the code walker actually used by the compiler in that system?
+
+But defining a generic code walker is not so easy.  
+
+To give an analogy, if you try to define a generic tree walking, you
+will have to provide a lot of hooks, to be able to cover all the cases,
+infix, suffix, prefix, and others.  In a code walker, this is compounded
+by the number of special operators.
+
+
+&gt I understand that code walking is likely not publicly offered because
+&gt it exceeds the charter of CLTL2 and environments were considered
+&gt implementation dependent. But then so is CAPI. And I’d venture to
+&gt state that we are more likely to suffer changes to the public API of
+&gt CAPI than we are to that of the WALKER package.
+
+AFAIK, there are only two things that prevent to write portable code
+walkers:
+
+- when implementations define (and use) implementation specific special
+  operators without providing an "equivalent" macro.  
+
+- when implementation define extensions to standard special operators.
+  This is a big no-no.  For example, one implementation allows
+  CL:FUNCTION to take addionnal parameters, and of course, has some
+  standard macros expand to such forms.
+
+
+AFAIK, as long as implementations don't do that and provide "equivalent"
+macros for all their non-standard special operators, a conforming
+generic code walker can be run on them.
+
+
+Now, one may have some more requirement than myself for a code walker,
+namely, since we are walking code that could be run in the current
+implementation, (and that is expanded assumedly from macros of the
+current implementation), one may want to have accesses to the
+environments of the current implementation while walking code.
+
+This indeed may be a difficulty, but it's related to defining a portable
+environment API, not to code walkers per-se.  I'd be perfectly happy
+with a code walker that would provide its own environment
+representations.
+
+
+You may also want to have a look at the work of Robert Strandh on SICP,
+involving first-class environments.  
+
+-- 
+__Pascal Bourguignon__                 http://www.informatimago.com/
+“The factory of the future will have only two employees, a man and a
+dog. The man will be there to feed the dog. The dog will be there to
+keep the man from touching the equipment.” -- Carl Bass CEO Autodesk
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:29 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

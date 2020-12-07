@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Thread-safe slot accessors in CLOS</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Thread-safe slot accessors in CLOS</h1>
+                <pre>
+I've found myself doing the following periodically:
+
+(defclass foo ()
+   ((bar :initarg :bar :initform nil :reader foo-bar)))
+
+(defmethod (setf foo-bar) (new-value (foo foo))
+   (sys:atomic-exchange (slot-value foo 'bar) new-value))
+
+I do this because bar is being used in another thread (obviously), and I 
+want it to be safely setf-able. I'm just wondering if there's a nice 
+LW-y way to do this from within the class definition? For example:
+
+(defclass foo ()
+   ((bar :initarg :bar :initform nil :accessor foo-bar :safety :atomic)))
+
+Has an option like this ever been considered for LW? Or perhaps making 
+an option so the :writer is automatically wrapped in some manner?
+
+Jeff M.
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Thread-safe slot accessors in CLOS</h1><html><head><meta http-equiv="Content-Type" content="text/html charset=iso-8859-1"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;"><span style="font-family: ArialMT;">Interesting question... I have always worked on the assumption that simple slot and location references were essentially atomic. When it involves the coordination of several items that need to be kept in sync then locking would be necessary. But isn't a CLOS slot essentially already atomic?</span><br style="font-family: ArialMT;"><br style="font-family: ArialMT;"><span style="font-family: ArialMT;">- DM</span><div><font face="ArialMT"><br></font></div><div><font face="ArialMT"><br></font><div><div>On May 12, 2014, at 07:59 AM, Jeffrey Massung &lt;<a href="mailto:massung@gmail.com">massung@gmail.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><blockquote type="cite"><br>I've found myself doing the following periodically:<br><br>(defclass foo ()<br> &nbsp;((bar :initarg :bar :initform nil :reader foo-bar)))<br><br>(defmethod (setf foo-bar) (new-value (foo foo))<br> &nbsp;(sys:atomic-exchange (slot-value foo 'bar) new-value))<br><br>I do this because bar is being used in another thread (obviously), and I want it to be safely setf-able. I'm just wondering if there's a nice LW-y way to do this from within the class definition? For example:<br><br>(defclass foo ()<br> &nbsp;((bar :initarg :bar :initform nil :accessor foo-bar :safety :atomic)))<br><br>Has an option like this ever been considered for LW? Or perhaps making an option so the :writer is automatically wrapped in some manner?<br><br>Jeff M.<br><br>_______________________________________________<br>Lisp Hug - the mailing list for LispWorks users<br><a href="mailto:lisp-hug@lispworks.com">lisp-hug@lispworks.com</a><br>http://www.lispworks.com/support/lisp-hug.html<br><br><br></blockquote></div><br><div apple-content-edited="true">
+<span class="Apple-style-span" style="border-collapse: separate; font-family: Helvetica; border-spacing: 0px;"><div>Dr. David McClain</div><div><a href="mailto:dbm@refined-audiometrics.com">dbm@refined-audiometrics.com</a></div><div><br></div></span><br class="Apple-interchange-newline">
+
+</div>
+<br></div></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Thread-safe slot accessors in CLOS</h1>
+                 <pre>
+
+On 12 May 2014, at 15:59, Jeffrey Massung &lt;massung@gmail.com&gt wrote:
+&gt 
+&gt I do this because bar is being used in another thread (obviously), and I want it to be safely setf-able. I'm just wondering if there's a nice LW-y way to do this from within the class definition? For example:
+&gt 
+&gt (defclass foo ()
+&gt  ((bar :initarg :bar :initform nil :accessor foo-bar :safety :atomic)))
+&gt 
+&gt Has an option like this ever been considered for LW? Or perhaps making an option so the :writer is automatically wrapped in some manner?
+
+I think David McClain's point might answer this.  But if it doesn't and if you were really feeling your oats, I think you could implement something like this using the CLOS MOP: you'd need a metaclass, and then to have the reader/writer methods be some subclass of the standard one, and to check for slot options at class definition time.  I haven't tried doing this, but it looks possible.
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Thread-safe slot accessors in CLOS</h1>
+                 <p>
+                  Unable to parse email body. Email id is 13036
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:30 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

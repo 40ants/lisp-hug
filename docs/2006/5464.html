@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Using capi:tab-layout in a dialog</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Using capi:tab-layout in a dialog</h1>I'm trying to figure out the correct way to display a capi:tab-layout within a dialog box, but my lack of understanding of how to properly work with layouts is resulting in a mess.&nbsp; Here's what I intended:&nbsp; create a dialog box of fixed dimensions that contains several controls spread across 3 tabs.&nbsp; The tabs would &quot;fill&quot; the available space in the dialog so that they would have a constant size.
+<br><br>Sounds simple enough, but when I navigate from one tab to the next, the minimize/maximize buttons turn off/on, and/or the dialog box re-sizes.&nbsp; I attempted to force each tab to be the same size using a combination of :visible-min-height and :visible-min-width, but like I said, the result is kind of a mess.
+<br><br>Any hints (or criticisms) are appreciated.&nbsp; A sample dialog box that shows this behavior (on Win32 + LW 4.4.6) is listed below.<br><br>Thanks,<br><br>Jon<br><br>-----------------------------------------------<br><br>
+(in-package :capi)<br><br>(define-interface sample-dialog ()<br>&nbsp; ()<br>&nbsp; (:panes<br>&nbsp;&nbsp; ;; tab 1 controls<br>&nbsp;&nbsp; (t1-radio-buttons<br>&nbsp;&nbsp;&nbsp; radio-button-panel<br>&nbsp;&nbsp;&nbsp; :items '(&quot;option 1&quot; &quot;option 2&quot;)<br>&nbsp;&nbsp;&nbsp; :layout-args '(:y-gap 10)
+<br>&nbsp;&nbsp;&nbsp; :layout-class 'column-layout<br>&nbsp;&nbsp;&nbsp; :max-height t<br>&nbsp;&nbsp;&nbsp; :max-width t)<br>&nbsp;&nbsp; (t1-input1<br>&nbsp;&nbsp;&nbsp; text-input-pane)<br>&nbsp;&nbsp; (t1-input2<br>&nbsp;&nbsp;&nbsp; text-input-pane<br>&nbsp;&nbsp;&nbsp; :visible-max-width '(:character 6))<br><br>&nbsp;&nbsp; ;; tab 2 controls
+<br>&nbsp;&nbsp; (t2-range<br>&nbsp;&nbsp;&nbsp; text-input-range<br>&nbsp;&nbsp;&nbsp; :start 1<br>&nbsp;&nbsp;&nbsp; :end 500)<br>&nbsp;&nbsp; (t2-radio<br>&nbsp;&nbsp;&nbsp; radio-button-panel<br>&nbsp;&nbsp;&nbsp; :items '(&quot;A&quot; &quot;B&quot; &quot;C&quot;)<br>&nbsp;&nbsp;&nbsp; :max-height t<br>&nbsp;&nbsp;&nbsp; :max-width t)<br><br>
+&nbsp;&nbsp; ;; tab 3 controls<br>&nbsp;&nbsp; (t3-list<br>&nbsp;&nbsp;&nbsp; list-panel<br>&nbsp;&nbsp;&nbsp; :title &quot;List Items:&quot;<br>&nbsp;&nbsp;&nbsp; :visible-max-height '(:character 3))<br>&nbsp;&nbsp; (t3-radio1<br>&nbsp;&nbsp;&nbsp; radio-button-panel<br>&nbsp;&nbsp;&nbsp; :items '(&quot;option A&quot; &quot;option B&quot;)
+<br>&nbsp;&nbsp;&nbsp; :layout-args '(:y-gap 10)<br>&nbsp;&nbsp;&nbsp; :layout-class 'column-layout<br>&nbsp;&nbsp;&nbsp; :max-height t<br>&nbsp;&nbsp;&nbsp; :max-width t)<br>&nbsp;&nbsp; (t3-range<br>&nbsp;&nbsp;&nbsp; text-input-range<br>&nbsp;&nbsp;&nbsp; :start 1<br>&nbsp;&nbsp;&nbsp; :end 500)<br>&nbsp;&nbsp; (t3-radio2<br>&nbsp;&nbsp;&nbsp; radio-button-panel
+<br>&nbsp;&nbsp;&nbsp; :items '(&quot;one&quot; &quot;two&quot; &quot;three&quot;)<br>&nbsp;&nbsp;&nbsp; :max-height t<br>&nbsp;&nbsp;&nbsp; :max-width t)<br>&nbsp;&nbsp; (t3-button<br>&nbsp;&nbsp;&nbsp; push-button<br>&nbsp;&nbsp;&nbsp; :text &quot;Test Button&quot;)<br><br>&nbsp;&nbsp; ;; dialog controls<br>&nbsp;&nbsp; (ok-cancel-buttons
+<br>&nbsp;&nbsp;&nbsp; push-button-panel<br>&nbsp;&nbsp;&nbsp; :cancel-button &quot;Cancel&quot;<br>&nbsp;&nbsp;&nbsp; :default-button &quot;OK&quot;<br>&nbsp;&nbsp;&nbsp; :items '(&quot;OK&quot; &quot;Cancel&quot;)<br>&nbsp;&nbsp;&nbsp; :callbacks '(abort-dialog abort-dialog)<br>&nbsp;&nbsp;&nbsp; :callback-type :interface
+<br>&nbsp;&nbsp;&nbsp; :layout-args '(:x-uniform-size-p t)<br>&nbsp;&nbsp;&nbsp; :max-height t<br>&nbsp;&nbsp;&nbsp; :max-width t))<br>&nbsp; <br>&nbsp; (:layouts<br>&nbsp;&nbsp; ;; main dialog layout<br>&nbsp;&nbsp; (top-layout<br>&nbsp;&nbsp;&nbsp; column-layout<br>&nbsp;&nbsp;&nbsp; '(settings-tabs ok-cancel-buttons)<br>&nbsp;&nbsp;&nbsp; :x-adjust :right
+<br>&nbsp;&nbsp;&nbsp; :internal-border 5)<br>&nbsp;&nbsp; (settings-tabs<br>&nbsp;&nbsp;&nbsp; tab-layout<br>&nbsp;&nbsp;&nbsp; ()<br>&nbsp;&nbsp;&nbsp; :items '((&quot;Tab 1&quot; tab1)<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (&quot;Tab 2&quot; tab2)<br><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (&quot;Tab 3&quot; tab3))<br>&nbsp;&nbsp;&nbsp; :print-function 'car
+<br>&nbsp;&nbsp;&nbsp; :visible-child-function 'second<br>&nbsp;&nbsp;&nbsp; :visible-min-height 375)<br><br>&nbsp;&nbsp; ;;tab 1 layout<br>&nbsp;&nbsp; (tab1<br>&nbsp;&nbsp;&nbsp; column-layout<br>&nbsp;&nbsp;&nbsp; '(tab1-group1)<br>&nbsp;&nbsp;&nbsp; :internal-border 10)<br>&nbsp;&nbsp; (tab1-group1<br>&nbsp;&nbsp;&nbsp; column-layout<br>
+&nbsp;&nbsp;&nbsp; '(t1-radio-buttons tab1-group1-section1)<br>&nbsp;&nbsp;&nbsp; :border t<br>&nbsp;&nbsp;&nbsp; :y-gap 10<br>&nbsp;&nbsp;&nbsp; :title &quot;Tab 1 Group 1&quot;<br>&nbsp;&nbsp;&nbsp; :title-position :frame<br>&nbsp;&nbsp;&nbsp; :internal-border 7)<br>&nbsp;&nbsp; (tab1-group1-section1<br>&nbsp;&nbsp;&nbsp; grid-layout
+<br>&nbsp;&nbsp;&nbsp; '(&quot;Value A:&quot; t1-input1 &quot;Value b:&quot;&nbsp;&nbsp; t1-input2)<br>&nbsp;&nbsp;&nbsp; :columns 2)<br><br>&nbsp;&nbsp; ;; tab 2 layout<br>&nbsp;&nbsp; (tab2<br>&nbsp;&nbsp;&nbsp; column-layout<br>&nbsp;&nbsp;&nbsp; '(tab2-group1)<br>&nbsp;&nbsp;&nbsp; :gap 10<br>&nbsp;&nbsp;&nbsp; :internal-border 10)<br>
+&nbsp;&nbsp; (tab2-group1<br>&nbsp;&nbsp;&nbsp; column-layout<br>&nbsp;&nbsp;&nbsp; '(tab2-group2-section1)<br>&nbsp;&nbsp;&nbsp; :y-gap 10<br>&nbsp;&nbsp;&nbsp; :title &quot;Tab 2 Group 1&quot;<br>&nbsp;&nbsp;&nbsp; :title-position :frame<br>&nbsp;&nbsp;&nbsp; :visible-min-width 338<br>&nbsp;&nbsp;&nbsp; :internal-border 7)<br>&nbsp;&nbsp; (tab2-group2-section1
+<br>&nbsp;&nbsp;&nbsp; row-layout<br>&nbsp;&nbsp;&nbsp; '(t2-range t2-radio)<br>&nbsp;&nbsp;&nbsp; :gap 10<br>&nbsp;&nbsp;&nbsp; :y-adjust :center)<br><br>&nbsp;&nbsp; ;; tab 3 layout<br>&nbsp;&nbsp; (tab3<br>&nbsp;&nbsp;&nbsp; column-layout<br>&nbsp;&nbsp;&nbsp; '(tab3-group1 tab3-group2 tab3-group3)<br>&nbsp;&nbsp;&nbsp; :gap 10 <br>&nbsp;&nbsp;&nbsp; :internal-border 10)
+<br>&nbsp;&nbsp; (tab3-group1<br>&nbsp;&nbsp;&nbsp; column-layout<br>&nbsp;&nbsp;&nbsp; '(tab3-group1-section1)<br>&nbsp;&nbsp;&nbsp; :y-gap 10<br>&nbsp;&nbsp;&nbsp; :title &quot;Tab 3 Group 1&quot;<br>&nbsp;&nbsp;&nbsp; :title-position :frame<br>&nbsp;&nbsp;&nbsp; :internal-border 7)<br>&nbsp;&nbsp; (tab3-group1-section1<br>&nbsp;&nbsp;&nbsp; row-layout
+<br>&nbsp;&nbsp;&nbsp; '(t3-list))<br>&nbsp;&nbsp; (tab3-group2<br>&nbsp;&nbsp;&nbsp; column-layout<br>&nbsp;&nbsp;&nbsp; '(t3-radio1 tab3-group2-section1)<br>&nbsp;&nbsp;&nbsp; :y-gap 10<br>&nbsp;&nbsp;&nbsp; :title &quot;Tab 3 Group 2&quot;<br>&nbsp;&nbsp;&nbsp; :title-position :frame<br>&nbsp;&nbsp;&nbsp; :visible-min-width 338<br>
+&nbsp;&nbsp;&nbsp; :internal-border 7)<br>&nbsp;&nbsp; (tab3-group2-section1<br>&nbsp;&nbsp;&nbsp; row-layout<br>&nbsp;&nbsp;&nbsp; '(t3-range t3-radio2)<br>&nbsp;&nbsp;&nbsp; :gap 10<br>&nbsp;&nbsp;&nbsp; :y-adjust :center)<br>&nbsp;&nbsp; (tab3-group3<br>&nbsp;&nbsp;&nbsp; column-layout<br>&nbsp;&nbsp;&nbsp; '(tab3-group3-section1)<br>&nbsp;&nbsp;&nbsp; :y-gap 10
+<br>&nbsp;&nbsp;&nbsp; :title &quot;Tab 3 Group 3&quot;<br>&nbsp;&nbsp;&nbsp; :title-position :frame<br>&nbsp;&nbsp;&nbsp; :visible-min-width 338<br>&nbsp;&nbsp;&nbsp; :internal-border 7)<br>&nbsp;&nbsp; (tab3-group3-section1<br>&nbsp;&nbsp;&nbsp; row-layout<br>&nbsp;&nbsp;&nbsp; '(t3-button &quot;Warning: this could take a long time.&quot;)
+<br>&nbsp;&nbsp;&nbsp; :y-adjust :center))<br><br>&nbsp; (:default-initargs<br>&nbsp;&nbsp; :best-height 450<br>&nbsp;&nbsp; :best-width 410<br>&nbsp;&nbsp; :layout 'top-layout<br>&nbsp;&nbsp; :title &quot;Sample&quot;<br>&nbsp;&nbsp; :auto-menus nil))<br><br>(defun show-sample ()<br>&nbsp; (display-dialog (make-instance 'sample-dialog)))
+<br><br>
+
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Using capi:tab-layout in a dialog</h1>
+                 <pre>
+On Monday 27 March 2006 06:04 pm, Jon Israelson wrote:
+&gt I'm trying to figure out the correct way to display a capi:tab-layout
+....
+&gt minimize/maximize buttons turn off/on, and/or the dialog box re-sizes.  I
+&gt attempted to force each tab to be the same size using a combination of
+&gt
+&gt :visible-min-height and :visible-min-width, but like I said, the result is
+
+I don't know what the problem is, but I will confirm that I see your described 
+behaviour in LWW, and different behaviour in LWL.
+
+In LWW, the dialog first comes up with just a "close" (x) button (top left).  
+If you click on the 2nd tab, the dialog resizes slightly and displays only a 
+"close" button (no minimize or maximize buttons).  If you click on the 3rd 
+tab, the dialog resizes slightly and you get all three buttons - minimize, 
+maximize, close.  
+
+If you go back to tab 1, the minimize and maximize buttons are present (recap: 
+they weren't there when the dialog was first displayed) and the dialog 
+resizes slightly.
+
+In LWL, the behaviour is different.  All of the tabs give you a maximize and 
+close button, but no minimize button.  When you click from the 1st tab to the 
+2nd or 3rd, the dialog resizes slightly (larger).  Going back to the 1st tab 
+does not resize.
+
+I haven't parsed all of your code.  I suspect that the problem is that you've 
+over-specified (and, maybe, you've hit a bug due to over-specification).
+
+Start by commenting out all of the size specifications and see what the result 
+is.
+
+Then, look at :external-max-width and :external-min-width to see if they can 
+help you.
+
+pt
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Using capi:tab-layout in a dialog</h1>OK, I've finally had some time to play around with this, and I'm
+starting to think that there is a problem with column-layout when used
+in a tabbed dialog.&nbsp; I simplified my sample code to the bare basics and removed almost all sizing constraints, but still get some odd behavior.&nbsp; Here's the code:<br><br>;;--------------------------------------------------------
+<br><br>(in-package :capi)<br><br>(define-interface sample-dialog ()<br>&nbsp; ()<br>&nbsp; (:panes<br>&nbsp;&nbsp; (t1-input<br>&nbsp;&nbsp;&nbsp; text-input-pane)<br>&nbsp;&nbsp; (t2-input1<br>&nbsp;&nbsp;&nbsp; text-input-pane)<br>&nbsp;&nbsp; (t2-input2<br>&nbsp;&nbsp;&nbsp; text-input-pane)<br>&nbsp;&nbsp; (t3-input
+<br>&nbsp;&nbsp;&nbsp; text-input-pane)<br>&nbsp;&nbsp; (t3-radio<br>&nbsp;&nbsp;&nbsp; radio-button-panel<br>&nbsp;&nbsp;&nbsp; :items '(&quot;one&quot; &quot;two&quot; &quot;three&quot;))<br>&nbsp;&nbsp; (ok-cancel-buttons<br>&nbsp;&nbsp;&nbsp; push-button-panel<br>&nbsp;&nbsp;&nbsp; :cancel-button &quot;Cancel&quot;
+<br>&nbsp;&nbsp;&nbsp; :default-button &quot;OK&quot;<br>&nbsp;&nbsp;&nbsp; :items '(&quot;OK&quot; &quot;Cancel&quot;)<br>&nbsp;&nbsp;&nbsp; :callbacks '(abort-dialog abort-dialog)<br>&nbsp;&nbsp;&nbsp; :callback-type :interface<br>&nbsp;&nbsp;&nbsp; :layout-args '(:x-uniform-size-p t)))<br>&nbsp; <br>
+&nbsp; (:layouts<br>&nbsp;&nbsp; (top-layout<br>&nbsp;&nbsp;&nbsp; column-layout<br>&nbsp;&nbsp;&nbsp; '(tabs ok-cancel-buttons)<br>&nbsp;&nbsp;&nbsp; :x-adjust :right)<br>&nbsp;&nbsp; (tabs<br>&nbsp;&nbsp;&nbsp; tab-layout<br>&nbsp;&nbsp;&nbsp; ()<br>&nbsp;&nbsp;&nbsp; :items '((&quot;Tab 1&quot; tab1)<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (&quot;Tab 2&quot; tab2)
+<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (&quot;Tab 3&quot; tab3))<br>&nbsp;&nbsp;&nbsp; :print-function 'first<br>&nbsp;&nbsp;&nbsp; :visible-child-function 'second<br>&nbsp;&nbsp;&nbsp; :visible-max-width nil<br>&nbsp;&nbsp;&nbsp; :visible-max-height nil)<br>&nbsp;&nbsp; (tab1<br>&nbsp;&nbsp;&nbsp; column-layout<br>&nbsp;&nbsp;&nbsp; '(t1-input))
+<br>&nbsp;&nbsp; (tab2<br>&nbsp;&nbsp;&nbsp; row-layout<br>&nbsp;&nbsp;&nbsp; '(t2-input1 t2-input2))<br>&nbsp;&nbsp; (tab3<br>&nbsp;&nbsp;&nbsp; row-layout<br>&nbsp;&nbsp;&nbsp; '(t3-input t3-radio)))<br><br>&nbsp; (:default-initargs<br>&nbsp;&nbsp; :best-height 400<br>&nbsp;&nbsp; :best-width 375<br>&nbsp;&nbsp; :layout 'top-layout<br>
+&nbsp;&nbsp; :title &quot;Sample&quot;<br>&nbsp;&nbsp; :auto-menus nil))<br><br>(defun show-sample ()<br>&nbsp; (display-dialog (make-instance 'sample-dialog)))<br><br>;;--------------------------------------------------------<br>
+<br>Moving from &quot;tab 1&quot; to &quot;tab 2&quot; works fine, but moving to &quot;tab 3&quot; causes the dialog minimize/maximize buttons to appear.&nbsp; If you change the &quot;tab 2&quot; layout from row-layout to column-layout, then the minimize/maximize buttons will also show up when going from &quot;tab 1&quot; to &quot;tab 2&quot;.&nbsp; Although &quot;tab 3&quot; uses a row-layout, I'm guessing that the radio-button-panel uses a column layout internally.&nbsp; Maybe someone at LispWorks could check into this.
+<br><br>BTW, I've been testing with LWW 4.4.6.<br><br>Jon<br>
+
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Using capi:tab-layout in a dialog</h1>
+                 <pre>
+
+FWIW adding size constraints to the layouts stops the dialog 
+minimize/maximize buttons appearing - see code below.
+
+I think it would be useful if the CAPI had support for making the tab 
+dialogs the same size without you having to specify what the size is. Other 
+layouts support this via the :uniform-size-p initarg but I don't think 
+there is a mechanism for tab-layout. Does anyone knows of a way to do this ?
+
+cheers
+
+paulm
+
+(define-interface sample-dialog ()
+   ()
+   (:panes
+    (t1-input
+     text-input-pane)
+    (t2-input1
+     text-input-pane)
+    (t2-input2
+     text-input-pane)
+    (t3-input
+     text-input-pane)
+    (t3-radio
+     radio-button-panel
+     :items '("one" "two" "three"))
+    (ok-cancel-buttons
+     push-button-panel
+     :cancel-button "Cancel"
+     :default-button "OK"
+     :items '("OK" "Cancel")
+     :callbacks '(abort-dialog abort-dialog)
+     :callback-type :interface
+     :layout-args '(:x-uniform-size-p t)))
+
+   (:layouts
+    (top-layout
+     column-layout
+     '(tabs ok-cancel-buttons)
+     :x-adjust :right)
+    (tabs
+     tab-layout
+     ()
+     :items '(("Tab 1" tab1)
+              ("Tab 2" tab2)
+              ("Tab 3" tab3))
+     :print-function 'first
+     :visible-child-function 'second)
+    (tab1
+     column-layout
+     '(t1-input)
+     :visible-min-width 350
+     :visible-min-height 280
+     :visible-max-width t
+     :visible-max-height t)
+    (tab2
+     column-layout ;;row-layout
+     '(t2-input1 t2-input2)
+     :visible-min-width 350
+     :visible-min-height 280
+     :visible-max-width t
+     :visible-max-width t)
+    (tab3
+     row-layout
+     '(t3-input t3-radio)
+     :visible-min-width 350
+     :visible-min-height 280
+     :visible-max-width t
+     :visible-max-width t))
+
+   (:default-initargs
+    :best-height 400
+    :best-width 375
+    :layout 'top-layout
+    :title "Sample"
+    :auto-menus nil))
+
+
+At 19:25 07/04/2006, Jon Israelson wrote:
+&gtOK, I've finally had some time to play around with this, and I'm starting 
+&gtto think that there is a problem with column-layout when used in a tabbed 
+&gtdialog.  I simplified my sample code to the bare basics and removed almost 
+&gtall sizing constraints, but still get some odd behavior.  Here's the code:
+&gt
+&gt;;--------------------------------------------------------
+&gt
+&gt(in-package :capi)
+&gt
+&gt(define-interface sample-dialog ()
+&gt   ()
+&gt   (:panes
+&gt    (t1-input
+&gt     text-input-pane)
+&gt    (t2-input1
+&gt     text-input-pane)
+&gt    (t2-input2
+&gt     text-input-pane)
+&gt    (t3-input
+&gt     text-input-pane)
+&gt    (t3-radio
+&gt     radio-button-panel
+&gt     :items '("one" "two" "three"))
+&gt    (ok-cancel-buttons
+&gt     push-button-panel
+&gt     :cancel-button "Cancel"
+&gt     :default-button "OK"
+&gt     :items '("OK" "Cancel")
+&gt     :callbacks '(abort-dialog abort-dialog)
+&gt     :callback-type :interface
+&gt     :layout-args '(:x-uniform-size-p t)))
+&gt
+&gt   (:layouts
+&gt    (top-layout
+&gt     column-layout
+&gt     '(tabs ok-cancel-buttons)
+&gt     :x-adjust :right)
+&gt    (tabs
+&gt     tab-layout
+&gt     ()
+&gt     :items '(("Tab 1" tab1)
+&gt              ("Tab 2" tab2)
+&gt              ("Tab 3" tab3))
+&gt     :print-function 'first
+&gt     :visible-child-function 'second
+&gt     :visible-max-width nil
+&gt     :visible-max-height nil)
+&gt    (tab1
+&gt     column-layout
+&gt     '(t1-input))
+&gt    (tab2
+&gt     row-layout
+&gt     '(t2-input1 t2-input2))
+&gt    (tab3
+&gt     row-layout
+&gt     '(t3-input t3-radio)))
+&gt
+&gt   (:default-initargs
+&gt    :best-height 400
+&gt    :best-width 375
+&gt    :layout 'top-layout
+&gt    :title "Sample"
+&gt    :auto-menus nil))
+&gt
+&gt(defun show-sample ()
+&gt   (display-dialog (make-instance 'sample-dialog)))
+&gt
+&gt;;--------------------------------------------------------
+&gt
+&gtMoving from "tab 1" to "tab 2" works fine, but moving to "tab 3" causes 
+&gtthe dialog minimize/maximize buttons to appear.  If you change the "tab 2" 
+&gtlayout from row-layout to column-layout, then the minimize/maximize 
+&gtbuttons will also show up when going from "tab 1" to "tab 2".  Although 
+&gt"tab 3" uses a row-layout, I'm guessing that the radio-button-panel uses a 
+&gtcolumn layout internally.  Maybe someone at LispWorks could check into this.
+&gt
+&gtBTW, I've been testing with LWW 4.4.6.
+&gt
+&gtJon
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Using capi:tab-layout in a dialog</h1>Paul,<br><br>Thanks for your help; your solution takes care of my problem.&nbsp; I guess that I need to spend some more time looking at how the various width and height settings interact.<br><br>Jon<br><br><div><span class="gmail_quote">
+On 4/9/06, <b class="gmail_sendername">Paul Miller</b> &lt;<a href="mailto:paulm@xanalys.com">paulm@xanalys.com</a>&gt; wrote:</span><blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+<br>FWIW adding size constraints to the layouts stops the dialog<br>minimize/maximize buttons appearing - see code below.<br><br>I think it would be useful if the CAPI had support for making the tab<br>dialogs the same size without you having to specify what the size is. Other
+<br>layouts support this via the :uniform-size-p initarg but I don't think<br>there is a mechanism for tab-layout. Does anyone knows of a way to do this ?<br><br>cheers<br><br>paulm<br><br>(define-interface sample-dialog ()
+<br>&nbsp;&nbsp; ()<br>&nbsp;&nbsp; (:panes<br>&nbsp;&nbsp;&nbsp;&nbsp;(t1-input<br>&nbsp;&nbsp;&nbsp;&nbsp; text-input-pane)<br>&nbsp;&nbsp;&nbsp;&nbsp;(t2-input1<br>&nbsp;&nbsp;&nbsp;&nbsp; text-input-pane)<br>&nbsp;&nbsp;&nbsp;&nbsp;(t2-input2<br>&nbsp;&nbsp;&nbsp;&nbsp; text-input-pane)<br>&nbsp;&nbsp;&nbsp;&nbsp;(t3-input<br>&nbsp;&nbsp;&nbsp;&nbsp; text-input-pane)<br>&nbsp;&nbsp;&nbsp;&nbsp;(t3-radio<br>&nbsp;&nbsp;&nbsp;&nbsp; radio-button-panel
+<br>&nbsp;&nbsp;&nbsp;&nbsp; :items '(&quot;one&quot; &quot;two&quot; &quot;three&quot;))<br>&nbsp;&nbsp;&nbsp;&nbsp;(ok-cancel-buttons<br>&nbsp;&nbsp;&nbsp;&nbsp; push-button-panel<br>&nbsp;&nbsp;&nbsp;&nbsp; :cancel-button &quot;Cancel&quot;<br>&nbsp;&nbsp;&nbsp;&nbsp; :default-button &quot;OK&quot;<br>&nbsp;&nbsp;&nbsp;&nbsp; :items '(&quot;OK&quot; &quot;Cancel&quot;)
+<br>&nbsp;&nbsp;&nbsp;&nbsp; :callbacks '(abort-dialog abort-dialog)<br>&nbsp;&nbsp;&nbsp;&nbsp; :callback-type :interface<br>&nbsp;&nbsp;&nbsp;&nbsp; :layout-args '(:x-uniform-size-p t)))<br><br>&nbsp;&nbsp; (:layouts<br>&nbsp;&nbsp;&nbsp;&nbsp;(top-layout<br>&nbsp;&nbsp;&nbsp;&nbsp; column-layout<br>&nbsp;&nbsp;&nbsp;&nbsp; '(tabs ok-cancel-buttons)
+<br>&nbsp;&nbsp;&nbsp;&nbsp; :x-adjust :right)<br>&nbsp;&nbsp;&nbsp;&nbsp;(tabs<br>&nbsp;&nbsp;&nbsp;&nbsp; tab-layout<br>&nbsp;&nbsp;&nbsp;&nbsp; ()<br>&nbsp;&nbsp;&nbsp;&nbsp; :items '((&quot;Tab 1&quot; tab1)<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&quot;Tab 2&quot; tab2)<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&quot;Tab 3&quot; tab3))<br>&nbsp;&nbsp;&nbsp;&nbsp; :print-function 'first
+<br>&nbsp;&nbsp;&nbsp;&nbsp; :visible-child-function 'second)<br>&nbsp;&nbsp;&nbsp;&nbsp;(tab1<br>&nbsp;&nbsp;&nbsp;&nbsp; column-layout<br>&nbsp;&nbsp;&nbsp;&nbsp; '(t1-input)<br>&nbsp;&nbsp;&nbsp;&nbsp; :visible-min-width 350<br>&nbsp;&nbsp;&nbsp;&nbsp; :visible-min-height 280<br>&nbsp;&nbsp;&nbsp;&nbsp; :visible-max-width t<br>&nbsp;&nbsp;&nbsp;&nbsp; :visible-max-height t)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;(tab2<br>&nbsp;&nbsp;&nbsp;&nbsp; column-layout ;;row-layout<br>&nbsp;&nbsp;&nbsp;&nbsp; '(t2-input1 t2-input2)<br>&nbsp;&nbsp;&nbsp;&nbsp; :visible-min-width 350<br>&nbsp;&nbsp;&nbsp;&nbsp; :visible-min-height 280<br>&nbsp;&nbsp;&nbsp;&nbsp; :visible-max-width t<br>&nbsp;&nbsp;&nbsp;&nbsp; :visible-max-width t)<br>&nbsp;&nbsp;&nbsp;&nbsp;(tab3<br>&nbsp;&nbsp;&nbsp;&nbsp; row-layout
+<br>&nbsp;&nbsp;&nbsp;&nbsp; '(t3-input t3-radio)<br>&nbsp;&nbsp;&nbsp;&nbsp; :visible-min-width 350<br>&nbsp;&nbsp;&nbsp;&nbsp; :visible-min-height 280<br>&nbsp;&nbsp;&nbsp;&nbsp; :visible-max-width t<br>&nbsp;&nbsp;&nbsp;&nbsp; :visible-max-width t))<br><br>&nbsp;&nbsp; (:default-initargs<br>&nbsp;&nbsp;&nbsp;&nbsp;:best-height 400<br>&nbsp;&nbsp;&nbsp;&nbsp;:best-width 375
+<br>&nbsp;&nbsp;&nbsp;&nbsp;:layout 'top-layout<br>&nbsp;&nbsp;&nbsp;&nbsp;:title &quot;Sample&quot;<br>&nbsp;&nbsp;&nbsp;&nbsp;:auto-menus nil))<br><br><br>At 19:25 07/04/2006, Jon Israelson wrote:<br>&gt;OK, I've finally had some time to play around with this, and I'm starting<br>
+&gt;to think that there is a problem with column-layout when used in a tabbed<br>&gt;dialog.&nbsp;&nbsp;I simplified my sample code to the bare basics and removed almost<br>&gt;all sizing constraints, but still get some odd behavior.&nbsp;&nbsp;Here's the code:
+<br>&gt;<br>&gt;;;--------------------------------------------------------<br>&gt;<br>&gt;(in-package :capi)<br>&gt;<br>&gt;(define-interface sample-dialog ()<br>&gt;&nbsp;&nbsp; ()<br>&gt;&nbsp;&nbsp; (:panes<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp;(t1-input<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp; text-input-pane)
+<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp;(t2-input1<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp; text-input-pane)<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp;(t2-input2<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp; text-input-pane)<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp;(t3-input<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp; text-input-pane)<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp;(t3-radio<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp; radio-button-panel<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp; :items '(&quot;one&quot; &quot;two&quot; &quot;three&quot;))
+<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp;(ok-cancel-buttons<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp; push-button-panel<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp; :cancel-button &quot;Cancel&quot;<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp; :default-button &quot;OK&quot;<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp; :items '(&quot;OK&quot; &quot;Cancel&quot;)<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp; :callbacks '(abort-dialog abort-dialog)
+<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp; :callback-type :interface<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp; :layout-args '(:x-uniform-size-p t)))<br>&gt;<br>&gt;&nbsp;&nbsp; (:layouts<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp;(top-layout<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp; column-layout<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp; '(tabs ok-cancel-buttons)<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp; :x-adjust :right)
+<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp;(tabs<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp; tab-layout<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp; ()<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp; :items '((&quot;Tab 1&quot; tab1)<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&quot;Tab 2&quot; tab2)<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&quot;Tab 3&quot; tab3))<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp; :print-function 'first
+<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp; :visible-child-function 'second<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp; :visible-max-width nil<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp; :visible-max-height nil)<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp;(tab1<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp; column-layout<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp; '(t1-input))<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp;(tab2<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp; row-layout
+<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp; '(t2-input1 t2-input2))<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp;(tab3<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp; row-layout<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp; '(t3-input t3-radio)))<br>&gt;<br>&gt;&nbsp;&nbsp; (:default-initargs<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp;:best-height 400<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp;:best-width 375<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp;:layout 'top-layout
+<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp;:title &quot;Sample&quot;<br>&gt;&nbsp;&nbsp;&nbsp;&nbsp;:auto-menus nil))<br>&gt;<br>&gt;(defun show-sample ()<br>&gt;&nbsp;&nbsp; (display-dialog (make-instance 'sample-dialog)))<br>&gt;<br>&gt;;;--------------------------------------------------------
+<br>&gt;<br>&gt;Moving from &quot;tab 1&quot; to &quot;tab 2&quot; works fine, but moving to &quot;tab 3&quot; causes<br>&gt;the dialog minimize/maximize buttons to appear.&nbsp;&nbsp;If you change the &quot;tab 2&quot;<br>&gt;layout from row-layout to column-layout, then the minimize/maximize
+<br>&gt;buttons will also show up when going from &quot;tab 1&quot; to &quot;tab 2&quot;.&nbsp;&nbsp;Although<br>&gt;&quot;tab 3&quot; uses a row-layout, I'm guessing that the radio-button-panel uses a<br>&gt;column layout internally.&nbsp;&nbsp;Maybe someone at LispWorks could check into this.
+<br>&gt;<br>&gt;BTW, I've been testing with LWW 4.4.6.<br>&gt;<br>&gt;Jon<br><br><br></blockquote></div><br>
+
+
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:45 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

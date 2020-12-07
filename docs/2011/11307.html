@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>lispworks - speed and silly benchmarks...</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>lispworks - speed and silly benchmarks...</h1>
+                <pre>
+Hi
+
+I think Lispworks look great and I have downloaded the evaluation version.
+
+I am about to start a project where raw speed is important, and I have done some very SMALL tests. Following a mail (http://www.lispforum.com/viewtopic.php?f=2&amp;t=228)  about sorting a large array in lisp I tried out this on my computer:
+
+(defun test ()
+  (declare (optimize (speed 3) (debug 0) (safety 0) (compilation-speed 0)))
+  (let ((a (make-array 10000000 :element-type 'fixnum)))
+    (declare (type (simple-array fixnum (*)) a))
+    (loop for i of-type fixnum from 0 below 10000000
+       do (setf (aref a i) (random 100)))
+    (setf a (sort a #'&gt))
+    nil))
+
+This takes about 9 seconds on my computer using clozure.
+
+Doing the same thing with in sbcl takes about 2.5 when i inline the sort-function as well.
+
+Doing it all in java 1.7 takes about 0.6 seconds:
+
+        int[] arr = new int[10000000];
+        Random generator = new Random();
+        for (int i=0; i&lt;10000000; i++) {
+            arr[i] = generator.nextInt(100);
+        }
+        Arrays.sort(arr);
+        System.out.println("Arrays sorted in:  " + (System.currentTimeMillis() - start));
+
+Then to Lispworks, where the evaluation-vesion has to little heap-size to compile and run the program.
+
+I change the size of the array from 10 000 000 to 1 000 000, and tries again.
+
+Timing the function now  in Lispworks takes over 4 MINUTES.
+
+This can probably be explained if the eval-version runs in some kind of interpreted mode and does not compile (which is a petty, since an eval-version is actually for evaluating the product)?!
+
+Or is Lispworks only so slow that I migh be better of doing the sorting by hand myself? :-)
+
+Could someone with a paid version enlighten me on this one?
+
+Cheers,
+
+Petter Egesund
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: lispworks - speed and silly benchmarks...</h1>
+                 <pre>
+No changes with the paid version (Lispworks 6 profession 32-bit on MacOSX, in my case).
+
+However, I see that the elements in the array are integers below 100, which is very small compared with the number of elements. If the Lispworks #'sort function is based on quicksort, it is very likely that this is the reason that the sort operation is slow (because the "pivot" element is very likely to be poorly chosen at every recursive step - this would make quicksort O(n^2) rather than O(n logn).)
+
+I just tested with setting the range of the random numbers to the same as the number of elements, and I get *much* better performance - down from about 140 seconds (for the 1M-element) down to 1.14 seconds.
+
+Sooo, it appears that if you want to sort a large number of small values you either need a different sort algorithm, diffeerent data structures altogether, or choose a different implementation.
+
+Answering the question you didn't ask: Lispworks performance for real-life work is fine; I would expect better perfomance than something written in Java for the simple reason that Lisp lets you concentrate on the problem rather than the programming language/environment.
+
+On Oct 8, 2011, at 15:59 , Petter Egesund wrote:
+
+&gt 
+&gt Hi
+&gt 
+&gt I think Lispworks look great and I have downloaded the evaluation version.
+&gt 
+&gt I am about to start a project where raw speed is important, and I have done some very SMALL tests. Following a mail (http://www.lispforum.com/viewtopic.php?f=2&amp;t=228)  about sorting a large array in lisp I tried out this on my computer:
+&gt 
+&gt (defun test ()
+&gt  (declare (optimize (speed 3) (debug 0) (safety 0) (compilation-speed 0)))
+&gt  (let ((a (make-array 10000000 :element-type 'fixnum)))
+&gt    (declare (type (simple-array fixnum (*)) a))
+&gt    (loop for i of-type fixnum from 0 below 10000000
+&gt       do (setf (aref a i) (random 100)))
+&gt    (setf a (sort a #'&gt))
+&gt    nil))
+&gt 
+&gt This takes about 9 seconds on my computer using clozure.
+&gt 
+&gt Doing the same thing with in sbcl takes about 2.5 when i inline the sort-function as well.
+&gt 
+&gt Doing it all in java 1.7 takes about 0.6 seconds:
+&gt 
+&gt        int[] arr = new int[10000000];
+&gt        Random generator = new Random();
+&gt        for (int i=0; i&lt;10000000; i++) {
+&gt            arr[i] = generator.nextInt(100);
+&gt        }
+&gt        Arrays.sort(arr);
+&gt        System.out.println("Arrays sorted in:  " + (System.currentTimeMillis() - start));
+&gt 
+&gt Then to Lispworks, where the evaluation-vesion has to little heap-size to compile and run the program.
+&gt 
+&gt I change the size of the array from 10 000 000 to 1 000 000, and tries again.
+&gt 
+&gt Timing the function now  in Lispworks takes over 4 MINUTES.
+&gt 
+&gt This can probably be explained if the eval-version runs in some kind of interpreted mode and does not compile (which is a petty, since an eval-version is actually for evaluating the product)?!
+&gt 
+&gt Or is Lispworks only so slow that I migh be better of doing the sorting by hand myself? :-)
+&gt 
+&gt Could someone with a paid version enlighten me on this one?
+&gt 
+&gt Cheers,
+&gt 
+&gt Petter Egesund
+&gt 
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: lispworks - speed and silly benchmarks...</h1>
+                 <pre>
+Both clozure and sbcl compile everything loaded automatically, while
+lw doesn't.
+
+Maybe the op just forgot to compile the test function?
+
+
+
+2011/10/8, Raymond Wiker &lt;rwiker@gmail.com&gt:
+&gt
+&gt No changes with the paid version (Lispworks 6 profession 32-bit on MacOSX,
+&gt in my case).
+&gt
+&gt However, I see that the elements in the array are integers below 100, which
+&gt is very small compared with the number of elements. If the Lispworks #'sort
+&gt function is based on quicksort, it is very likely that this is the reason
+&gt that the sort operation is slow (because the "pivot" element is very likely
+&gt to be poorly chosen at every recursive step - this would make quicksort
+&gt O(n^2) rather than O(n logn).)
+&gt
+&gt I just tested with setting the range of the random numbers to the same as
+&gt the number of elements, and I get *much* better performance - down from
+&gt about 140 seconds (for the 1M-element) down to 1.14 seconds.
+&gt
+&gt Sooo, it appears that if you want to sort a large number of small values you
+&gt either need a different sort algorithm, diffeerent data structures
+&gt altogether, or choose a different implementation.
+&gt
+&gt Answering the question you didn't ask: Lispworks performance for real-life
+&gt work is fine; I would expect better perfomance than something written in
+&gt Java for the simple reason that Lisp lets you concentrate on the problem
+&gt rather than the programming language/environment.
+&gt
+&gt On Oct 8, 2011, at 15:59 , Petter Egesund wrote:
+&gt
+&gt&gt
+&gt&gt Hi
+&gt&gt
+&gt&gt I think Lispworks look great and I have downloaded the evaluation version.
+&gt&gt
+&gt&gt I am about to start a project where raw speed is important, and I have
+&gt&gt done some very SMALL tests. Following a mail
+&gt&gt (http://www.lispforum.com/viewtopic.php?f=2&amp;t=228)  about sorting a large
+&gt&gt array in lisp I tried out this on my computer:
+&gt&gt
+&gt&gt (defun test ()
+&gt&gt  (declare (optimize (speed 3) (debug 0) (safety 0) (compilation-speed 0)))
+&gt&gt  (let ((a (make-array 10000000 :element-type 'fixnum)))
+&gt&gt    (declare (type (simple-array fixnum (*)) a))
+&gt&gt    (loop for i of-type fixnum from 0 below 10000000
+&gt&gt       do (setf (aref a i) (random 100)))
+&gt&gt    (setf a (sort a #'&gt))
+&gt&gt    nil))
+&gt&gt
+&gt&gt This takes about 9 seconds on my computer using clozure.
+&gt&gt
+&gt&gt Doing the same thing with in sbcl takes about 2.5 when i inline the
+&gt&gt sort-function as well.
+&gt&gt
+&gt&gt Doing it all in java 1.7 takes about 0.6 seconds:
+&gt&gt
+&gt&gt        int[] arr = new int[10000000];
+&gt&gt        Random generator = new Random();
+&gt&gt        for (int i=0; i&lt;10000000; i++) {
+&gt&gt            arr[i] = generator.nextInt(100);
+&gt&gt        }
+&gt&gt        Arrays.sort(arr);
+&gt&gt        System.out.println("Arrays sorted in:  " +
+&gt&gt (System.currentTimeMillis() - start));
+&gt&gt
+&gt&gt Then to Lispworks, where the evaluation-vesion has to little heap-size to
+&gt&gt compile and run the program.
+&gt&gt
+&gt&gt I change the size of the array from 10 000 000 to 1 000 000, and tries
+&gt&gt again.
+&gt&gt
+&gt&gt Timing the function now  in Lispworks takes over 4 MINUTES.
+&gt&gt
+&gt&gt This can probably be explained if the eval-version runs in some kind of
+&gt&gt interpreted mode and does not compile (which is a petty, since an
+&gt&gt eval-version is actually for evaluating the product)?!
+&gt&gt
+&gt&gt Or is Lispworks only so slow that I migh be better of doing the sorting by
+&gt&gt hand myself? :-)
+&gt&gt
+&gt&gt Could someone with a paid version enlighten me on this one?
+&gt&gt
+&gt&gt Cheers,
+&gt&gt
+&gt&gt Petter Egesund
+&gt&gt
+&gt
+&gt
+
+-- 
+Inviato dal mio dispositivo mobile
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: lispworks - speed and silly benchmarks...</h1>
+                 <pre>
+Hello Petter -
+
+The thing I learned about CL is that it is always a good idea to read the docs. The CLHS says precisely how sort should work. I see there no requirements for optimization for fixnum vectors. So it's up to vendors to implement sort for different scenarios if they deem that necessary.
+
+I believe that when raw speed is important to crunch bytes, it's always a language which is close to the cpu that wins. So I do c/asm routines and call them via the FLI interface in I need to crunch "ones and zeros" fast... But being smart can beat being muscles.
+
+The next thing I've learned working with CL that algorithm is everything. To me that means that understanding a problem at hands and a clever algorithm to solve the problem is the key to speed (and sanity).
+
+Based on your example, I can see that in your example the elements of the array can not exceed the value 100. So, I would count the number of occurrences for each value from 0 till 100 in the array and than create a new sorted array based on that count of occurences. At the end of this letter there is an example. Run it (time (progn (test 10000000) nil)).
+
+Best,
+Art
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defconstant +max-number+ 100)
+
+(defun make-random-array (len)
+  (let ((array (make-array len)))
+    (dotimes (i len)
+      (setf (aref array i) (random +max-number+)))
+    array))
+
+(defun count-numbers (array)
+  (let ((counter-array (make-array +max-number+ :initial-element 0)))
+    (dotimes (i (length array))
+      (let ((number (aref array i)))
+        (incf (aref counter-array number))))
+    counter-array))
+
+(defun make-sorted-array (array-length counter-array)
+  (let ((array (make-array array-length))
+        (len 0))
+    (dotimes (i (length counter-array))
+      (dotimes (j (aref counter-array i))
+        (setf (aref array len) i)
+        (incf len)))
+    array))
+
+(defun test (num)
+  (make-sorted-array num (count-numbers (make-random-array num))))
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: lispworks - speed and silly benchmarks...</h1>
+                 <pre>
+Petter Egesund &lt;Petter.Egesund &lt;at&gt boklink.no&gt writes:
+
+&gt 
+&gt 
+&gt Hi
+&gt 
+&gt I think Lispworks look great and I have downloaded the evaluation version.
+&gt 
+&gt I am about to start a project where raw speed is important, and I have done
+some very SMALL tests. Following a
+&gt mail (http://www.lispforum.com/viewtopic.php?f=2&amp;t=228)  about sorting a large
+array in lisp I tried
+&gt out this on my computer:
+&gt 
+&gt (defun test ()
+&gt   (declare (optimize (speed 3) (debug 0) (safety 0) (compilation-speed 0)))
+&gt   (let ((a (make-array 10000000 :element-type 'fixnum)))
+&gt     (declare (type (simple-array fixnum (*)) a))
+&gt     (loop for i of-type fixnum from 0 below 10000000
+&gt        do (setf (aref a i) (random 100)))
+&gt     (setf a (sort a #'&gt))
+&gt     nil))
+&gt 
+&gt This takes about 9 seconds on my computer using clozure.
+&gt 
+&gt Doing the same thing with in sbcl takes about 2.5 when i inline the
+sort-function as well.
+&gt 
+&gt Doing it all in java 1.7 takes about 0.6 seconds:
+&gt 
+&gt         int[] arr = new int[10000000];
+&gt         Random generator = new Random();
+&gt         for (int i=0; i&lt;10000000; i++) {
+&gt             arr[i] = generator.nextInt(100);
+&gt         }
+&gt         Arrays.sort(arr);
+&gt         System.out.println("Arrays sorted in:  " + (System.currentTimeMillis()
+- start));
+&gt 
+&gt Then to Lispworks, where the evaluation-vesion has to little heap-size to
+compile and run the program.
+&gt 
+&gt I change the size of the array from 10 000 000 to 1 000 000, and tries again.
+&gt 
+&gt Timing the function now  in Lispworks takes over 4 MINUTES.
+&gt 
+&gt This can probably be explained if the eval-version runs in some kind of
+interpreted mode and does not
+&gt compile (which is a petty, since an eval-version is actually for evaluating
+the product)?!
+&gt 
+&gt Or is Lispworks only so slow that I migh be better of doing the sorting by
+hand myself? 
+&gt 
+&gt Could someone with a paid version enlighten me on this one?
+&gt 
+&gt Cheers,
+&gt 
+&gt Petter Egesund
+&gt 
+
+Hello Petter,
+
+I am also new to LispWorks, and had a similar problem.  I had written a game
+simulation program that took 22 minutes to run my test suite of 650,000
+sims/plays and 15,000 true conditions.  Like you I was disappointed.
+
+Are you compiling in the "buffer" (different name for)  "editor" window?
+
+It took me some searching and reading to find/understand that the "Listener" in
+LispWorks is an interpreted machine and if you want to run compiled code - you
+must compile the source code in the EDITOR/BUFFER ('buffer' in the
+documentation) - there is an icon (the middle one) at the top of the EDITOR
+window.  Click there, your code will compile with errors, warnings and so forth,
+and it does this in the same editor/buffer window.
+
+If the code compiles with no errors (warnings will compile and run) you will see
+a message to touch the "space bar" to clear the compile information and return
+you to your source code.
+
+Next copy your top level/main function name over into the LISTENER Panel and
+touch enter. It will run the compiled code with no other input/action required.
+
+My full run of 16,654,050 trials with 438,984 true conditions will complete in 2
+minutes and 20 seconds.
+
+Hope this helps.
+Thomas
+&gt 
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: lispworks - speed and silly benchmarks...</h1>
+                 <pre>
+Marco Antoniotti &lt;marcoxa@cs.nyu.edu&gt writes:
+
+&gt The same happens for "set" operations on lists.  I have not checked
+&gt the latest instantiation of LW, but at a certain point, INTERSECTION
+&gt was obviously a O(n^2) operation.
+
+Ah, interesting, hadn't noticed that. Just tested with LW 6.0.1
+(32-bits), and increasing list lengths to 10x increases time to about
+100x, so it's still O(n^2)...
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: lispworks - speed and silly benchmarks...</h1>
+                 <pre>
+ma., 10.10.2011 kl. 16.58 +0200, skrev Espen Vestre:
+&gt Marco Antoniotti &lt;marcoxa@cs.nyu.edu&gt writes:
+&gt 
+&gt &gt The same happens for "set" operations on lists.  I have not checked
+&gt &gt the latest instantiation of LW, but at a certain point, INTERSECTION
+&gt &gt was obviously a O(n^2) operation.
+&gt 
+&gt Ah, interesting, hadn't noticed that. Just tested with LW 6.0.1
+&gt (32-bits), and increasing list lengths to 10x increases time to about
+&gt 100x, so it's still O(n^2)...
+
+ If you look more closely at the spec for union you will see that it is
+inevitable. I had a discussion on this on comp.lang lisp a while back.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>SV: lispworks - speed and silly benchmarks...</h1>
+                 <pre>
+Hi again
+
+Thanks for many answers. I liked the try-another-algorithm-soluting - even though this is a constructed example to test speed solely :-)
+
+I have tried Lispworks a little more. I really like the development environment and the debugger - one can even "double click" on error-messages, hey....
+
+It might be the speed issue is due to the sorting algorithm (quicksort?). I tried with mergesort as defined below (I have compiled the buffer to be sure the code is not interpreted).
+
+Unfortunately I reach the heap-size of the trial version very fast.
+
+If anybody else tries it out, drop me a note.
+
+Cheers,
+
+Petter
+
+---
+
+
+l(defun merge-it (l1 l2)
+  (declare (optimize (speed 3) (debug 0) (safety 0) (compilation-speed 0)))
+  (let ((new-arr (make-array (+ (length l1)
+                                (length l2))
+                             :fill-pointer 0)))
+    (loop for idx from 0 to (+ (length l1) (length l2)) do
+         (let ((x (car l1))
+               (y (car l2)))
+           (when (and (not (null x)) (not (null y)))
+             (if (&lt;= x y)
+                 (progn
+                   (setf l1 (cdr l1))
+                   (vector-push x new-arr))
+                 (progn
+                   (setf l2 (cdr l2))
+                   (vector-push y new-arr))))))
+    (mapcar #'(lambda (e) (vector-push e new-arr)) (append l1 l2))
+    (coerce new-arr 'list)))
+
+
+(defun merge-sort (lst)
+  (declare (optimize (speed 3) (debug 0) (safety 0) (compilation-speed 0)))
+  (let ((size (length lst)))
+    (if (= size 1)
+        lst
+        (progn
+          (let ((seq1 (merge-sort (subseq lst 0 (floor (/ size 2)))))
+                (seq2 (merge-sort (subseq lst (floor (/ size 2)) size))))
+            (merge-it seq1 seq2))))))
+
+
+
+(defun test ()
+  (declare (optimize (speed 3) (debug 0) (safety 0) (compilation-speed 0)))
+  (let ((a (make-array 10000000 :element-type 'fixnum)))
+    (declare (type (simple-array fixnum (*)) a))
+    (loop for i of-type fixnum from 0 below 10000000
+       do (setf (aref a i) (random 100)))
+    (setf a (merge-sort a))
+    nil))
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>SV: SV: lispworks - speed and silly benchmarks...</h1>
+                 <pre>
+Sure, I have done that :-)
+
+Still reaching the heap-limit.
+
+Petter
+
+________________________________________
+Fra: Camille Troillard [camille@osculator.net]
+Sendt: 10. oktober 2011 19:56
+Til: Petter Egesund
+Kopi: Lisp Hug Lispworks
+Emne: Re: SV: lispworks - speed and silly benchmarks...
+
+Hi Petter,
+
+On 10 oct. 2011, at 19:41, Petter Egesund wrote:
+
+&gt Unfortunately I reach the heap-size of the trial version very fast.
+
+If you compile the function I believe you will not reach the heap limit.  Put the code in an editor and hit Ctrl-Shit-B to compile the buffer, then try the function in a listener.
+
+
+Cheers,
+Cam
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:33 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

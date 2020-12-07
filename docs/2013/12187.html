@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Using with-slots in a macro</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Using with-slots in a macro</h1><div dir="ltr">Is this generally considered bad form and will break macros (akin to the reason gensym exists)?<div><br></div><div>What&#39;s the typical way to handle this? Just always use accessor functions for slots?</div>
+<div><br></div><div style>Just in case the above isn&#39;t clear enough... here&#39;s an example:</div><div style><br></div><div style>(defstruct foo bar)</div><div style><br></div><div style>(defmacro dummy-macro ((sym value) &amp;body body)</div>
+<div style>  `(let ((,sym ,value))</div><div style>     (with-slots (bar)</div><div style>         ,sym</div><div style>       (progn #| do something with bar |# ,@body))))</div><div style><br></div><div style>Now I end up using it like so:</div>
+<div style><br></div><div style>(let ((bar ...))</div><div style>  (dummy-macro (k v) #| do something with bar |#))</div><div style><br></div><div style>I&#39;m pretty much borked here, right?</div><div style><br></div><div style>
+Follow-up question:</div><div style><br></div><div style>Is the above &quot;okay&quot; assuming that the macro exists in one package and the use of the macro exists in another package? In that case, the with-slots would actually be referencing my-package::bar and the usage code would be using cl-user::bar (as an example). Is it still bad form, though?</div>
+<div><br></div><div>Jeff M.</div></div>
+
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Using with-slots in a macro</h1>
+                 <pre>
+On 18 Mar 2013, at 20:31, Jeff Massung wrote:
+
+&gt Is this generally considered bad form and will break macros (akin to the reason gensym exists)?
+&gt 
+&gt What's the typical way to handle this? Just always use accessor functions for slots?
+&gt 
+&gt Just in case the above isn't clear enough... here's an example:
+&gt 
+&gt (defstruct foo bar)
+&gt 
+&gt (defmacro dummy-macro ((sym value) &amp;body body)
+&gt   `(let ((,sym ,value))
+&gt      (with-slots (bar)
+&gt          ,sym
+&gt        (progn #| do something with bar |# ,@body))))
+&gt 
+Yes, this will mean that BAR has special meaning inside the body, which you probably do not want.  However WITH-SLOTS deals with this: you can specify a name for the thing bound to the slot, so you could do something like this:
+
+(defmacro with-bog ((s v) &amp;body forms)
+  (let ((barn (make-symbol "BAR")))
+    `(let ((,s ,v))
+       (with-slots ((,barn bar)) sym
+         ... do something with ,barn ...
+         ,@body))))
+
+(I use &lt;foo&gtn to mean "name for &lt;foo&gt" which has come out unfortunately here.
+
+However in this case why can't you just do:
+
+(defmacro with-bog ((s v) &amp;body forms)
+  `(let ((,s ,v))
+     (with-slots (bar) ,sym
+       ... do somthing with bar ...)
+     ,@forms))
+
+?
+
+&gt 
+&gt Is the above "okay" assuming that the macro exists in one package and the use of the macro exists in another package? In that case, the with-slots would actually be referencing my-package::bar and the usage code would be using cl-user::bar (as an example). Is it still bad form, though?
+
+Yes, it's an accident waiting to happen.
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Using with-slots in a macro</h1>
+                 <pre>
+Jeff Massung &lt;massung@gmail.com&gt writes:
+
+&gt Is this generally considered bad form and will break macros (akin to
+&gt the reason gensym exists)?
+&gt
+&gt What's the typical way to handle this? Just always use accessor
+&gt functions for slots?
+&gt
+&gt Just in case the above isn't clear enough... here's an example:
+&gt
+&gt (defstruct foo bar)
+&gt
+&gt (defmacro dummy-macro ((sym value) &amp;body body)
+&gt &nbsp; `(let ((,sym ,value))
+&gt &nbsp; &nbsp; &nbsp;(with-slots (bar)
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;,sym
+&gt &nbsp; &nbsp; &nbsp; &nbsp;(progn #| do something with bar |# ,@body))))
+&gt
+&gt Now I end up using it like so:
+&gt
+&gt (let ((bar ...))
+&gt &nbsp; (dummy-macro (k v) #| do something with bar |#))
+&gt
+&gt I'm pretty much borked here, right?
+&gt
+&gt Follow-up question:
+&gt
+&gt Is the above "okay" assuming that the macro exists in one package and
+&gt the use of the macro exists in another package? In that case, the
+&gt with-slots would actually be referencing my-package::bar and the
+&gt usage code would be using cl-user::bar (as an example). Is it still
+&gt bad form, though?
+
+There are a lot of languages providing scoping operators that will
+deliver symbols in scopes without mentionning them.  For example, pascal
+'with'.
+
+So it depends on the language you want to build.
+You mention "do something with bar" inside the macro, but the body could
+also want to do something with bar.  In which case what you mention
+about packages would be a reason why to avoid this exact form.  As Tim
+mentionned, let the user specify a symbol to bind to the slot (or use
+your own gensym if it must be hidden from the body).  Only if you're
+designing a DSL where you can restrict the package dealing from the
+user, you can 'import' in scopes implicit symbols.  But even in this
+case, you may want not to, since this would prevent embedding one
+occurence of the macro in the body of another having access to both
+slots.  When you let the user name the symbols, it's easy:
+
+    (with-slots ((bar1 bar)) object1
+      (with-slots (bar2 bar)) object2
+         (+ bar1 bar2))
+
+-- 
+__Pascal Bourguignon__                     http://www.informatimago.com/
+A bad day in () is better than a good day in {}.
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:31 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

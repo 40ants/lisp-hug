@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>What is the "right" way to do animations in CAPI?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>What is the "right" way to do animations in CAPI?</h1>
+                <pre>
+I have an output pane on which I want to show a small geometric
+animation.  The intention is that the user is just watching during
+this animation, so there's no need for interactivity.
+
+(FWIW, this is on Windows, but in the long run I'd like to use a
+technique that works equally well on Windows and OS X.)
+
+What I'm doing right now is the following:
+
+A) The output pane uses :DRAW-WITH-BUFFER T and is also backed by my
+own buffer to which I'm drawing.  The display callback essentially
+just calls COPY-AREA on (a portion of) my buffer.
+
+B) In a loop I'm updating my buffer, then I call INVALIDATE-RECTANGLE
+on my pane and then I wait for about 0.02 seconds using
+WAIT-PROCESSING-EVENTS.
+
+This works fine and gives me an animation I'm happy with except that
+_sometimes_ it hangs at arbitrary points, i.e. the image freezes for a
+few fractions of a second and then the animation continues.  From what
+I've tried I'm almost 100% percent sure that this is not due to GC.  I
+rather suspect I'm somehow misusing CAPI or the Windows message pump
+by calling INVALIDATE-RECTANGLE too often or doing some other sin I'm
+not aware of.
+
+I've also tried to do the whole thing with a timer instead of B)
+above, but there the same thing happens.
+
+Any ideas?  (And sorry if this is a bit vague...)
+
+Thanks,
+Edi.
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: What is the "right" way to do animations in CAPI?</h1><html><head><meta http-equiv="Content-Type" content="text/html charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class=""><div class="">Edi,</div><div class=""><br class=""></div><div class="">I know you mentioned trying a timer, but I’ll just note that it’s the best way to go (for others who come across this thread in the future as well). For example:</div><div class=""><br class=""></div><div class=""><a href="https://gist.github.com/massung/c6c21662cf87869745e8" class="">https://gist.github.com/massung/c6c21662cf87869745e8</a></div><div class=""><br class=""></div><div class="">I didn’t comment it, but I hope it’s pretty self-explanitory. And it will work on all platforms.</div><div class=""><br class=""></div><div class="">I would concur with your “it’s not GC” speculation. I put together a 2D physics demo using LW a while ago:</div><div class=""><br class=""></div><div class=""><a href="http://www.scratchtask.com/download/physics_demo.mov" class="">http://www.scratchtask.com/download/physics_demo.mov</a></div><div class=""><br class=""></div><div class="">This isn’t using a C wrapper (aside from OpenGL)… everything being done is 100% Lisp code (quad-tree updates, collision resolution, and rendering). And I can let this run for a *long* time without seeing any hitches or slow-downs. I merely present this as another data-point supporting your “not GC” hypothesis.</div><div class=""><br class=""></div><div class="">Given that, here are some random thoughts:</div><div class=""><br class=""></div><div class="">* The only time I’ve ever run into “hitching” or slow downs during animation code I’ve written is due to breakpoints in the code. It doesn’t matter where the breakpoint is in the codebase (from what I’ve noticed), merely having one active can seriously impact performance - at least on the Mac.</div><div class=""><br class=""></div><div class="">* Are you rendering to your offscreen port in the CAPI pane process? If so, you might be taking long enough to draw that you miss your window of opportunity to copy it to the pane (similar to missing a v-sync). To get around this, use triple buffering: have 2 back buffers that you toggle between - one you render to and the other you blit. Your display callback should blit the one that is “front" as often and as fast as you like while the other (the “back”) is being drawn to in another process. Here’s a triple buffer example of the same animation as the first gist:</div><div class=""><br class=""></div><div class=""><a href="https://gist.github.com/massung/48367cb28fc17f606688" class="">https://gist.github.com/massung/48367cb28fc17f606688</a></div><div class=""><br class=""></div><div class="">Hope this helps,</div><div class="">Jeff M.</div><div class=""><br class=""></div><br class=""><div><blockquote type="cite" class=""><div class="">On Dec 22, 2014, at 2:44 PM, Edi Weitz &lt;<a href="mailto:edi@weitz.de" class="">edi@weitz.de</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><br class="">I have an output pane on which I want to show a small geometric<br class="">animation. &nbsp;The intention is that the user is just watching during<br class="">this animation, so there's no need for interactivity.<br class=""><br class="">(FWIW, this is on Windows, but in the long run I'd like to use a<br class="">technique that works equally well on Windows and OS X.)<br class=""><br class="">What I'm doing right now is the following:<br class=""><br class="">A) The output pane uses :DRAW-WITH-BUFFER T and is also backed by my<br class="">own buffer to which I'm drawing. &nbsp;The display callback essentially<br class="">just calls COPY-AREA on (a portion of) my buffer.<br class=""><br class="">B) In a loop I'm updating my buffer, then I call INVALIDATE-RECTANGLE<br class="">on my pane and then I wait for about 0.02 seconds using<br class="">WAIT-PROCESSING-EVENTS.<br class=""><br class="">This works fine and gives me an animation I'm happy with except that<br class="">_sometimes_ it hangs at arbitrary points, i.e. the image freezes for a<br class="">few fractions of a second and then the animation continues. &nbsp;From what<br class="">I've tried I'm almost 100% percent sure that this is not due to GC. &nbsp;I<br class="">rather suspect I'm somehow misusing CAPI or the Windows message pump<br class="">by calling INVALIDATE-RECTANGLE too often or doing some other sin I'm<br class="">not aware of.<br class=""><br class="">I've also tried to do the whole thing with a timer instead of B)<br class="">above, but there the same thing happens.<br class=""><br class="">Any ideas? &nbsp;(And sorry if this is a bit vague...)<br class=""><br class="">Thanks,<br class="">Edi.<br class=""><br class="">_______________________________________________<br class="">Lisp Hug - the mailing list for LispWorks users<br class=""><a href="mailto:lisp-hug@lispworks.com" class="">lisp-hug@lispworks.com</a><br class="">http://www.lispworks.com/support/lisp-hug.html<br class=""><br class=""></div></blockquote></div><br class=""></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: What is the "right" way to do animations in CAPI?</h1>
+                 <pre>
+Jeffrey,
+
+That was very helpful advice, thanks a lot!  It reminded me that -
+which I actually knew from earlier apps but managed to forget - you
+should never do too much in the interface process itself.  I've moved
+some of the computation to another thread and now everything works
+smoothly... :)
+
+Cool physics demo, BTW!
+
+Happy Holidays,
+Edi.
+
+
+
+
+
+On Tue, Dec 23, 2014 at 7:23 AM, Jeffrey Massung &lt;massung@gmail.com&gt wrote:
+&gt Edi,
+&gt
+&gt I know you mentioned trying a timer, but I’ll just note that it’s the best
+&gt way to go (for others who come across this thread in the future as well).
+&gt For example:
+&gt
+&gt https://gist.github.com/massung/c6c21662cf87869745e8
+&gt
+&gt I didn’t comment it, but I hope it’s pretty self-explanitory. And it will
+&gt work on all platforms.
+&gt
+&gt I would concur with your “it’s not GC” speculation. I put together a 2D
+&gt physics demo using LW a while ago:
+&gt
+&gt http://www.scratchtask.com/download/physics_demo.mov
+&gt
+&gt This isn’t using a C wrapper (aside from OpenGL)… everything being done is
+&gt 100% Lisp code (quad-tree updates, collision resolution, and rendering).. And
+&gt I can let this run for a *long* time without seeing any hitches or
+&gt slow-downs. I merely present this as another data-point supporting your “not
+&gt GC” hypothesis.
+&gt
+&gt Given that, here are some random thoughts:
+&gt
+&gt * The only time I’ve ever run into “hitching” or slow downs during animation
+&gt code I’ve written is due to breakpoints in the code. It doesn’t matter where
+&gt the breakpoint is in the codebase (from what I’ve noticed), merely having
+&gt one active can seriously impact performance - at least on the Mac.
+&gt
+&gt * Are you rendering to your offscreen port in the CAPI pane process? If so,
+&gt you might be taking long enough to draw that you miss your window of
+&gt opportunity to copy it to the pane (similar to missing a v-sync). To get
+&gt around this, use triple buffering: have 2 back buffers that you toggle
+&gt between - one you render to and the other you blit. Your display callback
+&gt should blit the one that is “front" as often and as fast as you like while
+&gt the other (the “back”) is being drawn to in another process. Here’s a triple
+&gt buffer example of the same animation as the first gist:
+&gt
+&gt https://gist.github.com/massung/48367cb28fc17f606688
+&gt
+&gt Hope this helps,
+&gt Jeff M.
+&gt
+&gt
+&gt On Dec 22, 2014, at 2:44 PM, Edi Weitz &lt;edi@weitz.de&gt wrote:
+&gt
+&gt
+&gt I have an output pane on which I want to show a small geometric
+&gt animation.  The intention is that the user is just watching during
+&gt this animation, so there's no need for interactivity.
+&gt
+&gt (FWIW, this is on Windows, but in the long run I'd like to use a
+&gt technique that works equally well on Windows and OS X.)
+&gt
+&gt What I'm doing right now is the following:
+&gt
+&gt A) The output pane uses :DRAW-WITH-BUFFER T and is also backed by my
+&gt own buffer to which I'm drawing.  The display callback essentially
+&gt just calls COPY-AREA on (a portion of) my buffer.
+&gt
+&gt B) In a loop I'm updating my buffer, then I call INVALIDATE-RECTANGLE
+&gt on my pane and then I wait for about 0.02 seconds using
+&gt WAIT-PROCESSING-EVENTS.
+&gt
+&gt This works fine and gives me an animation I'm happy with except that
+&gt _sometimes_ it hangs at arbitrary points, i.e. the image freezes for a
+&gt few fractions of a second and then the animation continues.  From what
+&gt I've tried I'm almost 100% percent sure that this is not due to GC.  I
+&gt rather suspect I'm somehow misusing CAPI or the Windows message pump
+&gt by calling INVALIDATE-RECTANGLE too often or doing some other sin I'm
+&gt not aware of.
+&gt
+&gt I've also tried to do the whole thing with a timer instead of B)
+&gt above, but there the same thing happens.
+&gt
+&gt Any ideas?  (And sorry if this is a bit vague...)
+&gt
+&gt Thanks,
+&gt Edi.
+&gt
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+&gt
+&gt
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:29 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

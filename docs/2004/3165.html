@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Continuing grief with editor-pane in LWM</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Continuing grief with editor-pane in LWM</h1>
+                <pre>Hi,
+
+I've attached a bit of code that does the following:
+-- creates a new interface called 'toy' that has a list and an editor  
+pane
+-- the list has a call back that changes the text in the editor
+-- exports a function called play:toy that runs the interface
+
+There is a function called 'toy-redisplay' that redisplays the editor  
+in its own thread using the technique from  
+&lt;http://www1.xanalys.com/support/lisp/kbase.nsf/ 
+51fe6e1cdfe748a180256639005a2ba9/12e133730edbe13980256ea9004e2448? 
+OpenDocument&gt
+
+There is a function called 'add-text' that adds an item to the list,  
+selects it and sets the editor text.
+
+There is a function called 'play' that adds four items and displays  
+everything.
+
+When I run it (i.e. (toy:play) selecting items in the card list will  
+update the text in the editor-pane. This is how I expect it to work.
+
+HOWEVER...
+
+If you uncomment the resize-callback for the editor, recompile and run,  
+it stops working, but in a very strange way: The editor pane is not  
+updated but the underlying buffer *is* updated (change tabs in the  
+IDE's editor and select the toy buffer and watch it change as you click  
+in the list). NOTE the resize callback has not been called, though if  
+you do resize the window it will be.
+
+Any help would be appreciated. What happens on other platforms?
+
+Cheers,
+Bob
+
+
+(defpackage toy
+   (:add-use-defaults t)
+   (:use
+    common-lisp
+    capi)
+   (:export
+    #:play))
+
+(in-package toy)
+
+(defun toy-redisplay (ed)
+   (format t "redisplay ~A~%" ed)
+   (when ed
+     (let ((window (editor-window ed)))
+       (if window
+           (editor:process-character `(editor:redisplay ,ed) window)
+         (format t "no window for editor")))))
+
+(define-interface toy ()
+   ()
+   (:panes
+    (texts list-panel
+           :accessor texts
+           :items nil
+           :visible-min-height '(character 10)
+           :print-function #'(lambda (data) (string-capitalize (car  
+data)))
+           :selection-callback #'(lambda (data interface)
+                                   (let ((ed (editor interface))
+                                         (text (cadr data)))
+                                         ;(modify-editor-pane-buffer ed  
+:contents text)
+                                     ;(setf (editor-pane-text ed) text)
+                                     (setf (editor-pane-text ed) (coerce  
+text 'simple-text-string))
+                                     (toy-redisplay ed))))
+   (editor editor-pane
+            :accessor editor
+            :buffer-name "the-toy-buffer"
+            :font (gp:find-best-font (capi:convert-to-screen)
+                                     (gp:make-font-description :family  
+"Monaco"
+                                                               :size 14))
+            :text "Resizable"
+            :visible-min-height '(:character 10)
+            :visible-min-width '(:character 10)
+#|
+            ; if this is uncommented the toy will break
+            :resize-callback #'(lambda (ed x y w h)
+                                 (declare (ignore x) (ignore y) (ignore  
+w) (ignore h))
+                                 #+nil(let* ((fw (system::ed-font-width  
+ed))
+                                        (pw (system::ed-pane-width ed))
+                                        (cw (truncate (/ pw fw)))
+                                        (ff (- cw 2))
+                                        (text (editor-pane-text ed)))
+                                   (format t "#chars wide: ~A, text  
+length: ~A ~%"
+                                           ff (length text))))
+|#
+   ))
+   (:layouts
+    (the-layout row-layout '(texts editor)
+                :reader the-layout
+                :ratios '(1 4)))
+   (:default-initargs
+    :title "toy"
+    :layout 'the-layout
+    :best-width 600
+    :best-height 400))
+
+(defun add-text (name text toy)
+   (format t "add-text name: ~A, text ~A ~%" name text)
+   (let* ((texts-list (texts toy))
+          (texts (collection-items texts-list))
+          (new-index (length texts))
+          (new-texts (adjust-array texts (+ 1 new-index)))
+          (item (list name text))
+          (ed (editor toy)))
+     (setf (aref new-texts new-index) item)
+     (setf (collection-items texts-list) new-texts)
+     (setf (choice-selected-item texts-list) item)
+     (modify-editor-pane-buffer ed :contents text)))
+
+(defun play ()
+   (let ((toy (make-instance 'toy)))
+     (add-text "one" "one one one" toy)
+     (add-text "two" "two two two" toy)
+     (add-text "three" "three three three" toy)
+     (add-text "four" "four four four" toy)
+     (display toy)))
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Continuing grief with editor-pane in LWM</h1>
+                 <pre>
+On Dec 2, 2004, at 10:43 AM, Bob Hutchison wrote:
+
+&gt If you uncomment the resize-callback for the editor, recompile and 
+&gt run, it stops working, but in a very strange way: The editor pane is 
+&gt not updated but the underlying buffer *is* updated (change tabs in the 
+&gt IDE's editor and select the toy buffer and watch it change as you 
+&gt click in the list). NOTE the resize callback has not been called, 
+&gt though if you do resize the window it will be.
+
+It seems like a bug to me. I tried a few things and could not find a 
+way to make it work. It would not even work if you use :resize-callback 
+nil.
+
+Also, it seems like a bug to me if you have to call editor:redisplay 
+after using (setf editor-pane-text).
+
+Best,
+
+John DeSoi, Ph.D.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Continuing grief with editor-pane in LWM [SOLVED]</h1>
+                 <pre>Hi,
+
+I reported this as a bug, and Martin Simmons of LispWorks support got  
+back to me with the cause of the problem: the editor-pane has a default  
+resize-callback that must be called. I tried defining an  
+INITIALIZE-INSTANCE method on my interface, but this seems to be too  
+early for this to work (the editor pane slot was not defined yet). As  
+it happens, I use a single function to create the interface, so I added  
+the following code there, and it works.
+
+
+(let ((default-resize-callback (output-pane-resize-callback (editor  
+window))))
+       (labels ((extended-editor-resize (ed x y w h)
+                  (apply default-resize-callback (list ed x y w h))
+                  (let* ((fw (system::ed-font-width ed))
+                         (pw (system::ed-pane-width ed))
+                         (cw (truncate (/ pw fw)))
+                         (ff (- cw 2))
+                         #+nil(text (editor-pane-text ed)))
+                    (setf (editor-pane-fixed-fill ed) ff))))
+         (setf (output-pane-resize-callback (editor window))
+               #'extended-editor-resize)))
+
+So that's solved.
+
+Now. What this bit of code does is calculate how many characters fit on  
+a line in the editor and set the fixed-fill accordingly. It works. It  
+does seem to me that there should be an easier way to do this though.
+
+Cheers,
+Bob
+
+
+On Dec 2, 2004, at 10:43 AM, Bob Hutchison wrote:
+
+&gt Hi,
+&gt
+&gt I've attached a bit of code that does the following:
+&gt -- creates a new interface called 'toy' that has a list and an editor  
+&gt pane
+&gt -- the list has a call back that changes the text in the editor
+&gt -- exports a function called play:toy that runs the interface
+&gt
+&gt There is a function called 'toy-redisplay' that redisplays the editor  
+&gt in its own thread using the technique from  
+&gt &lt;http://www1.xanalys.com/support/lisp/kbase.nsf/ 
+&gt 51fe6e1cdfe748a180256639005a2ba9/12e133730edbe13980256ea9004e2448? 
+&gt OpenDocument&gt
+&gt
+&gt There is a function called 'add-text' that adds an item to the list,  
+&gt selects it and sets the editor text.
+&gt
+&gt There is a function called 'play' that adds four items and displays  
+&gt everything.
+&gt
+&gt When I run it (i.e. (toy:play) selecting items in the card list will  
+&gt update the text in the editor-pane. This is how I expect it to work.
+&gt
+&gt HOWEVER...
+&gt
+&gt If you uncomment the resize-callback for the editor, recompile and  
+&gt run, it stops working, but in a very strange way: The editor pane is  
+&gt not updated but the underlying buffer *is* updated (change tabs in the  
+&gt IDE's editor and select the toy buffer and watch it change as you  
+&gt click in the list). NOTE the resize callback has not been called,  
+&gt though if you do resize the window it will be.
+&gt
+&gt Any help would be appreciated. What happens on other platforms?
+&gt
+&gt Cheers,
+&gt Bob
+&gt
+&gt
+&gt (defpackage toy
+&gt   (:add-use-defaults t)
+&gt   (:use
+&gt    common-lisp
+&gt    capi)
+&gt   (:export
+&gt    #:play))
+&gt
+&gt (in-package toy)
+&gt
+&gt (defun toy-redisplay (ed)
+&gt   (format t "redisplay ~A~%" ed)
+&gt   (when ed
+&gt     (let ((window (editor-window ed)))
+&gt       (if window
+&gt           (editor:process-character `(editor:redisplay ,ed) window)
+&gt         (format t "no window for editor")))))
+&gt
+&gt (define-interface toy ()
+&gt   ()
+&gt   (:panes
+&gt    (texts list-panel
+&gt           :accessor texts
+&gt           :items nil
+&gt           :visible-min-height '(character 10)
+&gt           :print-function #'(lambda (data) (string-capitalize (car  
+&gt data)))
+&gt           :selection-callback #'(lambda (data interface)
+&gt                                   (let ((ed (editor interface))
+&gt                                         (text (cadr data)))
+&gt                                         ;(modify-editor-pane-buffer ed  
+&gt :contents text)
+&gt                                     ;(setf (editor-pane-text ed) text)
+&gt                                     (setf (editor-pane-text ed)  
+&gt (coerce text 'simple-text-string))
+&gt                                     (toy-redisplay ed))))
+&gt   (editor editor-pane
+&gt            :accessor editor
+&gt            :buffer-name "the-toy-buffer"
+&gt            :font (gp:find-best-font (capi:convert-to-screen)
+&gt                                     (gp:make-font-description :family  
+&gt "Monaco"
+&gt                                                               :size  
+&gt 14))
+&gt            :text "Resizable"
+&gt            :visible-min-height '(:character 10)
+&gt            :visible-min-width '(:character 10)
+&gt #|
+&gt            ; if this is uncommented the toy will break
+&gt            :resize-callback #'(lambda (ed x y w h)
+&gt                                 (declare (ignore x) (ignore y) (ignore  
+&gt w) (ignore h))
+&gt                                 #+nil(let* ((fw (system::ed-font-width  
+&gt ed))
+&gt                                        (pw (system::ed-pane-width ed))
+&gt                                        (cw (truncate (/ pw fw)))
+&gt                                        (ff (- cw 2))
+&gt                                        (text (editor-pane-text ed)))
+&gt                                   (format t "#chars wide: ~A, text  
+&gt length: ~A ~%"
+&gt                                           ff (length text))))
+&gt |#
+&gt   ))
+&gt   (:layouts
+&gt    (the-layout row-layout '(texts editor)
+&gt                :reader the-layout
+&gt                :ratios '(1 4)))
+&gt   (:default-initargs
+&gt    :title "toy"
+&gt    :layout 'the-layout
+&gt    :best-width 600
+&gt    :best-height 400))
+&gt
+&gt (defun add-text (name text toy)
+&gt   (format t "add-text name: ~A, text ~A ~%" name text)
+&gt   (let* ((texts-list (texts toy))
+&gt          (texts (collection-items texts-list))
+&gt          (new-index (length texts))
+&gt          (new-texts (adjust-array texts (+ 1 new-index)))
+&gt          (item (list name text))
+&gt          (ed (editor toy)))
+&gt     (setf (aref new-texts new-index) item)
+&gt     (setf (collection-items texts-list) new-texts)
+&gt     (setf (choice-selected-item texts-list) item)
+&gt     (modify-editor-pane-buffer ed :contents text)))
+&gt
+&gt (defun play ()
+&gt   (let ((toy (make-instance 'toy)))
+&gt     (add-text "one" "one one one" toy)
+&gt     (add-text "two" "two two two" toy)
+&gt     (add-text "three" "three three three" toy)
+&gt     (add-text "four" "four four four" toy)
+&gt     (display toy)))
+&gt
+&gt
+----
+Bob Hutchison          -- blogs at &lt;http://www.recursive.ca/hutch/&gt
+Recursive Design Inc.  -- &lt;http://www.recursive.ca/&gt
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:50 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

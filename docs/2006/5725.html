@@ -1,0 +1,1847 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>LW 5.0 on Windows, Microsoft.VC80.CRT and delivered applications</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>LW 5.0 on Windows, Microsoft.VC80.CRT and delivered applications</h1>
+                <pre>
+I'm in the process of getting my code working with LWW 5.0.
+
+When I try to start up a delivered application on a machine
+that doesn't have LW 5.0 installed, I get the following
+error message:
+
+    This application has failed to start because the
+    application configuration is incorrect.
+
+I tracked this down to the Microsoft.VC80.CRT component
+not being present.
+
+I've found a solution that appears to work, but I don't know
+whether I'm really doing The Right Thing.
+
+Following instructions at
+http://forums.microsoft.com/MSDN/ShowPost.aspx?PostID=164465&amp;SiteID=1
+I have created a folder named Microsoft.VC80.CRT in the same
+folder as my delivered .exe, with the following contents:
+
+    msvcm80.dll
+    msvcp80.dll
+    msvcr80.dll
+       (the above copied from
+C:\WINDOWS\WinSxS\x86_Microsoft.VC80.CRT_1fc8b3b9a1e18e3b_8.0.50727.42
+_x-ww_0de06acd)
+
+    Microsoft.VC80.CRT.manifest
+
+The file Microsoft.VC80.CRT.manifest has the following
+contents:
+
+--------8&lt;--------
+&lt;?xml version="1.0" encoding="UTF-8" standalone="yes"?&gt
+&lt;!-- Copyright C 1981-2001 Microsoft Corporation --&gt
+&lt;assembly xmlns="urn:schemas-microsoft-com:asm.v1"
+manifestVersion="1.0"&gt
+    &lt;noInheritable/&gt
+    &lt;assemblyIdentity 
+        type="win32" 
+        name="Microsoft.VC80.CRT" 
+        version="8.0.50608.0" 
+        processorArchitecture="x86" 
+        publicKeyToken="1fc8b3b9a1e18e3b"
+    /&gt
+    &lt;file name="msvcr80.dll"/&gt
+    &lt;file name="msvcp80.dll"/&gt
+    &lt;file name="msvcm80.dll"/&gt
+&lt;/assembly&gt
+--------8&lt;--------
+
+Everything seems to be working fine.
+
+So, my question is: Am I doing The Right Thing or is there
+a better way? I'm aware of the possibility of using vcredist_x86
+and ensuring that Windows Installer 3.x engine is available on the
+user's machine (as mentioned at the above link), but for now at
+least I think I'd like to keep things as simple as possible.
+
+Simon
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LW 5.0 on Windows, Microsoft.VC80.CRT and delivered applications</h1>
+                 <pre>
+Hi
+RTFM :-) Particular the release notes for LWW5. You need to deliver
+msvcrt8.dll (sorry haven't the docs here at work) with your app. LWW5
+relies on it. If i remember correct you find the DLL in your LWW folder
+where the LWW binary is. Then it should work.
+Hope that helps
+
+AHz
+
+
+
+Simon Katz wrote:
+
+&gtI'm in the process of getting my code working with LWW 5.0.
+&gt
+&gtWhen I try to start up a delivered application on a machine
+&gtthat doesn't have LW 5.0 installed, I get the following
+&gterror message:
+&gt
+&gt    This application has failed to start because the
+&gt    application configuration is incorrect.
+&gt
+&gtI tracked this down to the Microsoft.VC80.CRT component
+&gtnot being present.
+&gt
+&gtI've found a solution that appears to work, but I don't know
+&gtwhether I'm really doing The Right Thing.
+&gt
+&gtFollowing instructions at
+&gthttp://forums.microsoft.com/MSDN/ShowPost.aspx?PostID=164465&amp;SiteID=1
+&gtI have created a folder named Microsoft.VC80.CRT in the same
+&gtfolder as my delivered .exe, with the following contents:
+&gt
+&gt    msvcm80.dll
+&gt    msvcp80.dll
+&gt    msvcr80.dll
+&gt       (the above copied from
+&gtC:\WINDOWS\WinSxS\x86_Microsoft.VC80.CRT_1fc8b3b9a1e18e3b_8.0.50727.42
+&gt_x-ww_0de06acd)
+&gt
+&gt    Microsoft.VC80.CRT.manifest
+&gt
+&gtThe file Microsoft.VC80.CRT.manifest has the following
+&gtcontents:
+&gt
+&gt--------8&lt;--------
+&gt&lt;?xml version="1.0" encoding="UTF-8" standalone="yes"?&gt
+&gt&lt;!-- Copyright C 1981-2001 Microsoft Corporation --&gt
+&gt&lt;assembly xmlns="urn:schemas-microsoft-com:asm.v1"
+&gtmanifestVersion="1.0"&gt
+&gt    &lt;noInheritable/&gt
+&gt    &lt;assemblyIdentity 
+&gt        type="win32" 
+&gt        name="Microsoft.VC80.CRT" 
+&gt        version="8.0.50608.0" 
+&gt        processorArchitecture="x86" 
+&gt        publicKeyToken="1fc8b3b9a1e18e3b"
+&gt    /&gt
+&gt    &lt;file name="msvcr80.dll"/&gt
+&gt    &lt;file name="msvcp80.dll"/&gt
+&gt    &lt;file name="msvcm80.dll"/&gt
+&gt&lt;/assembly&gt
+&gt--------8&lt;--------
+&gt
+&gtEverything seems to be working fine.
+&gt
+&gtSo, my question is: Am I doing The Right Thing or is there
+&gta better way? I'm aware of the possibility of using vcredist_x86
+&gtand ensuring that Windows Installer 3.x engine is available on the
+&gtuser's machine (as mentioned at the above link), but for now at
+&gtleast I think I'd like to keep things as simple as possible.
+&gt
+&gtSimon
+&gt
+&gt
+&gt  
+&gt
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>RE: LW 5.0 on Windows, Microsoft.VC80.CRT and delivered applications</h1>
+                  <pre>
+Thanks for the suggestion, but I can't find anything in the
+release notes or delivery guide that talks about this. (I did
+look before posting, and I've looked again!) Maybe that's a
+bug in my brain; any precise pointers into the documentation
+would be welcome.
+
+I tried copying Msvcrt.dll from the directory containing the
+LW executable to the directory containing my delivered
+application (on my machine without LW 5 installed), but that
+didn't make the problem go away.
+
+Simon
+
+&gt -----Original Message-----
+&gt From: owner-lisp-hug@lispworks.com 
+&gt [mailto:owner-lisp-hug@lispworks.com] On Behalf Of Andreas
+&gt Sent: 04 August 2006 10:20
+&gt To: Simon Katz
+&gt Cc: lisp-hug@lispworks.com
+&gt Subject: Re: LW 5.0 on Windows, Microsoft.VC80.CRT and 
+&gt delivered applications
+&gt 
+&gt 
+&gt Hi
+&gt RTFM :-) Particular the release notes for LWW5. You need to deliver
+&gt msvcrt8.dll (sorry haven't the docs here at work) with your app.
+LWW5
+&gt relies on it. If i remember correct you find the DLL in your 
+&gt LWW folder
+&gt where the LWW binary is. Then it should work.
+&gt Hope that helps
+&gt 
+&gt AHz
+&gt 
+&gt 
+&gt 
+&gt Simon Katz wrote:
+&gt 
+&gt &gtI'm in the process of getting my code working with LWW 5.0.
+&gt &gt
+&gt &gtWhen I try to start up a delivered application on a machine
+&gt &gtthat doesn't have LW 5.0 installed, I get the following
+&gt &gterror message:
+&gt &gt
+&gt &gt    This application has failed to start because the
+&gt &gt    application configuration is incorrect.
+&gt &gt
+&gt &gtI tracked this down to the Microsoft.VC80.CRT component
+&gt &gtnot being present.
+&gt &gt
+&gt &gtI've found a solution that appears to work, but I don't know
+&gt &gtwhether I'm really doing The Right Thing.
+&gt &gt
+&gt &gtFollowing instructions at
+&gt
+&gthttp://forums.microsoft.com/MSDN/ShowPost.aspx?PostID=164465&amp;SiteID=1
+&gt &gtI have created a folder named Microsoft.VC80.CRT in the same
+&gt &gtfolder as my delivered .exe, with the following contents:
+&gt &gt
+&gt &gt    msvcm80.dll
+&gt &gt    msvcp80.dll
+&gt &gt    msvcr80.dll
+&gt &gt       (the above copied from
+&gt &gtC:\WINDOWS\WinSxS\x86_Microsoft.VC80.CRT_1fc8b3b9a1e18e3b_8.0
+&gt .50727.42
+&gt &gt_x-ww_0de06acd)
+&gt &gt
+&gt &gt    Microsoft.VC80.CRT.manifest
+&gt &gt
+&gt &gtThe file Microsoft.VC80.CRT.manifest has the following
+&gt &gtcontents:
+&gt &gt
+&gt &gt--------8&lt;--------
+&gt &gt&lt;?xml version="1.0" encoding="UTF-8" standalone="yes"?&gt
+&gt &gt&lt;!-- Copyright C 1981-2001 Microsoft Corporation --&gt
+&gt &gt&lt;assembly xmlns="urn:schemas-microsoft-com:asm.v1"
+&gt &gtmanifestVersion="1.0"&gt
+&gt &gt    &lt;noInheritable/&gt
+&gt &gt    &lt;assemblyIdentity 
+&gt &gt        type="win32" 
+&gt &gt        name="Microsoft.VC80.CRT" 
+&gt &gt        version="8.0.50608.0" 
+&gt &gt        processorArchitecture="x86" 
+&gt &gt        publicKeyToken="1fc8b3b9a1e18e3b"
+&gt &gt    /&gt
+&gt &gt    &lt;file name="msvcr80.dll"/&gt
+&gt &gt    &lt;file name="msvcp80.dll"/&gt
+&gt &gt    &lt;file name="msvcm80.dll"/&gt
+&gt &gt&lt;/assembly&gt
+&gt &gt--------8&lt;--------
+&gt &gt
+&gt &gtEverything seems to be working fine.
+&gt &gt
+&gt &gtSo, my question is: Am I doing The Right Thing or is there
+&gt &gta better way? I'm aware of the possibility of using vcredist_x86
+&gt &gtand ensuring that Windows Installer 3.x engine is available on the
+&gt &gtuser's machine (as mentioned at the above link), but for now at
+&gt &gtleast I think I'd like to keep things as simple as possible.
+&gt &gt
+&gt &gtSimon
+&gt &gt
+&gt &gt
+&gt &gt  
+&gt &gt
+&gt 
+&gt 
+&gt 
+&gt 
+
+
+
+</pre>
+                 </article>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>Re: LW 5.0 on Windows, Microsoft.VC80.CRT and delivered applications</h1>
+                   <pre>
+Hi Simon
+
+ From "readme-5-0.pdf":
+
+"12.15.1 Runtime library requirement on Windows
+ LispWorks for Windows now requires the Microsoft Visual Studio runtime
+ library msvcr80.dll. The LispWorks installer installs this DLL if it is
+ not present.
+ Applications you build with LispWorks for Windows also require this
+ DLL, so you must ensure it is available on target machines."
+
+Have you tried to copy the DLL into the c:\windows\system32 directory ?
+
+Sorry, i didnt have LWW5 installed here at work so i can't give you more
+details.
+
+Hth
+Regards
+AHz
+
+
+Simon Katz wrote:
+
+&gtThanks for the suggestion, but I can't find anything in the
+&gtrelease notes or delivery guide that talks about this. (I did
+&gtlook before posting, and I've looked again!) Maybe that's a
+&gtbug in my brain; any precise pointers into the documentation
+&gtwould be welcome.
+&gt
+&gtI tried copying Msvcrt.dll from the directory containing the
+&gtLW executable to the directory containing my delivered
+&gtapplication (on my machine without LW 5 installed), but that
+&gtdidn't make the problem go away.
+&gt
+&gtSimon
+&gt
+&gt  
+&gt
+&gt&gt-----Original Message-----
+&gt&gtFrom: owner-lisp-hug@lispworks.com 
+&gt&gt[mailto:owner-lisp-hug@lispworks.com] On Behalf Of Andreas
+&gt&gtSent: 04 August 2006 10:20
+&gt&gtTo: Simon Katz
+&gt&gtCc: lisp-hug@lispworks.com
+&gt&gtSubject: Re: LW 5.0 on Windows, Microsoft.VC80.CRT and 
+&gt&gtdelivered applications
+&gt&gt
+&gt&gt
+&gt&gtHi
+&gt&gtRTFM :-) Particular the release notes for LWW5. You need to deliver
+&gt&gtmsvcrt8.dll (sorry haven't the docs here at work) with your app.
+&gt&gt    
+&gt&gt
+&gtLWW5
+&gt  
+&gt
+&gt&gtrelies on it. If i remember correct you find the DLL in your 
+&gt&gtLWW folder
+&gt&gtwhere the LWW binary is. Then it should work.
+&gt&gtHope that helps
+&gt&gt
+&gt&gtAHz
+&gt&gt
+&gt&gt
+&gt&gt
+&gt&gtSimon Katz wrote:
+&gt&gt
+&gt&gt    
+&gt&gt
+&gt&gt&gtI'm in the process of getting my code working with LWW 5.0.
+&gt&gt&gt
+&gt&gt&gtWhen I try to start up a delivered application on a machine
+&gt&gt&gtthat doesn't have LW 5.0 installed, I get the following
+&gt&gt&gterror message:
+&gt&gt&gt
+&gt&gt&gt   This application has failed to start because the
+&gt&gt&gt   application configuration is incorrect.
+&gt&gt&gt
+&gt&gt&gtI tracked this down to the Microsoft.VC80.CRT component
+&gt&gt&gtnot being present.
+&gt&gt&gt
+&gt&gt&gtI've found a solution that appears to work, but I don't know
+&gt&gt&gtwhether I'm really doing The Right Thing.
+&gt&gt&gt
+&gt&gt&gtFollowing instructions at
+&gt&gt&gt      
+&gt&gt&gt
+&gt&gthttp://forums.microsoft.com/MSDN/ShowPost.aspx?PostID=164465&amp;SiteID=1
+&gt&gt    
+&gt&gt
+&gt&gt&gtI have created a folder named Microsoft.VC80.CRT in the same
+&gt&gt&gtfolder as my delivered .exe, with the following contents:
+&gt&gt&gt
+&gt&gt&gt   msvcm80.dll
+&gt&gt&gt   msvcp80.dll
+&gt&gt&gt   msvcr80.dll
+&gt&gt&gt      (the above copied from
+&gt&gt&gtC:\WINDOWS\WinSxS\x86_Microsoft.VC80.CRT_1fc8b3b9a1e18e3b_8.0
+&gt&gt&gt      
+&gt&gt&gt
+&gt&gt.50727.42
+&gt&gt    
+&gt&gt
+&gt&gt&gt_x-ww_0de06acd)
+&gt&gt&gt
+&gt&gt&gt   Microsoft.VC80.CRT.manifest
+&gt&gt&gt
+&gt&gt&gtThe file Microsoft.VC80.CRT.manifest has the following
+&gt&gt&gtcontents:
+&gt&gt&gt
+&gt&gt&gt--------8&lt;--------
+&gt&gt&gt&lt;?xml version="1.0" encoding="UTF-8" standalone="yes"?&gt
+&gt&gt&gt&lt;!-- Copyright C 1981-2001 Microsoft Corporation --&gt
+&gt&gt&gt&lt;assembly xmlns="urn:schemas-microsoft-com:asm.v1"
+&gt&gt&gtmanifestVersion="1.0"&gt
+&gt&gt&gt   &lt;noInheritable/&gt
+&gt&gt&gt   &lt;assemblyIdentity 
+&gt&gt&gt       type="win32" 
+&gt&gt&gt       name="Microsoft.VC80.CRT" 
+&gt&gt&gt       version="8.0.50608.0" 
+&gt&gt&gt       processorArchitecture="x86" 
+&gt&gt&gt       publicKeyToken="1fc8b3b9a1e18e3b"
+&gt&gt&gt   /&gt
+&gt&gt&gt   &lt;file name="msvcr80.dll"/&gt
+&gt&gt&gt   &lt;file name="msvcp80.dll"/&gt
+&gt&gt&gt   &lt;file name="msvcm80.dll"/&gt
+&gt&gt&gt&lt;/assembly&gt
+&gt&gt&gt--------8&lt;--------
+&gt&gt&gt
+&gt&gt&gtEverything seems to be working fine.
+&gt&gt&gt
+&gt&gt&gtSo, my question is: Am I doing The Right Thing or is there
+&gt&gt&gta better way? I'm aware of the possibility of using vcredist_x86
+&gt&gt&gtand ensuring that Windows Installer 3.x engine is available on the
+&gt&gt&gtuser's machine (as mentioned at the above link), but for now at
+&gt&gt&gtleast I think I'd like to keep things as simple as possible.
+&gt&gt&gt
+&gt&gt&gtSimon
+&gt&gt&gt
+&gt&gt&gt
+&gt&gt&gt 
+&gt&gt&gt
+&gt&gt&gt      
+&gt&gt&gt
+&gt&gt
+&gt&gt
+&gt&gt    
+&gt&gt
+&gt
+&gt
+&gt  
+&gt
+
+
+</pre>
+                  </article>
+                  <section class=tree>
+                   <article class=email>
+                    <h1>RE: LW 5.0 on Windows, Microsoft.VC80.CRT and delivered applications</h1>
+                    <pre>
+Andreas,
+
+Thanks -- and see the mail from me sent at about the same
+time as you sent yours.
+
+I tried your suggestion of copying msvcr80.dll to the
+c:\windows\system32 directory -- it doesn't make the
+problem go away.
+
+FWIW, my computer without LW 5.0 installed is running
+Windows XP Professional, Version 2002, Service Pack 2.
+I wonder whether that makes any difference.
+
+Simon
+
+&gt -----Original Message-----
+&gt From: owner-lisp-hug@lispworks.com 
+&gt [mailto:owner-lisp-hug@lispworks.com] On Behalf Of Andreas
+&gt Sent: 04 August 2006 12:29
+&gt To: Simon Katz
+&gt Cc: lisp-hug@lispworks.com
+&gt Subject: Re: LW 5.0 on Windows, Microsoft.VC80.CRT and 
+&gt delivered applications
+&gt 
+&gt 
+&gt Hi Simon
+&gt 
+&gt  From "readme-5-0.pdf":
+&gt 
+&gt "12.15.1 Runtime library requirement on Windows
+&gt  LispWorks for Windows now requires the Microsoft Visual 
+&gt Studio runtime
+&gt  library msvcr80.dll. The LispWorks installer installs this 
+&gt DLL if it is
+&gt  not present.
+&gt  Applications you build with LispWorks for Windows also require this
+&gt  DLL, so you must ensure it is available on target machines."
+&gt 
+&gt Have you tried to copy the DLL into the c:\windows\system32 
+&gt directory ?
+&gt 
+&gt Sorry, i didnt have LWW5 installed here at work so i can't 
+&gt give you more
+&gt details.
+&gt 
+&gt Hth
+&gt Regards
+&gt AHz
+&gt 
+&gt 
+&gt Simon Katz wrote:
+&gt 
+&gt &gtThanks for the suggestion, but I can't find anything in the
+&gt &gtrelease notes or delivery guide that talks about this. (I did
+&gt &gtlook before posting, and I've looked again!) Maybe that's a
+&gt &gtbug in my brain; any precise pointers into the documentation
+&gt &gtwould be welcome.
+&gt &gt
+&gt &gtI tried copying Msvcrt.dll from the directory containing the
+&gt &gtLW executable to the directory containing my delivered
+&gt &gtapplication (on my machine without LW 5 installed), but that
+&gt &gtdidn't make the problem go away.
+&gt &gt
+&gt &gtSimon
+&gt &gt
+&gt &gt  
+&gt &gt
+&gt &gt&gt-----Original Message-----
+&gt &gt&gtFrom: owner-lisp-hug@lispworks.com 
+&gt &gt&gt[mailto:owner-lisp-hug@lispworks.com] On Behalf Of Andreas
+&gt &gt&gtSent: 04 August 2006 10:20
+&gt &gt&gtTo: Simon Katz
+&gt &gt&gtCc: lisp-hug@lispworks.com
+&gt &gt&gtSubject: Re: LW 5.0 on Windows, Microsoft.VC80.CRT and 
+&gt &gt&gtdelivered applications
+&gt &gt&gt
+&gt &gt&gt
+&gt &gt&gtHi
+&gt &gt&gtRTFM :-) Particular the release notes for LWW5. You need to
+deliver
+&gt &gt&gtmsvcrt8.dll (sorry haven't the docs here at work) with your app.
+&gt &gt&gt    
+&gt &gt&gt
+&gt &gtLWW5
+&gt &gt  
+&gt &gt
+&gt &gt&gtrelies on it. If i remember correct you find the DLL in your 
+&gt &gt&gtLWW folder
+&gt &gt&gtwhere the LWW binary is. Then it should work.
+&gt &gt&gtHope that helps
+&gt &gt&gt
+&gt &gt&gtAHz
+&gt &gt&gt
+&gt &gt&gt
+&gt &gt&gt
+&gt &gt&gtSimon Katz wrote:
+&gt &gt&gt
+&gt &gt&gt    
+&gt &gt&gt
+&gt &gt&gt&gtI'm in the process of getting my code working with LWW 5.0.
+&gt &gt&gt&gt
+&gt &gt&gt&gtWhen I try to start up a delivered application on a machine
+&gt &gt&gt&gtthat doesn't have LW 5.0 installed, I get the following
+&gt &gt&gt&gterror message:
+&gt &gt&gt&gt
+&gt &gt&gt&gt   This application has failed to start because the
+&gt &gt&gt&gt   application configuration is incorrect.
+&gt &gt&gt&gt
+&gt &gt&gt&gtI tracked this down to the Microsoft.VC80.CRT component
+&gt &gt&gt&gtnot being present.
+&gt &gt&gt&gt
+&gt &gt&gt&gtI've found a solution that appears to work, but I don't know
+&gt &gt&gt&gtwhether I'm really doing The Right Thing.
+&gt &gt&gt&gt
+&gt &gt&gt&gtFollowing instructions at
+&gt &gt&gt&gt      
+&gt &gt&gt&gt
+&gt &gt&gthttp://forums.microsoft.com/MSDN/ShowPost.aspx?PostID=164465
+&gt &amp;SiteID=1
+&gt &gt&gt    
+&gt &gt&gt
+&gt &gt&gt&gtI have created a folder named Microsoft.VC80.CRT in the same
+&gt &gt&gt&gtfolder as my delivered .exe, with the following contents:
+&gt &gt&gt&gt
+&gt &gt&gt&gt   msvcm80.dll
+&gt &gt&gt&gt   msvcp80.dll
+&gt &gt&gt&gt   msvcr80.dll
+&gt &gt&gt&gt      (the above copied from
+&gt &gt&gt&gtC:\WINDOWS\WinSxS\x86_Microsoft.VC80.CRT_1fc8b3b9a1e18e3b_8.0
+&gt &gt&gt&gt      
+&gt &gt&gt&gt
+&gt &gt&gt.50727.42
+&gt &gt&gt    
+&gt &gt&gt
+&gt &gt&gt&gt_x-ww_0de06acd)
+&gt &gt&gt&gt
+&gt &gt&gt&gt   Microsoft.VC80.CRT.manifest
+&gt &gt&gt&gt
+&gt &gt&gt&gtThe file Microsoft.VC80.CRT.manifest has the following
+&gt &gt&gt&gtcontents:
+&gt &gt&gt&gt
+&gt &gt&gt&gt--------8&lt;--------
+&gt &gt&gt&gt&lt;?xml version="1.0" encoding="UTF-8" standalone="yes"?&gt
+&gt &gt&gt&gt&lt;!-- Copyright C 1981-2001 Microsoft Corporation --&gt
+&gt &gt&gt&gt&lt;assembly xmlns="urn:schemas-microsoft-com:asm.v1"
+&gt &gt&gt&gtmanifestVersion="1.0"&gt
+&gt &gt&gt&gt   &lt;noInheritable/&gt
+&gt &gt&gt&gt   &lt;assemblyIdentity 
+&gt &gt&gt&gt       type="win32" 
+&gt &gt&gt&gt       name="Microsoft.VC80.CRT" 
+&gt &gt&gt&gt       version="8.0.50608.0" 
+&gt &gt&gt&gt       processorArchitecture="x86" 
+&gt &gt&gt&gt       publicKeyToken="1fc8b3b9a1e18e3b"
+&gt &gt&gt&gt   /&gt
+&gt &gt&gt&gt   &lt;file name="msvcr80.dll"/&gt
+&gt &gt&gt&gt   &lt;file name="msvcp80.dll"/&gt
+&gt &gt&gt&gt   &lt;file name="msvcm80.dll"/&gt
+&gt &gt&gt&gt&lt;/assembly&gt
+&gt &gt&gt&gt--------8&lt;--------
+&gt &gt&gt&gt
+&gt &gt&gt&gtEverything seems to be working fine.
+&gt &gt&gt&gt
+&gt &gt&gt&gtSo, my question is: Am I doing The Right Thing or is there
+&gt &gt&gt&gta better way? I'm aware of the possibility of using vcredist_x86
+&gt &gt&gt&gtand ensuring that Windows Installer 3.x engine is available on
+the
+&gt &gt&gt&gtuser's machine (as mentioned at the above link), but for now at
+&gt &gt&gt&gtleast I think I'd like to keep things as simple as possible.
+&gt &gt&gt&gt
+&gt &gt&gt&gtSimon
+&gt &gt&gt&gt
+&gt &gt&gt&gt
+&gt &gt&gt&gt 
+&gt &gt&gt&gt
+&gt &gt&gt&gt      
+&gt &gt&gt&gt
+&gt &gt&gt
+&gt &gt&gt
+&gt &gt&gt    
+&gt &gt&gt
+&gt &gt
+&gt &gt
+&gt &gt  
+&gt &gt
+&gt 
+&gt 
+&gt 
+&gt 
+
+
+
+</pre>
+                   </article>
+                   <section class=tree>
+                    <article class=email>
+                     <h1>Re: LW 5.0 on Windows, Microsoft.VC80.CRT and delivered applications</h1>
+                     <pre>
+Hi Simon
+I normally would expect that a DLL is found if it is in the actual directory
+or in the system32 directory. But this might be a wrong assumption for
+..net DLL's and you need to deliver the manifest file, too.
+But i don't think its a problem of a particular OS release.
+
+Regards
+AHz
+
+Simon Katz wrote:
+
+&gtAndreas,
+&gt
+&gtThanks -- and see the mail from me sent at about the same
+&gttime as you sent yours.
+&gt
+&gtI tried your suggestion of copying msvcr80.dll to the
+&gtc:\windows\system32 directory -- it doesn't make the
+&gtproblem go away.
+&gt
+&gtFWIW, my computer without LW 5.0 installed is running
+&gtWindows XP Professional, Version 2002, Service Pack 2.
+&gtI wonder whether that makes any difference.
+&gt
+&gtSimon
+&gt
+&gt  
+&gt
+&gt&gt-----Original Message-----
+&gt&gtFrom: owner-lisp-hug@lispworks.com 
+&gt&gt[mailto:owner-lisp-hug@lispworks.com] On Behalf Of Andreas
+&gt&gtSent: 04 August 2006 12:29
+&gt&gtTo: Simon Katz
+&gt&gtCc: lisp-hug@lispworks.com
+&gt&gtSubject: Re: LW 5.0 on Windows, Microsoft.VC80.CRT and 
+&gt&gtdelivered applications
+&gt&gt
+&gt&gt
+&gt&gtHi Simon
+&gt&gt
+&gt&gt From "readme-5-0.pdf":
+&gt&gt
+&gt&gt"12.15.1 Runtime library requirement on Windows
+&gt&gt LispWorks for Windows now requires the Microsoft Visual 
+&gt&gtStudio runtime
+&gt&gt library msvcr80.dll. The LispWorks installer installs this 
+&gt&gtDLL if it is
+&gt&gt not present.
+&gt&gt Applications you build with LispWorks for Windows also require this
+&gt&gt DLL, so you must ensure it is available on target machines."
+&gt&gt
+&gt&gtHave you tried to copy the DLL into the c:\windows\system32 
+&gt&gtdirectory ?
+&gt&gt
+&gt&gtSorry, i didnt have LWW5 installed here at work so i can't 
+&gt&gtgive you more
+&gt&gtdetails.
+&gt&gt
+&gt&gtHth
+&gt&gtRegards
+&gt&gtAHz
+&gt&gt
+&gt&gt
+&gt&gtSimon Katz wrote:
+&gt&gt
+&gt&gt    
+&gt&gt
+&gt&gt&gtThanks for the suggestion, but I can't find anything in the
+&gt&gt&gtrelease notes or delivery guide that talks about this. (I did
+&gt&gt&gtlook before posting, and I've looked again!) Maybe that's a
+&gt&gt&gtbug in my brain; any precise pointers into the documentation
+&gt&gt&gtwould be welcome.
+&gt&gt&gt
+&gt&gt&gtI tried copying Msvcrt.dll from the directory containing the
+&gt&gt&gtLW executable to the directory containing my delivered
+&gt&gt&gtapplication (on my machine without LW 5 installed), but that
+&gt&gt&gtdidn't make the problem go away.
+&gt&gt&gt
+&gt&gt&gtSimon
+&gt&gt&gt
+&gt&gt&gt 
+&gt&gt&gt
+&gt&gt&gt      
+&gt&gt&gt
+&gt&gt&gt&gt-----Original Message-----
+&gt&gt&gt&gtFrom: owner-lisp-hug@lispworks.com 
+&gt&gt&gt&gt[mailto:owner-lisp-hug@lispworks.com] On Behalf Of Andreas
+&gt&gt&gt&gtSent: 04 August 2006 10:20
+&gt&gt&gt&gtTo: Simon Katz
+&gt&gt&gt&gtCc: lisp-hug@lispworks.com
+&gt&gt&gt&gtSubject: Re: LW 5.0 on Windows, Microsoft.VC80.CRT and 
+&gt&gt&gt&gtdelivered applications
+&gt&gt&gt&gt
+&gt&gt&gt&gt
+&gt&gt&gt&gtHi
+&gt&gt&gt&gtRTFM :-) Particular the release notes for LWW5. You need to
+&gt&gt&gt&gt        
+&gt&gt&gt&gt
+&gtdeliver
+&gt  
+&gt
+&gt&gt&gt&gtmsvcrt8.dll (sorry haven't the docs here at work) with your app.
+&gt&gt&gt&gt   
+&gt&gt&gt&gt
+&gt&gt&gt&gt        
+&gt&gt&gt&gt
+&gt&gt&gtLWW5
+&gt&gt&gt 
+&gt&gt&gt
+&gt&gt&gt      
+&gt&gt&gt
+&gt&gt&gt&gtrelies on it. If i remember correct you find the DLL in your 
+&gt&gt&gt&gtLWW folder
+&gt&gt&gt&gtwhere the LWW binary is. Then it should work.
+&gt&gt&gt&gtHope that helps
+&gt&gt&gt&gt
+&gt&gt&gt&gtAHz
+&gt&gt&gt&gt
+&gt&gt&gt&gt
+&gt&gt&gt&gt
+&gt&gt&gt&gtSimon Katz wrote:
+&gt&gt&gt&gt
+&gt&gt&gt&gt   
+&gt&gt&gt&gt
+&gt&gt&gt&gt        
+&gt&gt&gt&gt
+&gt&gt&gt&gt&gtI'm in the process of getting my code working with LWW 5.0.
+&gt&gt&gt&gt&gt
+&gt&gt&gt&gt&gtWhen I try to start up a delivered application on a machine
+&gt&gt&gt&gt&gtthat doesn't have LW 5.0 installed, I get the following
+&gt&gt&gt&gt&gterror message:
+&gt&gt&gt&gt&gt
+&gt&gt&gt&gt&gt  This application has failed to start because the
+&gt&gt&gt&gt&gt  application configuration is incorrect.
+&gt&gt&gt&gt&gt
+&gt&gt&gt&gt&gtI tracked this down to the Microsoft.VC80.CRT component
+&gt&gt&gt&gt&gtnot being present.
+&gt&gt&gt&gt&gt
+&gt&gt&gt&gt&gtI've found a solution that appears to work, but I don't know
+&gt&gt&gt&gt&gtwhether I'm really doing The Right Thing.
+&gt&gt&gt&gt&gt
+&gt&gt&gt&gt&gtFollowing instructions at
+&gt&gt&gt&gt&gt     
+&gt&gt&gt&gt&gt
+&gt&gt&gt&gt&gt          
+&gt&gt&gt&gt&gt
+&gt&gt&gt&gthttp://forums.microsoft.com/MSDN/ShowPost.aspx?PostID=164465
+&gt&gt&gt&gt        
+&gt&gt&gt&gt
+&gt&gt&amp;SiteID=1
+&gt&gt    
+&gt&gt
+&gt&gt&gt&gt   
+&gt&gt&gt&gt
+&gt&gt&gt&gt        
+&gt&gt&gt&gt
+&gt&gt&gt&gt&gtI have created a folder named Microsoft.VC80.CRT in the same
+&gt&gt&gt&gt&gtfolder as my delivered .exe, with the following contents:
+&gt&gt&gt&gt&gt
+&gt&gt&gt&gt&gt  msvcm80.dll
+&gt&gt&gt&gt&gt  msvcp80.dll
+&gt&gt&gt&gt&gt  msvcr80.dll
+&gt&gt&gt&gt&gt     (the above copied from
+&gt&gt&gt&gt&gtC:\WINDOWS\WinSxS\x86_Microsoft.VC80.CRT_1fc8b3b9a1e18e3b_8.0
+&gt&gt&gt&gt&gt     
+&gt&gt&gt&gt&gt
+&gt&gt&gt&gt&gt          
+&gt&gt&gt&gt&gt
+&gt&gt&gt&gt.50727.42
+&gt&gt&gt&gt   
+&gt&gt&gt&gt
+&gt&gt&gt&gt        
+&gt&gt&gt&gt
+&gt&gt&gt&gt&gt_x-ww_0de06acd)
+&gt&gt&gt&gt&gt
+&gt&gt&gt&gt&gt  Microsoft.VC80.CRT.manifest
+&gt&gt&gt&gt&gt
+&gt&gt&gt&gt&gtThe file Microsoft.VC80.CRT.manifest has the following
+&gt&gt&gt&gt&gtcontents:
+&gt&gt&gt&gt&gt
+&gt&gt&gt&gt&gt--------8&lt;--------
+&gt&gt&gt&gt&gt&lt;?xml version="1.0" encoding="UTF-8" standalone="yes"?&gt
+&gt&gt&gt&gt&gt&lt;!-- Copyright C 1981-2001 Microsoft Corporation --&gt
+&gt&gt&gt&gt&gt&lt;assembly xmlns="urn:schemas-microsoft-com:asm.v1"
+&gt&gt&gt&gt&gtmanifestVersion="1.0"&gt
+&gt&gt&gt&gt&gt  &lt;noInheritable/&gt
+&gt&gt&gt&gt&gt  &lt;assemblyIdentity 
+&gt&gt&gt&gt&gt      type="win32" 
+&gt&gt&gt&gt&gt      name="Microsoft.VC80.CRT" 
+&gt&gt&gt&gt&gt      version="8.0.50608.0" 
+&gt&gt&gt&gt&gt      processorArchitecture="x86" 
+&gt&gt&gt&gt&gt      publicKeyToken="1fc8b3b9a1e18e3b"
+&gt&gt&gt&gt&gt  /&gt
+&gt&gt&gt&gt&gt  &lt;file name="msvcr80.dll"/&gt
+&gt&gt&gt&gt&gt  &lt;file name="msvcp80.dll"/&gt
+&gt&gt&gt&gt&gt  &lt;file name="msvcm80.dll"/&gt
+&gt&gt&gt&gt&gt&lt;/assembly&gt
+&gt&gt&gt&gt&gt--------8&lt;--------
+&gt&gt&gt&gt&gt
+&gt&gt&gt&gt&gtEverything seems to be working fine.
+&gt&gt&gt&gt&gt
+&gt&gt&gt&gt&gtSo, my question is: Am I doing The Right Thing or is there
+&gt&gt&gt&gt&gta better way? I'm aware of the possibility of using vcredist_x86
+&gt&gt&gt&gt&gtand ensuring that Windows Installer 3.x engine is available on
+&gt&gt&gt&gt&gt          
+&gt&gt&gt&gt&gt
+&gtthe
+&gt  
+&gt
+&gt&gt&gt&gt&gtuser's machine (as mentioned at the above link), but for now at
+&gt&gt&gt&gt&gtleast I think I'd like to keep things as simple as possible.
+&gt&gt&gt&gt&gt
+&gt&gt&gt&gt&gtSimon
+&gt&gt&gt&gt&gt
+&gt&gt&gt&gt&gt
+&gt&gt&gt&gt&gt
+&gt&gt&gt&gt&gt
+&gt&gt&gt&gt&gt     
+&gt&gt&gt&gt&gt
+&gt&gt&gt&gt&gt          
+&gt&gt&gt&gt&gt
+&gt&gt&gt&gt   
+&gt&gt&gt&gt
+&gt&gt&gt&gt        
+&gt&gt&gt&gt
+&gt&gt&gt 
+&gt&gt&gt
+&gt&gt&gt      
+&gt&gt&gt
+&gt&gt
+&gt&gt
+&gt&gt    
+&gt&gt
+&gt
+&gt
+&gt  
+&gt
+
+
+</pre>
+                    </article>
+                   </section>
+                  </section>
+                 </section>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>RE: LW 5.0 on Windows, Microsoft.VC80.CRT and delivered applications</h1>
+                   <pre>
+OK, I found this in the release notes:
+
+    12.15.1 Runtime library requirement on Windows
+    
+    LispWorks for Windows now requires the Microsoft Visual
+    Studio runtime library msvcr80.dll. The LispWorks installer
+    installs this DLL if it is not present. Applications you
+    build with LispWorks for Windows also require this DLL, so
+    you must ensure it is available on target machines.
+
+So I placed msvcr80.dll in the directory containing my delivered
+application (on my machine without LW 5 installed), but that
+didn't make the problem go away.
+
+I've fiddled about a bit, and the simplest thing that works
+for me is similar to what I described in my original mail.
+I now have a folder named Microsoft.VC80.CRT in the same
+folder as my delivered .exe, with the following contents:
+
+    msvcr80.dll
+       (copied from
+C:\WINDOWS\WinSxS\x86_Microsoft.VC80.CRT_1fc8b3b9a1e18e3b_8.0.50727.42
+_x-ww_0de06acd)
+
+    Microsoft.VC80.CRT.manifest
+
+The file Microsoft.VC80.CRT.manifest has the following
+contents:
+
+--------8&lt;--------
+&lt;?xml version="1.0" encoding="UTF-8" standalone="yes"?&gt
+&lt;!-- Copyright C 1981-2001 Microsoft Corporation --&gt
+&lt;assembly xmlns="urn:schemas-microsoft-com:asm.v1"
+manifestVersion="1.0"&gt
+    &lt;noInheritable/&gt
+    &lt;assemblyIdentity 
+        type="win32" 
+        name="Microsoft.VC80.CRT" 
+        version="8.0.50608.0" 
+        processorArchitecture="x86" 
+        publicKeyToken="1fc8b3b9a1e18e3b"
+    /&gt
+    &lt;file name="msvcr80.dll"/&gt
+&lt;/assembly&gt
+--------8&lt;--------
+
+Is this more complicated than necessary?
+
+Simon
+
+&gt -----Original Message-----
+&gt From: owner-lisp-hug@lispworks.com 
+&gt [mailto:owner-lisp-hug@lispworks.com] On Behalf Of Simon Katz
+&gt Sent: 04 August 2006 11:08
+&gt To: lisp-hug@lispworks.com
+&gt Subject: RE: LW 5.0 on Windows, Microsoft.VC80.CRT and 
+&gt delivered applications
+&gt 
+&gt 
+&gt Thanks for the suggestion, but I can't find anything in the
+&gt release notes or delivery guide that talks about this. (I did
+&gt look before posting, and I've looked again!) Maybe that's a
+&gt bug in my brain; any precise pointers into the documentation
+&gt would be welcome.
+&gt 
+&gt I tried copying Msvcrt.dll from the directory containing the
+&gt LW executable to the directory containing my delivered
+&gt application (on my machine without LW 5 installed), but that
+&gt didn't make the problem go away.
+&gt 
+&gt Simon
+&gt 
+&gt &gt -----Original Message-----
+&gt &gt From: owner-lisp-hug@lispworks.com 
+&gt &gt [mailto:owner-lisp-hug@lispworks.com] On Behalf Of Andreas
+&gt &gt Sent: 04 August 2006 10:20
+&gt &gt To: Simon Katz
+&gt &gt Cc: lisp-hug@lispworks.com
+&gt &gt Subject: Re: LW 5.0 on Windows, Microsoft.VC80.CRT and 
+&gt &gt delivered applications
+&gt &gt 
+&gt &gt 
+&gt &gt Hi
+&gt &gt RTFM :-) Particular the release notes for LWW5. You need to
+deliver
+&gt &gt msvcrt8.dll (sorry haven't the docs here at work) with your app.
+&gt LWW5
+&gt &gt relies on it. If i remember correct you find the DLL in your 
+&gt &gt LWW folder
+&gt &gt where the LWW binary is. Then it should work.
+&gt &gt Hope that helps
+&gt &gt 
+&gt &gt AHz
+&gt &gt 
+&gt &gt 
+&gt &gt 
+&gt &gt Simon Katz wrote:
+&gt &gt 
+&gt &gt &gtI'm in the process of getting my code working with LWW 5.0.
+&gt &gt &gt
+&gt &gt &gtWhen I try to start up a delivered application on a machine
+&gt &gt &gtthat doesn't have LW 5.0 installed, I get the following
+&gt &gt &gterror message:
+&gt &gt &gt
+&gt &gt &gt    This application has failed to start because the
+&gt &gt &gt    application configuration is incorrect.
+&gt &gt &gt
+&gt &gt &gtI tracked this down to the Microsoft.VC80.CRT component
+&gt &gt &gtnot being present.
+&gt &gt &gt
+&gt &gt &gtI've found a solution that appears to work, but I don't know
+&gt &gt &gtwhether I'm really doing The Right Thing.
+&gt &gt &gt
+&gt &gt &gtFollowing instructions at
+&gt &gt
+&gt
+&gthttp://forums.microsoft.com/MSDN/ShowPost.aspx?PostID=164465&amp;SiteID=1
+&gt &gt &gtI have created a folder named Microsoft.VC80.CRT in the same
+&gt &gt &gtfolder as my delivered .exe, with the following contents:
+&gt &gt &gt
+&gt &gt &gt    msvcm80.dll
+&gt &gt &gt    msvcp80.dll
+&gt &gt &gt    msvcr80.dll
+&gt &gt &gt       (the above copied from
+&gt &gt &gtC:\WINDOWS\WinSxS\x86_Microsoft.VC80.CRT_1fc8b3b9a1e18e3b_8.0
+&gt &gt .50727.42
+&gt &gt &gt_x-ww_0de06acd)
+&gt &gt &gt
+&gt &gt &gt    Microsoft.VC80.CRT.manifest
+&gt &gt &gt
+&gt &gt &gtThe file Microsoft.VC80.CRT.manifest has the following
+&gt &gt &gtcontents:
+&gt &gt &gt
+&gt &gt &gt--------8&lt;--------
+&gt &gt &gt&lt;?xml version="1.0" encoding="UTF-8" standalone="yes"?&gt
+&gt &gt &gt&lt;!-- Copyright C 1981-2001 Microsoft Corporation --&gt
+&gt &gt &gt&lt;assembly xmlns="urn:schemas-microsoft-com:asm.v1"
+&gt &gt &gtmanifestVersion="1.0"&gt
+&gt &gt &gt    &lt;noInheritable/&gt
+&gt &gt &gt    &lt;assemblyIdentity 
+&gt &gt &gt        type="win32" 
+&gt &gt &gt        name="Microsoft.VC80.CRT" 
+&gt &gt &gt        version="8.0.50608.0" 
+&gt &gt &gt        processorArchitecture="x86" 
+&gt &gt &gt        publicKeyToken="1fc8b3b9a1e18e3b"
+&gt &gt &gt    /&gt
+&gt &gt &gt    &lt;file name="msvcr80.dll"/&gt
+&gt &gt &gt    &lt;file name="msvcp80.dll"/&gt
+&gt &gt &gt    &lt;file name="msvcm80.dll"/&gt
+&gt &gt &gt&lt;/assembly&gt
+&gt &gt &gt--------8&lt;--------
+&gt &gt &gt
+&gt &gt &gtEverything seems to be working fine.
+&gt &gt &gt
+&gt &gt &gtSo, my question is: Am I doing The Right Thing or is there
+&gt &gt &gta better way? I'm aware of the possibility of using vcredist_x86
+&gt &gt &gtand ensuring that Windows Installer 3.x engine is available on
+the
+&gt &gt &gtuser's machine (as mentioned at the above link), but for now at
+&gt &gt &gtleast I think I'd like to keep things as simple as possible.
+&gt &gt &gt
+&gt &gt &gtSimon
+&gt &gt &gt
+&gt &gt &gt
+&gt &gt &gt  
+&gt &gt &gt
+&gt &gt 
+&gt &gt 
+&gt &gt 
+&gt &gt 
+&gt 
+&gt 
+&gt 
+&gt 
+&gt 
+
+
+
+</pre>
+                  </article>
+                 </section>
+                </section>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LW 5.0 on Windows, Microsoft.VC80.CRT and delivered applications</h1>
+                 <p>
+                  Unable to parse email body. Email id is 5734
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>RE: LW 5.0 on Windows, Microsoft.VC80.CRT and delivered applications</h1>
+                  <pre>
+&gt From: Martin Simmons [mailto:martin@lispworks.com] 
+&gt Sent: 04 August 2006 16:58
+&gt To: sk@nomistech.com
+&gt Cc: lisp-hug@lispworks.com
+&gt Subject: Re: LW 5.0 on Windows, Microsoft.VC80.CRT and 
+&gt delivered applications
+
+[snip] 
+
+&gt That approach is fine for XP (though be aware that your 
+&gt private copy of the
+&gt DLL will not be updated by Windows Update).  Personally I prefer the
+&gt vcredist_x86 approach though, because it works on all 
+&gt versions of Windows.
+
+Thanks Martin.
+
+In case anyone else wants the final simple answer:
+
+I've downloaded vcredist_x86.exe from
+http://www.microsoft.com/downloads/details.aspx?familyid=32BC1BEE-A3F9
+-4C13-9C99-220B62A191EE&amp;displaylang=en
+
+Running that on the target machine is all that's needed.
+Note that Windows Installer 3.0 or later is needed on the target
+machine. 
+
+Simon
+
+
+
+</pre>
+                 </article>
+                </section>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LW 5.0 on Windows, Microsoft.VC80.CRT and delivered applications</h1>
+                 <pre>
+On Fri, 4 Aug 2006 16:58:05 +0100, Martin Simmons &lt;martin@lispworks.com&gt wrote:
+
+&gt That approach is fine for XP (though be aware that your private copy
+&gt of the DLL will not be updated by Windows Update).  Personally I
+&gt prefer the vcredist_x86 approach though, because it works on all
+&gt versions of Windows.
+
+I just saw the same thing for the first time - a LispWorks DLL
+delivered to a customer only worked after he installed the C++ runtime
+library - I didn't notice this during the beta phase because I
+obviously only tested on my own machines.
+
+I think this is pretty sad, because it makes deployment of LispWorks
+executables on Windows a lot harder.  In the "good old days" (two
+weeks ago) you just gave them an EXE, now you have to use an
+installer, and if you want to do it 100% correctly you probably even
+have to use Microsoft's installer.
+
+And people will probably start to ask questions like "If this is a
+pure Common Lisp program as you said, why on earth do you need this
+C++ library?"
+
+So, could you shed some light on why whis was necessary?  ISTR that
+the other two Lisps that can create executables on Windows (Corman
+Lisp and AllegroCL) also need these libraries, but LispWorks so far
+didn't.  Is there some specific new feature that needs this support?
+Will every EXE/DLL created with LW 5.0 need the C++ runtime libraries?
+
+Thanks,
+Edi.
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>RE: LW 5.0 on Windows, Microsoft.VC80.CRT and delivered applications</h1>
+                  <pre>
+Edi Weitz wrote:
+
+&gt So, could you shed some light on why whis was necessary?  ISTR that
+&gt the other two Lisps that can create executables on Windows (Corman
+&gt Lisp and AllegroCL) also need these libraries, but LispWorks so far
+&gt didn't.
+
+I didn't tested it on many machines, but I don't think that CLISP, compiled
+with MinGW ( http://www.frank-buss.de/lisp/clisp.html ), needs a Microsoft C
+library.
+
+--
+Frank Buss, fb@frank-buss.de
+http://www.frank-buss.de, http://www.it4-systems.de
+
+
+</pre>
+                 </article>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>Re: LW 5.0 on Windows, Microsoft.VC80.CRT and delivered applications</h1>
+                   <pre>
+On Fri, 11 Aug 2006 11:02:23 +0200, "Frank Buss" &lt;fb@frank-buss.de&gt wrote:
+
+&gt I didn't tested it on many machines, but I don't think that CLISP,
+&gt compiled with MinGW ( http://www.frank-buss.de/lisp/clisp.html ),
+&gt needs a Microsoft C library.
+
+I just tried and it seems it doesn't need the runtime.  I don't
+consider CLISP a viable alternative to LispWorks, though.
+
+
+</pre>
+                  </article>
+                 </section>
+                </section>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LW 5.0 on Windows, Microsoft.VC80.CRT and delivered applications</h1>
+                 <pre>
+Edi Weitz &lt;edi@agharta.de&gt writes:
+
+&gt I think this is pretty sad, because it makes deployment of LispWorks
+&gt executables on Windows a lot harder.  
+
+Yeah, I was able to get a LW5-based /mac/ version of my sw out the day
+after I recieved LW5, but the Windows version had to be delayed :-(
+(however, I was only in a hurry wrt. the mac version, had to get
+a universal version out fast).
+
+&gt And people will probably start to ask questions like "If this is a
+&gt pure Common Lisp program as you said, why on earth do you need this
+&gt C++ library?"
+
+I'm a bit puzzled that it isn't part of the standard windows install.
+It's almost (well, not quite, but...) like linux without glibc ;-)
+
+This wasn't a problem with the beta. But I guess the machines I tried
+delivered apps on already had the vc++ library installed?
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LW 5.0 on Windows, Microsoft.VC80.CRT and delivered applications</h1>
+                 <pre>
+On Fri, 11 Aug 2006 10:41:11 +0200, Edi Weitz &lt;edi@agharta.de&gt wrote:
+
+&gt Will every EXE/DLL created with LW 5.0 need the C++ runtime
+&gt libraries?
+
+To answer one of my questions myself: I compiled the hello.lisp
+program from LispWorks' example folder and even that one doesn't start
+up without the runtime library.  I suppose I usually don't write much
+simpler apps than that one.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LW 5.0 on Windows, Microsoft.VC80.CRT and delivered applications</h1>
+                 <pre>
+Btw. I use the free Inno Setup (innosetup.org) for distribution of
+Windows apps. I see there's an example script for for vc++ 6 in
+the Inno setup knowledge base. I think I'll start from that and
+see if I can do something similar with the newer version.
+
+If and when I get something working, I can post the results here
+if there's any interest in using Inno Setup.
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LW 5.0 on Windows, Microsoft.VC80.CRT and delivered applications</h1>
+                 <pre>
+On Fri, 11 Aug 2006 11:29:12 +0200, Espen Vestre &lt;ev@netfonds.no&gt wrote:
+
+&gt Btw. I use the free Inno Setup (innosetup.org) for distribution of
+&gt Windows apps. I see there's an example script for for vc++ 6 in the
+&gt Inno setup knowledge base. I think I'll start from that and see if I
+&gt can do something similar with the newer version.
+&gt
+&gt If and when I get something working, I can post the results here if
+&gt there's any interest in using Inno Setup.
+
+I'm interested.  I've also used Inno Setup in the past, and I stumbled
+across the page you mentioned last night, but I was too tired to try
+it out.
+
+But I wonder if what they do doesn't interfer with what the MS
+installer does.  Will it still be able to update the runtime library
+afterwards as Martin mentioned?
+
+Thanks in advance,
+Edi.
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>RE: LW 5.0 on Windows, Microsoft.VC80.CRT and delivered applications</h1>
+                  <pre>
+Edi Weitz:
+
+&gt I'm interested.  I've also used Inno Setup in the past, and I stumbled
+&gt across the page you mentioned last night, but I was too tired to try
+&gt it out.
+&gt 
+&gt But I wonder if what they do doesn't interfer with what the MS
+&gt installer does.  Will it still be able to update the runtime library
+&gt afterwards as Martin mentioned?
+
+I've used Inno Setup for other projects and it can test DLL versions and
+knows the system directory, where you could deploy the DLL. But I usually
+deploy all DLLs in the application directory. But I don't know, if this is a
+problem with the Microsoft Runtime library (e.g. Cygwin can't start two DLLs
+with different versions because it uses some different interprocess
+structures, but with the same identifier). When I'm developing C++ programs,
+I always bind it staticly, to avoid DLL hell, maybe a good idea for
+LispWorks, too.
+
+But the question is, why needs LispWorks a Microsoft DLL at all?
+
+--
+Frank Buss, fb@frank-buss.de
+http://www.frank-buss.de, http://www.it4-systems.de
+
+
+</pre>
+                 </article>
+                </section>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LW 5.0 on Windows, Microsoft.VC80.CRT and delivered applications</h1>
+                 <pre>
+Edi Weitz &lt;edi@agharta.de&gt writes:
+
+&gt But I wonder if what they do doesn't interfer with what the MS
+&gt installer does.  
+
+Yes, that's what worries me too, after a quick glance at it.
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LW 5.0 on Windows, Microsoft.VC80.CRT and delivered applications</h1>
+                 <pre>
+On Fri, 11 Aug 2006 11:51:52 +0200, Espen Vestre &lt;ev@netfonds.no&gt wrote:
+
+&gt Edi Weitz &lt;edi@agharta.de&gt writes:
+&gt
+&gt&gt But I wonder if what they do doesn't interfer with what the MS
+&gt&gt installer does.
+&gt
+&gt Yes, that's what worries me too, after a quick glance at it.
+
+Maybe an idea would be to package the file vcredist_x86.exe (the
+so-called Visual C++ Redistributable) with your app and have Inno
+Setup start it if it can't find msvcr80.dll.
+
+That might still mean that some users will have to install Windows
+Installer, but Windows users are probably used to that kind of pain...
+
+(Well, you could also add the Windows Installer Redistributable to
+your package and check for that one as well, but maybe that's asking a
+bit too much.)
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LW 5.0 on Windows, Microsoft.VC80.CRT and delivered applications</h1>
+                 <p>
+                  Unable to parse email body. Email id is 5765
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LW 5.0 on Windows, Microsoft.VC80.CRT and delivered applications</h1>
+                 <p>
+                  Unable to parse email body. Email id is 5766
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LW 5.0 on Windows, Microsoft.VC80.CRT and delivered applications</h1>
+                 <pre>
+On Fri, 11 Aug 2006 11:10:22 +0100, Martin Simmons &lt;martin@lispworks.com&gt wrote:
+
+&gt If you use the vcredist_x86.exe then you shouldn't need an
+&gt installer.  Remember to install Windows first :-)
+
+Hehe... :)
+
+Yeah, but if you want to make it easy for your customers, you don't
+want to ask them to check if they need it and download that thing from
+Microsoft.  So, you'll have to somehow package it with what you
+deliver to them.  And according to the MS webpage, vcredist_x86.exe
+itself requires the Windows installer.  /They/ don't necessarily want
+to make it easy for their customers... :)
+
+&gt The thing that has changed in LispWorks 5.0 is that we switched from
+&gt VC++ 6 to VC++ 2005.  This was necessary for three reasons:
+&gt
+&gt 1) VC++ 6 is no longer supported by Microsoft.  It is no longer part
+&gt of MSDN.
+&gt
+&gt 2) We found a fatal bug in the C runtime library (msvcrt.dll) used
+&gt by VC++ 6 programs on Vista beta.  I don't know if this has been
+&gt fixed in the rc builds.
+&gt
+&gt 3) We needed support for 64-bit compilation and didn't want to
+&gt support two different versions of VC++.
+&gt
+&gt Unfortunately, we are in another transition stage, where older
+&gt operating systems don't have the libraries needed to run newer
+&gt applications.  This has happened before with the VC++ 6 msvcrt.dll
+&gt and also with the Common Controls DLL.
+
+OK, thanks for the info.  Looks like that was inevitable.
+
+Cheers,
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LW 5.0 on Windows, Microsoft.VC80.CRT and delivered applications</h1>
+                 <p>
+                  Unable to parse email body. Email id is 5768
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LW 5.0 on Windows, Microsoft.VC80.CRT and delivered applications</h1>
+                 <pre>
+Edi Weitz &lt;edi@agharta.de&gt writes:
+
+&gt Maybe an idea would be to package the file vcredist_x86.exe (the
+&gt so-called Visual C++ Redistributable) with your app and have Inno
+&gt Setup start it if it can't find msvcr80.dll.
+
+Yes, that was my original plan before I found the stuff on the
+inno setup web server.
+
+&gt That might still mean that some users will have to install Windows
+&gt Installer, but Windows users are probably used to that kind of pain...
+
+I guess so. 
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LW 5.0 on Windows, Microsoft.VC80.CRT and delivered applications</h1>
+                 <p>
+                  Unable to parse email body. Email id is 5770
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LW 5.0 on Windows, Microsoft.VC80.CRT and delivered applications</h1>
+                 <pre>
+As an addition to what Nick and Espen already wrote I played around a
+bit with an almost "naked" Win2k install (on VMWare) that I use for
+cases like this one.  Here's what I found out:
+
+1. It seems like a new enough version of Windows Installer will be
+   already there if you regularly update your OS (hotfixes and service
+   packs).
+
+2. If you then start vcredist_x86.exe, it works fine, but you'll have
+   to answer license-related questions from Microsoft, so you
+   shouldn't run it unconditionally to avoid bothering users which
+   already have the runtime installed.
+
+3. If you remove Windows Installer and try to run vcredist_x86.exe, it
+   will fail with a strange error message that I suppose Joe User
+   won't understand.  It definitely doesn't tell you that you need
+   Windows Installer 3.0 to continue... :(
+
+And commenting on the requirements Nick quoted: What does it mean that
+vcredist_x86.exe is supposed to run on Win98 and WinME if it needs
+Windows Installer 3.0 which only runs on Win2k and higher?  Is this a
+Microsoft joke that I don't get?
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LW 5.0 on Windows, Microsoft.VC80.CRT and delivered applications</h1>
+                 <pre>
+Edi Weitz &lt;edi@agharta.de&gt writes:
+
+&gt And commenting on the requirements Nick quoted: What does it mean that
+&gt vcredist_x86.exe is supposed to run on Win98 and WinME if it needs
+&gt Windows Installer 3.0 which only runs on Win2k and higher?  Is this a
+&gt Microsoft joke that I don't get?
+
+Yes, that really puzzled me too.
+
+(On the other hand, I'm wondering if I should seize this opportunity
+ to finally tell our users that we don't support ME or 98 anymore
+ (especially ME is a notoriuos support case generator))
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LW 5.0 on Windows, Microsoft.VC80.CRT and delivered applications</h1>
+                 <p>
+                  Unable to parse email body. Email id is 5773
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LW 5.0 on Windows, Microsoft.VC80.CRT and delivered applications</h1>
+                 <pre>
+On Fri, 11 Aug 2006 13:05:45 +0100, Martin Simmons &lt;martin@lispworks.com&gt wrote:
+
+&gt We noticed this with the LispWorks installer too.  My guess is that
+&gt it needs the Windows Installer 3.0 for NT-based OSes to deal with
+&gt installation into the (protected) Windows directories.  Win98 and
+&gt WinME don't have much protection there, so it isn't needed.
+
+Yeah, BTW, how do you deal with the runtime library problem with
+/your/ installer?  Is the installer based on Windows Installer?  I
+think if what you do works for LispWorks 5.0 (which seems to run on
+WinME and Win98), the same technique would be good for us poor hackers
+who want to deploy applications as well.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LW 5.0 on Windows, Microsoft.VC80.CRT and delivered applications</h1>
+                 <pre>
+On Tue, 22 Aug 2006 11:02:13 +0200, Espen Vestre &lt;ev@netfonds.no&gt wrote:
+
+&gt LW 5.0 seems to make PrimeTrader (both the mac and the windows
+&gt version) significantly more stable
+
+Interesting.  Could you provide some more details?  I've seen
+noticable speed improvements with LW 5.0 but nothing related to
+stability so far.  Which problems (except for font-related ones) did
+you encounter with 4.4.x?
+
+Thanks,
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LW 5.0 on Windows, Microsoft.VC80.CRT and delivered applications</h1>
+                 <pre>
+Edi Weitz &lt;edi@agharta.de&gt writes:
+
+&gt Interesting.  Could you provide some more details?  I've seen
+&gt noticable speed improvements with LW 5.0 but nothing related to
+&gt stability so far.  Which problems (except for font-related ones) did
+&gt you encounter with 4.4.x?
+
+The problems were very difficult to track down, but they may all have
+been related to fonts or possibly other gui stuff. 
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LW 5.0 on Windows, Microsoft.VC80.CRT and delivered applications</h1>
+                 <pre>
+Espen Vestre &lt;ev@netfonds.no&gt writes:
+
+&gt If and when I get something working, I can post the results here
+&gt if there's any interest in using Inno Setup.
+
+I've now started distributing the new lw5.0-based version.
+
+So far, I've chosen to simply always run Microsoft's redistributable
+package installer, so there's really not much interesting in my script.
+
+I've not delivered the new version to many customers yet, but so far
+customer comments are very positive - LW 5.0 seems to make PrimeTrader
+(both the mac and the windows version) significantly more stable, and
+customers that experienced strange font-related problems (Martin will
+know what I talk about...) appear to have no problems with the new
+version.
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LW 5.0 on Windows, Microsoft.VC80.CRT and delivered applications</h1>
+                 <p>
+                  Unable to parse email body. Email id is 5862
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LW 5.0 on Windows, Microsoft.VC80.CRT and delivered applications</h1>
+                 <pre>
+FWIW, I've now tried to create an installer based on Microsoft Visual
+Studio 2005 which should automatically install the C runtime if
+needed.  IIUC, it should also take care of Windows Installer if it's
+not there - I couldn't test that, though.  It's included with my "Lisp
+Starter Pack"[1] and can be downloaded from here:
+
+  http://weitz.de/files/LispStarterPack.zip
+
+It'd be nice if some of you could try it and report if there are any
+problems.  (It suffices to install the program and start it.  If you
+see the initial screen, it works.)
+
+The "Visual Studio Solution" which was used to create this installer
+is included in the source tarball:
+
+  http://weitz.de/files/starter-pack.tar.gz
+
+Cheers,
+Edi.
+
+
+[1] http://weitz.de/starter-pack/
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LW 5.0 on Windows, Microsoft.VC80.CRT and delivered applications</h1>
+                 <pre>
+On Wed, 27 Sep 2006 20:32:14 +0200, Edi Weitz &lt;edi@agharta.de&gt wrote:
+
+&gt FWIW, I've now tried to create an installer based on Microsoft
+&gt Visual Studio 2005 which should automatically install the C runtime
+&gt if needed.
+
+Or so I thought.  Dmitriy Ivanov tried it and found out that you can't
+use the "Just me" option.  I googled around a bit and found this one:
+
+  http://connect.microsoft.com/VisualStudio/feedback/ViewFeedback.aspx?FeedbackID=98736
+
+If I understand this correctly, it is not possible to create a Windows
+Installer file which will automatically install Microsoft.VC80.CRT if
+needed and which at the same time can be used for a per-user install.
+As I could confirm on my own machine, the per-user installation will
+fail even if the C runtime is already installed.
+
+&gtFrom Martin's recent reply I conclude that LispWorks uses
+InstallShield and I guess they don't have this problem.  But the last
+time I looked InstallShield wasn't exactly cheap - I'd rather spend my
+money elsewhere.
+
+Sigh - that isn't good news for application delivery with LW 5.0... :(
+
+So, what if one just throws the Microsoft DLL into the application
+folder?  Apart from that not being The Right Thing[TM] - does anyone
+know if this is OK license-wise?
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LW 5.0 on Windows, Microsoft.VC80.CRT and delivered applications</h1>
+                 <p>
+                  Unable to parse email body. Email id is 5913
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>RE: LW 5.0 on Windows, Microsoft.VC80.CRT and delivered applications</h1>
+                  <pre>
+&gt From: owner-lisp-hug@lispworks.com 
+&gt [mailto:owner-lisp-hug@lispworks.com] On Behalf Of Nick Levine
+&gt Sent: 28 September 2006 13:02
+&gt To: edi@agharta.de
+&gt Cc: lisp-hug@lispworks.com
+&gt Subject: Re: LW 5.0 on Windows, Microsoft.VC80.CRT and 
+&gt delivered applications
+&gt 
+&gt 
+&gt    So, what if one just throws the Microsoft DLL into the
+application
+&gt    folder? 
+&gt 
+&gt Don't you mean, dump all the following into the application folder?
+&gt 
+&gt     Microsoft.VC80.CRT/Microsoft.VC80.CRT.manifest
+&gt     Microsoft.VC80.CRT/msvcm80.dll
+&gt     Microsoft.VC80.CRT/msvcp80.dll
+&gt     Microsoft.VC80.CRT/msvcr80.dll 
+&gt 
+&gt Fwiw, this is the approach I'm going for. The sense in which it's
+not
+&gt quite The Right Thing[R] is outweighed by the fact that it will
+&gt Probably Work.
+&gt 
+&gt - nick
+
+In response to that suggestion, on 2006-08-04 Martin Simmons said:
+
+    That approach is fine for XP (though be aware that your
+    private copy of the DLL will not be updated by Windows
+    Update).  Personally I prefer the vcredist_x86 approach
+    though, because it works on all versions of Windows.
+
+Simon
+
+
+
+</pre>
+                 </article>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>Re: LW 5.0 on Windows, Microsoft.VC80.CRT and delivered applications</h1>
+                   <p>
+                    Unable to parse email body. Email id is 5915
+                  </article>
+                 </section>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>Re: LW 5.0 on Windows, Microsoft.VC80.CRT and delivered applications</h1>
+                   <pre>
+On Thu, 28 Sep 2006 13:11:50 +0100, "Simon Katz" &lt;sk@nomistech.com&gt wrote:
+
+&gt vcredist_x86
+
+In addition to what Nick has said: Your users need administrative
+privileges if the installer launches vredist_x86.exe - even if the C
+runtime is already installed.  You don't have that problem if you just
+drop a couple of files into the application folder.
+
+
+</pre>
+                  </article>
+                 </section>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>Re: LW 5.0 on Windows, Microsoft.VC80.CRT and delivered applications</h1>
+                   <pre>
+Nick Levine &lt;ndl@ravenbrook.com&gt writes:
+
+&gt Some of my users are still on XP/SP1. It's possible that they'll
+&gt remain that way for some time. The requirements for vcredist_x86 state
+&gt that XP users need to be on SP2. So this lot can't use vcredist.
+
+This is not quite true. The requirement is that they have Windows
+Update &gt= 3.0 installed.
+
+&gt What with one thing and another, I don't feel it's safe to deliver
+&gt with vcredist.
+
+It's not ideal, but I have had few complaints so far.
+
+I have 156 users logged in with the new lw 5.0-based version right
+now (most users are still using older versions), and of these 132
+are using Windows, and of these, almost ALL are using XP SP2,
+with the following exceptions:
+
+1 XP
+1 XP SP1
+1 2000 SP4
+2 2003 SP1
+
+Despite a very scarce description (that one needs to install Windows
+Installer 3.0 on older XP and 2000 systems) in the systems
+requirements, I've only had three support calls by users with older
+Windows versions, and only one of them didn't manage to install the
+new version even after installing the new Windows Installer.
+-- 
+  (espen)
+
+
+</pre>
+                  </article>
+                 </section>
+                </section>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:44 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>LOOP variable type declarations and initialization values, different LOOP 
+             expansions on OS X &amp; Win32?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>LOOP variable type declarations and initialization values, different LOOP 
+                 expansions on OS X &amp; Win32?</h1>
+                <pre>
+Hello all,
+
+If I've got a user-defined type for which LW might not know how to
+construct a "default" value for, I can get different macroexpansions
+for LOOP on OS X and Win32. (LW 5.1.2). For instance, consider the
+type "int-pair" which is a cons of two integers, and a function which
+iterates over a list of int-pairs, printing each one.
+
+(deftype int-pair () '(cons integer integer))
+
+(defun print-int-pair (int-pairs)
+  (loop for x of-type int-pair in int-pairs
+        doing (print x)))
+
+In compiling print-int-pair on Win32, there are no output messages.
+However, on OS X, I get
+
+;;;*** Warning in PRINT-INT-PAIR: Variable X is declared type
+INT-PAIR, but is bound to a value of type NULL
+
+Examining the macroexpansion on OS X shows why such a warning is signaled:
+
+(BLOCK NIL
+  (MACROLET ((LOOP-FINISH () '(GO #:|end-loop-15120|)))
+    (LET ((X (LOAD-TIME-VALUE 'NIL)) (#:|tail-15123| INT-PAIRS)
+(#:|by-15124| 'SYSTEM:CDR$CONS))
+      (DECLARE (TYPE INT-PAIR X))
+      (TAGBODY
+       #:|begin-loop-15119| (PROGN
+                              (WHEN (OR (ENDP #:|tail-15123|)) (GO
+#:|end-loop-15120|))
+                              (LET ((#:|temp-15126| (FUNCALL
+#:|by-15124| #:|tail-15123|))
+                                    (#:|temp-15125| (SYSTEM:CAR$CONS
+#:|tail-15123|)))
+                                (SETQ X #:|temp-15125|)
+                                (SETQ #:|tail-15123| #:|temp-15126|)))
+               (PRINT X)
+               (GO #:|begin-loop-15119|)
+       #:|end-loop-15120| (RETURN-FROM NIL NIL)))))
+
+The initial value of X is (load-time-value 'nil) which, such enough,
+isn't a cons of an integer and an integer.  Now, whether LW should be
+able to determine an appropriate with which to initialize X is one
+question [1], but I'm more concerned at the moment with why the
+warning isn't signaled on Win32.  The macroexpansion shows why:
+
+(BLOCK NIL
+ (MACROLET ((LOOP-FINISH () '(GO #:|end-loop-693|)))
+   (LET ((X NIL) (#:|tail-696| INT-PAIRS) (#:|by-697| 'SYSTEM:CDR$CONS))
+     (DECLARE (TYPE (OR NULL INT-PAIR) X))
+     (TAGBODY
+      #:|begin-loop-692| (PROGN
+                           (WHEN (OR (ENDP #:|tail-696|)) (GO #:|end-loop-693|))
+                           (LET ((#:|temp-699| (FUNCALL #:|by-697|
+#:|tail-696|))
+                                 (#:|temp-698| (SYSTEM:CAR$CONS #:|tail-696|)))
+                             (SETQ X #:|temp-698|)
+                             (SETQ #:|tail-696| #:|temp-699|)))
+              (PRINT X)
+              (GO #:|begin-loop-692|)
+      #:|end-loop-693| (RETURN-FROM NIL NIL)))))
+
+In the Win32 expansion, the declared type of X is (or null int-pair)
+which, of course, (load-time-value 'nil) satisfies. Is this a bug? I
+would have expected the same macroexpansion for the same loop on
+multiple supported platforms.  I think I like the second expansion
+better, since without any information about what kind of value the
+loop will default X to, it's impossible to write an appropriate type
+declaration for it.  It seems like the code that produces the
+initialization code should be the code that wraps any provided
+typespec in (or appropriate-typespec user-typespec).
+
+Thoughts? Thanks in advance,
+//JT
+
+[1] I think the following says that the loop variables can be
+initialized to any value. "The for and as clauses iterate by using one
+or more local loop variables that are initialized to some value and
+that can be modified or stepped[1] after each iteration. For these
+clauses, iteration terminates when a local variable reaches some
+supplied value or when some other loop clause terminates iteration. At
+each iteration, variables can be stepped[1] by an increment or a
+decrement or can be assigned a new value by the evaluation of a form).
+Destructuring can be used to assign values to variables during
+iteration." (http://www.lispworks.com/documentation/HyperSpec/Body/06_aba.htm).
+
+However, variables bound with WITH are a bit different: "The with
+construct initializes variables that are local to a loop. The
+variables are initialized one time only. If the optional type-spec
+argument is supplied for the variable var, but there is no related
+expression to be evaluated, var is initialized to an appropriate
+default value for its type. For example, for the types t, number, and
+float, the default values are nil, 0, and 0.0 respectively."
+(http://www.lispworks.com/documentation/HyperSpec/Body/06_abb.htm) If
+I understand the LOOP grammar correctly, the type can be any type
+specifier, but it would seem odd to require an implementation to be
+able to come up with some default value for every type.
+
+-- 
+=====================
+Joshua Taylor
+tayloj@cs.rpi.edu, jtaylor@alum.rpi.edu
+
+"A lot of good things went down one time,
+  back in the goodle days."
+    John Hartford
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LOOP variable type declarations and initialization values, different LOOP 
+                  expansions on OS X &amp; Win32?</h1>
+                 <p>
+                  Unable to parse email body. Email id is 9245
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:37 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

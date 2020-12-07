@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Symbolic expression printing (Lisp code)</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Symbolic expression printing (Lisp code)</h1>
+                <pre>
+#|
+
+PRINT SYMBOLIC-EXPRESSIONS (lisp trees).
+
+Symbolic-expressions[https://en.wikipedia.org/wiki/S-expression], sexprs or 
+sexps (for "symbolic expressions")
+are a notation for nested lists (tree-structured) data, invented for and 
+popularized by the programming language
+Lisp, which uses them for source code as well as data. 
+
+In the usual parenthesized syntax of Lisp, an s-expression is classically 
+defined recursively as:
+
+1.an atom, or
+
+2.an expression of the form (x . y) where x and y are s-expressions.
+
+I spent quite a while googling "pretty printing Lisp trees" but I failed to 
+find anything even remotely like the code I wanted. 
+So, rather reluctantly, I decided to cut the code fresh. My goal is to 
+print any symbolic expression including natural language parse trees with 
+robust code to traverse down the source expression and consistently print 
+connections between nodes using Unicode line drawing glyphs.
+
+|#
+;;
+;; Author: Roy Anderson, reanz1959@gmail.com
+;;
+;; This code was developed using LispWorks Personal Edition 6.1.1
+
+(export `(print-expression print-tree-indented print-association-list 
+chart))
+
+;; define line drawing characters...
+(defconstant *horizontal-line* (code-char #x2500))
+(defconstant *vertical-line* (code-char #x2502))
+(defconstant *top-corner* (code-char #x250c))
+(defconstant *bottom-corner* (code-char #x2514))
+(defconstant *t-intersection* (code-char #x251c))
+(defconstant *circle* (code-char #x25cf)) ;; solid black circle
+(defconstant *t-junction* (code-char #x252c))
+(defvar counter 0)
+
+(defun print-line-glyphs ()
+  (dolist (ch '(*horizontal-line*
+                *vertical-line*
+                *top-corner*
+                *bottom-corner*
+                *t-intersection*
+                *circle*
+                *t-junction*))
+    (format t "~a ~a~%" ch (symbol-value ch))))
+
+;; S-expressions are rewritten with nodes to accomodate NIL valued leaves 
+and duplicate node values.
+(defclass node ()
+  ((id :initform (incf counter) :accessor node-id)
+   (indices :accessor node-indices :documentation "node coordinates")
+   (joints :initform "" :accessor node-joints)
+   (parent :initform nil :accessor node-parent)
+   (children :initform nil :accessor node-children)
+   (value :initform nil :initarg :value :accessor node-value)))
+
+(defclass symbolic-expression ()
+  (;;(counter :initform 0)
+   (source :accessor source)
+   (nodes :accessor nodes)
+   (tree :initarg :tree :accessor tree)))
+
+(defmethod root ((sexpr symbolic-expression))
+  (first (nodes sexpr)))
+
+(defmethod render-nodes ((s symbolic-expression))
+  (dolist (x (nodes s))
+    (node-joint s x)))
+
+(defun node-list (source)
+  (let ((nodes ()))
+    (traverse source #'(lambda(n) (push n nodes) nil))
+    (nreverse nodes)))
+
+(defmethod initialize-instance :after ((sexpr symbolic-expression) &amp;key)
+  (let ((source (copy-tree (tree sexpr))))
+    (setf (source sexpr) source)
+    (families (make-indices (make-nodes source)))
+    (setf (nodes sexpr) (node-list source))
+    (render-nodes sexpr)))
+
+(defmethod depth ((node node))
+  (length (node-indices node)))
+
+(defmethod reference ((node node))
+  (format nil "~d. ~a" (node-id node) (node-value node)))
+
+(defmethod print-object ((node node) stream)
+  (format stream "~2d. " (node-id node))
+  (format stream "~s" (node-value node))
+  (format stream ":~s" (node-indices node))
+  (format stream "/~{~a/~}" (mapcar #'reference (ancestors node)))
+  (format stream " &gt&gt~{ ~a~}" (mapcar #'reference (node-children node)))
+  (terpri stream))
+
+(defun make-node (&amp;rest args)
+  (apply 'make-instance 'node args))
+
+(defun node-p (x) (typep x 'node))
+
+(defun leaf (tree indices)
+  "Return s-expression for INDICES into TREE"
+  (when (atom tree) (return-from leaf (if (null indices) tree)))
+  (unless indices (return-from leaf nil))
+  (if (&lt; (car indices) (length tree))
+      (let ((leaf (nth (pop indices) tree)))
+        (if indices
+            (leaf leaf indices)
+          leaf))))
+
+(defun make-nodes (tree)
+  "Replace all atoms with a node so that we can print NIL values"
+  (when (and tree (listp tree))
+    (cond
+     ((consp (car tree))
+      (make-nodes (car tree)))
+     (t
+      (setf (car tree) (make-instance 'node :value (car tree)))))
+    (make-nodes (cdr tree)))
+  tree)
+
+(defun make-indices (tree &amp;optional (indices '()))
+  ;; assign each node with a set of indices to navigate trees
+  (cond
+   ((and tree (listp tree))
+      (let ((counter 0))
+        (dolist (subtree tree)
+          (make-indices subtree (append indices (list counter)))
+          (incf counter))))
+   ((node-p tree)
+    (setf (node-indices tree) indices)
+    (setf (node-joints tree) `())))
+  tree)
+
+(defun crawl (tree callback)
+  "Funcall CALLBACK passing each subtree"
+  (when tree
+    (funcall callback tree)
+    (when (listp tree)
+      (when (consp (car tree))
+        (crawl (car tree) callback))
+      (crawl (cdr tree) callback))))
+
+(defun head (tree)
+  ;; Return the NODE at the head of TREE
+  (if (node-p tree)
+      tree
+    (if (and tree (listp tree))
+        (head (car tree)))))
+
+(defun crawl-print (tree)
+  (crawl tree
+         #'(lambda(x)
+             (let ((head (pop x)))
+               (when (node-p head)
+                 (format t "cawler node ~a &gt&gt ~a~%" head x))))))
+
+(defun families (tree)
+  (let ((seen ()))
+    (crawl tree
+           #'(lambda(x)
+               (let ((children ())
+                     (h (head x)))
+                 (dolist (node (cdr x))
+                   (let ((y (head node)))
+                     (when (and (node-p y) (not (find y seen)))
+                       (push y seen)
+                       (push y children))))
+                 (when (and (null (node-children h)) children)
+                   (dolist (c children) (setf (node-parent c) h))
+                   (setf (node-children h) (nreverse children)))))))
+  tree)
+
+(defun traverse (tree &amp;optional (callback nil))
+  "Return TREE reaching all nodes until CALLBACK returns a non-NIL result"
+  (when (and tree (listp tree))
+    (let ((subtree (car tree)))
+      (cond
+       ((consp subtree)
+        (traverse subtree callback))
+       ((node-p subtree)
+        (if (and callback (funcall callback subtree))
+            (return-from traverse)))))
+    (traverse (cdr tree) callback)))
+
+(defun concat (&amp;rest args)
+  (format nil "~{~a~}" args))
+
+(defmethod joints-complete ((node node))
+  (&gt= (length (node-joints node))
+      (* 2 (depth node))))
+
+(defmethod join ((node node) &amp;rest args)
+  ;;(if (joints-complete node) (break "join Overflow ~a" node))
+  ;(unless (joints-complete node)
+  (setf (node-joints node) (apply #'concat (or (node-joints node) "") 
+args)))
+
+(defmethod last-child ((node node))
+  "Return the youngest/lowest NODE amongst the children of NODE"
+  (car (last (node-children node))))
+
+(defmethod last-child-p ((node node) parent)
+  "Return T if child is the last node in the direct children of NODE"
+  (and
+   (eq (node-parent node) parent)
+   (eq node (last-child parent))))
+
+(defmethod ancestors ((node node))
+  "Return a list of parent nodes closest to the root first"
+  (let ((parent (node-parent node)))
+    (if parent
+        (append (ancestors parent) (list parent)))))
+
+(defmethod below ((node1 node) (node2 node))
+  (&gt (node-id node1) (node-id node2)))
+
+
+(defmethod node-joint ((s symbolic-expression) (x node))
+  ;;(format t "node-joint ~a parent ~a~%" (reference x) (if (node-parent x) 
+(reference (node-parent x))))
+  (let* ((anc (ancestors x)))
+    (with-slots (parent) x
+#|
+
+        (format t "node-joint ~s parent: ~a ancestors:~{ ~s~}~%"
+                (node-value x)
+                (and parent (node-value parent))
+                (mapcar #'node-value anc))
+
+|#
+      (cond
+       ((null parent) ; X is the root NODE
+        (join x *top-corner* *horizontal-line*))
+
+       ((eq (root s) parent) ; X is a child of the root NODE
+        (if (last-child-p x parent)
+            (join x *bottom-corner* *horizontal-line*)
+          (join x *t-intersection* *horizontal-line*)))
+
+       (t
+        (let ((i 0))
+          (maplist
+           #'(lambda(list)
+               (cond
+
+                ((null (cdr list))
+                 (if (last-child-p x parent)
+                     (join x *bottom-corner* *horizontal-line*)
+                   (join x *t-intersection* *horizontal-line*)))
+
+                ((below x (last-child (car list)))
+                 (join x #\space #\space))
+
+                (t 
+                 (join x *vertical-line* #\space)))
+               (incf i))
+           anc)))))))
+
+(defun print-expression (tree &amp;optional (stream *standard-output*))
+  ;; recursively print tree with indentation
+  (let ((sexpr (make-instance 'symbolic-expression :tree tree)))
+    (dolist (node (nodes sexpr))
+      (format stream "~a~a ~a/~{~(~a~) ~}~%"  (node-joints node) *circle* 
+(node-value node) (mapcar #'node-value (ancestors node))))
+    (terpri stream)
+    ;;(dolist (node (nodes sexpr)) (princ node)))
+    )
+  (values))
+
+(defun print-tree-with-indentation (tree stream)
+  ;; recursively print tree with indentation
+  (typecase tree
+    (cons
+     (mapc #'(lambda(x) (print-tree-with-indentation x stream)) tree))
+    (node
+     (format stream "~v@a~a~%" (* 2 (depth tree)) "" tree))))
+
+(defun print-tree-indented (tree &amp;optional (stream *standard-output*))
+  ;; entry point for printing a tree with indentation for leaves
+  (print-tree-with-indentation (make-indices (make-nodes (copy-tree tree))) 
+stream)
+  (values))
+
+(defun print-association-list (alist &amp;optional (stream *standard-output*))
+  "Print an association list with alist keys padded to maximum key width."
+  (let ((width (apply #'max (mapcar #'(lambda(s) (length (string (car s)))) 
+alist))))
+    (mapcar
+     #'(lambda (expr) (format stream "~va~{ ~(~a~)~}~%" width (pop expr) 
+(if (atom expr) (list expr) expr)))
+     alist))
+  (values))
+
+;; what have got to work with in our pallette of graphics?
+(defun chart (&amp;optional (page #x2500))
+  (format t "~5a" "")
+  (dotimes (i 16) (format t "~2x" i))
+  (terpri)
+  (dotimes (i 16)
+    (format t "~4x " (+ page (* 16 i)))
+    (dotimes (j 16)
+      (format t " ~a" (code-char (+ page (* i 16) j))))
+    (terpri)))
+
+;; test data
+(defparameter treefern '(a a2 (b r) a3 (c (d e))))
+(defparameter *tree1* '(3 (2 (1 a b) c) (1 x y) (5 50 51)))
+(defparameter *tree2* `(40
+                        (30 
+                         25
+                         nil
+                         nil)
+                        (35
+                         (nil
+                          nil))
+                        (60
+                         50
+                         nil)
+                        nil))
+
+(defparameter *tree3* `(,(make-node :value 40)
+                        (,(make-node :value 30) (,(make-node :value 25) ,
+(make-node :value ()) ,(make-node :value ())))
+                        (,(make-node :value 35) () ())
+                        (,(make-node :value 60) (,(make-node :value 50) () 
+()) ())))
+
+(defvar *association-list* '((a 1) (b 2) (c 3 4)))
+
+(defvar *tree* '(s (subj (np (mods angry grey) (head (word thief))))
+                   (vp (aux do have) (v won))))
+
+(defparameter f '(DEFUN AP-C.AP (STRING STACK REGS PATH)
+  "DEFARC AP-C.AP"
+  (FORMAT T "~s ~s~%" 'AP-C.AP '*DONE-IF)
+  (LET ()
+    (WHEN (TRACK-ARC-TEST (^ &gt AP))
+      (UNLESS (OR STRING STACK) (RETURN-FROM AP-C.AP (RECORD-PARSE PARSE0 
+(APPEND `(,(IF (EQ 'AJ (^ &gt TYPE)) 'AJP 'AVP)) (^ ? AP)) STRING)))
+      (WHEN STACK
+        (LET ((! (APPEND `(,(IF (EQ 'AJ (^ &gt TYPE)) 'AJP 'AVP))
+                         (^ ? AP))) (PS (POP STACK))) (RECORD-PARSE (THIRD 
+PS) ! STRING) (FUNCALL (POP PS) ! STRING STACK (CAR PS) PATH)))))))
+
+(defparameter h '(DEFUN AP-C.AP (STRING STACK REGS PATH)
+  "DEFARC AP-C.AP"
+  (FORMAT T "~s ~s~%" 'AP-C.AP '*DONE-IF)
+  (LET ()
+    (WHEN (TRACK-ARC-TEST (^ &gt AP))
+      (UNLESS (OR STRING STACK) (RETURN-FROM AP-C.AP (RECORD-PARSE PARSE0 
+(APPEND `(,(IF (EQ 'AJ (^ &gt TYPE)) 'AJP 'AVP)) (^ ? AP)) STRING)))
+      (WHEN STACK
+        (LET ((! (APPEND `(,(IF (EQ 'AJ (^ &gt TYPE)) 'AJP 'AVP))
+                         (^ ? AP))))))))))
+
+(defparameter g
+  '(DEFUN
+          AP-C.AP
+          (STRING
+           STACK
+           REGS
+           PATH)
+     "DEFARC AP-C.AP"
+     (FORMAT
+      T
+      "~s ~s~%"
+      'AP-C.AP
+      '*DONE-IF)
+     (WHEN
+         STACK
+       nil)))
+
+(defparameter u (make-indices (make-nodes (copy-tree g))))
+
+(defun p (x) (print-expression x))
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Symbolic expression printing (Lisp code)</h1>
+                 <pre>
+Roy Anderson &lt;reanz1959 &lt;at&gt gmail.com&gt writes:
+
+
+;;(in-package :TORONTO)
+
+#|
+
+I have fixed a couple of serious bugs I hadn't caught in the original post.
+
+PRINTING SYMBOLIC-EXPRESSIONS (lisp trees).
+
+Symbolic-expressions[https://en.wikipedia.org/wiki/S-expression], sexprs or 
+sexps (for "symbolic expressions")
+are a notation for nested lists (tree-structured) data, invented for and 
+popularized by the programming language
+Lisp, which uses them for source code as well as data. 
+
+In the usual parenthesized syntax of Lisp, an s-expression is classically 
+defined recursively as:
+
+1.an atom, or
+
+2.an expression of the form (x . y) where x and y are s-expressions.
+
+
+I spent quite a while googling "pretty printing Lisp trees" but I failed to 
+find anything even remotely like 
+the code I wanted. So, rather reluctantly, I decided to cut the code fresh. 
+My goal is to print any symbolic 
+expression including natural language parse trees with robust code to 
+traverse down the source expression 
+and consistently print connections between nodes using Unicode line drawing 
+glyphs.
+
+Their are a few test expressions at the end of this file. My favourite is 
+the defun f and its reduced derivatives: g and h.
+
+To test this code enter (p g) and you should see a graph appear in your 
+Listener.
+
+I am interested if you find a Lisp expression that doesn't print correctly 
+or any other anomalous output.
+
+The key entry points are print-expression for general symbolic expressions, 
+and print-association-list.
+
+|#
+;;
+;; Author: Roy Anderson, reanz1959@gmail.com
+;;
+;; This code was developed using LispWorks Personal Edition 6.1.1
+
+(export `(print-expression print-tree-indented print-association-list 
+chart))
+
+;; define line drawing characters...
+(defconstant *horizontal-line* (code-char #x2500))
+(defconstant *vertical-line* (code-char #x2502))
+(defconstant *top-corner* (code-char #x250c))
+(defconstant *bottom-corner* (code-char #x2514))
+(defconstant *t-intersection* (code-char #x251c))
+(defconstant *circle* (code-char #x25cf)) ;; solid black circle
+(defconstant *t-junction* (code-char #x252c))
+
+(defun print-line-glyphs ()
+  (dolist (ch '(*horizontal-line*
+                *vertical-line*
+                *top-corner*
+                *bottom-corner*
+                *t-intersection*
+                *circle*
+                *t-junction*))
+    (format t "~a ~a~%" ch (symbol-value ch))))
+
+;; S-expressions are rewritten with nodes to accomodate NIL valued leaves 
+and duplicate node values.
+(defclass node ()
+  ((id :initarg :id :accessor node-id)
+   ;;(indices :accessor node-indices :documentation "node coordinates")
+   (joints :initform "" :accessor node-joints)
+   (parent :initform nil :accessor node-parent)
+   (children :initform nil :accessor node-children)
+   (youngest :initform nil :accessor youngest)
+   (value :initform nil :initarg :value :accessor node-value)))
+
+(defclass symbolic-expression ()
+  ((counter :initform 0 :accessor counter)
+   (source :accessor source)
+   (nodes :accessor nodes)
+   (tree :initarg :tree :accessor tree)))
+
+(defmethod root ((sexpr symbolic-expression))
+  (first (nodes sexpr)))
+
+(defmethod render-nodes ((s symbolic-expression))
+  (dolist (x (nodes s))
+    (node-joint s x)))
+
+(defun node-list (source)
+  (let ((nodes ()))
+    (mapleaves source #'(lambda(n) (push n nodes)))
+    (nreverse nodes)))
+
+(defmethod initialize-instance :after ((sexpr symbolic-expression) &amp;key)
+  (setf (source sexpr) (make-nodes sexpr (copy-tree (tree sexpr))))
+  (families sexpr)
+  (setf (nodes sexpr) (node-list (source sexpr)))
+  (render-nodes sexpr))
+
+(defmethod depth ((node node))
+  (length (ancestors node)))
+
+(defmethod reference ((node node))
+  (format nil "~d. ~a" (node-id node) (node-value node)))
+
+(defmethod print-object ((node node) stream)
+  (format stream "~d. " (node-id node))
+  (format stream "~s" (node-value node))
+  ;;(format stream "/~{~(~a~) /~}" (mapcar #'node-id (ancestors node)))
+  (format stream " &gt&gt~{ ~a~}" (mapcar #'node-id (node-children node)))
+  (terpri stream))
+
+(defun make-node (&amp;rest args)
+  (apply 'make-instance 'node args))
+
+(defun node-p (x) (typep x 'node))
+
+(defmethod make-nodes ((sexpr symbolic-expression) tree)
+  "Replace all atoms with a node so that we can print NIL values"
+  (when (and tree (listp tree))
+    (cond
+     ((consp (car tree))
+      (make-nodes sexpr (car tree)))
+     (t
+      (setf (car tree) (make-instance 'node :id (incf (counter 
+sexpr)) :value (car tree)))))
+    (make-nodes sexpr (cdr tree)))
+  tree)
+
+(defun head (tree)
+  ;; Return the NODE at the head of TREE
+  (if (node-p tree)
+      tree
+    (if (and tree (listp tree))
+        (head (car tree)))))
+
+(defun maptrees (tree callback)
+  "Funcall CALLBACK passing each subtree (including sybolic expressions)"
+  (when tree
+    (funcall callback tree)
+    (when (consp (car tree))
+      (maptrees (car tree) callback))
+    (maptrees (cdr tree) callback)))
+
+(defun mapleaves (tree callback)
+  "Perform a breadth first traversal of TREE calling CALLBACK with each 
+NODE"
+  (when (and tree (listp tree))
+    (let ((subtree (car tree)))
+      (cond
+       ((node-p subtree)
+        (funcall callback subtree))
+       ((consp subtree)
+        (mapleaves subtree callback))))
+    (mapleaves (cdr tree) callback)))
+
+(defmethod crawl-print ((sexpr symbolic-expression))
+  (mapleaves (source sexpr) #'(lambda(x) (format t "cawler node ~a" x))))
+
+(defmethod adopt ((h node) (c node))
+  (unless (node-parent c)
+    ;;(setf (node-children h) (append (node-children h) (list c)))
+    (push c (node-children h))
+    (setf (node-parent c) h)))
+
+(defmethod families ((sexpr symbolic-expression))
+  (maptrees
+   (source sexpr)
+   #'(lambda(x)
+       (let ((h (head x)))
+         (dolist (node (cdr x))
+           (adopt h (head node)))))))
+
+(defun concat (&amp;rest args)
+  (format nil "~{~a~}" args))
+
+(defmethod joints-complete ((node node))
+  (&gt= (length (node-joints node))
+      (* 2 (depth node))))
+
+(defmethod join ((node node) &amp;rest args)
+  ;;(if (joints-complete node) (break "join Overflow ~a" node))
+  ;(unless (joints-complete node)
+  (setf (node-joints node) (apply #'concat (or (node-joints node) "") 
+args)))
+
+(defmethod below ((node1 node) (node2 node))
+  "Return T if NODE1 is lower in the symbolic expression than NODE2"
+  (&gt (node-id node1) (node-id node2)))
+
+(defmethod last-child ((node node))
+  "Return the youngest/lowest NODE amongst the children of NODE"
+  (or
+   (youngest node)
+   (let* ((children (node-children node))
+          (youngest (car children)))
+     (dolist (c (cdr children))
+       (if (&gt (node-id c) (node-id youngest))
+           (setf youngest c)))
+     (setf (youngest node) youngest))))
+#|
+
+    (car children)))
+
+
+    ;;(format t "last-child node ~a children ~a youngest ~a~%" (reference 
+node) (mapcar #'reference children) (reference youngest))
+
+|#
+
+(defmethod last-child-p ((node node) parent)
+  "Return T if child is the last node in the direct children of NODE"
+  (and (eq (node-parent node) parent)
+       (eq node (last-child parent))))
+
+(defmethod ancestors ((node node))
+  "Return a list of parent nodes closest to the root first"
+  (let ((parent (node-parent node)))
+    (if parent
+        (append (ancestors parent) (list parent)))))
+
+(defun join-branches (x list)
+  (let ((last (last-child (car list))))
+    (cond
+     ((null (cdr list))
+      (if (eq last x)
+          (join x *bottom-corner* *horizontal-line*)
+        (join x *t-intersection* *horizontal-line*)))
+     ((below x last)
+      (join x #\space #\space))
+     (t
+      (join x *vertical-line* #\space)))))
+
+(defmethod node-joint ((s symbolic-expression) (x node))
+  ;;(format t "node-joint ~s parent: ~a/~{~(~s ~)~}~%" (node-value x) (and 
+parent (node-value parent)) (mapcar #'node-value (ancestors x)))
+  (cond
+   ((null (node-parent x)) ; X is the root NODE
+    (join x *top-corner* *horizontal-line*))
+   ((eq (root s) (node-parent x)) ; X is a child of the root NODE
+    (if (last-child-p x (node-parent x))
+        (join x *bottom-corner* *horizontal-line*)
+      (join x *t-intersection* *horizontal-line*)))
+   (t
+    (maplist #'(lambda(list) (join-branches x list)) (ancestors x)))))
+
+(defun print-expression (tree &amp;optional (stream *standard-output*) &amp;key 
+verbose)
+  ;; recursively print tree with indentation
+  (let ((sexpr (make-instance 'symbolic-expression :tree tree)))
+    (dolist (node (nodes sexpr))
+      (cond 
+       (verbose
+        (format stream "~a~a ~d. ~s" (node-joints node) *circle* (node-id 
+node) (node-value node))
+        (let ((anc (ancestors node)))
+          (if anc (format stream " / ~{~a ~}"  (mapcar #'node-id anc))))
+        (let ((cn (node-children node)))
+          (if cn (format stream " &gt&gt ~{~a ~}" (mapcar #'node-id cn)))))
+       (t
+        (format stream "~a~a ~s" (node-joints node) *circle* (node-value 
+node))))
+      (terpri stream)))
+  (values))
+
+(defun print-tree-with-indentation (tree stream)
+  ;; recursively print tree with indentation
+  (typecase tree
+    (cons
+     (mapc #'(lambda(x) (print-tree-with-indentation x stream)) tree))
+    (node
+     (format stream "~v@a~a" (* 2 (depth tree)) "" tree))))
+
+(defun print-tree-indented (tree &amp;optional (stream *standard-output*))
+  ;; entry point for printing a tree with indentation for leaves
+  (let ((sexpr (make-instance 'symbolic-expression :tree tree)))
+    (print-tree-with-indentation (source sexpr) stream))
+  (values))
+
+(defun print-association-list (alist &amp;optional (stream *standard-output*))
+  "Print an association list with alist keys padded to maximum key width."
+  (let ((width (apply #'max (mapcar #'(lambda(s) (length (string (car s)))) 
+alist))))
+    (mapcar
+     #'(lambda (expr) (format stream "~va~{ ~(~a~)~}~%" width (pop expr) 
+(if (atom expr) (list expr) expr)))
+     alist))
+  (values))
+
+;; what have got to work with in our pallette of graphics?
+(defun chart (&amp;optional (page #x2500))
+  (format t "~5a" "")
+  (dotimes (i 16) (format t "~2x" i))
+  (terpri)
+  (dotimes (i 16)
+    (format t "~4x " (+ page (* 16 i)))
+    (dotimes (j 16)
+      (format t " ~a" (code-char (+ page (* i 16) j))))
+    (terpri)))
+
+;; test data
+(defparameter treefern '(a a2 (b r) a3 (c (d e))))
+(defparameter *tree1* '(3 (2 (1 a b) c) (1 x y) (5 50 51)))
+(defparameter *tree2* `(40
+                        (30 
+                         25
+                         nil
+                         nil)
+                        (35
+                         (nil
+                          nil))
+                        (60
+                         50
+                         nil)
+                        nil))
+
+(defparameter *tree3* `(40
+                        (30
+                         (25 () ()))
+                        (3 () ())
+                        (60 (50) t () ())))
+
+(defvar *association-list* '((a 1) (b 2) (c 3 4)))
+
+(defvar *tree* '(s (subj (np (mods angry grey) (head (word thief))))
+                   (vp (aux do have) (v won))))
+
+(defparameter f '(DEFUN AP-C.AP (STRING STACK REGS PATH)
+  "DEFARC AP-C.AP"
+  (FORMAT T "~s ~s~%" 'AP-C.AP '*DONE-IF)
+  (LET ()
+    (WHEN (TRACK-ARC-TEST (^ &gt AP))
+      (UNLESS (OR STRING STACK) (RETURN-FROM AP-C.AP (RECORD-PARSE PARSE0 
+(APPEND `(,(IF (EQ 'AJ (^ &gt TYPE)) 'AJP 'AVP)) (^ ? AP)) STRING)))
+      (WHEN STACK
+        (LET ((! (APPEND `(,(IF (EQ 'AJ (^ &gt TYPE)) 'AJP 'AVP))
+                         (^ ? AP))) (PS (POP STACK))) (RECORD-PARSE (THIRD 
+PS) ! STRING) (FUNCALL (POP PS) ! STRING STACK (CAR PS) PATH)))))))
+
+(defparameter i '(DEFUN AP-C.AP (STRING STACK REGS PATH)
+  "DEFARC AP-C.AP"
+  (FORMAT T "~s ~s~%" 'AP-C.AP '*DONE-IF)
+  (LET ()
+    (WHEN (TRACK-ARC-TEST (^ &gt AP))
+      (UNLESS (OR STRING STACK) (RETURN-FROM AP-C.AP (RECORD-PARSE PARSE0 
+(APPEND `(,(IF (EQ 'AJ (^ &gt TYPE)) 'AJP 'AVP)) (^ ? AP)) STRING)))
+      (WHEN STACK
+        (LET ((! (APPEND `(,(IF (EQ 'AJ (^ &gt TYPE)) 'AJP 'AVP))
+                         (^ ? AP))) (PS (POP STACK)))
+          (RECORD-PARSE (THIRD PS) ! STRING)))))))
+
+
+(defparameter h '(DEFUN AP-C.AP (STRING STACK REGS PATH)
+  "DEFARC AP-C.AP"
+  (FORMAT T "~s ~s~%" 'AP-C.AP '*DONE-IF)
+  (LET ()
+    (WHEN (TRACK-ARC-TEST (^ &gt AP))
+      (UNLESS (OR STRING STACK) (RETURN-FROM AP-C.AP (RECORD-PARSE PARSE0 
+(APPEND `(,(IF (EQ 'AJ (^ &gt TYPE)) 'AJP 'AVP)) (^ ? AP)) STRING)))
+      (WHEN STACK
+        (LET ((! (APPEND `(,(IF (EQ 'AJ (^ &gt TYPE)) 'AJP 'AVP))
+                         (^ ? AP))))))))))
+
+(defparameter g
+  '(DEFUN
+          AP-C.AP
+          (STRING
+           STACK
+           REGS
+           PATH)
+     "DEFARC AP-C.AP"
+     (FORMAT
+      T
+      "~s ~s~%"
+      'AP-C.AP
+      '*DONE-IF)
+     (WHEN
+         STACK
+       nil)))
+
+(defun p (x) (print-expression x))
+
+(defconstant alist '((a 1) (b 2) (c 3) (d e f g) (h 0) (i nil)))
+
+#|
+(crawl-print (make-instance 'symbolic-expression :tree g))
+(crawl-print (make-instance 'symbolic-expression :tree h))
+|#
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:28 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

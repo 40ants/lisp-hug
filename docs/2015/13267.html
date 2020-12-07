@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Scoped reader macros</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Scoped reader macros</h1>
+                <pre>
+Hi,
+
+Is it possible to create local reader macros?
+
+For example
+
+(with-special-syntax
+  (setf a[0] b))
+
+=&gt (setf (aref a 0) b)
+
+
+I came across this file: https://github.com/scketches/lisp/blob/master/read-table-dispatch.lisp
+
+However I'm curios to whether it is possible to achieve the same effect *without* using another macro character!
+
+Regards
+Erik
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Scoped reader macros</h1>
+                 <pre>
+Erik Ronström &lt;erik.ronstrom@doremir.com&gt writes:
+
+&gt Hi,
+&gt
+&gt Is it possible to create local reader macros?
+
+Yes. But only by writing a global reader macro.
+
+
+&gt For example
+&gt
+&gt (with-special-syntax
+&gt   (setf a[0] b))
+&gt
+&gt =&gt (setf (aref a 0) b)
+&gt
+&gt
+&gt I came across this file: https://github.com/scketches/lisp/blob/master/read-table-dispatch.lisp
+&gt
+&gt However I'm curios to whether it is possible to achieve the same effect *without* using another macro character!
+
+No, it's not, in general.
+
+In this specific case: (with-special-syntax (setf a[0] b))
+you could play tricks with a normal macro, because a[0] is a normal
+symbol.  Therefore with-special-syntax could be a macro incorporating a
+code walker, that would substitute symbols whose names have the required
+syntax by some sexp.  But this would be rather untasty, and overly
+complex, once you start wanting to deal with cases such as:
+
+
+    (with-special-syntax (setf a[(+ 1 b[(- i 1)])] c))
+
+
+We're dealing with a sexp:
+
+      (setf a[ 
+            (+ 1
+               b[
+               (- i 
+                  1)
+               ])
+            ]
+            c)
+
+containing the following symbols: (setf a[ + 1 b[ - i ] c) and your
+macro would have to parse back this sexp into your "infix" source and
+then translate it into a lisp form.
+
+
+-- 
+__Pascal Bourguignon__                 http://www.informatimago.com/
+“The factory of the future will have only two employees, a man and a
+dog. The man will be there to feed the dog. The dog will be there to
+keep the man from touching the equipment.” -- Carl Bass CEO Autodesk
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Scoped reader macros</h1>
+                 <pre>
+Hi,
+
+It’s some time ago that I looked into this, but what I remember is that s-expression-local reader macros are problematic and probably not reliable enough.
+
+However, I have had very good experiences with named-readtables, a library you can find in quicklisp. This allows you to define file-local reader macros, which may be good enough for your purposes.
+
+Pascal
+
+&gt On 26 Mar 2015, at 09:46, Erik Ronström &lt;erik.ronstrom@doremir.com&gt wrote:
+&gt 
+&gt 
+&gt Hi,
+&gt 
+&gt Is it possible to create local reader macros?
+&gt 
+&gt For example
+&gt 
+&gt (with-special-syntax
+&gt  (setf a[0] b))
+&gt 
+&gt =&gt (setf (aref a 0) b)
+&gt 
+&gt 
+&gt I came across this file: https://github.com/scketches/lisp/blob/master/read-table-dispatch.lisp
+&gt 
+&gt However I'm curios to whether it is possible to achieve the same effect *without* using another macro character!
+&gt 
+&gt Regards
+&gt Erik
+&gt 
+&gt 
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+&gt 
+
+--
+Pascal Costanza
+The views expressed in this email are my own, and not those of my employer.
+
+
+
+Intel Corporation NV/SA
+Kings Square, Veldkant 31
+2550 Kontich
+RPM (Bruxelles) 0415.497.718. 
+Citibank, Brussels, account 570/1031255/09
+
+This e-mail and any attachments may contain confidential material for the sole use of the intended recipient(s). Any review or distribution by others is strictly prohibited. If you are not the intended recipient, please contact the sender and delete all copies.
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Scoped reader macros</h1>
+                 <pre>
+Another possibility is to install a reader macro for #\( that checks
+if the first symbol is e.g. with-readtable or with-named-readtable and
+process the form itself in such case.
+
+Best regards,
+
+Paulo Madeira
+
+
+2015-03-26 10:42 GMT+00:00 Erik Ronström &lt;erik.ronstrom@doremir.com&gt:
+&gt
+&gt Yeah, named-readtables is probably a good idea.
+&gt
+&gt I wrote a reader macro a few years ago to make objective C integration easier in LW (always calling (objc:invoke ...) gets tedious). It works quite nicely:
+&gt
+&gt (let ((color [NSColor colorWithDeviceRed: 1.0 green: 0.5 blue: 0.5 alpha: 0.8]))
+&gt   [color redComponent])
+&gt =&gt 1.0
+&gt
+&gt The problem is that some packages (like e.g. parenscript) make use of [] as a symbol name, so using the reader macro breaks those packages. So I'll put my hope to named-readtables! :)
+&gt
+&gt Erik
+&gt
+&gt
+&gt
+&gt For those interested:
+&gt
+&gt The macro is based on some similar macros I found on the web, but IMHO this version is better, as it automatically differentiates between instance methods and class methods (based on the case of the first character of the object, so it is not foolproof, but in practice it does what you want).
+&gt
+&gt It does not support dot notation, that would be a nice addition!
+&gt
+&gt (set-macro-character #\[
+&gt                      (lambda (str char)
+&gt                        (declare (ignore char))
+&gt                          (let ((*readtable* (copy-readtable *readtable* nil))
+&gt                                (keep-going t)
+&gt                                (eof (gensym)))
+&gt                            (flet ((read-one-token (input &amp;optional colon-as-delimiter)
+&gt                                     (with-output-to-string (output)
+&gt                                       (loop with has-seen-content = nil do
+&gt                                             (let ((char (read-char input nil 'eof)))
+&gt                                               (if (whitespace-char-p char)
+&gt                                                   (when has-seen-content (return))
+&gt                                                 (case char
+&gt                                                   ('eof    (setf keep-going nil) (return))
+&gt                                                   (#\:     (write-char char output) (if colon-as-delimiter (return) (setf has-seen-content t)))
+&gt                                                   (#\]     (unread-char #\] input) (setf keep-going nil) (return))
+&gt                                                   (t       (write-char char output)
+&gt                                                            (setf has-seen-content t))))))))
+&gt                                   (peek ()
+&gt                                     (let ((ch (read-char str)))
+&gt                                       (unread-char ch str)
+&gt                                       ch)))
+&gt                              (set-macro-character #\] (lambda (stream char)
+&gt                                                         (declare (ignore char stream))
+&gt                                                         (setf keep-going nil)
+&gt                                                         eof))
+&gt                              (let ((object (if (upper-case-p (peek)) (read-one-token str) (read str)))
+&gt                                    (method "")
+&gt                                    (args nil))
+&gt                                (loop while keep-going
+&gt                                      for key = (read-one-token str t)
+&gt                                      for value = (read str nil eof t) do
+&gt                                      (cond
+&gt                                       ((and (zerop (length method)) (eq value eof))
+&gt                                        (setf method key))
+&gt                                       ((and (plusp (length key)) (not (eq value eof)))
+&gt                                        (setf method (concatenate 'string method key))
+&gt                                        (push value args))))
+&gt                                (append (list 'objc:invoke object method) (nreverse args)))))))
+&gt
+&gt
+&gt
+&gt
+&gt 26 mar 2015 kl. 11:23 skrev Costanza, Pascal:
+&gt
+&gt&gt Hi,
+&gt&gt
+&gt&gt It’s some time ago that I looked into this, but what I remember is that s-expression-local reader macros are problematic and probably not reliable enough.
+&gt&gt
+&gt&gt However, I have had very good experiences with named-readtables, a library you can find in quicklisp. This allows you to define file-local reader macros, which may be good enough for your purposes.
+&gt&gt
+&gt&gt Pascal
+&gt&gt
+&gt&gt&gt On 26 Mar 2015, at 09:46, Erik Ronström &lt;erik.ronstrom@doremir.com&gt wrote:
+&gt&gt&gt
+&gt&gt&gt
+&gt&gt&gt Hi,
+&gt&gt&gt
+&gt&gt&gt Is it possible to create local reader macros?
+&gt&gt&gt
+&gt&gt&gt For example
+&gt&gt&gt
+&gt&gt&gt (with-special-syntax
+&gt&gt&gt (setf a[0] b))
+&gt&gt&gt
+&gt&gt&gt =&gt (setf (aref a 0) b)
+&gt&gt&gt
+&gt&gt&gt
+&gt&gt&gt I came across this file: https://github.com/scketches/lisp/blob/master/read-table-dispatch.lisp
+&gt&gt&gt
+&gt&gt&gt However I'm curios to whether it is possible to achieve the same effect *without* using another macro character!
+&gt&gt&gt
+&gt&gt&gt Regards
+&gt&gt&gt Erik
+&gt&gt&gt
+&gt&gt&gt
+&gt&gt&gt _______________________________________________
+&gt&gt&gt Lisp Hug - the mailing list for LispWorks users
+&gt&gt&gt lisp-hug@lispworks.com
+&gt&gt&gt http://www.lispworks.com/support/lisp-hug.html
+&gt&gt&gt
+&gt&gt
+&gt&gt --
+&gt&gt Pascal Costanza
+&gt&gt The views expressed in this email are my own, and not those of my employer.
+&gt&gt
+&gt&gt
+&gt&gt
+&gt&gt Intel Corporation NV/SA
+&gt&gt Kings Square, Veldkant 31
+&gt&gt 2550 Kontich
+&gt&gt RPM (Bruxelles) 0415.497.718.
+&gt&gt Citibank, Brussels, account 570/1031255/09
+&gt&gt
+&gt&gt This e-mail and any attachments may contain confidential material for the sole use of the intended recipient(s). Any review or distribution by others is strictly prohibited. If you are not the intended recipient, please contact the sender and delete all copies.
+&gt
+&gt
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+&gt
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Scoped reader macros</h1>
+                 <pre>
+Hello Erik.
+
+
+PS: I'm replying to the list, I hope you don't mind.
+
+
+I thought so too at first glance.
+
+But the implementation of this idea is full of subtleties and problems
+to solve.  The first is that you don't know if the form is supposed to
+be a literal form, e.g:
+
+    (defvar my-symbols '(with-named-readtable foo bar))
+
+How would this macro character know if it should handle the quoted
+form?  You'd probably have to install more reader macros for every
+literal syntax, such as #\' (quote), #\# (sharpsign) and #\`
+(backquote).  Worse, you'd have to identify pre-emptively where forms
+are expected.
+
+Supposing you solve this problem, the implementation would have to
+keep the thus far read characters themselves in case it wants to
+(perhaps conditionally) chain to the previously installed #\( reader
+macro function, e.g. by means of make-string-input-stream with a
+string of the thus far read characters, and make-concatenated-stream
+with this string input stream and the actual stream.
+
+
+Both Pascals have resumed their experience in their answers, perhaps a
+bit too much, such that their points are a bit opaque to people with
+less reader macro experience without these gory^W expository details.
+They are right though, you can't achieve this without at least one
+other reader macro, because that's the level where you'd have to
+handle this, or that file-local named readtables are quite enough,
+such that you'd simply split your code in multiple files in case a
+piece of code requires the standard readtable and another piece of
+code requires a named readtable (for instance).
+
+
+An alternative that would fit better with the reader algorithm and
+syntax would be to use a dispatch macro character, such as e.g.
+#n(:named-readtable)... that would temporarily bind *readtable* to a
+named readtable and use a recursive read.  It puts the burden on the
+user (the consuming programmer), where the use of #n is explicit about
+the intention to use another readtable, no matter if inside a quoted
+or literal form.
+
+
+Best regards,
+
+Paulo Madeira
+
+
+2015-03-26 20:55 GMT+00:00 Erik Ronström &lt;erik.ronstrom@doremir.com&gt:
+&gt Wow, that's clever!
+&gt
+&gt Still, it assumes no other package is also installs a reader macro for #\( (?) On the other hand, that is probably not very likely.
+&gt
+&gt Erik
+&gt
+&gt
+&gt 26 mar 2015 kl. 19:16 skrev Paulo Madeira:
+&gt
+&gt&gt
+&gt&gt Another possibility is to install a reader macro for #\( that checks
+&gt&gt if the first symbol is e.g. with-readtable or with-named-readtable and
+&gt&gt process the form itself in such case.
+&gt&gt
+&gt&gt Best regards,
+&gt&gt
+&gt&gt Paulo Madeira
+&gt&gt
+&gt&gt
+&gt&gt 2015-03-26 10:42 GMT+00:00 Erik Ronström &lt;erik.ronstrom@doremir.com&gt:
+&gt&gt&gt
+&gt&gt&gt Yeah, named-readtables is probably a good idea.
+&gt&gt&gt
+&gt&gt&gt I wrote a reader macro a few years ago to make objective C integration easier in LW (always calling (objc:invoke ...) gets tedious). It works quite nicely:
+&gt&gt&gt
+&gt&gt&gt (let ((color [NSColor colorWithDeviceRed: 1.0 green: 0.5 blue: 0.5 alpha: 0.8]))
+&gt&gt&gt  [color redComponent])
+&gt&gt&gt =&gt 1.0
+&gt&gt&gt
+&gt&gt&gt The problem is that some packages (like e.g. parenscript) make use of [] as a symbol name, so using the reader macro breaks those packages. So I'll put my hope to named-readtables! :)
+&gt&gt&gt
+&gt&gt&gt Erik
+&gt&gt&gt
+&gt&gt&gt
+&gt&gt&gt
+&gt&gt&gt For those interested:
+&gt&gt&gt
+&gt&gt&gt The macro is based on some similar macros I found on the web, but IMHO this version is better, as it automatically differentiates between instance methods and class methods (based on the case of the first character of the object, so it is not foolproof, but in practice it does what you want).
+&gt&gt&gt
+&gt&gt&gt It does not support dot notation, that would be a nice addition!
+&gt&gt&gt
+&gt&gt&gt (set-macro-character #\[
+&gt&gt&gt                     (lambda (str char)
+&gt&gt&gt                       (declare (ignore char))
+&gt&gt&gt                         (let ((*readtable* (copy-readtable *readtable* nil))
+&gt&gt&gt                               (keep-going t)
+&gt&gt&gt                               (eof (gensym)))
+&gt&gt&gt                           (flet ((read-one-token (input &amp;optional colon-as-delimiter)
+&gt&gt&gt                                    (with-output-to-string (output)
+&gt&gt&gt                                      (loop with has-seen-content = nil do
+&gt&gt&gt                                            (let ((char (read-char input nil 'eof)))
+&gt&gt&gt                                              (if (whitespace-char-p char)
+&gt&gt&gt                                                  (when has-seen-content (return))
+&gt&gt&gt                                                (case char
+&gt&gt&gt                                                  ('eof    (setf keep-going nil) (return))
+&gt&gt&gt                                                  (#\:     (write-char char output) (if colon-as-delimiter (return) (setf has-seen-content t)))
+&gt&gt&gt                                                  (#\]     (unread-char #\] input) (setf keep-going nil) (return))
+&gt&gt&gt                                                  (t       (write-char char output)
+&gt&gt&gt                                                           (setf has-seen-content t))))))))
+&gt&gt&gt                                  (peek ()
+&gt&gt&gt                                    (let ((ch (read-char str)))
+&gt&gt&gt                                      (unread-char ch str)
+&gt&gt&gt                                      ch)))
+&gt&gt&gt                             (set-macro-character #\] (lambda (stream char)
+&gt&gt&gt                                                        (declare (ignore char stream))
+&gt&gt&gt                                                        (setf keep-going nil)
+&gt&gt&gt                                                        eof))
+&gt&gt&gt                             (let ((object (if (upper-case-p (peek)) (read-one-token str) (read str)))
+&gt&gt&gt                                   (method "")
+&gt&gt&gt                                   (args nil))
+&gt&gt&gt                               (loop while keep-going
+&gt&gt&gt                                     for key = (read-one-token str t)
+&gt&gt&gt                                     for value = (read str nil eof t) do
+&gt&gt&gt                                     (cond
+&gt&gt&gt                                      ((and (zerop (length method)) (eq value eof))
+&gt&gt&gt                                       (setf method key))
+&gt&gt&gt                                      ((and (plusp (length key)) (not (eq value eof)))
+&gt&gt&gt                                       (setf method (concatenate 'string method key))
+&gt&gt&gt                                       (push value args))))
+&gt&gt&gt                               (append (list 'objc:invoke object method) (nreverse args)))))))
+&gt&gt&gt
+&gt&gt&gt
+&gt&gt&gt
+&gt&gt&gt
+&gt&gt&gt 26 mar 2015 kl. 11:23 skrev Costanza, Pascal:
+&gt&gt&gt
+&gt&gt&gt&gt Hi,
+&gt&gt&gt&gt
+&gt&gt&gt&gt It’s some time ago that I looked into this, but what I remember is that s-expression-local reader macros are problematic and probably not reliable enough.
+&gt&gt&gt&gt
+&gt&gt&gt&gt However, I have had very good experiences with named-readtables, a library you can find in quicklisp. This allows you to define file-local reader macros, which may be good enough for your purposes.
+&gt&gt&gt&gt
+&gt&gt&gt&gt Pascal
+&gt&gt&gt&gt
+&gt&gt&gt&gt&gt On 26 Mar 2015, at 09:46, Erik Ronström &lt;erik.ronstrom@doremir..com&gt wrote:
+&gt&gt&gt&gt&gt
+&gt&gt&gt&gt&gt
+&gt&gt&gt&gt&gt Hi,
+&gt&gt&gt&gt&gt
+&gt&gt&gt&gt&gt Is it possible to create local reader macros?
+&gt&gt&gt&gt&gt
+&gt&gt&gt&gt&gt For example
+&gt&gt&gt&gt&gt
+&gt&gt&gt&gt&gt (with-special-syntax
+&gt&gt&gt&gt&gt (setf a[0] b))
+&gt&gt&gt&gt&gt
+&gt&gt&gt&gt&gt =&gt (setf (aref a 0) b)
+&gt&gt&gt&gt&gt
+&gt&gt&gt&gt&gt
+&gt&gt&gt&gt&gt I came across this file: https://github.com/scketches/lisp/blob/master/read-table-dispatch.lisp
+&gt&gt&gt&gt&gt
+&gt&gt&gt&gt&gt However I'm curios to whether it is possible to achieve the same effect *without* using another macro character!
+&gt&gt&gt&gt&gt
+&gt&gt&gt&gt&gt Regards
+&gt&gt&gt&gt&gt Erik
+&gt&gt&gt&gt&gt
+&gt&gt&gt&gt&gt
+&gt&gt&gt&gt&gt _______________________________________________
+&gt&gt&gt&gt&gt Lisp Hug - the mailing list for LispWorks users
+&gt&gt&gt&gt&gt lisp-hug@lispworks.com
+&gt&gt&gt&gt&gt http://www.lispworks.com/support/lisp-hug.html
+&gt&gt&gt&gt&gt
+&gt&gt&gt&gt
+&gt&gt&gt&gt --
+&gt&gt&gt&gt Pascal Costanza
+&gt&gt&gt&gt The views expressed in this email are my own, and not those of my employer.
+&gt&gt&gt&gt
+&gt&gt&gt&gt
+&gt&gt&gt&gt
+&gt&gt&gt&gt Intel Corporation NV/SA
+&gt&gt&gt&gt Kings Square, Veldkant 31
+&gt&gt&gt&gt 2550 Kontich
+&gt&gt&gt&gt RPM (Bruxelles) 0415.497.718.
+&gt&gt&gt&gt Citibank, Brussels, account 570/1031255/09
+&gt&gt&gt&gt
+&gt&gt&gt&gt This e-mail and any attachments may contain confidential material for the sole use of the intended recipient(s). Any review or distribution by others is strictly prohibited. If you are not the intended recipient, please contact the sender and delete all copies.
+&gt&gt&gt
+&gt&gt&gt
+&gt&gt&gt _______________________________________________
+&gt&gt&gt Lisp Hug - the mailing list for LispWorks users
+&gt&gt&gt lisp-hug@lispworks.com
+&gt&gt&gt http://www.lispworks.com/support/lisp-hug.html
+&gt&gt&gt
+&gt&gt
+&gt&gt _______________________________________________
+&gt&gt Lisp Hug - the mailing list for LispWorks users
+&gt&gt lisp-hug@lispworks.com
+&gt&gt http://www.lispworks.com/support/lisp-hug.html
+&gt&gt
+&gt
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:29 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

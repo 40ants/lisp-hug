@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Fixed size switchable layout</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Fixed size switchable layout</h1>
+                <pre>
+I have a switchable layout in the middle of the a dialog.  I would 
+like the layout size to be determined by the largest child, not by 
+the child that's currently selected.  Is this possible?
+
+To be more specific, my dialog is similar to the one below.  When you 
+click the Switch button, the Do Nothing button jumps up and down.  I 
+would like the Do Nothing button to stay in place, and for extra 
+space to appear above it when using the smaller child.  How can I get 
+that to happen?
+
+(capi:contain
+  (let* ((this (make-instance 'capi:column-layout
+                   :description (list
+                                 (make-instance 'capi:text-input-pane
+                                     :title "#1")
+                                 (make-instance 'capi:text-input-pane
+                                     :title "#2")
+                                 (make-instance 'capi:text-input-pane
+                                     :title "#3"))))
+         (other (make-instance 'capi:column-layout
+                    :description (list
+                                  (make-instance 'capi:text-input-pane
+                                      :title "Something else"))))
+         (switch (make-instance 'capi:switchable-layout
+                     :description (list this other))))
+    (make-instance 'capi:column-layout
+        :description (list (make-instance 'capi:push-button
+                               :text "Switch"
+                               :selection-callback
+                               #'(lambda (item interface)
+                                   item
+                                   (rotatef this other)
+                                   (setf 
+(capi:switchable-layout-visible-child switch) this)))
+                           switch
+                           (make-instance 'capi:output-pane
+                               :visible-min-height 1 :visible-max-height t)
+                           (make-instance 'capi:push-button
+                               :text "Do Nothing")))))
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Fixed size switchable layout</h1>
+                 <pre>
+Hi Gail,
+
+FWIW... I found that I could control the panning size of Pinboard  
+layouts by planting a non-displaying dummy object at the far corner of  
+my desired display size. I don't know for sure about switchable  
+dialogs, but my impression is that these are all based on the same  
+underlying design of pinboards.
+
+David McClain
+Chief Technical Officer
+Refined Audiometrics Laboratory
+4391 N. Camino Ferreo
+Tucson, AZ  85750
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Fixed size switchable layout</h1>
+                 <pre>
+I think you can fix the height of your two switchable panes to the  
+same value, for example using :visible-min-height (or :internal-min- 
+height, etc.) so as to achieve what you want :
+
+
+(capi:contain
+  (let* ((this (make-instance 'capi:column-layout
+                           :description (list
+                                 (make-instance 'capi:text-input-pane
+                                     :title "#1")
+                                 (make-instance 'capi:text-input-pane
+                                     :title "#2")
+                                 (make-instance 'capi:text-input-pane
+                                     :title "#3"))
+                   :visible-min-height 300))
+         (other (make-instance 'capi:column-layout
+                    :description (list
+                                  (make-instance 'capi:text-input-pane
+                                      :title "Something else"))
+                    :visible-min-height 300))
+         (switch (make-instance 'capi:switchable-layout
+                     :description (list this other))))
+    (make-instance 'capi:column-layout
+        :description (list (make-instance 'capi:push-button
+                               :text "Switch"
+                               :selection-callback
+                               #'(lambda (item interface)
+                                   item
+                                   (rotatef this other)
+                                   (setf (capi:switchable-layout- 
+visible-child switch) this)))
+                           switch
+                           (make-instance 'capi:output-pane
+                               :visible-min-height 1 :visible-max- 
+height t)
+                           (make-instance 'capi:push-button
+                               :text "Do Nothing")))))
+
+
+Jean
+
+
+
+Le 18 févr. 08 à 22:41, Gail Zacharias a écrit :
+
+&gt
+&gt I have a switchable layout in the middle of the a dialog.  I would  
+&gt like the layout size to be determined by the largest child, not by  
+&gt the child that's currently selected.  Is this possible?
+&gt
+&gt To be more specific, my dialog is similar to the one below.  When  
+&gt you click the Switch button, the Do Nothing button jumps up and  
+&gt down.  I would like the Do Nothing button to stay in place, and for  
+&gt extra space to appear above it when using the smaller child.  How  
+&gt can I get that to happen?
+&gt
+&gt (capi:contain
+&gt  (let* ((this (make-instance 'capi:column-layout
+&gt                   :description (list
+&gt                                 (make-instance 'capi:text-input-pane
+&gt                                     :title "#1")
+&gt                                 (make-instance 'capi:text-input-pane
+&gt                                     :title "#2")
+&gt                                 (make-instance 'capi:text-input-pane
+&gt                                     :title "#3"))))
+&gt         (other (make-instance 'capi:column-layout
+&gt                    :description (list
+&gt                                  (make-instance 'capi:text-input-pane
+&gt                                      :title "Something else"))))
+&gt         (switch (make-instance 'capi:switchable-layout
+&gt                     :description (list this other))))
+&gt    (make-instance 'capi:column-layout
+&gt        :description (list (make-instance 'capi:push-button
+&gt                               :text "Switch"
+&gt                               :selection-callback
+&gt                               #'(lambda (item interface)
+&gt                                   item
+&gt                                   (rotatef this other)
+&gt                                   (setf (capi:switchable-layout- 
+&gt visible-child switch) this)))
+&gt                           switch
+&gt                           (make-instance 'capi:output-pane
+&gt                               :visible-min-height 1 :visible-max- 
+&gt height t)
+&gt                           (make-instance 'capi:push-button
+&gt                               :text "Do Nothing")))))
+&gt
+&gt
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Fixed size switchable layout</h1>
+                 <pre>
+Hi David,
+
+Wouldn't I need to know the size (in pixels) to do this?  I am trying 
+to avoid that.  I want CAPI to do the layout and figure out the 
+sizes, I just want this one added constraint.
+
+Gail
+
+At 2/18/2008 04:59 PM, David McClain wrote:
+&gtHi Gail,
+&gt
+&gtFWIW... I found that I could control the panning size of Pinboard
+&gtlayouts by planting a non-displaying dummy object at the far corner of
+&gtmy desired display size. I don't know for sure about switchable
+&gtdialogs, but my impression is that these are all based on the same
+&gtunderlying design of pinboards.
+&gt
+&gtDavid McClain
+&gtChief Technical Officer
+&gtRefined Audiometrics Laboratory
+&gt4391 N. Camino Ferreo
+&gtTucson, AZ  85750
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Fixed size switchable layout</h1>
+                 <pre>
+At 2/19/2008 06:42 AM, Jean Bresson wrote:
+
+&gtI think you can fix the height of your two switchable panes to the
+&gtsame value, for example using :visible-min-height (or :internal-min- 
+&gtheight, etc.) so as to achieve what you want :
+
+Yes, but this requires me to know the pixel size of the largest 
+child, which I don't know (it's different on Mac and Windows).
+
+&gt(capi:contain
+&gt  (let* ((this (make-instance 'capi:column-layout
+&gt                           :description (list
+&gt                                 (make-instance 'capi:text-input-pane
+&gt                                     :title "#1")
+&gt                                 (make-instance 'capi:text-input-pane
+&gt                                     :title "#2")
+&gt                                 (make-instance 'capi:text-input-pane
+&gt                                     :title "#3"))
+&gt                   :visible-min-height 300))
+&gt         (other (make-instance 'capi:column-layout
+&gt                    :description (list
+&gt                                  (make-instance 'capi:text-input-pane
+&gt                                      :title "Something else"))
+&gt                    :visible-min-height 300))
+&gt         (switch (make-instance 'capi:switchable-layout
+&gt                     :description (list this other))))
+&gt    (make-instance 'capi:column-layout
+&gt        :description (list (make-instance 'capi:push-button
+&gt                               :text "Switch"
+&gt                               :selection-callback
+&gt                               #'(lambda (item interface)
+&gt                                   item
+&gt                                   (rotatef this other)
+&gt                                   (setf (capi:switchable-layout- 
+&gt visible-child switch) this)))
+&gt                           switch
+&gt                           (make-instance 'capi:output-pane
+&gt                               :visible-min-height 1 :visible-max- height t)
+&gt                           (make-instance 'capi:push-button
+&gt                               :text "Do Nothing")))))
+&gt
+&gt
+&gtJean
+&gt
+&gt
+&gt
+&gtLe 18 févr. 08 à 22:41, Gail Zacharias a écrit :
+&gt
+&gt&gt
+&gt&gtI have a switchable layout in the middle of the a dialog.  I would
+&gt&gtlike the layout size to be determined by the largest child, not by
+&gt&gtthe child that's currently selected.  Is this possible?
+&gt&gt
+&gt&gtTo be more specific, my dialog is similar to the one below.  When
+&gt&gtyou click the Switch button, the Do Nothing button jumps up and
+&gt&gtdown.  I would like the Do Nothing button to stay in place, and for
+&gt&gtextra space to appear above it when using the smaller child.  How
+&gt&gtcan I get that to happen?
+&gt&gt
+&gt&gt(capi:contain
+&gt&gt  (let* ((this (make-instance 'capi:column-layout
+&gt&gt                   :description (list
+&gt&gt                                 (make-instance 'capi:text-input-pane
+&gt&gt                                     :title "#1")
+&gt&gt                                 (make-instance 'capi:text-input-pane
+&gt&gt                                     :title "#2")
+&gt&gt                                 (make-instance 'capi:text-input-pane
+&gt&gt                                     :title "#3"))))
+&gt&gt         (other (make-instance 'capi:column-layout
+&gt&gt                    :description (list
+&gt&gt                                  (make-instance 'capi:text-input-pane
+&gt&gt                                      :title "Something else"))))
+&gt&gt         (switch (make-instance 'capi:switchable-layout
+&gt&gt                     :description (list this other))))
+&gt&gt    (make-instance 'capi:column-layout
+&gt&gt        :description (list (make-instance 'capi:push-button
+&gt&gt                               :text "Switch"
+&gt&gt                               :selection-callback
+&gt&gt                               #'(lambda (item interface)
+&gt&gt                                   item
+&gt&gt                                   (rotatef this other)
+&gt&gt                                   (setf (capi:switchable-layout- 
+&gt&gt visible-child switch) this)))
+&gt&gt                           switch
+&gt&gt                           (make-instance 'capi:output-pane
+&gt&gt                               :visible-min-height 1 :visible-max- height t)
+&gt&gt                           (make-instance 'capi:push-button
+&gt&gt                               :text "Do Nothing")))))
+&gt&gt
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Fixed size switchable layout</h1>
+                 <pre>
+
+On Feb 18, 2008, at 4:41 PM, Gail Zacharias wrote:
+
+&gt To be more specific, my dialog is similar to the one below.  When  
+&gt you click the Switch button, the Do Nothing button jumps up and  
+&gt down.  I would like the Do Nothing button to stay in place, and for  
+&gt extra space to appear above it when using the smaller child.  How  
+&gt can I get that to happen?
+
+You can do it by adding a "spacer" object to the column layout that  
+takes up the unused space. I just use a row or column layout for this.  
+Modified example below.
+
+
+John DeSoi, Ph.D.
+
+
+
+(capi:contain
+  (let* ((this (make-instance 'capi:column-layout
+                              :description (list
+                                            (make-instance 'capi:text- 
+input-pane
+                                                           :title "#1")
+                                            (make-instance 'capi:text- 
+input-pane
+                                                           :title "#2")
+                                            (make-instance 'capi:text- 
+input-pane
+                                                           :title  
+"#3"))))
+         (other (make-instance 'capi:column-layout
+                               :description (list
+                                             (make-instance 'capi:text- 
+input-pane
+                                                            :title  
+"Something else")
+                                             (make-instance 'capi:row- 
+layout :description nil
+                                                            :visible- 
+min-width nil :visible-max-width nil
+                                                            :visible- 
+min-height nil :visible-max-height nil)
+                                             )))
+         (switch (make-instance 'capi:switchable-layout
+                                :description (list this other))))
+    (make-instance 'capi:column-layout
+                   :description (list (make-instance 'capi:push-button
+                                                     :text "Switch"
+                                                     :selection-callback
+                                                     #'(lambda (item  
+interface)
+                                                         item
+                                                         (rotatef this  
+other)
+                                                         (setf  
+(capi:switchable-layout-visible-child switch) this)))
+                                      switch
+                                      (make-instance 'capi:output-pane
+                                                     :visible-min- 
+height 1 :visible-max-height t)
+                                      (make-instance 'capi:push-button
+                                                     :text "Do  
+Nothing")))))
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:40 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

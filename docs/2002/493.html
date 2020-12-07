@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>fli and DIB graphics</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>fli and DIB graphics</h1>
+                <pre>Hi,
+
+The docs seem to indicate that the gp:read-external-image represents 
+the image as a Windows DIB. Questions:
+
+Is the vector in the data slot of the external image really a DIB? I 
+have a DLL that accepts a DIB pointer. I tried to copy the vector to 
+a foreign pointer and then call the DLL, but it crashes.
+
+Is there a way copy a Lisp array to a foreign array other than 
+looping over each byte? I could not find anything in the FLI.
+
+Ideas and examples greatly appreciated,
+
+John DeSoi, Ph.D.
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: fli and DIB graphics</h1>
+                 <pre>Hi John,
+
+I wrote some code that interfaced with the raw win32 api hoping to get
+more GDI support.  I was succesful, though it is nowhere near complete.
+
+Here is an example of creating a DIB from a raw array of bytes from a bitmap file (see
+bitmap-tests.lisp).  The raw bits have to converted using a HDC from a window, I think
+gp:read-external-image just returns an array of the bmp file.
+
+(defun create-dib-bitmap (hdc raw-bitmap)
+  (fli:with-dynamic-foreign-objects ()
+    (let* ((size (bitmap-file-size raw-bitmap))
+           (offset-bits (bitmap-offset-bits raw-bitmap))
+           (c-raw-bitmap (fli:allocate-dynamic-foreign-object :type :byte :nelems size))
+           (bitmap-bits (fli:copy-pointer c-raw-bitmap))
+           (info (fli:copy-pointer c-raw-bitmap)))
+      (loop for byte from 0 below size
+            do
+            (setf (fli:dereference c-raw-bitmap :index byte) (aref raw-bitmap byte)))
+      (fli:incf-pointer bitmap-bits offset-bits)
+      (fli:incf-pointer info +offset-info-header+)
+      (winapi:|CreateDIBitmap| hdc info winapi::CBM_INIT bitmap-bits info
+winapi::DIB_RGB_COLORS))))
+
+My LWW-GDI stuff can be found at
+
+http://www3.telus.net/public/whumeniu/gdi.zip
+
+Enjoy
+
+Wade
+
+
+----- Original Message -----
+From: "John DeSoi" &lt;desoi@icx.net&gt
+To: &lt;lisp-hug@xanalys.com&gt
+Sent: Tuesday, July 30, 2002 7:26 PM
+Subject: fli and DIB graphics
+
+
+| Hi,
+|
+| The docs seem to indicate that the gp:read-external-image represents
+| the image as a Windows DIB. Questions:
+|
+| Is the vector in the data slot of the external image really a DIB? I
+| have a DLL that accepts a DIB pointer. I tried to copy the vector to
+| a foreign pointer and then call the DLL, but it crashes.
+|
+| Is there a way copy a Lisp array to a foreign array other than
+| looping over each byte? I could not find anything in the FLI.
+|
+| Ideas and examples greatly appreciated,
+|
+| John DeSoi, Ph.D.
+|
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:57 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

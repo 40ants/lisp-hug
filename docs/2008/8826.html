@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>capi:Multi-column-list-panel</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>capi:Multi-column-list-panel</h1><HTML>
+<HEAD>
+<TITLE>capi:Multi-column-list-panel</TITLE>
+</HEAD>
+<BODY>
+<FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'>Hello,<BR>
+<BR>
+When the action-callback is used on a multi-column-list-panel, the callback returns the item or the item-data and gives me an info on the row clicked. Is it a way to get also an info on the column clicked ?<BR>
+<BR>
+Thanks in advance<BR>
+<BR>
+Denis<BR>
+<BR>
+-------------------------------------------------------<BR>
+Denis Pousseur<BR>
+70 rue de Wansijn<BR>
+1180 Bruxelles, Belgique<BR>
+<BR>
+Tel : 32 (0)2 219 31 09<BR>
+Mail : &nbsp;denis.pousseur@gmail.com<BR>
+-------------------------------------------------------<BR>
+</SPAN></FONT>
+</BODY>
+</HTML>
+
+
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: capi:Multi-column-list-panel</h1>
+                 <pre>
+
+* Denis Pousseur &lt;C5582FA7.6648%denis.pousseur@gmail.com&gt :
+Wrote on Sun, 30 Nov 2008 11:55:19 +0100:
+
+| When the action-callback is used on a multi-column-list-panel, the
+| callback returns the item or the item-data and gives me an info on the
+| row clicked. Is it a way to get also an info on the column clicked ?
+
+The following callback worked on windows with an earlier lw version. It
+failed/would not work the motif backend where IIRC I figured it was not
+possible and gave up --- I'm also looking for a real solution though.
+
+;; Assuming your interface has a slot called mclp
+(lambda (data intf)
+  (multiple-value-bind (x y)
+      (capi:current-pointer-position :relative-to intf)
+    (with-slots (mclp) intf
+      (let* ((hpos (capi:get-scroll-position mclp :horizontal))
+	     (colno
+	      (let ((widths
+		     (map 'list #'car (capi::list-panel-column-info mclp))))
+		(loop with needle = (+ hpos x)
+		      for beg = 0 then total-width
+		      for colno from 0
+		      for width in widths
+		      summing width into total-width
+		      if (&lt;= beg needle total-width) return colno))))
+	(capi:display-message
+	 "The arguments were data(arg1) ~S and intf(arg2) ~S
+Mouse Position is: ~S ~S.
+Scroll: ~S
+Column: is ~S"
+	 data intf x y hpos colno)))))
+
+--
+Madhu
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: capi:Multi-column-list-panel</h1>
+                  <pre>
+Hi Madhu,
+
+Thanks for your answer. In my version (LWM 5.1) the  capi::column-info slot
+contains just NIL. I suspect that the CAPI does not memorize the column
+widths (I do not see any slot witch contains this info) and let this to
+COCOA (at least on Mac).
+
+On Mac this code returns the column index :
+
+(multiple-value-bind (x y) (capi:current-pointer-position :relative-to mclp)
+  (let ((NSTableView (sr capi-cocoa-library::main-view
+(capi-internals:representation mclp))))
+    (objc:invoke NSTableView "columnAtPoint:" (make-array 2
+:initial-contents (list x y)))))
+
+
+Best regards
+
+
+Denis
+
+
+
+
+Le 2/12/08 13:16, «&nbsp;[NOM]&nbsp;» &lt;[ADRESSE]&gt a écrit&nbsp;:
+
+&gt 
+&gt 
+&gt * Denis Pousseur &lt;C5582FA7.6648%denis.pousseur@gmail.com&gt :
+&gt Wrote on Sun, 30 Nov 2008 11:55:19 +0100:
+&gt 
+&gt | When the action-callback is used on a multi-column-list-panel, the
+&gt | callback returns the item or the item-data and gives me an info on the
+&gt | row clicked. Is it a way to get also an info on the column clicked ?
+&gt 
+&gt The following callback worked on windows with an earlier lw version. It
+&gt failed/would not work the motif backend where IIRC I figured it was not
+&gt possible and gave up --- I'm also looking for a real solution though.
+&gt 
+&gt ;; Assuming your interface has a slot called mclp
+&gt (lambda (data intf)
+&gt   (multiple-value-bind (x y)
+&gt       (capi:current-pointer-position :relative-to intf)
+&gt     (with-slots (mclp) intf
+&gt       (let* ((hpos (capi:get-scroll-position mclp :horizontal))
+&gt     (colno
+&gt      (let ((widths
+&gt     (map 'list #'car (capi::list-panel-column-info mclp))))
+&gt (loop with needle = (+ hpos x)
+&gt      for beg = 0 then total-width
+&gt      for colno from 0
+&gt      for width in widths
+&gt      summing width into total-width
+&gt      if (&lt;= beg needle total-width) return colno))))
+&gt (capi:display-message
+&gt "The arguments were data(arg1) ~S and intf(arg2) ~S
+&gt Mouse Position is: ~S ~S.
+&gt Scroll: ~S
+&gt Column: is ~S"
+&gt data intf x y hpos colno)))))
+&gt 
+&gt --
+&gt Madhu
+&gt 
+
+-------------------------------------------------------
+Denis Pousseur
+70 rue de Wansijn
+1180 Bruxelles, Belgique
+
+Tel : 32 (0)2 219 31 09
+Mail :  denis.pousseur@gmail.com
+-------------------------------------------------------
+
+
+
+</pre>
+                 </article>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>Re: capi:Multi-column-list-panel</h1>
+                   <pre>
+&gt&gt&gt&gt&gt On Tue, 02 Dec 2008 16:50:26 +0100, Denis Pousseur said:
+&gt 
+&gt Hi Madhu,
+&gt 
+&gt Thanks for your answer. In my version (LWM 5.1) the  capi::column-info slot
+&gt contains just NIL. I suspect that the CAPI does not memorize the column
+&gt widths (I do not see any slot witch contains this info) and let this to
+&gt COCOA (at least on Mac).
+&gt 
+&gt On Mac this code returns the column index :
+&gt 
+&gt (multiple-value-bind (x y) (capi:current-pointer-position :relative-to mclp)
+&gt   (let ((NSTableView (sr capi-cocoa-library::main-view
+&gt (capi-internals:representation mclp))))
+&gt     (objc:invoke NSTableView "columnAtPoint:" (make-array 2
+&gt :initial-contents (list x y)))))
+
+I need post the usual caveat here: using undocumented internals of CAPI (or
+any other LW package) is not something that we support or recommend.
+
+Do other applications have this column-specific clicking behavior?  If not,
+then you are potentially making your interface confusing for end users.
+
+
+&gt Le 2/12/08 13:16, «&nbsp;[NOM]&nbsp;» &lt;[ADRESSE]&gt a écrit&nbsp;:
+&gt 
+&gt &gt 
+&gt &gt 
+&gt &gt * Denis Pousseur &lt;C5582FA7.6648%denis.pousseur@gmail.com&gt :
+&gt &gt Wrote on Sun, 30 Nov 2008 11:55:19 +0100:
+&gt &gt 
+&gt &gt | When the action-callback is used on a multi-column-list-panel, the
+&gt &gt | callback returns the item or the item-data and gives me an info on the
+&gt &gt | row clicked. Is it a way to get also an info on the column clicked ?
+&gt &gt 
+&gt &gt The following callback worked on windows with an earlier lw version. It
+&gt &gt failed/would not work the motif backend where IIRC I figured it was not
+&gt &gt possible and gave up --- I'm also looking for a real solution though.
+&gt &gt 
+&gt &gt ;; Assuming your interface has a slot called mclp
+&gt &gt (lambda (data intf)
+&gt &gt   (multiple-value-bind (x y)
+&gt &gt       (capi:current-pointer-position :relative-to intf)
+&gt &gt     (with-slots (mclp) intf
+&gt &gt       (let* ((hpos (capi:get-scroll-position mclp :horizontal))
+&gt &gt     (colno
+&gt &gt      (let ((widths
+&gt &gt     (map 'list #'car (capi::list-panel-column-info mclp))))
+&gt &gt (loop with needle = (+ hpos x)
+&gt &gt      for beg = 0 then total-width
+&gt &gt      for colno from 0
+&gt &gt      for width in widths
+&gt &gt      summing width into total-width
+&gt &gt      if (&lt;= beg needle total-width) return colno))))
+&gt &gt (capi:display-message
+&gt &gt "The arguments were data(arg1) ~S and intf(arg2) ~S
+&gt &gt Mouse Position is: ~S ~S.
+&gt &gt Scroll: ~S
+&gt &gt Column: is ~S"
+&gt &gt data intf x y hpos colno)))))
+&gt &gt 
+&gt &gt --
+&gt &gt Madhu
+&gt &gt 
+&gt 
+&gt -------------------------------------------------------
+&gt Denis Pousseur
+&gt 70 rue de Wansijn
+&gt 1180 Bruxelles, Belgique
+&gt 
+&gt Tel : 32 (0)2 219 31 09
+&gt Mail :  denis.pousseur@gmail.com
+&gt -------------------------------------------------------
+&gt 
+&gt 
+
+-- 
+Martin Simmons
+LispWorks Ltd
+http://www.lispworks.com/
+
+
+</pre>
+                  </article>
+                  <section class=tree>
+                   <article class=email>
+                    <h1>Re: capi:Multi-column-list-panel</h1>
+                    <pre>
+Hi Martin,
+
+&gt I need post the usual caveat here: using undocumented internals of CAPI (or
+&gt any other LW package) is not something that we support or recommend.
+
+Yes I know. But why not to give us an exported and documented access to the
+NSPointers ? It could be a great facilities for some Mac users/developpers
+and should be the natural complement of the objc package.
+
+&gt Do other applications have this column-specific clicking behavior?  If not,
+&gt then you are potentially making your interface confusing for end users.
+
+If the COCOA Application Kit propose the function "columnAtPoint:", I
+suppose it's because it has some interest for some people.
+For instance, double-clicking in a cell to open a box and change a value is
+something extensively used by the Plist editor on mac OS X. Xcode has also
+some checkbox in columns. So it doesn't appear very clear to me that this
+usage is a source of "confusion" (is it not the contrary ?).
+
+Best regards
+
+Denis
+
+Le 2/12/08 21:56, «&nbsp;[NOM]&nbsp;» &lt;[ADRESSE]&gt a écrit&nbsp;:
+
+&gt&gt&gt&gt&gt&gt On Tue, 02 Dec 2008 16:50:26 +0100, Denis Pousseur said:
+&gt&gt 
+&gt&gt Hi Madhu,
+&gt&gt 
+&gt&gt Thanks for your answer. In my version (LWM 5.1) the  capi::column-info slot
+&gt&gt contains just NIL. I suspect that the CAPI does not memorize the column
+&gt&gt widths (I do not see any slot witch contains this info) and let this to
+&gt&gt COCOA (at least on Mac).
+&gt&gt 
+&gt&gt On Mac this code returns the column index :
+&gt&gt 
+&gt&gt (multiple-value-bind (x y) (capi:current-pointer-position :relative-to mclp)
+&gt&gt   (let ((NSTableView (sr capi-cocoa-library::main-view
+&gt&gt (capi-internals:representation mclp))))
+&gt&gt     (objc:invoke NSTableView "columnAtPoint:" (make-array 2
+&gt&gt :initial-contents (list x y)))))
+&gt 
+&gt I need post the usual caveat here: using undocumented internals of CAPI (or
+&gt any other LW package) is not something that we support or recommend.
+&gt 
+&gt Do other applications have this column-specific clicking behavior?  If not,
+&gt then you are potentially making your interface confusing for end users.
+&gt 
+&gt 
+&gt&gt Le 2/12/08 13:16, «&nbsp;[NOM]&nbsp;» &lt;[ADRESSE]&gt a écrit&nbsp;:
+&gt&gt 
+&gt&gt&gt 
+&gt&gt&gt 
+&gt&gt&gt * Denis Pousseur &lt;C5582FA7.6648%denis.pousseur@gmail.com&gt :
+&gt&gt&gt Wrote on Sun, 30 Nov 2008 11:55:19 +0100:
+&gt&gt&gt 
+&gt&gt&gt | When the action-callback is used on a multi-column-list-panel, the
+&gt&gt&gt | callback returns the item or the item-data and gives me an info on the
+&gt&gt&gt | row clicked. Is it a way to get also an info on the column clicked ?
+&gt&gt&gt 
+&gt&gt&gt The following callback worked on windows with an earlier lw version. It
+&gt&gt&gt failed/would not work the motif backend where IIRC I figured it was not
+&gt&gt&gt possible and gave up --- I'm also looking for a real solution though.
+&gt&gt&gt 
+&gt&gt&gt ;; Assuming your interface has a slot called mclp
+&gt&gt&gt (lambda (data intf)
+&gt&gt&gt   (multiple-value-bind (x y)
+&gt&gt&gt       (capi:current-pointer-position :relative-to intf)
+&gt&gt&gt     (with-slots (mclp) intf
+&gt&gt&gt       (let* ((hpos (capi:get-scroll-position mclp :horizontal))
+&gt&gt&gt     (colno
+&gt&gt&gt      (let ((widths
+&gt&gt&gt     (map 'list #'car (capi::list-panel-column-info mclp))))
+&gt&gt&gt (loop with needle = (+ hpos x)
+&gt&gt&gt      for beg = 0 then total-width
+&gt&gt&gt      for colno from 0
+&gt&gt&gt      for width in widths
+&gt&gt&gt      summing width into total-width
+&gt&gt&gt      if (&lt;= beg needle total-width) return colno))))
+&gt&gt&gt (capi:display-message
+&gt&gt&gt "The arguments were data(arg1) ~S and intf(arg2) ~S
+&gt&gt&gt Mouse Position is: ~S ~S.
+&gt&gt&gt Scroll: ~S
+&gt&gt&gt Column: is ~S"
+&gt&gt&gt data intf x y hpos colno)))))
+&gt&gt&gt 
+&gt&gt&gt --
+&gt&gt&gt Madhu
+&gt&gt&gt 
+&gt&gt 
+&gt&gt -------------------------------------------------------
+&gt&gt Denis Pousseur
+&gt&gt 70 rue de Wansijn
+&gt&gt 1180 Bruxelles, Belgique
+&gt&gt 
+&gt&gt Tel : 32 (0)2 219 31 09
+&gt&gt Mail :  denis.pousseur@gmail.com
+&gt&gt -------------------------------------------------------
+&gt&gt 
+&gt&gt 
+
+-------------------------------------------------------
+Denis Pousseur
+70 rue de Wansijn
+1180 Bruxelles, Belgique
+
+Tel : 32 (0)2 219 31 09
+Mail :  denis.pousseur@gmail.com
+-------------------------------------------------------
+
+
+
+</pre>
+                   </article>
+                  </section>
+                  <section class=tree>
+                   <article class=email>
+                    <h1>Re: capi:Multi-column-list-panel</h1>
+                    <pre>
+I have also been working on my first major CAPI application recently,
+and my first expectation for multi-column list was that I could either
+create (input and checkbox) panes directly inside columns, or at least
+popup an editor for cells and have a checkbox for each row.
+
+We are rewriting an application where selecting and marking rows are
+two seperate concepts, like in iTunes. It has been very popular among
+users.
+
+Best regards,
+
+Mikko Ahonen
+
+On Wed, Dec 3, 2008 at 8:04 PM, Brian Connoy
+&lt;BConnoy@morrisonhershfield.com&gt wrote:
+&gt
+&gt Denis Pousseur &lt;denis.pousseur@gmail.com&gt writes:
+&gt
+&gt&gt Hi Martin,
+&gt&gt
+&gt&gt&gt I need post the usual caveat here: using undocumented internals of CAPI (or
+&gt&gt&gt any other LW package) is not something that we support or recommend.
+&gt&gt
+&gt&gt Yes I know. But why not to give us an exported and documented access to the
+&gt&gt NSPointers ? It could be a great facilities for some Mac users/developpers
+&gt&gt and should be the natural complement of the objc package.
+&gt&gt
+&gt&gt&gt Do other applications have this column-specific clicking behavior?  If not,
+&gt&gt&gt then you are potentially making your interface confusing for end users.
+&gt&gt
+&gt&gt If the COCOA Application Kit propose the function "columnAtPoint:", I
+&gt&gt suppose it's because it has some interest for some people.
+&gt&gt For instance, double-clicking in a cell to open a box and change a value is
+&gt&gt something extensively used by the Plist editor on mac OS X. Xcode has also
+&gt&gt some checkbox in columns. So it doesn't appear very clear to me that this
+&gt&gt usage is a source of "confusion" (is it not the contrary ?).
+&gt&gt
+&gt&gt Best regards
+&gt&gt
+&gt&gt Denis
+&gt
+&gt Hi all,
+&gt
+&gt FWIW, I've been chipping away at my first major CAPI application. My
+&gt very first expectation, on discovering multi-column-list-panel, was the
+&gt ability to double click on individual "fields" and edit values contained
+&gt therein. Got stumped at that point and took a different approach.
+&gt
+&gt My computer exposure has been exclusively MS Windows based.
+&gt
+&gt Brian C.
+&gt
+&gt
+
+
+</pre>
+                   </article>
+                  </section>
+                 </section>
+                </section>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:37 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

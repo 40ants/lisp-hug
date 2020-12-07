@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Nasty problem with KMRCL and LWM</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Nasty problem with KMRCL and LWM</h1>
+                <pre>Hi,
+
+I've been doing some work with TBNL and have found something nasty with 
+how TBNL interacts with LW for Mac OS/X 4.4.0
+
+I've 'isolated' the demonstration of the problem to the lisp code that 
+I've attached. That code assumes that you have KMRCL loaded.
+
+The behaviour is not nice. For example, before I run a test (which I'll 
+describe in a moment) the real memory used by LW is 74.3MB and virtual 
+142.27MB. After the test it is real 257.72MB and virtual 814.26MB. The 
+output from (ROOM) is mostly unchanged. LW is also in a bad state. I 
+can't close or open windows, button images are disappearing, and dialog 
+boxes are invisible.
+
+The test is simple:
+   1 -- make sure KMRCL is loaded
+   2 -- compile the code below
+   3 -- run: (trouble::start-trouble)
+   4 -- from a console run: ab -n 1000 -c 10 
+http://localhost:3333/tbnl-araneida
+         (this is the apache benchmark program, it is going to hit the 
+'server' 1000 times with 10 concurrent requests)
+   5 -- stand back
+
+The little piece of code is pretending to be an HTTP server on port 
+3333. It returns a constant HTML page.
+
+I've tried this using other socket connection techniques with no 
+difficulties. Just this one caused trouble.
+
+I'm curious to know if this is only LW for the mac, and I'm curious to 
+know if other mac users have this problem.
+
+No matter what, this isn't a great way for LW to fail.
+
+Thanks for any help,
+
+Cheers,
+Bob
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Nasty problem with KMRCL and LWM</h1>
+                 <pre>On Mar 16, 2005, at 1:45 PM, Bob Hutchison wrote:
+
+&gt I've been doing some work with TBNL and have found something nasty 
+&gt with how TBNL interacts with LW for Mac OS/X 4.4.0
+
+I wasn't aware of this problem but I was able to reproduce the behavior 
+(Mac OS X 10.3.8, LWM 4.4.0, PowerBook G4, 1GB RAM).
+
+&gt The behaviour is not nice. For example, before I run a test (which 
+&gt I'll describe in a moment) the real memory used by LW is 74.3MB and 
+&gt virtual 142.27MB. After the test it is real 257.72MB and virtual 
+&gt 814.26MB. The output from (ROOM) is mostly unchanged. LW is also in a 
+&gt bad state. I can't close or open windows, button images are 
+&gt disappearing, and dialog boxes are invisible.
+
+I'm not sure if any of this data is useful but... I ran the test 
+several times w/ LispWorks.app and each time I had to run "ab" several 
+times to get it to slow down and eventually lock up (sort of). In my 
+testing LispWorks had to hit ~400MB resident and &gt3GB virtual before it 
+locked up. Still curious I poked at the process w/ Shark, ThreadViewer, 
+and gdb - in each case the main NSApplication thread was in a tight 
+loop down in "pthread" territory (it was hard to capture a backtrace).
+
+I also tried the same test in a non-gui image I had built - again the 
+same behavior, including eventually one rouge thread. Shark revealed 
+that the largest amount of time (~20% of cpu time) was spent in various 
+Mach vm_*() system calls.
+
+Out of curiosity I (naively) explored LispWorks behavior under heavy 
+memory allocation. I fired up my console image (LispWorks.app dumped w/ 
+:environment nil :multiprocessing t), loaded swank, eval'd the 
+following:
+
+(defvar x nil)
+(dotimes (i 300)
+   (push (make-array (* 1024 1024) :element-type 'unsigned-byte) x))
+
+Around ~400MB resident, ~450MB virtual all listeners (both console and 
+slime) stopped responding. Looking at the process w/ ThreadViewer there 
+was again one thread off in a tight loop, but unlike the "big-trouble" 
+cases this time the rogue thread appears to be purely in lisp land. All 
+the while memory usage slowly creeps higher w/ the cpu ~75% active.
+
+....more info for what it's worth.
+
+-greg
+__________________________________________________
+Greg Wuller                             greg@wuller.com
+_______________________________________________________
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Nasty problem with KMRCL and LWM</h1>
+                 <pre>On Wed, 16 Mar 2005 16:45:35 -0500, Bob Hutchison &lt;hutch@recursive.ca&gt wrote:
+
+&gt I've been doing some work with TBNL and have found something nasty
+&gt with how TBNL interacts with LW for Mac OS/X 4.4.0
+&gt
+&gt I've 'isolated' the demonstration of the problem to the lisp code
+&gt that I've attached. That code assumes that you have KMRCL loaded.
+&gt
+&gt The behaviour is not nice. For example, before I run a test (which
+&gt I'll describe in a moment) the real memory used by LW is 74.3MB and
+&gt virtual 142.27MB. After the test it is real 257.72MB and virtual
+&gt 814.26MB. The output from (ROOM) is mostly unchanged. LW is also in
+&gt a bad state. I can't close or open windows, button images are
+&gt disappearing, and dialog boxes are invisible.
+&gt
+&gt The test is simple:
+&gt    1 -- make sure KMRCL is loaded
+&gt    2 -- compile the code below
+&gt    3 -- run: (trouble::start-trouble)
+&gt    4 -- from a console run: ab -n 1000 -c 10
+&gt    http://localhost:3333/tbnl-araneida
+&gt          (this is the apache benchmark program, it is going to hit the
+&gt          server' 1000 times with 10 concurrent requests)
+&gt    5 -- stand back
+&gt
+&gt The little piece of code is pretending to be an HTTP server on port
+&gt 3333. It returns a constant HTML page.
+&gt
+&gt I've tried this using other socket connection techniques with no
+&gt difficulties. Just this one caused trouble.
+&gt
+&gt I'm curious to know if this is only LW for the mac
+
+FWIW, I don't see this problem with LWL 4.3.7 and LWW 4.4.0 - seems to
+be a Mac problem.
+
+Cheers,
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Nasty problem with KMRCL and LWM</h1>
+                 <pre>
+On Mar 16, 2005, at 4:45 PM, Bob Hutchison wrote:
+
+&gt The behaviour is not nice. For example, before I run a test (which 
+&gt I'll describe in a moment) the real memory used by LW is 74.3MB and 
+&gt virtual 142.27MB. After the test it is real 257.72MB and virtual 
+&gt 814.26MB. The output from (ROOM) is mostly unchanged. LW is also in a 
+&gt bad state. I can't close or open windows, button images are 
+&gt disappearing, and dialog boxes are invisible.
+&gt
+
+I've continued playing around with this. It appears that I was wrong 
+about (ROOM), or that I've changed something in the test, or both.
+
+After   25 hits I get: Total Size  53248K, Allocated 29555K, Free 13394K
+After 3025 hits I get: Total Size 110976K, Allocated 87771K, Free 12901K
+
+There is a about 19.4K allocated per hit that is never recovered.
+
+I played around with the test Greg came up with that allocated memory. 
+If you retain the memory you seem to get the same behaviour as I'm 
+seeing. If you release the memory you do not (though it takes maybe 
+30-60s on my machine to settle down, if you try using LW in that time 
+you get some nasty stuff happening *sometimes*).
+
+It looks as though the nasty behaviour of LW is related to large 
+amounts of retained data. Based on Greg's test that looks like a LWM 
+problem.
+
+It also looks as though something is retaining memory in the 
+'big-trouble' test. It sure isn't obvious to me where that is 
+happening. KMRCL or LWM? Since only LWM seems to have the problem I'm 
+thinking LWM.
+
+Are there any tools in LW to debug memory allocation?
+
+Cheers,
+Bob
+
+----
+Bob Hutchison          -- blogs at &lt;http://www.recursive.ca/hutch/&gt
+Recursive Design Inc.  -- &lt;http://www.recursive.ca/&gt
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Nasty problem with KMRCL and LWM</h1>
+                 <pre>On Thu, 17 Mar 2005 16:20:46 +0100, Sven Van Caekenberghe &lt;sven@beta9.be&gt wrote:
+
+&gt So I think it has something to do with the specific software you are
+&gt using. Maybe by not using the -k or using server code that doesn't
+&gt reuse connections/sockets, you keep on spawning handlers for each
+&gt request; when you combine that with for example some link/pointer
+&gt between server and handler objects/sockets, you keep all of them in
+&gt memory (or maybe even open) ? Well, it's just a thought. You could
+&gt also try lsof to have a look at the open files/sockets.
+
+This doesn't sound very plausible as the problem seems to be Mac-only.
+Exactly the same software runs without problems on Linux and Windows.
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:49 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

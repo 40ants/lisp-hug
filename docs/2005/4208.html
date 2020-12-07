@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Slightly more on capi:execute-with-interface ...</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Slightly more on capi:execute-with-interface ...</h1>
+                <pre>Hello,
+
+Nick was gracious enough to help me with my previous question about 
+capi:execute-with-interface, and I've used his solution with success.
+
+Basically, my problem was capturing the return value from the function 
+called by execute-with-interface.
+
+Nick suggested this function as a model for what I should be doing ...
+
+(defun frob (function interface)
+  (let ((result))
+    (capi:execute-with-interface interface
+                                 (lambda ()
+                                   (setf result
+                                         (list (funcall function)))))
+    (mp:process-wait "frobbing"
+                     (lambda () result))
+    (car result)))
+
+I modified this slightly to this:
+
+(defun frob (interface function &amp;rest args)
+  (let ((result))
+    (capi:execute-with-interface interface
+                                 (lambda ()
+                                   (setf result (apply function args))))
+    (mp:process-wait "frobbing"
+                     (lambda () result))
+    result))
+
+Nick, note that in modifying your suggestion, I eliminated the call to
+(list ...) and the subsequent (car result) to return the result.  I don't
+think this breaks anything, but I'd welcome any advice you have if this
+is a mistake.
+
+Finally, using my slightly-hacked version of Nick's solution, I can now
+write my interface accessors like this:
+
+(defmethod reply-text ((self question-ui))
+  (frob self #'(lambda (self) (text-input-pane-text (reply self))) self))
+
+(defmethod (setf reply-text) (text (self question-ui))
+  (frob self #'(lambda (self text) (setf (text-input-pane-text (reply self)) text)) self text))
+
+In summary, this has worked out well, and resolved my problem.  Thanks for
+the help.
+
+John Sambrook
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Slightly more on capi:execute-with-interface ...</h1>
+                 <pre>On Sat, 23 Jul 2005 06:52:11 -0700, John Sambrook &lt;john.sambrook@common-sense.com&gt wrote:
+
+&gt Nick, note that in modifying your suggestion, I eliminated the call
+&gt to (list ...) and the subsequent (car result) to return the result.
+&gt I don't think this breaks anything, but I'd welcome any advice you
+&gt have if this is a mistake.
+
+In Nick's example the function can also return NIL.  It'll wait
+forever in your case.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Slightly more on capi:execute-with-interface ...</h1>
+                 <pre>John Sambrook wrote:
+
+&gt Nick, note that in modifying your suggestion, I eliminated the call to
+&gt (list ...) and the subsequent (car result) to return the result.  I don't
+&gt think this breaks anything, but I'd welcome any advice you have if this
+&gt is a mistake.
+
+I think that Nick used the (LIST ...) / (CAR ...) idiom to make sure that
+everything keeps working when the result happens to be NIL.  By removing
+the list wrapper, you can't distinguish between an empty list result and
+no result at all.
+
+ --
+Arthur
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Slightly more on capi:execute-with-interface ...</h1>
+                 <p>
+                  Unable to parse email body. Email id is 4216
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:47 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

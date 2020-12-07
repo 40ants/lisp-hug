@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Returning &amp;whole argument in compiler macros.</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Returning &amp;whole argument in compiler macros.</h1>Hi all,<br>
+&nbsp; I've just run up against some weird behaviour with compiler macros in LWL 4.4.6<br>
+&nbsp; <br>
+&nbsp; Compiling the following code gives the error,<br>
+&nbsp; LAMBDA-LIST form is not a proper list: #&lt;Quote NIL &gt;.<br>
+<br>
+&nbsp;(defmacro test-macro (ll &amp;body body)<br>
+&nbsp;&nbsp;&nbsp; `(lambda ,ll ,@body))<br>
+<br>
+&nbsp;(define-compiler-macro test-macro (&amp;whole form ll &amp;body body)<br>
+&nbsp;&nbsp;&nbsp; (declare (ignore ll body))<br>
+&nbsp;&nbsp;&nbsp; form)<br>
+<br>
+&nbsp;(defun test-nil ()<br>
+&nbsp;&nbsp;&nbsp; (test-macro () (+ 1 1)))<br>
+<br>
+<br>
+This only seems to occur with compiler-macro's defined on macros,<br>
+defining them on functions still works fine.<br>
+<br>
+Does anyone have any ideas?<br>
+<br>
+Thanks,<br>
+&nbsp;&nbsp; Sean.<br>
+<br>
+
+
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Returning &amp;whole argument in compiler macros.</h1>
+                 <pre>Sean Ross wrote:
+
+&gt This only seems to occur with compiler-macro's defined on macros,
+&gt defining them on functions still works fine
+
+I'm not sure what you're trying to do here, but I don't think it
+makes much sense to define a compiler macro for something that's
+already defined as a macro.
+
+You may want to read the 'slides' of the talk that I gave about
+compiler macros:
+
+   http://www.pentaside.org/paper/compilermacro-lemmens/compiler-macros-for-publication.txt
+
+Arthur Lemmens
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Returning &amp;whole argument in compiler macros.</h1><br><br><div><span class="gmail_quote">On 12/19/05, <b class="gmail_sendername">Arthur Lemmens</b> &lt;<a href="mailto:alemmens@xs4all.nl" target="_blank" onclick="return top.js.OpenExtLink(window,event,this)">alemmens@xs4all.nl
+</a>&gt; wrote:</span><blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+Sean Ross wrote:<br><br>&gt; This only seems to occur with compiler-macro's defined on macros,<br>&gt; defining them on functions still works fine<br><br>I'm not sure what you're trying to do here, but I don't think it<br>
+
+makes much sense to define a compiler macro for something that's<br>already defined as a macro.<br><br></blockquote></div>Currently one of the arguments to the macro is a symbol indicating what kind of concurrency 
+<br>
+is to be used (it's a simple implementation of the qlisp primitives)
+and I would much rather decide which form to expand into (when possible) at compile
+time rather than dispatch at run time.<br>
+Granted it can be expanded in the macro it's just that I was quite surprised when returning the<br>
+&amp;whole argument caused the macro to break.<br>
+<br>
+Cheers,<br>
+&nbsp; Sean.<br>
+<br>
+<br>
+
+
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Returning &amp;whole argument in compiler macros.</h1>
+                 <pre>On Mon, 19 Dec 2005 17:21:53 +0100, "Arthur Lemmens" &lt;alemmens@xs4all.nl&gt wrote:
+
+&gt I think your mistake is that you're writing a compiler macro for
+&gt something that's already defined as a macro.  Like I said before, I
+&gt think that doesn't make any sense.
+
+The standard explicitely allows compiler macros for macros and I can
+imagine there are uses for them.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Returning &amp;whole argument in compiler macros.</h1>
+                 <pre>On Mon, 19 Dec 2005 17:39:59 +0100, "Arthur Lemmens" &lt;alemmens@xs4all.nl&gt wrote:
+
+&gt Ah, OK.  Could you give an example where it makes sense to write a
+&gt compiler macro for a macro instead of for a function?
+
+No, not without thinking about it for which I don't have enough time
+at the moment.  With "I can imagine" I meant to say that as a general
+rule I assume that the people who designed Common Lisp are probably
+smarter than I am.  So, if they explicitely allowed compiler macros
+for macros I guess they knew what they were doing.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Returning &amp;whole argument in compiler macros.</h1>
+                 <pre>On Mon, 19 Dec 2005 17:46:41 +0100, Pascal Costanza &lt;pc@p-cos.net&gt wrote:
+
+&gt ...for example, the macro function for the primary macro definition
+&gt could focus on being executed quickly for interpreted code, while
+&gt the compiler macro could invest more overhead for creating an
+&gt efficient macroexpansion for compiled code.
+
+3.2.2.1.3.1 seems to confirm this point of view.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Returning &amp;whole argument in compiler macros.</h1><br><br><div><span class="gmail_quote">On 12/19/05, <b class="gmail_sendername">Arthur Lemmens</b> &lt;<a href="mailto:alemmens@xs4all.nl">alemmens@xs4all.nl</a>&gt; wrote:</span><blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+Pascal Costanza wrote:<br><br>&gt;&gt; The standard explicitely allows compiler macros for macros and I can<br>&gt;&gt; imagine there are uses for them.<br>&gt;<br>&gt; ...for example, the macro function for the primary macro definition
+<br>&gt; could focus on being executed quickly for interpreted code, while the<br>&gt; compiler macro could invest more overhead for creating an efficient<br>&gt; macroexpansion for compiled code.<br><br>OK, I see your point.&nbsp;&nbsp;I must admit that I never think about
+<br>interpreted code, but I agree that this could make sense in<br>certain situations.&nbsp;&nbsp;(I suspect that Sean's situation is not<br>one of them.)</blockquote><div><br>
+No, it's more of a spec issue than an optimization one.<br>
+</div><br></div><br>
+
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Returning &amp;whole argument in compiler macros.</h1>
+                 <p>
+                  Unable to parse email body. Email id is 5023
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:46 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>LWW toggling push-button</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>LWW toggling push-button</h1>
+                <pre>
+Does anyone know how to make a push-button that toggles (stays pushed in until you click it again)?  Windows-specific solution OK.
+
+I don't see any capi option that this does this.  When I try to reach around capi and make direct Windows calls (SendMessage BM_SETSTATUS), but this seems to generate an extra callback (when the button is set) when the button loses focus, as in the code below...
+
+I have the code that does this manually, by sub-classing button and manually changing the image, but, creating 30 or so button images (x 2) is killing me.  It would be simpler if I could tell a standard capi button to stay pushed in.  I'm hoping that I've missed something obvious :-).
+
+tia
+pt
+
+(defparameter *button* nil)
+
+(defun tbutton ()
+  (setq *button*
+        (capi:contain
+         (make-instance
+          'push-button
+          :text "Press Me"
+          :data '(:some :data)
+          :callback #'(lambda (data interface)
+                        (capi:display-message
+                         "Pressed ~S ~S"
+                         data
+                         (get-state *button*)))))))
+  
+(defun set-button ()
+  (win32:send-message
+   (slot-value
+    (slot-value *button* 'capi-internals:representation)
+    'win32::hwnd)
+   #x00f3 1 0))
+
+(defun clear-button ()
+  (win32:send-message
+   (slot-value
+    (slot-value *button* 'capi-internals:representation)
+    'win32::hwnd)
+   #x00f3 0 0))
+
+(defun get-state (button)
+  (win32:send-message
+   (slot-value
+    (slot-value button 'capi-internals:representation)
+    'win32::hwnd)
+   #x00f2
+   0
+   0))
+
+(defun sel-button ()
+  (capi:apply-in-pane-process *button* #'(setf capi:button-selected) t *button*))
+
+(defun unsel-button ()
+  (capi:apply-in-pane-process *button* #'(setf capi:button-selected) nil *button*))
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LWW toggling push-button</h1>
+                 <pre>
+Hi Paul,
+I sometimes used a nasty hack: toolbar button. It looks a little  
+different from ordinary button (has no outline), but for my things it  
+was OK. And maybe if you will play with images, it can be also in  
+accordance with HIG.
+
+Here is example:
+
+  (capi:contain
+  (make-instance
+   'capi:toolbar
+   :items
+   (list
+    (make-instance
+     'capi:toolbar-component
+     :interaction :multiple-selection
+     :items
+     (list (make-instance 'capi:toolbar-button
+                          :text "abaruka"))
+     ))))
+
+Zdenek Eichler
+
+On Jan 17, 2009, at 9:05 PM, Paul Tarvydas wrote:
+
+&gt
+&gt Does anyone know how to make a push-button that toggles (stays  
+&gt pushed in until you click it again)?  Windows-specific solution OK.
+&gt
+&gt I don't see any capi option that this does this.  When I try to  
+&gt reach around capi and make direct Windows calls (SendMessage  
+&gt BM_SETSTATUS), but this seems to generate an extra callback (when  
+&gt the button is set) when the button loses focus, as in the code  
+&gt below...
+&gt
+&gt I have the code that does this manually, by sub-classing button and  
+&gt manually changing the image, but, creating 30 or so button images (x  
+&gt 2) is killing me.  It would be simpler if I could tell a standard  
+&gt capi button to stay pushed in.  I'm hoping that I've missed  
+&gt something obvious :-).
+&gt
+&gt tia
+&gt pt
+&gt
+&gt (defparameter *button* nil)
+&gt
+&gt (defun tbutton ()
+&gt  (setq *button*
+&gt        (capi:contain
+&gt         (make-instance
+&gt          'push-button
+&gt          :text "Press Me"
+&gt          :data '(:some :data)
+&gt          :callback #'(lambda (data interface)
+&gt                        (capi:display-message
+&gt                         "Pressed ~S ~S"
+&gt                         data
+&gt                         (get-state *button*)))))))
+&gt
+&gt (defun set-button ()
+&gt  (win32:send-message
+&gt   (slot-value
+&gt    (slot-value *button* 'capi-internals:representation)
+&gt    'win32::hwnd)
+&gt   #x00f3 1 0))
+&gt
+&gt (defun clear-button ()
+&gt  (win32:send-message
+&gt   (slot-value
+&gt    (slot-value *button* 'capi-internals:representation)
+&gt    'win32::hwnd)
+&gt   #x00f3 0 0))
+&gt
+&gt (defun get-state (button)
+&gt  (win32:send-message
+&gt   (slot-value
+&gt    (slot-value button 'capi-internals:representation)
+&gt    'win32::hwnd)
+&gt   #x00f2
+&gt   0
+&gt   0))
+&gt
+&gt (defun sel-button ()
+&gt  (capi:apply-in-pane-process *button* #'(setf capi:button-selected)  
+&gt t *button*))
+&gt
+&gt (defun unsel-button ()
+&gt  (capi:apply-in-pane-process *button* #'(setf capi:button-selected)  
+&gt nil *button*))
+&gt
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:37 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Question about APPLY-IN-PANE-PROCRESS</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Question about APPLY-IN-PANE-PROCRESS</h1>
+                <pre>Hi!
+
+I recently needed a text input pane that can verify its input when the
+focus leaves the pane.  Luckily, I found an implementation of such a
+thing which was posted here a while ago by "lisptracker" - thanks.
+The slightly modified code for my version is below.
+
+This works fine.  However, I first tried with a simpler version which
+didn't have a HAS-FOCUS-P slot and where the call to PROCESS-WAIT
+looked like this:
+
+  (mp:process-wait "Waiting for blur event"
+                   #'(lambda ()
+                       (not (capi:pane-has-focus-p pane))))
+
+To my surprise this didn't work as expected.  Now I'm wondering why
+the call to APPLY-IN-PANE-PROCESS makes a difference here.  According
+to the Reference Manual it is required when the function "modifies
+[the] pane or changes how it is displayed."  But this doesn't happen
+here.
+
+Any ideas?
+
+Thanks,
+Edi.
+
+
+
+(defclass verified-text-input-pane (capi:text-input-pane)
+  ((waitingp :initform nil
+             :accessor waitingp)
+   (has-focus-p :initform nil
+                :accessor has-focus-p)
+   (verify-callback :initform nil
+                    :initarg :verify-callback
+                    :accessor verify-callback)))
+
+(defmethod initialize-instance :after ((pane verified-text-input-pane) &amp;rest initargs)
+  (declare (ignore initargs))
+  (when-let (verify-callback (verify-callback pane))
+    (let ((old-change-callback (capi:text-input-pane-change-callback pane)))
+      (setf (capi:text-input-pane-change-callback pane)
+            (lambda (&amp;rest args)
+              (unless (waitingp pane)
+                (setf (waitingp pane) t
+                      (has-focus-p pane) t)
+                (mp:process-run-function "Guard for VERIFIED-TEXT-INPUT-PANE"
+                                         '(:priority 0)
+                                         (lambda ()
+                                           (mp:process-wait "Waiting for blur event"
+                                                            #'(lambda ()
+                                                                (capi:apply-in-pane-process
+                                                                 pane
+                                                                 (lambda ()
+                                                                   (setf (has-focus-p pane)
+                                                                         (capi:pane-has-focus-p pane))))
+                                                                (not (has-focus-p pane))))
+                                           (funcall verify-callback pane)
+                                           (setf (waitingp pane) nil))))
+              (when old-change-callback
+                (apply old-change-callback args)))))))
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Question about APPLY-IN-PANE-PROCRESS</h1>
+                 <pre>Hello Edi,
+
+| Hi!
+|
+| I recently needed a text input pane that can verify its input when the
+| focus leaves the pane.  Luckily, I found an implementation of such a
+| thing which was posted here a while ago by "lisptracker" - thanks.
+| The slightly modified code for my version is below.
+|
+| This works fine.  However, I first tried with a simpler version which
+| didn't have a HAS-FOCUS-P slot and where the call to PROCESS-WAIT
+| looked like this:
+|
+|   (mp:process-wait "Waiting for blur event"
+|                    #'(lambda ()
+|                        (not (capi:pane-has-focus-p pane))))
+|
+| To my surprise this didn't work as expected.  Now I'm wondering why
+| the call to APPLY-IN-PANE-PROCESS makes a difference here.  According
+| to the Reference Manual it is required when the function "modifies
+| [the] pane or changes how it is displayed."  But this doesn't happen
+| here.
+|
+| Any ideas?
+|...snip...|
+
+IIRC, some previous postings have mentioned that APPLY-IN-PANE-PROCESS is
+desirable for reading as well. Though this results in rather an awkward
+code, the sad answer is "Focus should be checked within the interface
+process" :-(
+--
+Sincerely,
+Dmitriy Ivanov
+lisp.ystok.ru
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:46 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

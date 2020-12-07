@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Initializing checkbox status of a tree-view</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Initializing checkbox status of a tree-view</h1>
+                <pre>Hi,
+
+I have a problem with the :CHECKBOX-INITIAL-STATUS initarg for a TREE-VIEW.
+When I create a tree-view with a value for :checkbox-initial-status (see
+the example below), I get an error when I try to expand one of the tree nodes.
+
+The error message is:
+  Undefined function CAPI-WIN32-LIB::HCHILD called with arguments (264438 1522192).
+
+I've tried other ways of initializing the checkbox status, but I always seem to
+get the same error.
+
+This is a show stopper for a program I'm working on, so any help is very much
+appreciated.
+
+Regards,
+
+Arthur Lemmens
+
+ ----------------------------
+
+;; To verify the problem, run (TEST) and try to expand one of the
+;; tree nodes by clicking on the '+' in front of it.
+
+(in-package :cl-user)
+
+(capi:define-interface test ()
+  ()
+  (:panes
+   (simple-tree-view
+    capi:tree-view
+    :roots '(0 1 2 3 4 5 6 7 8 9)
+    :children-function (lambda (item) (and (&lt; item 100)
+                                           (loop for i below 10
+                                                 collect (+ i (* item 10)))))
+    :use-images nil
+    :checkbox-status 2
+    :checkbox-initial-status (loop for i below 1000 collect (cons i 2))))
+  (:default-initargs
+   :best-width 300
+   :best-height 300))
+
+
+(defun test ()
+  (capi:contain (make-instance 'test)))
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Initializing checkbox status of a tree-view</h1>
+                 <pre>I wrote:
+
+&gt I have a problem with the :CHECKBOX-INITIAL-STATUS initarg for a TREE-VIEW.
+&gt When I create a tree-view with a value for :checkbox-initial-status (see
+&gt the example below), I get an error when I try to expand one of the tree nodes.
+&gt
+&gt The error message is:
+&gt Undefined function CAPI-WIN32-LIB::HCHILD called with arguments (264438 1522192).
+
+Thanks to Jeff Caldwell, I've found a solution to my problem by adding the
+following lines:
+
+(defparameter capi-win32-lib::hchild "")
+
+(defun capi-win32-lib::hchild (a b)
+  (declare (ignore a b))
+  "")
+
+(defun capi-win32-lib::tv-do-item-children (a b)
+  (declare (ignore a b)))
+
+
+This works, but I have no idea what I'm actually doing here and it feels
+like a dirty hack.  So I would still appreciate it if someone could give
+me a cleaner solution or an explanation of what's going on here.
+
+Regards,
+
+Arthur
+
+ --------------
+
+;; To verify the problem, run (TEST) and try to expand one of the
+;; tree nodes by clicking on the '+' in front of it.
+
+(capi:define-interface test ()
+  ()
+  (:panes
+   (simple-tree-view
+    capi:tree-view
+    :roots '(0 1 2 3 4 5 6 7 8 9)
+    :children-function (lambda (item) (and (&lt; item 100)
+                                           (loop for i below 10
+                                                 collect (+ i (* item 10)))))
+    :use-images nil
+    :checkbox-status 2
+    :checkbox-initial-status (loop for i below 1000 collect (cons i 2))))
+  (:default-initargs
+   :best-width 300
+   :best-height 300))
+
+
+(defun test ()
+  (capi:contain (make-instance 'test)))
+
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:50 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

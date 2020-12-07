@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Decoding an int32 from a part of a sequence</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Decoding an int32 from a part of a sequence</h1>
+                <pre>
+Hello,
+
+I am looking for an elegant and efficient way of reading a 32 bits 
+integer (big endian) from a specificed location in a sequence of bytes.
+
+I have searched for solutions but those I have found were not elegant, 
+or required to copy a part of the sequence.
+
+Thank you in advance for your suggestions.
+
+
+Best Regards,
+Camille
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Decoding an int32 from a part of a sequence</h1>
+                 <pre>
+Camille Troillard &lt;camille@osculator.net&gt writes:
+
+&gt I am looking for an elegant and efficient way of reading a 32 bits
+&gt integer (big endian) from a specificed location in a sequence of
+&gt bytes.
+&gt
+&gt I have searched for solutions but those I have found were not elegant,
+&gt or required to copy a part of the sequence.
+&gt
+&gt Thank you in advance for your suggestions.
+
+There's no need to copy anything.
+
+(defun uint32-ref (vector offset)
+  (the (unsigned-byte 32)
+       (dpb (aref vector offset) (byte 8  24)
+            (dpb (aref vector (1+ offset)) (byte 8  16)
+                 (dpb (aref vector (+ 2 offset)) (byte 8  8) 
+                      (aref vector (+ 3 offset)))))))
+ 
+(defun int32-ref (vector offset)
+  (let ((u (uint32-ref vector offset)))
+    ;; do you want two-complement?
+    (if (zerop (ldb (byte 1 31) u))
+        u
+        (- u (expt 2 32)))))
+
+-- 
+__Pascal Bourguignon__                     http://www.informatimago.com/
+A bad day in () is better than a good day in {}.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Decoding an int32 from a part of a sequence</h1>
+                 <pre>
+Greg Menke &lt;gregm32768@comcast.net&gt writes:
+
+&gt HI all,
+&gt
+&gt I ran a benchmark comparing the DPB approach vs an arithmetic one I've
+&gt used, benchmark &amp; code follows.  The results suggest the arithmetic
+&gt approach may be faster w/ smaller memory footprint in some
+&gt circumstances.  The performance difference follows reversing the order
+&gt of the tests and with dataset lengths up to 2x10^6.  (only one test
+&gt shown below).  Would be interesting if others find a similar result,
+&gt or not.
+&gt
+&gt Lispworks 4.3.7
+&gt Linux megatux 2.6.34.7-66.fc13.i686 #1 SMP
+&gt Intel(R) Core(TM)2 Duo CPU     T9400  @ 2.53GHz
+&gt MemTotal:        3093120 kB
+&gt
+&gt ===========================================
+&gt
+&gt CL-USER 14 &gt (r)
+&gt
+&gt 500000 iterations dpb uint32
+&gt Timing the evaluation of (loop for i from 0 below *dataset-length*
+&gt with tval = 0 do (incf tval (pb-uint32-ref (aref dataset i) 0)))
+&gt
+&gt user time    =      0.865
+&gt system time  =      0.001
+&gt Elapsed time =   0:00:01
+&gt Allocation   = 84000568 bytes standard / 1331 bytes conses
+&gt 0 Page faults
+&gt
+&gt 500000 iterations gm uint32
+&gt Timing the evaluation of (loop for i from 0 below *dataset-length*
+&gt with tval = 0 do (incf tval (gm-uint32-ref (aref dataset i))))
+&gt
+&gt user time    =      0.498
+&gt system time  =      0.000
+&gt Elapsed time =   0:00:01
+&gt Allocation   = 36000800 bytes standard / 1397 bytes conses
+&gt 0 Page faults
+&gt
+&gt nil
+&gt
+&gt
+&gt ===========================================
+&gt
+&gt ;; (proclaim '(optimize (speed 3) (safety 1) (debug 1)))
+&gt
+&gt
+&gt (defun pb-uint32-ref (vector offset)
+&gt   (the (unsigned-byte 32)
+&gt        (dpb (aref vector offset) (byte 8  24)
+&gt             (dpb (aref vector (1+ offset)) (byte 8  16)
+&gt                  (dpb (aref vector (+ 2 offset)) (byte 8  8)
+&gt                       (aref vector (+ 3 offset)))))))
+&gt
+&gt
+&gt (defun gm-uint32-ref (dblock)
+&gt   (+ (* #x01000000 (aref dblock 0))
+&gt      (* #x00010000 (aref dblock 1))
+&gt      (* #x00000100 (aref dblock 2))
+&gt      (aref dblock 3)) )
+
+It shouldn't make a difference with a not-dumb compiler, but:
+
+ (defun gm-uint32-ref (dblock)
+   (+ (ash (aref dblock 0) 24)
+      (ash (aref dblock 1) 16)
+      (ash (aref dblock 2)  8)
+           (aref dblock 3)))
+
+
+Then, depending on the strength of the compiler on types,  the following
+might be even faster (notice that processor can OR faster than ADD
+usually, because they don't have to check for carries)
+
+(defun gm-uint32-ref (dblock) 
+ (logand #xffffffff
+   (logior (ash (aref dblock 0) 24)
+           (ash (aref dblock 1) 16)
+           (ash (aref dblock 2)  8)
+                (aref dblock 3))))
+
+
+The logand is actually a type declaration, a good compiler should do the
+same with it as with (the (unsigned-byte 32) ...).
+But again, I'd expect a good compiler to generate the same code from dpb
+as from logior+ash.
+
+
+So there, you have a few more options to benchmark.
+
+
+-- 
+__Pascal Bourguignon__                     http://www.informatimago.com/
+A bad day in () is better than a good day in {}.
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:33 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

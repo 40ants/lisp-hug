@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Source-code-location of editor source</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Source-code-location of editor source</h1>
+                <pre>I've followed Xanalys's instructions to enable source code location
+of the editor source, by copying these forms from a comment in
+the Xanalys-supplied configure.lisp file to the script that builds
+my tailored image:
+
+
+;; load the logical host for the editor source code
+(load-logical-pathname-translations "EDITOR-SRC") 
+
+;; Configure source finding to know about editor source code
+(setf dspec:*active-finders* 
+  (append dspec:*active-finders* (list
+#P"EDITOR-SRC:editor-tags-db")))
+
+
+(FWIW, I had to swap the order of the above forms to be as shown above
+-- I couldn't get things to work otherwise.)
+
+When I evaluate (load-logical-pathname-translations "EDITOR-SRC")
+I get a break that says:
+  Failed to find logical translation for host EDITOR-SRC : C:\Program
+Files\Xanalys\LispWorks\lib\4-3-0-0\translations\EDITOR-SRC does not
+exist
+
+It seems that in addition to what Xanalys's instructions say,
+I also need to create a file editor-src.lisp in the translations
+directory. I've done this, and placed the following form in
+the file:
+
+(setf (logical-pathname-translations "EDITOR-SRC")
+      '(("*;*.*.*"
+         "C:/Program
+Files/Xanalys/LispWorks/lib/4-3-0-0/src/editor/")))
+
+Everything seems to work fine, but I'm surprised that no-one else has
+mentioned this as a problem. Have I missed something in Xanalys's
+instructions? Have other people had to do the same as me? Is there
+something wrong with my LispWorks installation?
+
+Also, is the above (setf (logical-pathname-translations ...) ...)
+form correct? It's a bit of a guess -- I don't understand logical
+pathnames -- but it seems to work.
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Source-code-location of editor source</h1>
+                 <pre>
+On Aug 22, 2004, at 8:48 AM, Simon Katz wrote:
+
+&gt I've followed Xanalys's instructions to enable source code location
+&gt of the editor source, by copying these forms from a comment in
+&gt the Xanalys-supplied configure.lisp file to the script that builds
+&gt my tailored image:
+&gt
+&gt
+&gt ;; load the logical host for the editor source code
+&gt (load-logical-pathname-translations "EDITOR-SRC")
+&gt
+&gt ;; Configure source finding to know about editor source code
+&gt (setf dspec:*active-finders*
+&gt   (append dspec:*active-finders* (list
+&gt #P"EDITOR-SRC:editor-tags-db")))
+
+My init (.lispworks) file has these two forms, in this order, but 
+without the #P on the last line
+
+&gt (FWIW, I had to swap the order of the above forms to be as shown above
+&gt -- I couldn't get things to work otherwise.)
+&gt
+&gt When I evaluate (load-logical-pathname-translations "EDITOR-SRC")
+&gt I get a break that says:
+&gt   Failed to find logical translation for host EDITOR-SRC : C:\Program
+&gt Files\Xanalys\LispWorks\lib\4-3-0-0\translations\EDITOR-SRC does not
+&gt exist
+
+My installation (OS X) came with a file named "EDITOR-SRC.lisp" in the 
+translations directory. This all works for me.
+
+The file contains:
+
+(in-package "CL-USER")
+
+(setf (logical-pathname-translations "EDITOR-SRC")
+       `(("*" ,(merge-pathnames
+                (make-pathname :name :wild :directory '(:relative "src" 
+"editor"))
+                (sys:lisp-library-directory)))))
+
+  - Stoney
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:51 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

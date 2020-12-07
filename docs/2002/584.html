@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>FLI question</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>FLI question</h1>
+                <pre>Hello,
+
+How can I call a C function from LispWorks Enterprise, which is not exported (for 
+example in a DLL under Windows), but accessible only by a function 
+pointer in structure which I receive from another function (which is 
+accesible from FLI)?
+
+
+Example :
+
+the function (accessible by FLI)  gives me a structure in the form
+
+struct {
+   ...
+   long (__stdcall *Fun) (int arg);
+   ...
+}
+
+The function I would like to call is "Fun".
+
+(Of course it would be possible to create a bridge in C which delegates 
+these functions to exported ones, but I haven't used C for a long time 
+and I have to import in LispWorks about 100 functions, etc. etc. so if 
+there is a way in LW/FLI to do this with less investment, I would be 
+very glad... LW for Windows can call functions defined in COM interfaces 
+, which are as far as I know also accessible by pointers, so the 
+mechanism is somehow in LW).
+
+Thank you a lot for any suggestions.
+
+Plamen
+
+P.S. If this helps, the external functions which I need to access are 
+from the JNI - Java Native Interface (I need almost urgent an in-process 
+communication between Java and LispWorks - if someone has done it 
+already, please contact me).
+
+
+
+
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: FLI question</h1>
+                 <pre>softinfo &lt;softinfo@stamov.ch&gt writes:
+
+&gt Hello,
+&gt 
+&gt How can I call a C function from LispWorks Enterprise, which is not
+&gt exported (for example in a DLL under Windows), but accessible only by
+&gt a function pointer in structure which I receive from another function
+&gt (which is accesible from FLI)?
+&gt 
+&gt 
+&gt 
+&gt Example :
+&gt 
+&gt the function (accessible by FLI)  gives me a structure in the form
+&gt 
+&gt struct {
+&gt    ...
+&gt    long (__stdcall *Fun) (int arg);
+&gt    ...
+&gt }
+&gt 
+&gt The function I would like to call is "Fun".
+You catched me. I spend way too much time with it and what I have come
+up with is an ugly hack. Well yes I check the docs, but I did not
+found something about that all examples just work with arrays and
+probably some values. There is one advanced example, which does not
+cover this questio too. I was sure it would work, and in fact I got it
+running, but as said it a hack...
+
+This is my C-test file
+struct foo {
+    double (*fun)(int);
+};
+
+double (*my_fun) (int);
+double fahrenheit_to_celsius(int);
+
+void assign_to_my_fun (double (*some_fun) (int)){
+     my_fun = some_fun; 
+}
+
+double call_my_fun(int val){
+  return (my_fun(val));
+}
+
+
+
+double fahrenheit_to_celsius (int fahr){
+  return ((5.0 / 9.0) * (fahr - 32.0));
+}
+
+
+double other_fun(int val){
+   return (double) val;
+}
+
+Well you see I had to write some extra C code too. I introduced an
+variable of the needed type double (*my_fun)(int) a setter for that
+function and a functios which just does call the variable. 
+
+
+Than I let LispWorks write the wrappers: 
+M-x Evaluate Buffer
+#| DATE           : 27Sep2 
+ | USER           : frido 
+ | PROCESSED FILE : /home/frido/programming/CL/fli-test/mylib.c
+ |#
+
+(in-package "COMMON-LISP-USER")
+
+;;; Derived from file : "/var/tmp/filelkIrYk.c"
+
+(fli:define-c-struct (foo (:foreign-name "foo"))
+                     (fun (:pointer (:function (:int) :double))))
+(fli:define-foreign-variable (my-fun "my_fun" :source)
+                             :type
+                             (:pointer (:function (:int) :double)))
+(fli:define-foreign-function (fahrenheit-to-celsius "fahrenheit_to_celsius"
+                                                    :source)
+                             ((arg-1 :int))
+                             :result-type
+                             :double
+                             :language
+                             :c)
+(fli:define-foreign-function (assign-to-my-fun "assign_to_my_fun"
+                                               :source)
+                             ((some-fun
+                               (:pointer (:function (:int) :double))))
+                             :result-type
+                             :void
+                             :language
+                             :c)
+(fli:define-foreign-function (call-my-fun "call_my_fun" :source)
+                             ((arg-1 :int))
+                             :result-type
+                             :double
+                             :language
+                             :c)
+(fli:define-foreign-function (other-fun "other_fun" :source)
+                             ((val :int))
+                             :result-type
+                             :double
+                             :language
+                             :c)
+
+This was easy wasn't it? This alone makes interfacing quite
+easy... Well anyway we have to dig deeper.
+
+How do we get it going than?
+Let's see if we are on the right track.
+But immediatly thereafter I realised that I did not know how to make
+an external pointer from a Lisp Function which itself wraps a C
+function. Ah well this round trips are really easy on your mind ;-)
+
+Well apropos is your friend I hoped and typed in:
+CL-USER 39 : 2 &gt (apropos "function-pointer")
+
+FLI::%FUNCTION-POINTER 
+FLI::FUNCTION-POINTER-NAME 
+X-UTILITIES::MAKE-FOREIGN-FUNCTION-POINTER -- #&lt;function X-UTILITIES::MAKE-FOREIGN-FUNCTION-POINTER 20381FBA&gt
+X-UTILITIES::TRANSLATE-FROM-FUNCTION-POINTER -- #&lt;function X-UTILITIES::TRANSLATE-FROM-FUNCTION-POINTER 203822C2&gt
+X-UTILITIES::TRANSLATE-TO-FUNCTION-POINTER -- #&lt;function X-UTILITIES::TRANSLATE-TO-FUNCTION-POINTER 203821C2&gt
+XT-LIBRARY::FUNCTION-POINTER 
+:FUNCTION-POINTER-NAME -- value: :FUNCTION-POINTER-NAME
+
+the third one looks as if it could be usefule. I therfor used it 
+Ctrl-Shift a has given me:
+The lambda list of X-UTILITIES::MAKE-FOREIGN-FUNCTION-POINTER is
+(FUNCTION-NAME FUNCTION-TYPE)
+
+Well I guess you won't find documentation for internal functions, you
+just have to guess what things might do. Ok for knowing how the later
+might look I checked the docs for FLI and wrote this:
+(setf cfun (X-UTILITIES::MAKE-FOREIGN-FUNCTION-POINTER
+'fahrenheit-to-celsius '(:pointer (:function (:int) :double)))) 
+
+#&lt;Pointer to type (:FUNCTION (:INT)) = #x4015E8A8&gt
+
+Uff, seems to be the right stuff ;-)
+
+Now we have to assign to my_fun
+ (assign-to-my-fun cfun)
+
+Now we call it through the wrappar function around my-fun
+(call-my-fun 10)
+-12.222222222222223
+
+Well at least it sort-of works. Now we go back to you problem. The
+thing with calling a function from a struct.
+At first we have to assign a function to the function in the struct:
+(we take the other function this time because we want to know if that
+what I've done will really work kind-of ...)
+
+First allocate space for the Structure
+(setf c-foostruct (fli:allocate-foreign-object :type 'foo))
+#&lt;Pointer to type (:STRUCT FOO) = #x0823EFB8&gt
+
+Ok, now give the fun structure element a function:
+ (setf (fli:foreign-slot-value c-foostruct 'fun)
+(x-utilities::make-foreign-function-pointer'other-fun '(:pointer
+(:function (:int) :double)))) 
+#&lt;Pointer to type (:FUNCTION (:INT)) = #x4015E8D8&gt
+
+Well well heavy stuff. Now assign the function to my_fun:
+CL-USER 59 : 1 &gt (assign-to-my-fun (fli:foreign-slot-value c-foostruct 'fun))
+Ok now call it:
+ (call-my-fun 10)
+10.0
+
+Q.E.D.
+
+I'm quite sure that there might be an easier way, because CAPI musst
+Deal with functions in structs, but I'm sorry I have no better idea on
+how to achieve what to do. Let's come back to your case. 
+
+You did not want to write wrappers. Well I can't help, it seems to
+me as if you have to. It's not terrible difficult, but it's quite some
+work.
+
+The problem is you must have some way to assign functions to other
+functions. This is ugly you might get a away with just a handful of
+functions and maybe you can do it with void* pointers, well not all to
+funny I guess.
+
+Anyway I would offer to work on that stuff, if you bear the costs. 
+
+
+Regards
+Friedrich
+
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: FLI question</h1>
+                 <pre>A lot of thanks to all of you for the explanations (and for the 2 tools)!
+
+With best regards
+Plamen
+
+softinfo wrote:
+
+&gt Hello,
+&gt 
+&gt How can I call a C function from LispWorks Enterprise, which is not 
+&gt exported (for example in a DLL under Windows), but accessible only by a 
+&gt function pointer in structure which I receive from another function 
+&gt (which is accesible from FLI)?
+&gt 
+&gt 
+&gt Example :
+&gt 
+&gt the function (accessible by FLI)  gives me a structure in the form
+&gt 
+&gt struct {
+&gt   ...
+&gt   long (__stdcall *Fun) (int arg);
+&gt   ...
+&gt }
+&gt 
+&gt The function I would like to call is "Fun".
+&gt 
+&gt (Of course it would be possible to create a bridge in C which delegates 
+&gt these functions to exported ones, but I haven't used C for a long time 
+&gt and I have to import in LispWorks about 100 functions, etc. etc. so if 
+&gt there is a way in LW/FLI to do this with less investment, I would be 
+&gt very glad... LW for Windows can call functions defined in COM interfaces 
+&gt , which are as far as I know also accessible by pointers, so the 
+&gt mechanism is somehow in LW).
+&gt 
+&gt Thank you a lot for any suggestions.
+&gt 
+&gt Plamen
+&gt 
+&gt P.S. If this helps, the external functions which I need to access are 
+&gt from the JNI - Java Native Interface (I need almost urgent an in-process 
+&gt communication between Java and LispWorks - if someone has done it 
+&gt already, please contact me).
+&gt 
+&gt 
+&gt 
+&gt 
+&gt 
+&gt 
+&gt 
+
+
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:57 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

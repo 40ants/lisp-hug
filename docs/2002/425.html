@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>CLOS obscurity in delivery</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>CLOS obscurity in delivery</h1>
+                <pre>I have an application which I am delivering at delivery level 0.  I
+want to split it into chunks, so there will be a bunch of fasls which
+it loads (or doesn't) at boot time.  This is mostly so we can provide
+new bits of functionality or fixes without having to ship a whole new
+image (and in turn, this is mostly political &amp; convenience, I'm not
+stressing about size).
+
+What I do is: compile it all.  Concatenate various systems into big
+fasls, and load the core systems, then dump an image.  At boot time
+the system then loads some of these other systems.
+
+One class that is dumped in the image has an initialize-instance
+method that does something like:
+
+ (with-slots (lock) ob
+   (setf lock ...))
+
+This class is subclassed in one of the systems loaded at boot time.
+When an instance of this subclass is created, it gets an error saying
+that the slot is missing in the object.  It seems to have the slot
+name correct (including package).
+
+It looks like something is optimizing too much information away about
+the slot, or ?  Nothing I tried (keep-clos, various other of the
+clos-related options to deliver) seems to help.  Dumping the system
+with the image does help.
+
+Is there anything I can do to avoid this?  It's really a pain if you
+can never subclass classes that are defined in a delivered image in
+loaded code.
+
+--tim
+
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: CLOS obscurity in delivery</h1>
+                 <pre>* I wrote:
+&gt It looks like something is optimizing too much information away about
+&gt the slot, or ?  Nothing I tried (keep-clos, various other of the
+&gt clos-related options to deliver) seems to help.  Dumping the system
+&gt with the image does help.
+
+I understand this better now.  If a class is defined in the delivered
+image, and a subclass defined in a loaded FASL file, then the
+effective slots of the subclass to not include the effective slots of
+the superclass, so you lose horribly.
+
+I've tried the various keep-effective-slots thingies, and keep-clos to
+no avail, anyone know anything else I can do?  Is this meant to work?
+
+--tim
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>RE: CLOS obscurity in delivery</h1>
+                  <pre>Did you try ":keep-clos :no-empty" ?
+I had to add this when I wanted to load some patch files at run-time for my
+app (coz the patch files were redefining some classes for instance...)
+
+Seb.
+
+-----Message d'origine-----
+De : owner-lisp-hug@xanalys.com [mailto:owner-lisp-hug@xanalys.com]De la
+part de Tim Bradshaw
+Envoye : mardi 18 juin 2002 08:44
+A : lisp-hug@xanalys.com
+Objet : Re: CLOS obscurity in delivery
+
+
+* I wrote:
+&gt It looks like something is optimizing too much information away about
+&gt the slot, or ?  Nothing I tried (keep-clos, various other of the
+&gt clos-related options to deliver) seems to help.  Dumping the system
+&gt with the image does help.
+
+I understand this better now.  If a class is defined in the delivered
+image, and a subclass defined in a loaded FASL file, then the
+effective slots of the subclass to not include the effective slots of
+the superclass, so you lose horribly.
+
+I've tried the various keep-effective-slots thingies, and keep-clos to
+no avail, anyone know anything else I can do?  Is this meant to work?
+
+--tim
+
+
+
+</pre>
+                 </article>
+                </section>
+                <section class=tree>
+                 <article class=email>
+                  <h1>RE: CLOS obscurity in delivery</h1>
+                  <pre>* Sebastien Saint-Sevin wrote:
+&gt Did you try ":keep-clos :no-empty" ?
+&gt I had to add this when I wanted to load some patch files at run-time for my
+&gt app (coz the patch files were redefining some classes for instance...)
+
+That works, brilliant! Thank you, I owe you drinks of your choice,
+you've saved me from embarrassment and late nights.
+
+Dave (or anyone else who really knows!): is this enough to be sure
+that class definitions in loaded fasl files will definitely work?  I'm
+delivering with level 0 and :keep-clos :no-empty (and a couple of
+other things like :multiprocessing t, but that should not matter I
+think).
+
+--tim
+
+
+</pre>
+                 </article>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>Re: CLOS obscurity in delivery</h1>
+                   <p>
+                    Unable to parse email body. Email id is 434
+                  </article>
+                 </section>
+                </section>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: CLOS obscurity in delivery</h1>
+                  <pre>Tim Bradshaw &lt;tfb@cley.com&gt writes:
+
+&gt Dave (or anyone else who really knows!): is this enough to be sure
+&gt that class definitions in loaded fasl files will definitely work?
+
+It used to work for me(*), but I forgot that this keyword pair was the magic
+words, so I had just sent a question to Xanalys support as I saw Sebastiens 
+answer and remembered that that did the trick. I guess I owe Sebastien 
+a drink as well ;-)
+
+(*) My previous employer has a system that does lots of fancy dynamic stuff
+    (class definitions are constructed from database tables) and as far as
+    I remember we didn't use any other strange keywords. But then, my
+    memory has just proven to be inadequate, so...
+-- 
+  (espen)
+
+
+</pre>
+                 </article>
+                </section>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Font problem</h1>
+                 <pre>Did you try to change the button-relevant X font resources?
+(do a grep -i button on lib/4-2-0-0/app-defaults/LispWorks to
+find them)
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Font problem</h1>
+                 <pre>"Marc Battyani" &lt;marc.battyani@fractalconcept.com&gt writes:
+
+&gt Thanks, I changed all the fonts in this file to one that works (courier 12)
+
+If you don't want changes to be global, it's maybe better to
+copy this to your .Xdefaults-&lt;insert your hostname here&gt file.
+
+(and remember that you also can modify X resources with -xrm parameters
+ on startup)
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:58 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

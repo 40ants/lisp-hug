@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Call for discussion?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Call for discussion?</h1><html><head></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space; ">Hi,<div><br></div><div>I just finished studying the GCD PDF from Apple,&nbsp;<a href="http://developer.apple.com/mac/library/documentation/General/Conceptual/ConcurrencyProgrammingGuide/Introduction/Introduction.html">http://developer.apple.com/mac/library/documentation/General/Conceptual/ConcurrencyProgrammingGuide/Introduction/Introduction.html</a>&nbsp;,&nbsp;</div><div><br></div><div>and reread Hoare's book on CSP,&nbsp;</div><div><a href="http://www.usingcsp.com/cspbook.pdf">http://www.usingcsp.com/cspbook.pdf</a>&nbsp;.</div><div><br></div><div>And long ago (perhaps more than 10 years ago) I studied John Reppy's "Concurrent Programming in ML",&nbsp;</div><div><a href="http://www.amazon.com/Concurrent-Programming-ML-John-Reppy/dp/0521714729/ref=sr_1_1?ie=UTF8&amp;s=books&amp;qid=1271092396&amp;sr=8-1">http://www.amazon.com/Concurrent-Programming-ML-John-Reppy/dp/0521714729/ref=sr_1_1?ie=UTF8&amp;s=books&amp;qid=1271092325&amp;sr=8-1</a></div><div><br></div><div>and promptly implemented his notion of channels in Lisp.</div><meta charset="utf-8"><div><div><br class="webkit-block-placeholder"></div><div>All of this has tickled some deeper thinking about multi-threaded code, Erlang-like languages, and problem solving in general.</div><div><br></div><div>There is an example of using Hoare's simple unbuffered channels to connect threads (a vast number of them) for computing primes using connected pipelines of filters attached to a simple integer generator. This seems hugely heavy-handed to me. The same kind of processing pipeline for primes and series has been illustrated several times in Scheme using lazy streams (SICP, and John Houston).</div><div><br></div><div>Reppy solved some of the problems inherent in Hoare's limited notion of unbuffered channels, and created functionally composable channel primitives to produce a very elegant system that handles normal and abnormal communications. For example, a select on multiple channels, accepting on one, and transparently providing a NAK on the remaining channels so that their sources can perform tear-down and cleanup code in lieu of communicating with the receiving thread.</div><div><br></div><div>But throughout Reppy's implementation, he uses threads on each end of communicating channels. Same with Erlang et al (Termite, Butterfly, others...).</div><div><br></div><div>In an era of SMP with multiple cores, Apple's GCD has taken the view that there are units of work to be performed, either sequentially, or concurrently, and the OS manages the assignment of work units to available cores. They do this by providing work queues to the programmer, and they wish to discourage the proliferation of threads. And as we all know, with the exception of the Erlang fibers (tiny threads), using threads is a heavy handed approach, just short of using multiple-processes. And there are practical limits imposed by the computer on just how many threads can be running productively.</div><div><br></div><div>I find in my own Butterfly implementation that a slew of service threads get spun off, sitting mostly idle until their service is requested.&nbsp;</div><div><br></div><div>It would seem that Apple is on to something here. Conventional threads could be viewed as merely one manner of implementing work-channels. Another approach is to forego thinking in threads and use the GCD work queues. A third approach would be to view a channel as merely another calling protocol for functions. One could probably develop a hierarchy of CLOS classes that implement any of these approaches and the calling function would be none wiser regarding the actual implementation.</div><div><br></div><div>I like Reppy's functional formalism, but in light of Apple's GCD, one is hardly required to utilize threads to implement his composable channels.</div><div><br></div><div>I'm thinking of re-casting my Butterfly system into a higher-level system that ignores overt threads and instead offers services through "channels", distributed arbitrarily across the network. The details of each kind of channel should be of no concern to the service requestor:</div><div><br></div><div>kinds of channel providers:</div><div>1. in-process functions</div><div>2. threads connected by mailboxes</div><div>3. processes in the same host, connected by shared interprocess memory buffers</div><div>4. processes distributed across the network connected by sockets</div><div><br></div><div>Any takers for a deeper discussion?</div><div><br></div><div>
+<span class="Apple-style-span" style="font-family: Helvetica; "><div>Dr. David McClain</div><div><a href="mailto:dbm@refined-audiometrics.com">dbm@refined-audiometrics.com</a></div><div><br></div></span><br class="Apple-interchange-newline">
+</div>
+<br></div></body></html>
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Call for discussion?</h1>
+                 <pre>
+
+On Apr 12, 2010, at 1:19 PM, David McClain wrote:
+
+&gt Any takers for a deeper discussion?
+
+One taker for a more shallow discussion :^)
+
+My years of experience with Apple have taught me a golden rule:
+
+Dont fight the platform vendor.
+
+The reason I explored the GCD route from LispWorks is to avoid being widowed/left behind should Apple move in this direction in a big way. There are arguably things the OS can do that individual apps/processes cannot do wrt scheduling, load balancing, etc. Even if there weren't, the OS can make sure that clients that use the published interfaces get preferential treatment. This is precisely what I saw in my gcd-pmap tests - my work effectively got scheduled twice - once for the drawing that LispWorks Capi was doing (via Cocoa/Quartz of course), and once for work pushed onto a GCD concurrent dispatch queue. As a result, on a dual core machine, I saw, at times, a more than 3x speedup relative to single threaded execution.
+
+To break this down:
+
+single threaded: my work and capi sharing time on the main thread - result, only one core used at a time
+
+lispworks mp: capi on the the main thread, my work on multiple lw processes - result, uses both cores.
+
+GCD: capi on the main thread, my work on a GCD concurrent queue - result, uses both cores AND, gets an extra scheduler slice because Apple treats GCD queues other than the app's main queue (a.k.a., its main thread) as a separate process for scheduling purposes.
+
+The lesson for me from this example, and lots of other past experience, is clear. When the platform vendor says "do it this way," you are taking a really big risk if you choose to do it some other way. I think we need look no further than the recent flap over the iPhoneOS 4.0 developer agreement to see this.
+
+warmest regards,
+
+Ralph
+
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Call for discussion?</h1>
+                 <p>
+                  Unable to parse email body. Email id is 10174
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Call for discussion?</h1>
+                 <pre>
+
+David McClain writes:
+ &gt 
+ &gt On Apr 12, 2010, at 12:48 PM, Raffael Cavallaro wrote:
+ &gt 
+ &gt &gt The lesson for me from this example, and lots of other past
+ &gt &gt experience, is clear. When the platform vendor says "do it this
+ &gt &gt way," you are taking a really big risk if you choose to do it some
+ &gt &gt other way. I think we need look no further than the recent flap
+ &gt &gt over the iPhoneOS 4.0 developer agreement to see this.
+ &gt 
+ &gt 
+ &gt Some really good points here! But elsewhere in the world, the other
+ &gt OS platforms have not yet caught up with Apple (AFAIK), and Lispworks
+ &gt strives to be platform neutral to a large degree.
+ &gt 
+ &gt I would love to see LW become Apple centric with respect to GCD. But
+ &gt that leaves Windows and Linux in the dust, along with all of us
+ &gt writing programs for any but Apple hardware.
+ &gt 
+ &gt 
+
+I don't think GCD is all that innovative- for example Solaris's C/C++
+compiler has been able to dispatch work units (unrolled loops, blocks of
+code with suitable dependencies, etc) for quite a while, it is aware of
+the # of processors and acts accordingly.  Performance improvements vary
+of course, and when the automatic parallelization is used, are sometimes
+negligable.  OTOH I did experience significant improvements in gzip/bzip
+performance when compiling w/ Sun's compiler- OTOH I can't fully
+attribute that to parallelization since plain old optimization applies
+as well.
+
+I attended IIRC a NUMA system sales pitch some years ago which employed a
+preprocessor to pick off programmer-supplied primitives that selected
+storage classes and processing options.
+
+Which isn't to say GCD is bad or not worth doing, but I wonder how well
+the approach will scale.  Sun dealt at length with scalability to many
+processors on their fancy cluster machines and quickly found techniques
+which scaled to 4 cpu's don't necessarily scale to 16, for example.
+
+Greg
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Call for discussion?</h1>
+                 <pre>
+
+David McClain writes:
+ &gt 
+ &gt &gt Which isn't to say GCD is bad or not worth doing, but I wonder how well
+ &gt &gt the approach will scale.  Sun dealt at length with scalability to many
+ &gt &gt processors on their fancy cluster machines and quickly found techniques
+ &gt &gt which scaled to 4 cpu's don't necessarily scale to 16, for example.
+ &gt 
+ &gt Well that is very interesting... because we are looking in the near
+ &gt term at computers offering upwards of 70 cores.
+ &gt 
+ &gt So are you also suggesting that using threads scales better? Perhaps
+ &gt one or the other of GCD or Threads is simply going to be the best of
+ &gt not very commendable approaches?
+
+IIRC the problem wasn't threads vs processes but serialization due to
+the lockfree api's used to support the applications- essentially the
+lockfree algorithms while permitting scaling better than conventional OS
+resource locking caused enough cache and mmu pressure that scaling was
+still limited.  Bonwick's slab allocator paper has always seemed to me
+to be a great investigation into parallelization and its associated
+gotchas, from application layer down to cache and MMU issues.
+
+What GCD seems to offer are application layer semantics that a program
+can use to distribute bits of code to some number of processing units-
+threads vs processes don't seem pertinent- though context switch time is
+certainly a factor.
+
+My interest is more in how well such an approach scales when there
+are lots of work units and lots of processors; specifically, will GCD
+become a bottleneck?  Once work units are out on a cpu in whatever form
+the tasking takes, the bottleneck cost has already been incurred.
+
+
+ &gt And my whole point for bringing up this discussion wasn't so much to
+ &gt criticize threads or suggest superiority of GCD, but rather to point
+ &gt out that at a more fundamental level, these two approaches are
+ &gt implementation issues for offering system-wide services, and that of
+ &gt more direct interest to the programmer (user) would be a uniform,
+ &gt simple, protocol based on these magical "channels". How the channels
+ &gt are implemented is of no concern to the service user. And the same
+ &gt services could be offered through any number of different
+ &gt implementations. Runtime introspection could help the implementation
+ &gt choose one form over another. GCD, for example, will be of no use on
+ &gt Windows.
+
+I disagree- Windows certainly supports threads- GCD work units are not
+some new form of task.  GCD seems admirably suited to be a library and
+api that an application uses when it has runtime knowledge of how
+application-layer work units can be distributed.  I think it would work
+fine on pretty much any multitasking OS- though of most use when its
+also multiprocessing.  Its value seems to be in how easily and
+efficiently the programmer is able to express &amp; control the desired
+parallelization.  For instance at high levels of parallelization, will
+GCD support policy features which allow the programmer to control the
+ratios (if not quantities) of different work units according to some
+application-specific algorithm?  Will GCD tune its dispatch algorithm to
+attempt to find and/or maintain at least a local throughput maxima?
+
+The dynamics of a few dozen work units over a couple processors vs
+hundreds or thousands over 50 processors are very different.
+
+Greg
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Call for discussion?</h1>
+                 <pre>
+
+On Apr 13, 2010, at 10:28 AM, David McClain wrote:
+
+&gt Work queues appear to avoid the problem of indefinite starvation of writers, since the lock request channel could be a FIFO serialized work queue. But readers, once reaching the head of the queue need to be asynchronously dispatched concurrently, while writers need to be dispatched synchronously, but only after all current readers have completed. Additional readers and writers would naturally be held off while any writer is working, due to the synchronous dispatch. But time-limit interrupts always need to be pushed to the head of the queue and not held off until a FIFO ordering would dictate.
+&gt 
+&gt So this problem isn't quite so easy to map onto GCD because of the mix of dispatch behaviors between readers and writers.
+
+GCD tasks can have dependencies (e.g., one task can be set not to run until another has completed). GCD queues can have differing priorities. Seems like these two things might be used to get the behavior you want.
+
+BTW, I believe libdispatch has been ported to linux, so of the major platforms LispWorks supports, it's only Windows which doesn't have it.
+
+warmest regards,
+
+Ralph
+
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Call for discussion?</h1>
+                 <pre>
+
+On Apr 13, 2010, at 1:36 PM, David McClain wrote:
+
+&gt The Apple docs state that dispatch queues are not available on their iPhone platform, which leads me to believe that Cocoa operation queues are much less tightly coupled to the OS kernel, and so may not be as efficient?
+
+I've heard that dispatch queues are added in iPhone OS 4.0, and are the means by which user application multi-tasking is implemented (Apple's iPhone apps have had multi-tasking all along).
+
+&gt I do have a question in my mind, that I'm about to explore... Thus far, Okeanos (a database) has considered thread ID as the overall transaction identity, for tracking who has locks, who's lease should be retracted, and so on. Now when you move to GCD protocols, what happens to thread identity in Lisp? I half expect that I need to stop using thread ID as a primary identification. But then, who should be interrupted when a lease expires?
+
+a. If you use GCD from c/objective-c you're not supposed to use locks at all, just serial queues. I use locks in LW because the overhead of pushing a lisp function call onto a serial queue is way higher than taking a lispworks mp:lock.
+
+b. Don't GCD tasks have identity (e.g., isn't this how you query their results)?
+
+Sorry for the short reply - I'm on my way out the door.
+
+warmest regards,
+
+Ralph
+
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Call for discussion?</h1>
+                 <pre>
+
+On Apr 13, 2010, at 6:27 PM, Paul Tarvydas wrote:
+
+&gt If we were to free ourselves from the call-return protocol, and allow ourselves to use asynchronous protocols - at a low level - we might find a way to deal with the multi-core issue much more easily.
+
+This is what task queues do. Tasks don't return. Anything that's interested in their result must actively query it (or, if you want to, block waiting for it).
+
+warmest regards,
+
+Ralph
+
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Call for discussion?</h1>
+                 <pre>
+
+David McClain writes:
+ &gt 
+ &gt 
+ &gt But my whole reason for raising the issue of threading isn't so much
+ &gt to criticize the technique. I was looking at threads as merely an
+ &gt implementation issue on a higher level concept of inter-process
+ &gt communication. We can use Apple GCD protocols for greater
+ &gt concurrency, but only when the service resides in the same virtual
+ &gt address space as the caller. You *must* use threads for inter-process
+ &gt and cross-network calls. But these are implementation details,
+ &gt dependent on the manner of distribution of services across computers
+ &gt and VM spaces, and the user calling on services has no interest in
+ &gt these details.
+ &gt 
+
+A couple times you seem to have made a distinction between threads and
+something that is a GCD work unit, also presumably scheduled by the OS-
+could you be more specific as to how they differ?  Obviously they are
+instantiated by two different API's, but I'm more wondering in what way
+they are different with respect to the OS.  
+
+It seems to me that GCD in a process is always going to be implemented
+via threads- essentially, using whatever scheduling features the host OS
+provides to userspace which permit sharing of the process's address
+space, which pretty much always means threads of whatever flavor.  If
+GCD work units do not execute via a thread, how do they execute?  I
+agree the application doesn't care in general however.
+
+If the distinction is that a thread "normally" runs within a designated
+and limited heirarchy of calls in the app's code space wheras GCD work
+units are short bits of code an otherwise idle thread calls indirectly,
+which after completing, goes back to idle; then they don't appear much
+different to me- its all simple userspace threaded code differing only
+in its runtime architecture.
+
+I'm not sure what "cross-network" means here- is there a reason a GCD
+"dispatched" bit of code can't do socket I/O?
+
+
+Regards,
+
+Greg
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Call for discussion?</h1>
+                 <pre>
+
+On Apr 13, 2010, at 8:20 PM, gregm32768@comcast.net wrote:
+
+&gt It seems to me that GCD in a process is always going to be implemented
+&gt via threads- essentially, using whatever scheduling features the host OS
+&gt provides to userspace which permit sharing of the process's address
+&gt space, which pretty much always means threads of whatever flavor.
+
+Yes, GCD/libdispatch tasks execute via OS thread pools. Apart from the OS optimizing thread creation and task scheduling for you, another speed advantage compared to typical thread pool implementations in user code is that the queues themselves are lockless - they use the functions in OSAtomic.h.
+
+warmest regards,
+
+Ralph
+
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Call for discussion?</h1>
+                 <pre>
+
+David McClain writes:
+ &gt 
+ &gt On Apr 13, 2010, at 17:20 PM, gregm32768@comcast.net wrote:
+ &gt &gt A couple times you seem to have made a distinction between threads and
+ &gt &gt something that is a GCD work unit, also presumably scheduled by the OS-
+ &gt &gt could you be more specific as to how they differ?  Obviously they are
+ &gt &gt instantiated by two different API's, but I'm more wondering in what way
+ &gt &gt they are different with respect to the OS.  
+ &gt &gt 
+ &gt 
+ &gt I am not in any position to give a definitive answer here. Apple
+ &gt refers to them as "faster than typical threads", which I take to mean
+ &gt that they are specially designed to switch contexts very quickly. But
+ &gt surely the GCD work queues dispatch into a pool of specialized worker
+ &gt threads. And from the standpoint of threads vs GCD, they are really
+ &gt just two different ways of doing the same thing. Threads are threads
+ &gt -- the difference is how to get to them.
+
+A thread is pretty much the lightest "unit of scheduling", in userspace
+at least.  "faster than typical threads" sounds like marketing-speak for
+keeping threads in a pool and waking them up for work rather than
+creating/destroying.
+
+
+ &gt 
+ &gt By cross-network, or cross-process, I mean communication of a service
+ &gt request from one VM address space to another. It doesn't matter
+ &gt whether on the same machine or not. Functions cannot be portably
+ &gt marshalled across VM boundaries. And so you cannot push a closure
+ &gt into a worker queue in some other VM address space.
+
+RPC does that sort of thing all the time, unless I misunderstand you.
+If a closure could be arranged as a block of data then it might marshall
+over RPC.  Sounds kind of science-fictiony though.
+
+
+
+ &gt Normal data can always be copied, in some manner, between address
+ &gt spaces. But threads, open file streams, socket streams, and
+ &gt functional closures cannot be copied in any sensible manner between
+ &gt different address spaces and arbitrarily different machine
+ &gt architectures. There may be other kinds of data that cannot be
+ &gt copied. But most conventional data -- structs, classes, class
+ &gt instances, scalar values, arrays -- can all be marshalled safely.
+ &gt 
+ &gt Sure, there is "process migration" between like-architecture machines
+ &gt and like-operating systems. But that is very specialized compared to,
+ &gt say, a wide area network with any number of different machines,
+ &gt architectures, and OS's.
+
+NFS does this kind of thing all the time with simple parms.  But doing
+it with a closure does seem more complicated though.
+
+Greg
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Call for discussion?</h1>
+                 <pre>
+
+On Apr 14, 2010, at 2:10 PM, David McClain wrote:
+
+&gt On Apr 13, 2010, at 12:33 PM, Raffael Cavallaro wrote:
+&gt 
+&gt&gt b. Don't GCD tasks have identity (e.g., isn't this how you query their results)?
+&gt 
+&gt 
+&gt After studying your code for the GCD parallel map example, I don't see any references to thread ID's of any kind.
+
+Sorry - I was clearly too telegraphic in my abbreviated message to which you're replying.
+
+I meant, each instance of NSOperation (really, of its subclasses NSInvocationOperation and NSBlockOperation) has identity in the sense that lisp objects have identity and can be compared with eq. Instances of NSInvocationOperation have identity - they're compared with isEqual:. isEqual is in turn implemented by "hash" so you could treat the hash value of the NSOperation instance as the work unit "ID number" if you wish.
+
+So the concurrent task is the unit of execution, not the OS thread it happens to be running on. This is the level of granularity you should be interested in in terms of who holds what resources, etc, not threads.
+
+The exception to this is serial queues. When you use serial queues as a substitute for locks/monitors, then it is the queue as a whole which can be said to "hold" a particular resource, with the task currently executing on that serial queue holding that resource instantaneously (i.e., "right now").
+
+So in summary, and in answer to your original question:
+
+ "Now when you move to GCD protocols, what happens to thread identity in Lisp? I half expect that I need to stop using thread ID as a primary identification."
+
+Yes, you should probably stop using thread ID as a primary identification. If you're using GCD (especially via cocoa's NSOperation subclasses), you should consider the individual NSOperation instance in the case of concurrent operations, or the individual NSOperationQueue in the case of serial queues used as locks, as the primary identity, and the hash values of these instances as their "ID number."
+
+warmest regards,
+
+Ralph
+
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Call for discussion?</h1>
+                 <pre>
+
+On Apr 14, 2010, at 3:46 PM, David McClain wrote:
+
+&gt You can never know in a GCD world just what thread or task or queue your working is running in.
+
+Well you can't know the thread, but you can know the queue - the task is guaranteed to run in the queue to which you assign it. What you don't know is how many OS threads that queue (which is essentially a dynamically resized thread pool) runs its tasks on.
+
+&gt Still.... this causes a dilemma with respect to leased read / write locks on a database. Some thread has to be told to enter an error condition if a lock lease expires.
+
+I would suggest that this is a job for the queue, not the individual task, and certainly not for any thread (which may come and go at the queue's choosing). I think a subclass of NSOperationQueue could take care of dealing with lock lease expiration (for example, by canceling all operations on that queue). Then each task would just periodically check (@ self "isCancelled") and exit if so (this is the prescribed pattern in the Apple docs btw). The NSOperationQueue subclass would be responsible for any commits because it would know whether it still held the lock.
+
+
+warmest regards,
+
+Ralph
+
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Call for discussion?</h1>
+                 <pre>
+
+On Apr 14, 2010, at 5:11 PM, David McClain wrote:
+
+&gt Ughhh... polling... But for now you may be right. OTOH, if I'm polling, I can check the state of a lexical variable, and thereby avoid killing possibly unrelated tasks in the same queue.
+
+If you don't like polling you could simply let all tasks run to completion without polling and only use the results known to be valid. With your example, upon completion, each task could enqueue its result on a serial commit queue and any result that arrives after the expiry of the lock lease would be ignored.
+
+warmest regards,
+
+Ralph
+
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Call for discussion?</h1>
+                 <pre>
+
+On Apr 16, 2010, at 5:00 AM, David McClain wrote:
+
+&gt Okay, after bending your ears for these past several days, it is only fair to provide some  code.
+
+Thanks for this - interesting idea to abstract away the details of how a requested service is implemented.
+
+warmest regards,
+
+Ralph
+
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:35 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

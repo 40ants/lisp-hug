@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Difficulty understanding pipe-exist-status documentation</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Difficulty understanding pipe-exist-status documentation</h1>
+                <pre>
+Hi,
+
+I’m having some difficulty understanding the documentation for pipe-exit-status, which is new in LispWorks 7.0.
+
+The documentation states:
+
+"If wait is t then pipe-exit-status waits until the child process dies. If wait is nil then pipe-exit-status does not wait, and if the child process is still running it returns nil. The default value of wait is t.
+
+On Microsoft Windows, if close was called on the stream before the child process died, then pipe-exit-status returns exit-status :closed. On Unix-like systems it works after close but for compatibility it should be called only before calling close.”
+
+Does the second paragraph about behavior specific to Microsoft Windows apply both when wait is t or nil, or only when wait is nil?
+
+If it applies also when wait is t, how do I properly close a program and wait for it to die?
+
+The use case is an external program with a pipe that accepts input from LispWorks, but only finishes executing when that stream is closed. However, the external program may lag behind, so it’s really important that I wait until that program finishes before proceeding. In Unix, I would expect to be able to just call close and then pipe-exit-status with :wait t on the stream, but the documentation makes me doubt that’s portable. Unfortunately, I can’t test this for Windows since I don’t have a LispWorks license for Windows.
+
+Thanks a lot for comments in advance,
+Pascal
+
+--
+Pascal Costanza, ExaScience Lab Belgium, Intel Health &amp; Life Sciences
+pascal.costanza@intel.com
+
+Intel Corporation NV/SA
+Kings Square, Veldkant 31
+2550 Kontich
+RPM (Bruxelles) 0415.497.718. 
+Citibank, Brussels, account 570/1031255/09
+
+This e-mail and any attachments may contain confidential material for the sole use of the intended recipient(s). Any review or distribution by others is strictly prohibited. If you are not the intended recipient, please contact the sender and delete all copies.
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Difficulty understanding pipe-exist-status documentation</h1>
+                 <pre>
+Hi Pascal,
+
+The second paragraph applies regardless of the value of wait.
+
+There is no way to close the stream gracefully and wait for the process to
+finish.
+
+If the child process has a "quit" command, then you could send that down the
+pipe.
+
+Otherwise, you can use system:pipe-kill-process to force it to die
+(http://www.lispworks.com/documentation/lw70/LW/html/lw-1319.htm).
+
+I.e. this sequence of calls should work:
+
+(setq pipe (sys:open-pipe ... :save-exit-status t))
+(system:pipe-kill-process pipe)
+(system:pipe-exit-status pipe :wait t)
+(close pipe)
+
+That may not help in your case though if you want the program to exit
+gracefully.  We possibly need to add a function that causes eof in the program
+(i.e. closes the pipe handles in the stream) without closing the whole stream
+so that it can still be queried by pipe-exist-status.
+
+-- 
+Martin Simmons
+LispWorks Ltd
+http://www.lispworks.com/
+
+
+&gt&gt&gt&gt&gt On Fri, 3 Jul 2015 08:39:50 +0000, Costanza, Pascal said:
+&gt 
+&gt Hi,
+&gt 
+&gt I’m having some difficulty understanding the documentation for
+&gt pipe-exit-status, which is new in LispWorks 7.0.
+&gt 
+&gt The documentation states:
+&gt 
+&gt "If wait is t then pipe-exit-status waits until the child process dies. If
+&gt wait is nil then pipe-exit-status does not wait, and if the child process is
+&gt still running it returns nil. The default value of wait is t.
+&gt 
+&gt On Microsoft Windows, if close was called on the stream before the child
+&gt process died, then pipe-exit-status returns exit-status :closed. On
+&gt Unix-like systems it works after close but for compatibility it should be
+&gt called only before calling close.”
+&gt 
+&gt Does the second paragraph about behavior specific to Microsoft Windows apply
+&gt both when wait is t or nil, or only when wait is nil?
+&gt 
+&gt If it applies also when wait is t, how do I properly close a program and
+&gt wait for it to die?
+&gt 
+&gt The use case is an external program with a pipe that accepts input from
+&gt LispWorks, but only finishes executing when that stream is closed. However,
+&gt the external program may lag behind, so it’s really important that I wait
+&gt until that program finishes before proceeding. In Unix, I would expect to be
+&gt able to just call close and then pipe-exit-status with :wait t on the
+&gt stream, but the documentation makes me doubt that’s portable. Unfortunately,
+&gt I can’t test this for Windows since I don’t have a LispWorks license for
+&gt Windows.
+&gt 
+&gt Thanks a lot for comments in advance,
+&gt Pascal
+&gt 
+&gt --
+&gt Pascal Costanza, ExaScience Lab Belgium, Intel Health &amp; Life Sciences
+&gt pascal.costanza@intel.com
+&gt 
+&gt Intel Corporation NV/SA
+&gt Kings Square, Veldkant 31
+&gt 2550 Kontich
+&gt RPM (Bruxelles) 0415.497.718. 
+&gt Citibank, Brussels, account 570/1031255/09
+&gt 
+&gt This e-mail and any attachments may contain confidential material for the sole use of the intended recipient(s). Any review or distribution by others is strictly prohibited. If you are not the intended recipient, please contact the sender and delete all copies.
+&gt 
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+&gt 
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Difficulty understanding pipe-exist-status documentation</h1>
+                 <pre>
+Hi Martin,
+
+Thanks a lot for the answer. For now, calling pipe-exit-status after close seems to work at least in Linux, which is our main target platform. The external process is third-party software which doesn’t have a quit command and will most likely not do what we want if we just kill it. So yes, some additional functionality in LispWorks to gracefully close the handles would be good, although it’s not urgent for our particular case.
+
+Thanks,
+Pascal
+
+&gt On Jul 7, 2015, at 18:20, Martin Simmons &lt;martin@lispworks.com&gt wrote:
+&gt 
+&gt 
+&gt Hi Pascal,
+&gt 
+&gt The second paragraph applies regardless of the value of wait.
+&gt 
+&gt There is no way to close the stream gracefully and wait for the process to
+&gt finish.
+&gt 
+&gt If the child process has a "quit" command, then you could send that down the
+&gt pipe.
+&gt 
+&gt Otherwise, you can use system:pipe-kill-process to force it to die
+&gt (http://www.lispworks.com/documentation/lw70/LW/html/lw-1319.htm).
+&gt 
+&gt I.e. this sequence of calls should work:
+&gt 
+&gt (setq pipe (sys:open-pipe ... :save-exit-status t))
+&gt (system:pipe-kill-process pipe)
+&gt (system:pipe-exit-status pipe :wait t)
+&gt (close pipe)
+&gt 
+&gt That may not help in your case though if you want the program to exit
+&gt gracefully.  We possibly need to add a function that causes eof in the program
+&gt (i.e. closes the pipe handles in the stream) without closing the whole stream
+&gt so that it can still be queried by pipe-exist-status.
+&gt 
+&gt -- 
+&gt Martin Simmons
+&gt LispWorks Ltd
+&gt http://www.lispworks.com/
+&gt 
+&gt 
+&gt&gt&gt&gt&gt&gt On Fri, 3 Jul 2015 08:39:50 +0000, Costanza, Pascal said:
+&gt&gt 
+&gt&gt Hi,
+&gt&gt 
+&gt&gt I’m having some difficulty understanding the documentation for
+&gt&gt pipe-exit-status, which is new in LispWorks 7.0.
+&gt&gt 
+&gt&gt The documentation states:
+&gt&gt 
+&gt&gt "If wait is t then pipe-exit-status waits until the child process dies.. If
+&gt&gt wait is nil then pipe-exit-status does not wait, and if the child process is
+&gt&gt still running it returns nil. The default value of wait is t.
+&gt&gt 
+&gt&gt On Microsoft Windows, if close was called on the stream before the child
+&gt&gt process died, then pipe-exit-status returns exit-status :closed. On
+&gt&gt Unix-like systems it works after close but for compatibility it should be
+&gt&gt called only before calling close.”
+&gt&gt 
+&gt&gt Does the second paragraph about behavior specific to Microsoft Windows apply
+&gt&gt both when wait is t or nil, or only when wait is nil?
+&gt&gt 
+&gt&gt If it applies also when wait is t, how do I properly close a program and
+&gt&gt wait for it to die?
+&gt&gt 
+&gt&gt The use case is an external program with a pipe that accepts input from
+&gt&gt LispWorks, but only finishes executing when that stream is closed. However,
+&gt&gt the external program may lag behind, so it’s really important that I wait
+&gt&gt until that program finishes before proceeding. In Unix, I would expect to be
+&gt&gt able to just call close and then pipe-exit-status with :wait t on the
+&gt&gt stream, but the documentation makes me doubt that’s portable. Unfortunately,
+&gt&gt I can’t test this for Windows since I don’t have a LispWorks license for
+&gt&gt Windows.
+&gt&gt 
+&gt&gt Thanks a lot for comments in advance,
+&gt&gt Pascal
+&gt&gt 
+&gt&gt --
+&gt&gt Pascal Costanza, ExaScience Lab Belgium, Intel Health &amp; Life Sciences
+&gt&gt pascal.costanza@intel.com
+&gt&gt 
+&gt&gt Intel Corporation NV/SA
+&gt&gt Kings Square, Veldkant 31
+&gt&gt 2550 Kontich
+&gt&gt RPM (Bruxelles) 0415.497.718. 
+&gt&gt Citibank, Brussels, account 570/1031255/09
+&gt&gt 
+&gt&gt This e-mail and any attachments may contain confidential material for the sole use of the intended recipient(s). Any review or distribution by others is strictly prohibited. If you are not the intended recipient, please contact the sender and delete all copies.
+&gt&gt 
+&gt&gt _______________________________________________
+&gt&gt Lisp Hug - the mailing list for LispWorks users
+&gt&gt lisp-hug@lispworks.com
+&gt&gt http://www.lispworks.com/support/lisp-hug.html
+&gt&gt 
+&gt 
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+&gt 
+
+--
+Pascal Costanza, ExaScience Lab Belgium, Intel Health &amp; Life Sciences
+pascal.costanza@intel.com
+
+Intel Corporation NV/SA
+Kings Square, Veldkant 31
+2550 Kontich
+RPM (Bruxelles) 0415.497.718. 
+Citibank, Brussels, account 570/1031255/09
+
+This e-mail and any attachments may contain confidential material for the sole use of the intended recipient(s). Any review or distribution by others is strictly prohibited. If you are not the intended recipient, please contact the sender and delete all copies.
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:29 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

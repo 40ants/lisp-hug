@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>read-from-string and errors</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>read-from-string and errors</h1>
+                <pre>
+Hello all,
+
+I'm reading the doc for read-from-string, and I see the following:
+
+
+"Description:
+....
+If an object is successfully parsed, the primary value, object, is the
+object that was parsed. If eof-error-p is false and if the end of the
+substring is reached, eof-value is returned. "
+
+
+However, I'm getting:
+
+CL-USER 11 &gt (read-from-string "(car" nil :EOF)
+
+Error: End of file while reading stream #&lt;System::String-Input-Stream 104408B7&gt.
+  1 (abort) Return to level 0.
+  2 Return to top loop level 0.
+
+Type :b for backtrace, :c &lt;option number&gt to proceed,  or :? for other options
+
+CL-USER 12 : 1 &gt
+
+and I think that I'm unclear on when read-from-string is suppoed to
+signal an error. It would seem
+to me that no object was sucessfully parsed, that  eof-error-p is
+false, and that the end of the
+substring was reached, and as such I should get the eof-value, :EOF.
+If this isn't correct, then
+in what cases would end of string be reached and the eof-value
+returned without some other
+error coming first? ( know of one case, the empty string, e.g.,
+(read-from-string "" nil :EOF)).
+
+Thanks!
+-- 
+=====================
+Joshua Taylor
+tayloj@rpi.edu
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: read-from-string and errors</h1>
+                 <pre>
+On Wed, 26 Jul 2006 14:12:56 -0400, "Taylor, Joshua" &lt;tayloj@rpi.edu&gt wrote:
+
+&gt I'm reading the doc for read-from-string, and I see the following:
+&gt
+&gt "Description:
+&gt ...
+&gt If an object is successfully parsed, the primary value, object, is
+&gt the object that was parsed. If eof-error-p is false and if the end
+&gt of the substring is reached, eof-value is returned. "
+&gt
+&gt However, I'm getting:
+&gt
+&gt CL-USER 11 &gt (read-from-string "(car" nil :EOF)
+&gt
+&gt Error: End of file while reading stream #&lt;System::String-Input-Stream 104408B7&gt.
+&gt   1 (abort) Return to level 0.
+&gt   2 Return to top loop level 0.
+&gt
+&gt Type :b for backtrace, :c &lt;option number&gt to proceed,  or :? for other options
+&gt
+&gt CL-USER 12 : 1 &gt
+&gt
+&gt and I think that I'm unclear on when read-from-string is suppoed to
+&gt signal an error. It would seem to me that no object was sucessfully
+&gt parsed, that eof-error-p is false, and that the end of the substring
+&gt was reached, and as such I should get the eof-value, :EOF.  If this
+&gt isn't correct, then in what cases would end of string be reached and
+&gt the eof-value returned without some other error coming first? ( know
+&gt of one case, the empty string, e.g., (read-from-string "" nil
+&gt :EOF)).
+
+Under "Exceptional Situations" it says:
+
+  "An error is signaled if the end of the substring occurs in the
+   middle of an incomplete object."
+
+I think that is what you're seeing.
+
+Cheers,
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: read-from-string and errors</h1>
+                 <pre>
+That would explain it. I guess I thought I encountered an end of file
+before I finished
+reading the documentation. -_-;
+
+On 7/26/06, Edi Weitz &lt;edi@agharta.de&gt wrote:
+&gt On Wed, 26 Jul 2006 14:12:56 -0400, "Taylor, Joshua" &lt;tayloj@rpi.edu&gt wrote:
+&gt
+&gt &gt I'm reading the doc for read-from-string, and I see the following:
+&gt &gt
+&gt &gt "Description:
+&gt &gt ...
+&gt &gt If an object is successfully parsed, the primary value, object, is
+&gt &gt the object that was parsed. If eof-error-p is false and if the end
+&gt &gt of the substring is reached, eof-value is returned. "
+&gt &gt
+&gt &gt However, I'm getting:
+&gt &gt
+&gt &gt CL-USER 11 &gt (read-from-string "(car" nil :EOF)
+&gt &gt
+&gt &gt Error: End of file while reading stream #&lt;System::String-Input-Stream 104408B7&gt.
+&gt &gt   1 (abort) Return to level 0.
+&gt &gt   2 Return to top loop level 0.
+&gt &gt
+&gt &gt Type :b for backtrace, :c &lt;option number&gt to proceed,  or :? for other options
+&gt &gt
+&gt &gt CL-USER 12 : 1 &gt
+&gt &gt
+&gt &gt and I think that I'm unclear on when read-from-string is suppoed to
+&gt &gt signal an error. It would seem to me that no object was sucessfully
+&gt &gt parsed, that eof-error-p is false, and that the end of the substring
+&gt &gt was reached, and as such I should get the eof-value, :EOF.  If this
+&gt &gt isn't correct, then in what cases would end of string be reached and
+&gt &gt the eof-value returned without some other error coming first? ( know
+&gt &gt of one case, the empty string, e.g., (read-from-string "" nil
+&gt &gt :EOF)).
+&gt
+&gt Under "Exceptional Situations" it says:
+&gt
+&gt   "An error is signaled if the end of the substring occurs in the
+&gt    middle of an incomplete object."
+&gt
+&gt I think that is what you're seeing.
+&gt
+&gt Cheers,
+&gt Edi.
+&gt
+
+
+-- 
+=====================
+Joshua Taylor
+tayloj@rpi.edu
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:44 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

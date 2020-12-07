@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>FLI and Unix file descriptors</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>FLI and Unix file descriptors</h1>
+                <pre>Hi!
+
+I'm looking for a way to get the underlying Unix file descriptor from
+a LispWorks stream - something similar to what CMUCL has to offer:
+
+  &lt;http://www.mail-archive.com/cmucl-help@cons.org/msg01034.html&gt
+
+The closest thing I could find is IO:FILE-STREAM-FILE-HANDLE which is
+exported from the IO package but doesn't seem to be documented. Is
+this the way to go?
+
+Thanks,
+Edi.
+
+
+________________________________________________________________________
+This email has been scanned for all viruses by the MessageLabs Email
+Security System. For more information on a proactive email security
+service working around the clock, around the globe, visit
+http://www.messagelabs.com
+________________________________________________________________________
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: FLI and Unix file descriptors</h1>
+                 <p>
+                  Unable to parse email body. Email id is 1272
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: FLI and Unix file descriptors</h1>
+                  <pre>On Mon, 11 Aug 2003 17:24:29 +0100, David Fox &lt;davef@xanalys.com&gt wrote:
+
+&gt    I'm looking for a way to get the underlying Unix file descriptor
+&gt    from a LispWorks stream - something similar to what CMUCL has to
+&gt    offer:
+&gt 
+&gt      &lt;http://www.mail-archive.com/cmucl-help@cons.org/msg01034.html&gt
+&gt 
+&gt    The closest thing I could find is IO:FILE-STREAM-FILE-HANDLE
+&gt    which is exported from the IO package but doesn't seem to be
+&gt    documented. Is this the way to go?
+&gt 
+&gt The internal accessor (if you must) is
+&gt STREAM::OS-FILE-HANDLE-STREAM-FILE-HANDLE. Depending on what you do
+&gt with the file descriptor, it could be dangerous as that CMUCL
+&gt message you reference suggests, so I think the absence of an
+&gt exported accessor in LispWorks is intentional.
+&gt 
+&gt What are you going to do with that fd? Anything that can't be
+&gt achieved with Common Lisp?
+
+As the subject line already suggested I'm working with the foreign
+function interface - I don't think this could be easily done with CL
+alone but I'll be happy if someone proves me wrong.
+
+I'm trying to use parts of the GD library &lt;http://www.boutell.com/gd/&gt
+to generate PNG images. I use UFFI for the FFI stuff (I want a program
+which runs at least on LW and CMUCL) and I have a working version for
+the tutorial example given at
+
+  &lt;http://www.boutell.com/gd/manual2.0.15.html#basics&gt.
+
+It looks like this:
+
+  (defun foo ()
+    (with-foreign-object (im 'gd-image)
+      (setq im (gd-image-create 64 64))
+      (let* ((black (gd-image-color-allocate im 0 0 0))
+             (white (gd-image-color-allocate im 255 255 255)))
+        (gd-image-line im 0 0 63 63 white)
+        (with-open-file (s "/tmp/result.png" :direction :output :if-exists :supersede)
+          (gd-image-png-fd im (system:fd-stream-fd s)))
+        (gd-image-destroy im))))
+
+This is for CMUCL but I was hoping to make it work with LW also.
+
+Ah, by the way, all "gd-" function are direct calls to the
+corresponding GD functions except for GD-IMAGE-PNG-FD which is my own
+function. It looks like this:
+
+  void gdImagePngFD(gdImagePtr im, int fd) {
+    int fd2;
+    FILE *f;
+
+    fd2 = dup(fd);
+    f = fdopen(fd2, "w");
+    gdImagePng(im, f);
+    fclose(f);
+  }
+
+I thought it might have been a good idea to "dup" the file descriptor
+before I use it but maybe that's just naïve. The manpage isn't clear
+about this (or I've missed it).
+
+Of course, if I only wanted to work on files I could stop worrying
+about Lisp streams and associated file handles and implement the whole
+thing directly in C (accepting a C string for the file's
+namestring). But eventually I want to able to write the images
+directly to a socket stream (from my mod_lisp web server). That's why
+I'm asking.
+
+Is there a better, safer, Lisp-ier way to do it?
+
+Thanks,
+Edi.
+
+
+________________________________________________________________________
+This email has been scanned for all viruses by the MessageLabs Email
+Security System. For more information on a proactive email security
+service working around the clock, around the globe, visit
+http://www.messagelabs.com
+________________________________________________________________________
+
+</pre>
+                 </article>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>Re: FLI and Unix file descriptors</h1>
+                   <p>
+                    Unable to parse email body. Email id is 1275
+                  </article>
+                  <section class=tree>
+                   <article class=email>
+                    <h1>Re: FLI and Unix file descriptors</h1>
+                    <pre>On Mon, 11 Aug 2003 14:13:12 -0400, Marco Antoniotti &lt;marcoxa@cs.nyu.edu&gt wrote:
+
+&gt What about implement an OSI for LW, or Dan Barlow's OS interface
+&gt spec?
+&gt 
+&gt Would that be too difficult and or problematic (licensing,
+&gt copyrights, etc etc)
+
+I take it that you're not really asking me but Xanalys. Of course it
+would be too difficult for me... :)
+
+I've scanned the OSI docs from Franz and while I wish we had something
+like this in LW I don't think it would help in this particular case
+(interfacing with a foreign library which wants a file descriptor). In
+particular:
+
+  "There are a good number of system calls and library routines that
+   take file descriptors, returned by the open() system call. In an
+   effort to make this interface as natural in Lisp as possible, the
+   corresponding functions in this module take a stream instead of a
+   file descriptor. This means in general common-lisp:open should
+   still be used to open files. However, you may want to open a file
+   with open(2) flags for which there is no corresponding feature in
+   Allegro CL (for example, the flag O_EXCL). For this purpose, the
+   function os-open is provided. It also returns a stream instead of a
+   file descriptor."
+
+Cheers,
+Edi.
+
+
+________________________________________________________________________
+This email has been scanned for all viruses by the MessageLabs Email
+Security System. For more information on a proactive email security
+service working around the clock, around the globe, visit
+http://www.messagelabs.com
+________________________________________________________________________
+
+</pre>
+                   </article>
+                  </section>
+                 </section>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>
+                    Unable to render article 1277 because of ":DEFAULT stream decoding error on 
+                    #&lt;SB-SYS:FD-STREAM for \"socket 192.168.43.216:53481, peer: 
+                    116.202.254.214:119\" {1005FB4013}&gt: the octet sequence #(239 118 101) cannot 
+                    be decoded." error</h1>
+                  </article>
+                  <section class=tree>
+                   <article class=email>
+                    <h1>Re: FLI and Unix file descriptors</h1>
+                    <pre>On Mon, 11 Aug 2003 20:08:55 +0100, David Fox &lt;davef@xanalys.com&gt wrote:
+
+&gt I was just thinking that it would be clearer to use UNIX open and
+&gt UNIX close.
+
+Yes, this is what I meant with "if I only wanted to work on files" but
+it wouldn't solve my real problem: I want to avoid writing the image
+to a file but send it directly down the socket.
+
+&gt    Of course, if I only wanted to work on files I could stop
+&gt    worrying about Lisp streams and associated file handles and
+&gt    implement the whole thing directly in C (accepting a C string for
+&gt    the file's namestring). But eventually I want to able to write
+&gt    the images directly to a socket stream (from my mod_lisp web
+&gt    server). That's why I'm asking.
+&gt 
+&gt And would you then be wanting to write other stuff to your Lisp
+&gt socket stream? How?
+
+Well, it's a web server, so I want to send headers and afterwards send
+the image data. Below is some example code which shows that this
+actually works for CMUCL as well as for LW. If I compile and load this
+code together with my GD UFFI definitions I can point my browser to
+"http://localhost/lisp/foo.png" and see the PNG file I wanted to
+see. See function SEND-OUTPUT at the end. The rest is standard
+mod_lisp stuff.
+
+I had to use COMM:SOCKET-STREAM-SOCKET in this case, though.
+
+OK, now that it works what I want is your blessing. Tell me this
+approach won't break my LW image and there won't be any demons flying
+out of my nose... :)
+
+Thanks,
+Edi.
+
+
+  (in-package :gd)
+
+  (defvar *apache-port* 3000)
+
+  (defvar *apache-listener* nil)
+
+  (defvar *apache-stream* nil) ;the socket to apache
+  (defvar *close-apache-stream* nil) ;set to t if you want to close the socket to apache
+  (defvar *apache-nb-use-socket* 0) ;the number of requests sent in this socket
+
+  #+lispworks
+  (require "comm")
+
+  #+lispworks
+  (defun make-apache-instream (handle)
+    (mp:process-run-function
+     (format nil "apache socket ~d" handle)
+     '()
+     'apache-listen
+     (make-instance 'comm:socket-stream
+                    :socket handle
+                    :direction :io
+                    :element-type 'base-char)))
+
+  #+lispworks
+  (defun start-apache-listener ()
+    (comm:start-up-server :function 'make-apache-instream
+                          :service *apache-port*))
+
+  #+cmu
+  (defun make-apache-listener (port)
+    (let ((socket (ext:create-inet-listener port)))
+      (unwind-protect
+        (loop
+          (mp:process-wait-until-fd-usable socket :input)
+          (multiple-value-bind (new-fd remote-host)
+              (ext:accept-tcp-connection socket)
+            (declare (ignore remote-host))
+            (let ((stream (sys:make-fd-stream new-fd
+                                              :input t
+                                              :output t)))
+              (mp:make-process #'(lambda ()
+                                   (apache-listen stream))
+                               :name "Apache Command Handler"))))
+        (unix:unix-close socket))))
+
+  #+cmu
+  (defun start-apache-listener ()
+    (setq *apache-listener*
+            (mp:make-process #'(lambda ()
+                                 (make-apache-listener *apache-port*))
+                             :name "Apache Listener")))
+
+  (defun apache-listen (*apache-stream*)
+    (let ((*close-apache-stream* t))
+      (unwind-protect
+        (loop for *apache-nb-use-socket* from 0
+              for command = (get-apache-command)
+              while command do
+              (send-output)
+              (force-output *apache-stream*)
+              until *close-apache-stream*)
+        (ignore-errors
+          (close *apache-stream*)))))
+
+  (defun get-apache-command ()
+    (ignore-errors
+      (let* ((header (loop for key = (read-line *apache-stream* nil nil)
+                           while (and key
+                                      (string-not-equal key "end"))
+                           for value = (read-line *apache-stream* nil nil)
+                           collect (cons key value)))
+             (content-length (cdr (assoc "content-length" header :test #'string-equal)))
+             (content (when content-length
+                        (make-string (parse-integer content-length
+                                                    :junk-allowed t)))))
+        (when content
+          (read-sequence content *apache-stream*)
+          (push (cons "posted-content" content)
+                header))
+        header)))
+
+  (defun write-header-line (key value)
+    (write-string key *apache-stream*)
+    (write-char #\NewLine *apache-stream*)
+    (format *apache-stream* "~A" value)
+    (write-char #\NewLine *apache-stream*))
+
+  (defun send-output ()
+    (setf *close-apache-stream* t)
+    (write-header-line "Status" "200 OK")
+    (write-header-line "Content-Type" "image/png")
+    (write-string "end" *apache-stream*)
+    (write-char #\NewLine *apache-stream*)
+    (force-output *apache-stream*)
+    (with-foreign-object (im 'gd-image)
+      (setq im (gd-image-create 64 64))
+      (let* ((black (gd-image-color-allocate im 0 0 0))
+             (white (gd-image-color-allocate im 255 255 255)))
+        (gd-image-line im 0 0 63 63 white)
+        (gd-image-png-fd im (#+cmu system:fd-stream-fd #+lispworks comm:socket-stream-socket
+                                   *apache-stream*))
+        (gd-image-destroy im))))
+
+
+________________________________________________________________________
+This email has been scanned for all viruses by the MessageLabs Email
+Security System. For more information on a proactive email security
+service working around the clock, around the globe, visit
+http://www.messagelabs.com
+________________________________________________________________________
+
+</pre>
+                   </article>
+                  </section>
+                 </section>
+                </section>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: FLI and Unix file descriptors</h1>
+                  <pre>On Mon, 11 Aug 2003 16:52:11 -0600, "Wade Humeniuk" &lt;whumeniu@telus.net&gt wrote:
+
+&gt How about getting a pointer to the in memory image (I am assuming
+&gt the image is a buffer of contiguous bytes)
+
+Yes, and the GD API actually includes functions to return this
+pointer.
+
+&gt and writing/copying it to the stream? I do not know the UFFI, but
+&gt something like:
+&gt 
+&gt (defun foo ()
+&gt   (with-foreign-object (im 'gd-image)
+&gt     (setq im (gd-image-create 64 64))
+&gt     (let* ((black (gd-image-color-allocate im 0 0 0))
+&gt            (white (gd-image-color-allocate im 255 255 255)))
+&gt       (gd-image-line im 0 0 63 63 white)
+&gt       (with-open-file (s "/tmp/result.png" :direction :output :if-exists :supersede)
+&gt         (multiple-value-bind (pointer byte-size)
+&gt             (gd-get-image-byte-array im)
+&gt           (copy-foreign-array-to-stream s pointer :size byte-size :element-type
+&gt 'unsigned-byte)))
+&gt       (gd-image-destroy im))))
+&gt 
+&gt Basically copy-foreign-array-to-stream would use the UFFI to
+&gt dereference the image bytes and write-byte each of them to the
+&gt file/http stream.
+
+I'll try this. I'm pretty sure this can be done with the LW FLI but I
+don't think UFFI offers a portable way to do that - have to check.
+
+The only problem I see is that WRITE-BYTE (why not WRITE-SEQUENCE, by
+the way?) requires a binary stream, so I either have to change the
+code for sending the headers so that it also works with binary socket
+streams or I have to change the stream's element type on-the-fly which
+seems to be possible with LW 4.3.
+
+Thanks,
+Edi.
+
+
+________________________________________________________________________
+This email has been scanned for all viruses by the MessageLabs Email
+Security System. For more information on a proactive email security
+service working around the clock, around the globe, visit
+http://www.messagelabs.com
+________________________________________________________________________
+
+</pre>
+                 </article>
+                </section>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: FLI and Unix file descriptors</h1>
+                  <pre>On Tue, 12 Aug 2003 10:08:40 -0600, "Wade Humeniuk" &lt;whumeniu@telus.net&gt wrote:
+
+&gt I did just a quick implementation of how this might work on LW.  I
+&gt hope it gives you some leads.  The UFFI does not seem to have the
+&gt functionality to do some of this in a direct way.
+&gt
+&gt [...]
+
+Thanks, that's very kind of you.
+
+FWIW, below is what I came up with in the meantime. The second version
+of PNG-TO-STREAM needs some patches to UFFI which I just sent to Kevin
+Rosenberg.
+
+The CMUCL solution is currently sub-optimal. It'd certainly be better
+to do the CAST (which conses) only once and take it out of the
+loop. However, UFFI currently doesn't seem to have an idiom for this.
+
+BTW, both solutions (yours and mine) will obviously fail on character
+streams with the wrong external format.
+
+  (with-open-file (s "/tmp/blob" :direction :output
+                                 :external-format :utf-8
+                                 :if-exists :supersede)
+    (test-wfbb '(196) s))
+
+This will create a file which is two octets long.
+
+Thanks again for your help,
+Edi.
+
+
+
+  (def-function ("gdImagePngPtr" gd-image-png-ptr)
+      ((im gd-image-ptr)
+       (size (* :int)))
+    :returning :pointer-void
+    :module "gd")
+
+  ;; UFFI plus implementation-specific code
+  (defun png-to-stream (stream image)
+    (cond ((subtypep (stream-element-type stream) 'character)
+            (with-foreign-object (size :int)
+              (with-foreign-object (memory :char)
+                (setq memory (gd-image-png-ptr image size))
+                (dotimes (i (deref-pointer size :int))
+                  (write-char #+lispworks
+                              (fli:dereference memory :index i :type :char)
+                              #+cmu
+                              (code-char (alien:deref (alien:cast memory (* (alien:unsigned 8))) i))
+                              stream)))))
+          ((subtypep (stream-element-type stream) '(unsigned-byte 8))
+            (with-foreign-object (size :int)
+              (with-foreign-object (memory :unsigned-byte)
+                (setq memory (gd-image-png-ptr image size))
+                (dotimes (i (deref-pointer size :int))
+                  (write-byte #+lispworks
+                              (fli:dereference memory :index i :type '(:unsigned :byte))
+                              #+cmu
+                              (alien:deref (alien:cast memory (* (alien:unsigned 8))) i)
+                              stream)))))
+          (t (error "Can't use a stream with element-type ~A"
+                    (stream-element-type stream)))))
+
+  ;; pure UFFI
+  (defun png-to-stream (stream image)
+    (cond ((subtypep (stream-element-type stream) 'character)
+            (with-foreign-object (size :int)
+              (with-foreign-object (memory :char)
+                (setq memory (gd-image-png-ptr image size))
+                (dotimes (i (deref-pointer size :int))
+                  (write-char (ensure-char-character (deref-array memory :char i))
+                              stream)))))
+          ((subtypep (stream-element-type stream) '(unsigned-byte 8))
+            (with-foreign-object (size :int)
+              (with-foreign-object (memory :unsigned-byte)
+                (setq memory (gd-image-png-ptr image size))
+                (dotimes (i (deref-pointer size :int))
+                  (write-byte (deref-array memory :unsigned-byte i)
+                              stream)))))
+          (t (error "Can't use a stream with element-type ~A"
+                    (stream-element-type stream)))))
+
+
+________________________________________________________________________
+This email has been scanned for all viruses by the MessageLabs Email
+Security System. For more information on a proactive email security
+service working around the clock, around the globe, visit
+http://www.messagelabs.com
+________________________________________________________________________
+
+</pre>
+                 </article>
+                </section>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:55 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

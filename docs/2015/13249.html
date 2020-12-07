@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Defer redrawing</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Defer redrawing</h1>
+                <pre>
+Hi List,
+
+Is there any way to defer (re)drawing of an output-pane?
+
+I find myself often using this pattern: an output-pane descendent has a read-only property, and a setf method, which sets the slot and calls gp:invalidate-rectangle on the pane. While this works well, if the calling code wants to update multiple slots in the pane, it will be redrawn several times, which is unefficient.
+
+The documentation for capi:with-atomic-redisplay explicitly states that it does NOT defer GP drawing operations, but perhaps there is some other (undocumented?) function?
+
+Of course, one way would be to use a wrapper function, or override invalidate-rectangle for the pane in question. Using a wrapper function would require the calling code to be changed everywhere throughout the project, which would be tedious and error-prone. Overriding invalidate-rectangle would be more elegant, but I am not sure if it would have side effects that I haven't counted for.
+
+Any suggestions?
+
+Thanks!
+Erik
+
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Defer redrawing</h1><html><head>
+<meta content="text/html; charset=ISO-8859-1" http-equiv="Content-Type">
+</head><body bgcolor="#FFFFFF" text="#000000">Erik,<br>
+<br>
+You may want to look at what I did for opengl-pane. I still use 
+gp:invalidate-rectangle, but wrapped it in my own post-redisplay 
+function<span> 
+(<a class="moz-txt-link-freetext" href="https://github.com/massung/lwgl/blob/master/pane.lisp#L136">https://github.com/massung/lwgl/blob/master/pane.lisp#L136</a>) </span>, 
+which ensures that the pane is clean and will only call 
+gp:invalidate-rectangle if that's the case.<br>
+<br>
+My use-case was multi-threaded, so it might be overkill for you. If 
+everything is being executed from within the CAPI pane process, you 
+should be able to call gp:invalidate-rectangle as many times as you want
+ and only a single display-callback will be issued. The invalidate 
+function is merely telling the OS that a portion of the window needs to 
+be redrawn the next time it gets around to firing off the event to do 
+so.<br>
+<br>
+For example, if you invalidate &lt;10,10&gt; - &lt;20,20&gt;, and then 
+invalidate &lt;40,40&gt; - &lt;50,50&gt;, you *should* get a single 
+display-callback with the bounds of &lt;10,10&gt; - &lt;50,50&gt; and 
+not two separate display callbacks.<br>
+<br>
+Hope this helps,<br>
+<br>
+Jeff M.<br>
+<blockquote style="border: 0px none;" 
+cite="mid:ADF97E6F-5108-4F41-9AB5-283DF26A0453@doremir.com" type="cite">
+  <div style="margin:30px 25px 10px 25px;" class="__pbConvHr"><div 
+style="display:table;width:100%;border-top:1px solid 
+#EDEEF0;padding-top:5px"> 	<div 
+style="display:table-cell;vertical-align:middle;padding-right:6px;"><img
+ photoaddress="erik.ronstrom@doremir.com" photoname="Erik Ronstr&ouml;m" 
+src="cid:part1.08090308.03030107@gmail.com" 
+name="compose-unknown-contact.jpg" height="25px" width="25px"></div>   <div
+ 
+style="display:table-cell;white-space:nowrap;vertical-align:middle;width:100%">
+   	<a moz-do-not-send="true" href="mailto:erik.ronstrom@doremir.com" 
+style="color:#737F92 
+!important;padding-right:6px;font-weight:bold;text-decoration:none 
+!important;">Erik Ronstr&ouml;m</a></div>   <div 
+style="display:table-cell;white-space:nowrap;vertical-align:middle;">   
+  <font color="#9FA2A5"><span style="padding-left:6px">Monday, January 
+26, 2015 9:56 AM</span></font></div></div></div>
+  <div style="color:#888888;margin-left:24px;margin-right:24px;" 
+__pbrmquotes="true" class="__pbConvBody"><div>Hi List,<br><br>Is there 
+any way to defer (re)drawing of an output-pane?<br><br>I find myself 
+often using this pattern: an output-pane descendent has a read-only 
+property, and a setf method, which sets the slot and calls 
+gp:invalidate-rectangle on the pane. While this works well, if the 
+calling code wants to update multiple slots in the pane, it will be 
+redrawn several times, which is unefficient.<br><br>The documentation 
+for capi:with-atomic-redisplay explicitly states that it does NOT defer 
+GP drawing operations, but perhaps there is some other (undocumented?) 
+function?<br><br>Of course, one way would be to use a wrapper function, 
+or override invalidate-rectangle for the pane in question. Using a 
+wrapper function would require the calling code to be changed everywhere
+ throughout the project, which would be tedious and error-prone. 
+Overriding invalidate-rectangle would be more elegant, but I am not sure
+ if it would have side effects that I haven't counted for.<br><br>Any 
+suggestions?<br><br>Thanks!<br>Erik<br><br><br><br>_______________________________________________<br>Lisp
+ Hug - the mailing list for LispWorks users<br><a class="moz-txt-link-abbreviated" href="mailto:lisp-hug@lispworks.com">lisp-hug@lispworks.com</a><br><a class="moz-txt-link-freetext" href="http://www.lispworks.com/support/lisp-hug.html">http://www.lispworks.com/support/lisp-hug.html</a><br><br></div></div>
+</blockquote>
+</body></html>
+
+
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:29 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

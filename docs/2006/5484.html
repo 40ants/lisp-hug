@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>gethash abstraction</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>gethash abstraction</h1>
+                <pre>
+Hi, I'm relatively new to Lisp... last semester in my classes I had a 
+course which involved a good amount of Scheme, and I quite enjoyed it, 
+so I thought for my undergrad research I'd try a little something with 
+Common Lisp.  The project is on network science, and since I'm a little 
+new to the language this might seem like a dumb question.  But then, I 
+figure being afraid to ask the dumb questions just makes you look even 
+more dumb later on ;-)
+
+I'm using hash tables in a couple places in my project, but I find that 
+I'm using a pattern quite often where I first check to see if a hash 
+table has a certain key, by checking whether (gethash key myhash) 
+returns nil, and then taking some action on that slot in the has table 
+depending on whether or not it already exists.
+
+The question I have is, it seems like I end up repeating the same 
+gethash expression like two, three, maybe four times in the same 
+function or method -- testing it, setting it, modifying it, returning 
+it...  This kind of repetition, I gather, is not the Lisp Way ;-) nor is 
+it the way I like to program.
+
+However, I tried using a let expression, in a manner similar to the 
+following (simplified for clarity):
+....
+   (let ((loc (gethash key myhash)))
+     (if (null loc)
+       (setf loc 0)
+       (incf loc))) ...
+And I'm getting errors.  Errors I don't fully understand, as the 
+debugger tends to still mistify me a bit right now.  Like I said, I'm 
+new to the language.  But apparently this is not the proper way top 
+abstract a reference into a hash table.
+  a) I know something's wrong about the above but I don't have the words 
+to express what it is.
+      Could someone explain it a little?
+  b) What's the right way (or at least a way that works) to do what I'm 
+getting at?
+
+--ch--
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: gethash abstraction</h1>
+                 <pre>
+&gt    (let ((loc (gethash key myhash)))
+&gt      (if (null loc)
+&gt        (setf loc 0)
+&gt        (incf loc))) ...
+
+I should note that similar code, by itself, doesn't give me an error.
+I suppose that in a bigger setting such situations could arise...
+
+&gt But apparently this is not the proper way top
+&gt abstract a reference into a hash table.
+&gt   a) I know something's wrong about the above but I don't have the words
+&gt to express what it is.
+&gt       Could someone explain it a little?
+&gt   b) What's the right way (or at least a way that works) to do what I'm
+&gt getting at?
+
+The let establishes a local binding, so setf'ing on it isn't going to do
+anything to the actual hashtable. What you might be looking for is
+something using "symbol-macrolet", e.g.
+
+(let ((ht (make-hash-table)))
+  (symbol-macrolet ((loc (gethash :some-key ht)))
+    (if (null loc)
+      (setf loc 0)
+      (incf loc))))
+
+The idea of what's going on there is that the symbol
+loc expands to (gethash :some-key ht). Symbol-macrolet
+is also used by "with-slots" with which you might be more
+familiar (if you use CLOS). Docs for with-slots are
+
+http://www.lispworks.com/documentation/HyperSpec/Body/m_w_slts.htm
+
+and for symbol-macrolet are
+
+http://www.lispworks.com/documentation/HyperSpec/Body/s_symbol.htm#symbol-macrolet
+
+Of course, beware of the fact that if you use this, you'll be accessing the
+hash table at every use, which you don't really need to do if you just want to
+read the value once and use it in a few places (without modifying the table).
+
+--
+=====================
+Joshua Taylor
+tayloj@rpi.edu
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: gethash abstraction</h1>
+                 <pre>
+Charles Hoffman wrote:
+&gt
+&gt I'm using hash tables in a couple places in my project, but I find 
+&gt that I'm using a pattern quite often where I first check to see if a 
+&gt hash table has a certain key, by checking whether (gethash key myhash) 
+&gt returns nil, and then taking some action on that slot in the has table 
+&gt depending on whether or not it already exists.
+&gt
+&gt The question I have is, it seems like I end up repeating the same 
+&gt gethash expression like two, three, maybe four times in the same 
+&gt function or method -- testing it, setting it, modifying it, returning 
+&gt it...  This kind of repetition, I gather, is not the Lisp Way ;-) nor 
+&gt is it the way I like to program.
+&gt
+&gt However, I tried using a let expression, in a manner similar to the 
+&gt following (simplified for clarity):
+&gt ...
+&gt   (let ((loc (gethash key myhash)))
+&gt     (if (null loc)
+&gt       (setf loc 0)
+&gt       (incf loc))) ...
+gethash takes a third optional argument, see
+
+http://www.lispworks.com/documentation/HyperSpec/Body/f_gethas.htm#gethash
+
+The third arg is to return a default if the value does not exist in the 
+hash-table.  The error
+you are probably getting is trying to bind NIL to 0, which is not 
+allowed in CL.  NIL is
+the value returned by (gethash key myhash)
+
+The above code is simply written as
+
+(incf (gethash key myhash -1))
+
+CL-USER 1 &gt (defparameter myhash (make-hash-table))
+MYHASH
+
+CL-USER 2 &gt (incf (gethash 'key1 myhash -1))
+0
+
+CL-USER 3 &gt (gethash 'key1 myhash)
+0
+T
+
+CL-USER 4 &gt
+
+Wade
+
+&gt And I'm getting errors.  Errors I don't fully understand, as the 
+&gt debugger tends to still mistify me a bit right now.  Like I said, I'm 
+&gt new to the language.  But apparently this is not the proper way top 
+&gt abstract a reference into a hash table.
+&gt  a) I know something's wrong about the above but I don't have the 
+&gt words to express what it is.
+&gt      Could someone explain it a little?
+&gt  b) What's the right way (or at least a way that works) to do what I'm 
+&gt getting at?
+&gt
+&gt --ch--
+&gt
+&gt
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: gethash abstraction</h1>
+                 <pre>
+Hi,
+
+I don't completely understand what you are trying to do from the code  
+you give, but note that you can specify default values in a gethash  
+form. So for example, the following form automagically does the right  
+thing if the key is not in the hashtable:
+
+(defparameter *table* (make-hash-table))
+
+(incf (gethash 'foo *table* 0))
+
+(gethash 'foo *table*) =&gt 1
+
+Pascal
+
+On 10 Apr 2006, at 05:20, Charles Hoffman wrote:
+
+&gt
+&gt Hi, I'm relatively new to Lisp... last semester in my classes I had  
+&gt a course which involved a good amount of Scheme, and I quite  
+&gt enjoyed it, so I thought for my undergrad research I'd try a little  
+&gt something with Common Lisp.  The project is on network science, and  
+&gt since I'm a little new to the language this might seem like a dumb  
+&gt question.  But then, I figure being afraid to ask the dumb  
+&gt questions just makes you look even more dumb later on ;-)
+&gt
+&gt I'm using hash tables in a couple places in my project, but I find  
+&gt that I'm using a pattern quite often where I first check to see if  
+&gt a hash table has a certain key, by checking whether (gethash key  
+&gt myhash) returns nil, and then taking some action on that slot in  
+&gt the has table depending on whether or not it already exists.
+&gt
+&gt The question I have is, it seems like I end up repeating the same  
+&gt gethash expression like two, three, maybe four times in the same  
+&gt function or method -- testing it, setting it, modifying it,  
+&gt returning it...  This kind of repetition, I gather, is not the Lisp  
+&gt Way ;-) nor is it the way I like to program.
+&gt
+&gt However, I tried using a let expression, in a manner similar to the  
+&gt following (simplified for clarity):
+&gt ...
+&gt   (let ((loc (gethash key myhash)))
+&gt     (if (null loc)
+&gt       (setf loc 0)
+&gt       (incf loc))) ...
+&gt And I'm getting errors.  Errors I don't fully understand, as the  
+&gt debugger tends to still mistify me a bit right now.  Like I said,  
+&gt I'm new to the language.  But apparently this is not the proper way  
+&gt top abstract a reference into a hash table.
+&gt  a) I know something's wrong about the above but I don't have the  
+&gt words to express what it is.
+&gt      Could someone explain it a little?
+&gt  b) What's the right way (or at least a way that works) to do what  
+&gt I'm getting at?
+&gt
+&gt --ch--
+&gt
+
+-- 
+Pascal Costanza, mailto:pc@p-cos.net, http://p-cos.net
+Vrije Universiteit Brussel, Programming Technology Lab
+Pleinlaan 2, B-1050 Brussel, Belgium
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: gethash abstraction</h1>
+                 <pre>
+Charles Hoffman schrieb:
+&gt 
+&gt   (let ((loc (gethash key myhash)))
+&gt     (if (null loc)
+&gt       (setf loc 0)
+&gt       (incf loc))) ...
+&gt And I'm getting errors.
+
+The problem here is that let does not create a reference / shortcut for 
+you. What it does is reading the value out of the HT and binding it to 
+your variable loc.
+Imagine that in the HT cell "key" there is a 7.
+This makes your code like this:
+
+(if (null 7)
+     (setf 7 0)
+     (incf 7))
+
+Obviously you can't change the value of 7.
+And as others pointed out:
+you should care about the third return value of gethash for your if.
+(nth-value 2 (gethash key myhash))
+
+What you want is a literal substitution of LOC with (gethash key myhash)
+Probably symbol-macrolet will do what you want.
+
+
+Regards,
+André
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:45 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

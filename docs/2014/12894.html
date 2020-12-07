@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Buglet in environment functions?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Buglet in environment functions?</h1><html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+</head>
+<body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;">
+Hi
+<div><br>
+</div>
+<div>here is the example:</div>
+<div><br>
+</div>
+<div><font face="Courier New">CL-USER 8 &gt; (variable-information 'foo<br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (augment-environment nil<br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;:variable (list 'foo)<br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;:declare '((type fixnum foo))))<br>
+:LEXICAL<br>
+T<br>
+NIL</font></div>
+<div>
+<div><br class="webkit-block-placeholder">
+</div>
+<div>At leaste SBCL and CCL return</div>
+<div><br>
+</div>
+<div><font face="Courier New">((TYPE . FIXNUM))</font></div>
+<div><br>
+</div>
+<div>as third value. &nbsp;Which is what I expected.</div>
+<div><br>
+</div>
+<div>All the best</div>
+<div><br class="webkit-block-placeholder">
+</div>
+<div apple-content-edited="true">--<br>
+Marco Antoniotti, Associate Professor<span class="Apple-tab-span" style="white-space:pre">
+</span>tel.<span class="Apple-tab-span" style="white-space:pre"> </span>&#43;39 - 02 64 48 79 01<br>
+DISCo, Università Milano Bicocca U14 2043<span class="Apple-tab-span" style="white-space:pre">
+</span><a href="http://bimib.disco.unimib.it">http://bimib.disco.unimib.it</a><br>
+Viale Sarca 336<br>
+I-20126 Milan (MI) ITALY<br>
+<br>
+Please note that I am not checking my Spam-box anymore.<br>
+Please do not forward this email without asking me first.<br>
+<br>
+<br>
+<br>
+<br>
+</div>
+<br>
+</div>
+</body>
+</html>
+
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Buglet in environment functions?</h1>
+                 <p>
+                  Unable to parse email body. Email id is 12900
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Buglet in environment functions?</h1>
+                 <pre>
+Hi!
+  This might be useful in some cases (sometimes)
+
+(defmacro let1 (variable + &amp;body progn)
+  "Shortcut for (let ((a b)) . c) or (destructuring-bind a b . c)"
+  (if (atom variable)
+      `(let ((,variable ,+)) ,@progn)
+    `(destructuring-bind ,variable ,+ ,@progn)))
+
+; and also iterate-keywords is used, but you can simply avoid that.
+
+(defun variable-type-or-class (VAR ENV)
+  "Returns type of a class of var in env"
+  #+:LISPWORKS4.4
+  (cond
+   ((constantp VAR ENV)
+    (class-of var))
+   (ENV
+    (let1 remote-environment (slot-value env 'lexical::remote-environment)
+      (when remote-environment
+        (let1 variable-types
+            (iter (:for venv in (slot-value remote-environment 'compiler::venv))
+              (ignored (struct-to-alist venv))
+              (:collect `(,(slot-value venv 'compiler::name)
+                          ,(slot-value venv 'type))))
+          (cadr (assoc var variable-types))))
+      )))
+  #+lispworks6
+  (cond
+   ((constantp var env)
+    (class-of var))
+   (env
+    (let1 venvs (slot-value env 'compiler::venv)
+      (when venvs
+        (let1 variable-types
+            (iter (:for venv in venvs)
+              (ignored (struct-to-alist venv))
+              (:collect `(,(slot-value venv 'compiler::name)
+                          ,(slot-value venv 'type))))
+          (cadr (assoc var variable-types))))))
+   );cond
+  #-(or :LISPWORKS4.4 :lispworks6)
+  (when (constantp var env) (class-of var)))
+
+Sometimes it is known to work. Might be wrong in general case though.
+Use at your risk.
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:30 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

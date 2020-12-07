@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>compile vs coerce</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>compile vs coerce</h1><html>
+  <head>
+
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  </head>
+  <body bgcolor="#FFFFFF" text="#000000">
+    In Lispworks,why does<br>
+    <br>
+    <tt>(funcall (lambda () (coerce (lambda () nil) 'function)))</tt><br>
+    <br>
+    run but<br>
+    <br>
+    <tt>(funcall (lambda () (compile nil (lambda () nil))))</tt><br>
+    <br>
+    causes <tt> Error: #&lt;anonymous interpreted function 200C8D82&gt;
+      is a lexical closure</tt>.<br>
+    <br>
+    T<a href="http://clhs.lisp.se/Body/f_cmp.htm">he hyperspec</a> for
+    COMPILE says " If the definition is a lambda expression, it is
+    coerced to a function."  I'm guessing some connection to "The
+    consequences are undefined if the lexical environment surrounding
+    the function to be compiled contains any bindings..." but that's not
+    the case here, is it? I don't get the error in Allegro or SBCL.<br>
+    <br>
+    <br>
+    <br>
+    <pre class="moz-signature" cols="72">-- 
+.................................................
+Christopher Riesbeck
+Associate Professor, Electrical Engineering and Computer Science
+McCormick School of Engineering
+Northwestern University
+
+2145 Sheridan Rd., Evanston, IL 60208
+
+Home page: <a class="moz-txt-link-freetext" href="http://www.cs.northwestern.edu/~riesbeck/">http://www.cs.northwestern.edu/~riesbeck/</a>
+Calendar: <a class="moz-txt-link-freetext" href="http://www.cs.northwestern.edu/~riesbeck/calendar.html">http://www.cs.northwestern.edu/~riesbeck/calendar.html</a>
+</pre>
+  </body>
+</html>
+
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: compile vs coerce</h1>
+                 <pre>
+Christopher Riesbeck &lt;c-riesbeck@northwestern.edu&gt writes:
+
+&gt In Lispworks,why does
+&gt
+&gt (funcall (lambda () (coerce (lambda () nil) 'function)))
+&gt
+&gt run but
+&gt
+&gt (funcall (lambda () (compile nil (lambda () nil))))
+&gt
+&gt causes&nbsp; Error: #&lt;anonymous interpreted function 200C8D82&gt is a
+&gt lexical closure.
+&gt
+&gt The hyperspec for COMPILE says " If the definition is a lambda
+&gt expression, it is coerced to a function."&nbsp; I'm guessing some
+&gt connection to "The consequences are undefined if the lexical
+&gt environment surrounding the function to be compiled contains any
+&gt bindings..." but that's not the case here, is it? I don't get the
+&gt error in Allegro or SBCL.
+
+There should be no difference, and no error generated.
+
+Are you sure lispworks generates the error you're saying, when you
+evaluate either of those forms?
+
+Try with (cl:lambda () cl:nil) 
+
+
+The specification of compile is clear, the definition can be a lambda
+expression or a function. In your case, it's a function (as returned by
+(lambda () nil), and it doesn't matter whether it's a lexical closure,
+an interpreted function or a compiled function.  Compile should return
+an equivalent compiled function.
+
+I interpret the undefined consequences about whether the returned
+closure shares or not the enclosed environment:
+
+    (let ((x 42))
+         (let ((f (compile nil (lambda () x))))
+           (list (funcall f)
+                 (setf x 0)
+                 (funcall f))))
+    --&gt (42 0 0) 
+    ;; or:
+    --&gt (42 0 42)
+
+One could also interpret it as saying that if you're trying to compile
+a closure, then you might get an error or an invalid function, but this
+would be the sign of a low-quality implementation, and that would
+motivate its rejection, and definitely not worth of a commercial
+implementation.
+
+That said, CMUCL has the same failing, when the function is really a
+closure:
+
+Clozure Common Lisp            --&gt (42 0 0)
+CLISP                          --&gt (42 0 0)
+CMU Common Lisp                 Error in function
+                                 C::GET-LAMBDA-TO-COMPILE:    
+                                 #&lt;Interpreted Function "LET ((X 42))"
+                                 {581A0871}&gt was defined in a non-null
+                                 environment.
+SBCL                           --&gt (42 0 0)
+
+For (lambda () nil) it compiles it as expected.
+
+-- 
+__Pascal Bourguignon__                 http://www.informatimago.com/
+“The factory of the future will have only two employees, a man and a
+dog. The man will be there to feed the dog. The dog will be there to
+keep the man from touching the equipment.” -- Carl Bass CEO Autodesk
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: compile vs coerce</h1>
+                 <pre>
+
+On 11/25/2015 12:43 PM, Pascal J. Bourguignon wrote:
+&gt Christopher Riesbeck &lt;c-riesbeck@northwestern.edu&gt writes:
+&gt
+&gt&gt In Lispworks,why does
+&gt&gt
+&gt&gt (funcall (lambda () (coerce (lambda () nil) 'function)))
+&gt&gt
+&gt&gt run but
+&gt&gt
+&gt&gt (funcall (lambda () (compile nil (lambda () nil))))
+&gt&gt
+&gt&gt causes  Error: #&lt;anonymous interpreted function 200C8D82&gt is a
+&gt&gt lexical closure.
+&gt There should be no difference, and no error generated.
+&gt
+&gt Are you sure lispworks generates the error you're saying, when you
+&gt evaluate either of those forms?
+&gt
+&gt Try with (cl:lambda () cl:nil)
+
+Listener output, Lispworks 6 Personal Edition, nothing  loaded. Adding 
+package qualifiers everywhere:
+
+&gt CL-USER 5 &gt (cl:funcall (cl:lambda () (cl:compile cl:nil (cl:lambda () 
+&gt cl:nil))))
+&gt
+&gt Error: #&lt;anonymous interpreted function 21AF2EB2&gt is a lexical closure.
+
+
+&gt The specification of compile is clear, the definition can be a lambda
+&gt expression or a function. In your case, it's a function (as returned by
+&gt (lambda () nil), and it doesn't matter whether it's a lexical closure,
+&gt an interpreted function or a compiled function.  Compile should return
+&gt an equivalent compiled function.
+Being a function does seem matter here, because the following does NOT 
+signal an error
+
+&gt CL-USER 7 &gt (funcall (lambda () (compile nil '(lambda () nil))))
+&gt #&lt;Function 10 21CD5F22&gt
+&gt NIL
+&gt NIL
+
+-- 
+.................................................
+Christopher Riesbeck
+Associate Professor, Electrical Engineering and Computer Science
+McCormick School of Engineering
+Northwestern University
+
+2145 Sheridan Rd., Evanston, IL 60208
+
+Home page: http://www.cs.northwestern.edu/~riesbeck/
+Calendar: http://www.cs.northwestern.edu/~riesbeck/calendar.html
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: compile vs coerce</h1>
+                 <pre>
+On Wed, Nov 25, 2015 at 1:12 PM, Christopher Riesbeck
+&lt;c-riesbeck@northwestern.edu&gt wrote:
+
+&gt (funcall (lambda () (compile nil (lambda () nil))))
+&gt
+&gt causes  Error: #&lt;anonymous interpreted function 200C8D82&gt is a lexical
+&gt closure.
+&gt
+&gt The hyperspec for COMPILE says " If the definition is a lambda expression,
+&gt it is coerced to a function."  I'm guessing some connection to "The
+&gt consequences are undefined if the lexical environment surrounding the
+&gt function to be compiled contains any bindings..." but that's not the case
+&gt here, is it? I don't get the error in Allegro or SBCL.
+
+You're not compiling a lambda expression here, though, so that
+coercion doesn't matter.  You'd have to be doing
+
+    (compile nil '(lambda () nil))
+
+to be compiling a lambda expression.  You're passing a closure object
+as the second argument to compile. I think it's a bit strange that
+
+! The consequences are undefined if the lexical environment
+! surrounding the function to be compiled contains any bindings
+! other than those for macros, symbol macros, or declarations.
+
+would come into play here, but the evaluation of `(lambda () nil)`
+would have closed over whatever the lexical environment available in
+the REPL is; so maybe that's relevant?  For what it's worth, when you
+actually pass a lambda expression, there's no issue:
+
+    (funcall (lambda () (compile nil '(lambda () nil))))
+
+
+
+
+
+&gt
+&gt
+&gt
+&gt --
+&gt ................................................
+&gt Christopher Riesbeck
+&gt Associate Professor, Electrical Engineering and Computer Science
+&gt McCormick School of Engineering
+&gt Northwestern University
+&gt
+&gt 2145 Sheridan Rd., Evanston, IL 60208
+&gt
+&gt Home page: http://www.cs.northwestern.edu/~riesbeck/
+&gt Calendar: http://www.cs.northwestern.edu/~riesbeck/calendar.html
+
+
+
+-- 
+Joshua Taylor, http://www.cs.rpi.edu/~tayloj/
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: compile vs coerce</h1>
+                 <pre>
+I've run into this sort of thing before but there were lexical
+bindings in my case; I believe the problem to be that without the
+quote around the inner lambda, that lambda is evaluated to produce an
+interpreted function, and because it is within a lexical context (the
+outer lambda) it is considered a lexical closure albeit with zero
+bindings.
+
+Because of the differences in lexical environment implementation
+between compiled and interpreted contexts, the compiler throws this
+error. If that's the case, perhaps LW could be improved to recognise
+when the lexical environment is empty and proceed without error.
+
+On 26 November 2015 at 06:38, Christopher Riesbeck
+&lt;c-riesbeck@northwestern.edu&gt wrote:
+&gt
+&gt
+&gt On 11/25/2015 12:43 PM, Pascal J. Bourguignon wrote:
+&gt&gt
+&gt&gt Christopher Riesbeck &lt;c-riesbeck@northwestern.edu&gt writes:
+&gt&gt
+&gt&gt&gt In Lispworks,why does
+&gt&gt&gt
+&gt&gt&gt (funcall (lambda () (coerce (lambda () nil) 'function)))
+&gt&gt&gt
+&gt&gt&gt run but
+&gt&gt&gt
+&gt&gt&gt (funcall (lambda () (compile nil (lambda () nil))))
+&gt&gt&gt
+&gt&gt&gt causes  Error: #&lt;anonymous interpreted function 200C8D82&gt is a
+&gt&gt&gt lexical closure.
+&gt&gt
+&gt&gt There should be no difference, and no error generated.
+&gt&gt
+&gt&gt Are you sure lispworks generates the error you're saying, when you
+&gt&gt evaluate either of those forms?
+&gt&gt
+&gt&gt Try with (cl:lambda () cl:nil)
+&gt
+&gt
+&gt Listener output, Lispworks 6 Personal Edition, nothing  loaded. Adding
+&gt package qualifiers everywhere:
+&gt
+&gt&gt CL-USER 5 &gt (cl:funcall (cl:lambda () (cl:compile cl:nil (cl:lambda ()
+&gt&gt cl:nil))))
+&gt&gt
+&gt&gt Error: #&lt;anonymous interpreted function 21AF2EB2&gt is a lexical closure.
+&gt
+&gt
+&gt
+&gt&gt The specification of compile is clear, the definition can be a lambda
+&gt&gt expression or a function. In your case, it's a function (as returned by
+&gt&gt (lambda () nil), and it doesn't matter whether it's a lexical closure,
+&gt&gt an interpreted function or a compiled function.  Compile should return
+&gt&gt an equivalent compiled function.
+&gt
+&gt Being a function does seem matter here, because the following does NOT
+&gt signal an error
+&gt
+&gt&gt CL-USER 7 &gt (funcall (lambda () (compile nil '(lambda () nil))))
+&gt&gt #&lt;Function 10 21CD5F22&gt
+&gt&gt NIL
+&gt&gt NIL
+&gt
+&gt
+&gt --
+&gt ................................................
+&gt Christopher Riesbeck
+&gt Associate Professor, Electrical Engineering and Computer Science
+&gt McCormick School of Engineering
+&gt Northwestern University
+&gt
+&gt 2145 Sheridan Rd., Evanston, IL 60208
+&gt
+&gt Home page: http://www.cs.northwestern.edu/~riesbeck/
+&gt Calendar: http://www.cs.northwestern.edu/~riesbeck/calendar.html
+&gt
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+&gt
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: compile vs coerce</h1><html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+</head>
+<body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">
+Thanks, all. For my purposes, quoting the LAMBDA inside COMPILE works fine, and I understand better most of what’s going on.
+<div class=""><br class="">
+</div>
+<div class="">The bit seems surprising is that in the Hyperspec, COMPILE on a compiled function is either the identity operation or an equivalent wrapper, and that doesn’t suggest an error would occur. Whereas COERCE doesn’t seem to have any specification for
+ what happens if it’s given a function already.</div>
+<div class=""><br class="">
+</div>
+<div class="">Thanks again<br class="">
+<div class="">
+<div class=""><br class="">
+</div>
+<div class=""><br class="">
+<div>
+<blockquote type="cite" class="">
+<div class="">On Nov 25, 2015, at 5:04 PM, Tim Bradshaw &lt;<a href="mailto:tfb@cley.com" class="">tfb@cley.com</a>&gt; wrote:</div>
+<br class="Apple-interchange-newline">
+<div class="">
+<div class=""><br class="">
+<br class="">
+<blockquote type="cite" class="">On 25 Nov 2015, at 18:43, Pascal J. Bourguignon &lt;<a href="mailto:pjb@informatimago.com" class="">pjb@informatimago.com</a>&gt; wrote:<br class="">
+<br class="">
+One could also interpret it as saying that if you're trying to compile<br class="">
+a closure, then you might get an error or an invalid function, but this<br class="">
+would be the sign of a low-quality implementation, and that would<br class="">
+motivate its rejection, and definitely not worth of a commercial<br class="">
+implementation.<br class="">
+</blockquote>
+<br class="">
+I think the point was that a system might well have a different representation for lexical environments in compiled and interpreted code (and probably always does in fact) making compiling a function defined in a non-null environment at best painful &nbsp;since
+ it would either have to break the semantics of the program by splitting the environments (never OK), compile all other functions which shared the environment (not really OK, if it can even find them) or have some heroic special case. &nbsp;I certainly would be
+ fine with a system which did none of these and threw an error since I can't see this ever being useful.<br class="">
+<br class="">
+_______________________________________________<br class="">
+Lisp Hug - the mailing list for LispWorks users<br class="">
+<a href="mailto:lisp-hug@lispworks.com" class="">lisp-hug@lispworks.com</a><br class="">
+http://www.lispworks.com/support/lisp-hug.html<br class="">
+<br class="">
+</div>
+</div>
+</blockquote>
+</div>
+<br class="">
+<div apple-content-edited="true" class=""><span class="Apple-style-span" style="border-collapse: separate; color: rgb(0, 0, 0); font-family: Helvetica; font-style: normal; font-variant: normal; font-weight: normal; letter-spacing: normal; line-height: normal; orphans: 2; text-align: -webkit-auto; text-indent: 0px; text-transform: none; white-space: normal; widows: 2; word-spacing: 0px; -webkit-border-horizontal-spacing: 0px; -webkit-border-vertical-spacing: 0px; -webkit-text-decorations-in-effect: none; -webkit-text-size-adjust: auto; -webkit-text-stroke-width: 0px;  "><span class="Apple-style-span" style="border-collapse: separate; color: rgb(0, 0, 0); font-family: Helvetica; font-style: normal; font-variant: normal; font-weight: normal; letter-spacing: normal; line-height: normal; orphans: 2; text-align: -webkit-auto; text-indent: 0px; text-transform: none; white-space: normal; widows: 2; word-spacing: 0px; -webkit-border-horizontal-spacing: 0px; -webkit-border-vertical-spacing: 0px; -webkit-text-decorations-in-effect: none; -webkit-text-size-adjust: auto; -webkit-text-stroke-width: 0px;  ">
+<div style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space; " class="">
+<span class="Apple-style-span" style="border-collapse: separate; color: rgb(0, 0, 0); font-family: Helvetica; font-style: normal; font-variant: normal; font-weight: normal; letter-spacing: normal; line-height: normal; orphans: 2; text-align: -webkit-auto; text-indent: 0px; text-transform: none; white-space: normal; widows: 2; word-spacing: 0px; -webkit-border-horizontal-spacing: 0px; -webkit-border-vertical-spacing: 0px; -webkit-text-decorations-in-effect: none; -webkit-text-size-adjust: auto; -webkit-text-stroke-width: 0px;  ">
+<div style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space; " class="">
+------------------<br class="">
+Christopher Riesbeck<br class="">
+Home page:&nbsp;<a href="http://www.cs.northwestern.edu/~riesbeck" class="">http://www.cs.northwestern.edu/~riesbeck</a><br class="">
+Calendar: <a href="http://www.cs.northwestern.edu/~riesbeck/calendar.html" class="">
+http://www.cs.northwestern.edu/~riesbeck/calendar.html</a><br class="">
+<br class="">
+</div>
+</span></div>
+</span></span></div>
+<br class="">
+</div>
+</div>
+</div>
+</body>
+</html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: compile vs coerce</h1>
+                 <pre>
+Tim Bradshaw &lt;tfb@cley.com&gt writes:
+
+&gt&gt On 25 Nov 2015, at 18:43, Pascal J. Bourguignon &lt;pjb@informatimago.com&gt wrote:
+&gt&gt 
+&gt&gt One could also interpret it as saying that if you're trying to compile
+&gt&gt a closure, then you might get an error or an invalid function, but this
+&gt&gt would be the sign of a low-quality implementation, and that would
+&gt&gt motivate its rejection, and definitely not worth of a commercial
+&gt&gt implementation.
+&gt
+&gt I think the point was that a system might well have a different
+&gt representation for lexical environments in compiled and interpreted
+&gt code (and probably always does in fact) making compiling a function
+&gt defined in a non-null environment at best painful since it would
+&gt either have to break the semantics of the program by splitting the
+&gt environments (never OK), 
+
+That seems acceptable to me, given that there are a lot of other places
+where you can also obtain separate closures.  For example in loops.
+
+That wouldn't be worse than what you'd get with a lambda expression.
+It would be a way to get automatically the equivalent of:
+
+    (funcall (let ((x 42)) (eval `(let ((x ,x)) (lambda () x)))))
+    --&gt 42
+
+    (funcall (let ((x 42)) (compile nil (lambda () x))))
+    --&gt 42
+
+&gt compile all other functions which shared the
+&gt environment (not really OK, if it can even find them) or have some
+&gt heroic special case.  I certainly would be fine with a system which
+&gt did none of these and threw an error since I can't see this ever being
+&gt useful.
+
+Now, other implementations don't go as far, but at least they
+distinguish functions that have no free variables.  This case should be
+handled properly.  (And users can always use the EVAL above instead of
+COMPILE when they have free variables).
+
+-- 
+__Pascal Bourguignon__                 http://www.informatimago.com/
+“The factory of the future will have only two employees, a man and a
+dog. The man will be there to feed the dog. The dog will be there to
+keep the man from touching the equipment.” -- Carl Bass CEO Autodesk
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: compile vs coerce</h1>
+                 <pre>
+The specification for COERCE says: "If object is already of type result-type,
+the object itself is returned..." so that matches your case.
+
+-- 
+Martin Simmons
+LispWorks Ltd
+http://www.lispworks.com/
+
+
+&gt&gt&gt&gt&gt On Wed, 25 Nov 2015 23:36:16 +0000, Christopher K Riesbeck said:
+&gt 
+&gt Thanks, all. For my purposes, quoting the LAMBDA inside COMPILE works fine, and I understand better most of what’s going on.
+&gt 
+&gt The bit seems surprising is that in the Hyperspec, COMPILE on a compiled function is either the identity operation or an equivalent wrapper, and that doesn’t suggest an error would occur. Whereas COERCE doesn’t seem to have any specification for what happens if it’s given a function already.
+&gt 
+&gt Thanks again
+&gt 
+&gt 
+&gt On Nov 25, 2015, at 5:04 PM, Tim Bradshaw &lt;tfb@cley.com&lt;mailto:tfb@cley..com&gt&gt wrote:
+&gt 
+&gt 
+&gt 
+&gt On 25 Nov 2015, at 18:43, Pascal J. Bourguignon &lt;pjb@informatimago.com&lt;mailto:pjb@informatimago.com&gt&gt wrote:
+&gt 
+&gt One could also interpret it as saying that if you're trying to compile
+&gt a closure, then you might get an error or an invalid function, but this
+&gt would be the sign of a low-quality implementation, and that would
+&gt motivate its rejection, and definitely not worth of a commercial
+&gt implementation.
+&gt 
+&gt I think the point was that a system might well have a different representation for lexical environments in compiled and interpreted code (and probably always does in fact) making compiling a function defined in a non-null environment at best painful  since it would either have to break the semantics of the program by splitting the environments (never OK), compile all other functions which shared the environment (not really OK, if it can even find them) or have some heroic special case.  I certainly would be fine with a system which did none of these and threw an error since I can't see this ever being useful.
+&gt 
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com&lt;mailto:lisp-hug@lispworks.com&gt
+&gt http://www.lispworks.com/support/lisp-hug.html
+&gt 
+&gt 
+&gt ------------------
+&gt Christopher Riesbeck
+&gt Home page: http://www.cs.northwestern.edu/~riesbeck
+&gt Calendar: http://www.cs.northwestern.edu/~riesbeck/calendar.html
+&gt 
+&gt 
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: compile vs coerce</h1>
+                 <p>
+                  Unable to parse email body. Email id is 13628
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:28 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

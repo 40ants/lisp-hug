@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>capi:draw-pinboard-object with nil x, y, &amp;c., or masking with 
+             highlights...</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>capi:draw-pinboard-object with nil x, y, &amp;c., or masking with 
+                 highlights...</h1>
+                <pre>
+Hi all, (I think is aimed mainly at the LW folks, but maybe others
+know what's happening here…)
+
+I'm trying to use capi:highlight-pinboard-object with some
+pinboard-object that I've defined.  I'd also like to use a
+gp:with-graphics-mask in the capi:draw-pinboard-object method for my
+objects, to avoid drawing more than I need to.  I started getting some
+errors about NILs in arithmetic operations though.  Here's the first
+stab at a minimal reproducible error.  The methods for my-item and
+my-masked-item should achieve the same results, except that the method
+for my-masked-item makes a mask with the x, y, width, and height
+values from capi:highlight-pinboard-object.  To figure out whether the
+problem is, the example function is parameterized by the
+:highlight-style, and whether the masked item will be highlighted.
+
+
+(defclass my-item (capi:pinboard-object) ())
+
+(defmethod capi:draw-pinboard-object (pinboard
+                                      (mi my-item)
+                                      &amp;key x y width height
+                                      &amp;allow-other-keys)
+  (capi:with-geometry mi
+    (gp:draw-rectangle pinboard
+                       capi:%x%
+                       capi:%y%
+                       (1- capi:%height%)
+                       (1- capi:%width%))))
+
+(defclass my-masked-item (my-item) ())
+
+(defmethod capi:draw-pinboard-object :around (pinboard
+                                              (mmi my-masked-item)
+                                              &amp;key x y width height
+                                              &amp;allow-other-keys)
+  (gp:with-graphics-mask (pinboard (list x y width height))
+    (call-next-method)))
+(defun example (&amp;key (level 1) (highlight :invert))
+  (let ((p (make-instance 'capi:pinboard-layout
+                          :highlight-style highlight
+                          :visible-min-width 200
+                          :visible-min-height 200))
+        (mi (make-instance 'my-item
+                           :width 50 :height 50
+                           :x 25 :y 25))
+        (mmi (make-instance 'my-masked-item
+                            :width 50 :height 50
+                            :x 100 :y 100)))
+    (capi:contain p)
+    (capi:manipulate-pinboard p (list mi mmi) :add-many)
+    (when (&gt= level 1)
+      (capi:highlight-pinboard-object p mi :redisplay t))
+    (when (&gt= level 2)
+      (capi:highlight-pinboard-object p mmi :redisplay t))))
+
+
+Here are the situations that do and don't cause errors:
+
+
+;; (example :level 1 :highlight :default) ; no error (but no highlighting)
+;; (example :level 2 :highlight :default) ; no error (but no highlighting)
+
+;; (example :level 1 :highlight :standard) ; no error
+;; (example :level 2 :highlight :standard) ; (+ NIL NIL) error
+
+;; (example :level 1 :highlight :invert) ; no error
+;; (example :level 2 :highlight :invert) ; (+ NIL NIL) error
+
+
+I get an arithmetic error when I try to highlight a masked item and
+the highlight style is :standard or :invert.  I don't get any
+highlighting with the :standard method (that uses
+draw-pinboard-object-highlighted), but I'm not sure whether I should
+expect anything there.
+
+If I add some poor-man's tracing to the draw-pinboard-object methods
+with the following, I can see some interesting things happening.
+
+(defmethod capi:draw-pinboard-object (pinboard
+                                      (mi my-item)
+                                      &amp;key x y width height
+                                      &amp;allow-other-keys)
+  (print (list 'dpo-mi pinboard mi x y width height)) ;
+draw-...-object for my-item
+  (capi:with-geometry mi
+    (gp:draw-rectangle pinboard
+                       capi:%x%
+                       capi:%y%
+                       (1- capi:%height%)
+                       (1- capi:%width%))))
+
+(defmethod capi:draw-pinboard-object :around (pinboard
+                                              (mmi my-masked-item)
+                                              &amp;key x y width height
+                                              &amp;allow-other-keys)
+  (print (list 'dpo-mmi pinboard mmi x y width height)) ;
+draw-...-object for my-masked-item
+  (gp:with-graphics-mask (pinboard (list x y width height))
+    (call-next-method)))
+
+
+For (example :level n :highlight :default) for n=1 and n=2, I see what
+I'd expect, but in some of the other combination, there are NILs in
+places where I'd expect numbers.  Finally, if define the
+draw-pinboard-object method for the masked-item to set x, y, width,
+and height to values that I'm sure aren't NIL, I get all the drawing
+behaviors that I expect:
+
+(defmethod capi:draw-pinboard-object :around (pinboard
+                                              (mmi my-masked-item)
+                                              &amp;key x y width height
+                                              &amp;allow-other-keys)
+  (print (list 'dpo-mmi pinboard mmi x y width height))
+  (capi:with-geometry mmi
+    (setf x (or x capi:%x%)
+          y (or y capi:%y%)
+          width (or width capi:%width%)
+          height (or height capi:%height%)))
+  (gp:with-graphics-mask (pinboard (list x y width height))
+    (call-next-method)))
+
+
+Now none of the examples causes an error, but of course I'm not
+getting the masking that I'd been aiming for at the start.  What's
+also strange is that the output still has NILs in it.  Sorry for the
+very long email, but I a guess there are few particular questions
+aside from the general "what am I doing wrong?":
+
+1) Should draw-pinboard-object always be getting numeric values for
+its x, y, width, and height?
+1a) If so, what's happening here?
+2) What is the intended interaction between masking and highlighting?
+
+Thanks in advance,
+//JT
+
+
+-- 
+=====================
+Joshua Taylor
+tayloj@cs.rpi.edu, jtaylor@alum.rpi.edu
+
+"A lot of good things went down one time,
+  back in the goodle days."
+    John Hartford
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: capi:draw-pinboard-object with nil x, y, &amp;c., or masking with 
+                  highlights...</h1>
+                 <pre>
+I forgot to include platform.  I'm running LWM 6.0 on Intel.  OS X 10.5.8.
+
+On Fri, Jan 22, 2010 at 2:10 PM, Joshua TAYLOR &lt;tayloj@cs.rpi.edu&gt wrote:
+&gt Hi all, (I think is aimed mainly at the LW folks, but maybe others
+&gt know what's happening here…)
+....
+&gt Thanks in advance,
+&gt //JT
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: capi:draw-pinboard-object with nil x, y, &amp;c., or masking with 
+                  highlights...</h1>
+                 <pre>
+Joshua TAYLOR wrote on Fri, 22 Jan 2010 14:10:01 -0500 22:10:
+
+| I'm trying to use capi:highlight-pinboard-object with some
+| pinboard-object that I've defined...
+| ...snip...|
+| ;; (example :level 2 :highlight :standard) ; (+ NIL NIL) error
+
+No error on LWW 4.4.6.
+
+| ;; (example :level 2 :highlight :invert) ; (+ NIL NIL) error
+
+I do get a similar error.
+
+| ...snip...|
+| 1) Should draw-pinboard-object always be getting numeric values for
+| its x, y, width, and height?
+| 1a) If so, what's happening here?
+
+IMHO, they should not.
+
+The "essential" geometry is always embedded within the pinboard object
+itself. Moreover, these parameters are not documented as obliged for
+capi:draw-pinboard-object-(un)highlighted.
+
+| 2) What is the intended interaction between masking and highlighting?
+
+These concepts works fine together.
+
+For pinboard, I prefer :highlight-style nil. Then I use
+gp:with-graphics-mask in specialized methods on
+capi:draw-pinboard-object-(un)highlighted.
+--
+Sincerely,
+Dmitriy Ivanov
+lisp.ystok.ru
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:36 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

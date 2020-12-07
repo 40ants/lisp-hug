@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Curious?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Curious?</h1><html><head></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space; ">I must be missing something...&nbsp;<div><br></div><div>I defined a macro that defines a macro.&nbsp;<div><br></div><div><div><div><div>(defmacro defwrapper (name args &amp;body body)</div><div>&nbsp; ;; defines a macro that encapsulates its &amp;body arg into a lambda and</div><div>&nbsp; ;; calls a do-it routine with the lambda function. The do-it routine</div><div>&nbsp; ;; contains the bulk of the the wrapper code. And the macro</div><div>&nbsp; ;; generated wrapped code contains only a function call to the doit</div><div>&nbsp; ;; routine.</div><div>&nbsp; (let ((g!fn-name (gensym))</div><div>&nbsp; &nbsp; &nbsp; &nbsp; (g!fn &nbsp; &nbsp; &nbsp;(gensym))</div><div>&nbsp; &nbsp; &nbsp; &nbsp; (g!body &nbsp; &nbsp;(gensym)))</div><div>&nbsp; &nbsp; `(progn</div><div>&nbsp; &nbsp; &nbsp; &nbsp;(defun ,g!fn-name (,@args ,g!fn)</div><div>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;,@(subst `(funcall ,g!fn) '&amp;body body))</div><div>&nbsp; &nbsp; &nbsp; &nbsp;(defmacro ,name ((,@args) &amp;body ,g!body)</div><div>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;`(,',g!fn-name ,,@args (lambda () ,@,g!body))))))</div></div></div></div><div><br></div><div>When I evaluate this macro, and then use the resulting new macro to define another symbol, it works just fine.&nbsp;</div><div><br></div><div><div>(defwrapper with-wrapped-thingy (a b c)</div><div>&nbsp; (let ((ans (startup-fn a)))</div><div>&nbsp; &nbsp; (unwind-protect</div><div>&nbsp; &nbsp; &nbsp; &nbsp; &amp;body ;; &lt;-- this is where a funcall will be placed</div><div>&nbsp; &nbsp; &nbsp; (shutdown ans b c))))</div></div><div><br></div><div>;; and now try to use the new macro</div><div><br></div><div><div>(with-wrapped-thingy (x y z)</div><div>&nbsp; &nbsp; (doit x y z))</div></div><div><br></div><div>==&gt; expands to: &nbsp;(#:G31850 X Y Z (LAMBDA () (DOIT X Y Z)))</div><div><br></div><div>where #:G31850 is the name of the companion do-it function defined by defwrapper for with-wrapped-thingy.</div><div><br></div><div>But if I take the macro expansion of the newly created macro, evaluate it, and then try to apply it to produce a new binding, I get an error that the &amp;body argument in the lambda expression is unbound.<div><br></div><div>The macro expansion for "with-wrapped-thingy" is:</div><div><br></div><div><div>(PROGN</div><div>&nbsp; (DEFUN #:G31872 (A B C #:G31873)</div><div>&nbsp; &nbsp; (LET ((ANS (STARTUP-FN A))) (UNWIND-PROTECT (FUNCALL #:G31873) (SHUTDOWN ANS B C))))</div><div>&nbsp; (DEFMACRO WITH-WRAPPED-THINGY ((A B C) &amp;BODY #:G31874)</div><div>&nbsp; &nbsp; `(#:G31872 ,A ,B ,C (LAMBDA () ,@#:G31874))))</div></div><div><br></div><div>When I evaluate this expansion, and then use WITH-WRAPPED-THINGY, then I get the error:</div><div><br></div><div><div>(with-wrapped-thingy (x y z)</div><div>&nbsp; &nbsp; (doit x y z))</div><div><br></div><div>==&gt; The variable #:G31874 is unbound.</div><div><br></div><div>Eh???</div><div><br></div><div><br></div><div apple-content-edited="true">
+<div style="font-family: Helvetica; ">Dr. David McClain</div><div style="font-family: Helvetica; "><a href="mailto:dbm@refined-audiometrics.com">dbm@refined-audiometrics.com</a></div><div style="font-family: Helvetica; "><br></div><br class="Apple-interchange-newline">
+</div>
+<br></div></div></div></body></html>
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Curious?</h1>
+                 <pre>
+On Wed, Apr 4, 2012 at 3:04 PM, David McClain
+&lt;dbm@refined-audiometrics.com&gt wrote:
+&gt (PROGN
+&gt &nbsp; (DEFUN #:G31872 (A B C #:G31873)
+&gt &nbsp; &nbsp; (LET ((ANS (STARTUP-FN A))) (UNWIND-PROTECT (FUNCALL #:G31873) (SHUTDOWN
+&gt ANS B C))))
+&gt &nbsp; (DEFMACRO WITH-WRAPPED-THINGY ((A B C) &amp;BODY #:G31874)
+&gt &nbsp; &nbsp; `(#:G31872 ,A ,B ,C (LAMBDA () ,@#:G31874))))
+&gt
+&gt When I evaluate this expansion, and then use WITH-WRAPPED-THINGY, then I get
+&gt the error:
+&gt
+&gt (with-wrapped-thingy (x y z)
+&gt &nbsp; &nbsp; (doit x y z))
+&gt
+&gt ==&gt The variable #:G31874 is unbound.
+&gt
+&gt Eh???
+
+When you say you're evaluating that expression, do you mean you're
+actually evaluating that expression (e.g., by hitting C-x C-e in some
+IDEs, copy/pasting into the REPL, etc.)?  The reader syntax
+#:symbol-name produces new uninterned symbols with the given name, so
+#:G31874 and #:G31874 are *different* symbols.  E.g., (running in
+SLIME, so the REPL and warning messages might be formatted a little
+differently)
+
+CL-USER&gt (defun test (#:a)	#:a)
+;Compiler warnings :
+;   In TEST: Undeclared free variable #:A
+;   In TEST: Unused lexical variable #:A
+TEST
+CL-USER&gt (test 1)
+
+The first warning is about the #:a in the function body (it's free)
+and the second is about the #:a in the lambda list (it's never used).
+If you need to type things like this, you can use the #n# notation.
+E.g.,
+
+CL-USER&gt (defun test (#1=#:a) #1#)
+TEST
+CL-USER&gt (test 2)
+2
+
+Is this the issue you're running into?
+
+//JT
+
+-- 
+Joshua Taylor, http://www.cs.rpi.edu/~tayloj/
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:32 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

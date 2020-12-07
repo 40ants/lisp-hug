@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>lisp-hug@xanalys.com</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>lisp-hug@xanalys.com</h1>
+                <pre>I'm getting some annoying extra blank lines when using
+PPRINT-LOGICAL-BLOCK.
+
+I have these definitions:
+
+vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv 
+
+(defparameter *stream* *standard-output*)
+
+(defun test-no-logical-block ()
+  (format *stream* "~&amp;aaaa~%")
+  (format *stream* "~&amp;bbbb~%")
+  (format *stream* "~&amp;cccc~%"))
+
+(defmacro with-pprint-logical-block (&amp;body body)
+  `(pprint-logical-block
+       (*stream*
+        nil
+        :per-line-prefix ";;; ")
+     ,@body))
+
+(defun test-with-logical-block ()
+  (with-pprint-logical-block
+    (test-no-logical-block)))
+
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+TEST-NO-LOGICAL-BLOCK behaves as I expect (# indicates
+printed stuff):
+
+(test-no-logical-block)
+# aaaa
+# bbbb
+# cccc
+-&gt NIL 
+
+
+TEST-WITH-LOGICAL-BLOCK adds annoying extra blank lines
+(FWIW, the behaviour is the same whether *PRINT-PRETTY* is
+True or False.)
+
+(test-with-logical-block)
+# ;;; 
+# ;;; aaaa
+# ;;; 
+# ;;; bbbb
+# ;;; 
+# ;;; cccc
+# ;;; 
+-&gt NIL 
+
+
+Are these extra blank lines permitted or is this a bug?
+
+I'm using LispWorks for Windows, 4.2 and 4.3 Beta.
+
+
+________________________________________________________________________
+This email has been scanned for all viruses by the MessageLabs Email
+Security System. For more information on a proactive email security
+service working around the clock, around the globe, visit
+http://www.messagelabs.com
+________________________________________________________________________
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: lisp-hug@xanalys.com</h1>
+                 <pre>&gt&gt&gt&gt&gt On Fri, 15 Aug 2003 13:32:34 +0100, "Simon Katz" &lt;simon@nomistech.com&gt said:
+
+    Simon&gt I'm getting some annoying extra blank lines when using
+    Simon&gt PPRINT-LOGICAL-BLOCK.
+
+    Simon&gt I have these definitions:
+
+    Simon&gt vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv 
+
+    Simon&gt (defparameter *stream* *standard-output*)
+
+    Simon&gt (defun test-no-logical-block ()
+    Simon&gt   (format *stream* "~&amp;aaaa~%")
+    Simon&gt   (format *stream* "~&amp;bbbb~%")
+    Simon&gt   (format *stream* "~&amp;cccc~%"))
+
+    Simon&gt (defmacro with-pprint-logical-block (&amp;body body)
+    Simon&gt   `(pprint-logical-block
+    Simon&gt        (*stream*
+    Simon&gt         nil
+    Simon&gt         :per-line-prefix ";;; ")
+    Simon&gt      ,@body))
+
+    Simon&gt (defun test-with-logical-block ()
+    Simon&gt   (with-pprint-logical-block
+    Simon&gt     (test-no-logical-block)))
+
+    Simon&gt ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+    Simon&gt TEST-NO-LOGICAL-BLOCK behaves as I expect (# indicates
+    Simon&gt printed stuff):
+
+    Simon&gt (test-no-logical-block)
+    Simon&gt # aaaa
+    Simon&gt # bbbb
+    Simon&gt # cccc
+    -&gt NIL 
+
+
+    Simon&gt TEST-WITH-LOGICAL-BLOCK adds annoying extra blank lines
+    Simon&gt (FWIW, the behaviour is the same whether *PRINT-PRETTY* is
+    Simon&gt True or False.)
+
+    Simon&gt (test-with-logical-block)
+    Simon&gt # ;;; 
+    Simon&gt # ;;; aaaa
+    Simon&gt # ;;; 
+    Simon&gt # ;;; bbbb
+    Simon&gt # ;;; 
+    Simon&gt # ;;; cccc
+    Simon&gt # ;;; 
+    -&gt NIL 
+
+    Simon&gt Are these extra blank lines permitted or is this a bug?
+
+    Simon&gt I'm using LispWorks for Windows, 4.2 and 4.3 Beta.
+
+Try using ~_ (pprint-newline) with and without modifiers instead of
+~&amp;. It probably interacts better with pprint-logical-block.
+
+__Jason
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: PPRINT-LOGICAL-BLOCK question (was lisp-hug@xanalys.com)</h1>
+                 <pre>&gt&gt&gt&gt&gt On Sat, 16 Aug 2003 21:02:34 +0100, "Simon Katz" &lt;simon@nomistech.com&gt said:
+
+    Jason&gt From: "Jason Trenouth" &lt;jason.trenouth@GlobalGraphics.com&gt
+    Jason&gt 
+    Jason&gt Try using ~_ (pprint-newline) with and without modifiers instead of
+    Jason&gt ~&amp;. It probably interacts better with pprint-logical-block.
+
+    Simon&gt Thanks for the suggestion. I've had a look at the Hyperspec and a
+    Simon&gt play, but I don't think ~_ does what I want.
+
+    Simon&gt I'd been hoping to simply add uses of a WITH-INDENTATION macro
+    Simon&gt to existing code so that I could indent blocks of printed output
+    Simon&gt nicely:
+
+
+    Simon&gt (defmacro with-indentation ((stream n &amp;optional (c #\space))
+    Simon&gt                             &amp;body body)
+    Simon&gt   `(pprint-logical-block
+    Simon&gt        (,stream
+    Simon&gt         nil
+    Simon&gt         :per-line-prefix (make-string ,n :initial-element ,c))
+    Simon&gt      ,@body))
+
+
+    Simon&gt Perhaps there's another way to write a WITH-INDENTATION macro?
+    Simon&gt Hmmmm.
+    Simon&gt Perhaps I could define my own stream class that:
+    Simon&gt - knows about the current indentation level
+    Simon&gt - passes output on to a "real" stream
+    Simon&gt - makes modifications according to the current indentation level.
+
+As it happens that's exactly what I did myself in Java on a project.
+
+Prettyprinting is a different (more advanced) concept. It is concerned
+with filling a page with structured output and working out when best
+to put in line breaks. Indenting is then necessary to visually
+associate the parts of the structure after such line breaks.
+
+That said, I have recently used pprint-logical-block to do some
+indenting. I had more success in LW with PPRINT-INDENT than
+:PER-LINE-PREFIX. Unfortunately, the same code in CLISP produced very
+different (and inferior) output.
+
+    Simon&gt When I find time I'll take a look at the documentation for defining
+    Simon&gt ones own streams.
+
+    Simon&gt For the moment I've simply changed my code to get most of what I want
+    Simon&gt in a different (and more hacky) way.
+
+__Jason
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: PPRINT-LOGICAL-BLOCK question (was lisp-hug@xanalys.com)</h1>
+                  <pre>I have a PrettyPrinter implementation in Java.  It implements all of CL 
+API sans the macros.
+
+If anybody is interested I will resurrect it.
+
+It is a porting of CMUCL version
+
+
+Cheers
+
+
+Marco
+
+
+
+
+
+On Wednesday, Aug 27, 2003, at 05:08 America/New_York, Jason Trenouth 
+wrote:
+
+&gt&gt&gt&gt&gt&gt On Sat, 16 Aug 2003 21:02:34 +0100, "Simon Katz" 
+&gt&gt&gt&gt&gt&gt &lt;simon@nomistech.com&gt said:
+&gt
+&gt     Jason&gt From: "Jason Trenouth" &lt;jason.trenouth@GlobalGraphics.com&gt
+&gt     Jason&gt
+&gt     Jason&gt Try using ~_ (pprint-newline) with and without modifiers 
+&gt instead of
+&gt     Jason&gt ~&amp;. It probably interacts better with pprint-logical-block.
+&gt
+&gt     Simon&gt Thanks for the suggestion. I've had a look at the Hyperspec 
+&gt and a
+&gt     Simon&gt play, but I don't think ~_ does what I want.
+&gt
+&gt     Simon&gt I'd been hoping to simply add uses of a WITH-INDENTATION 
+&gt macro
+&gt     Simon&gt to existing code so that I could indent blocks of printed 
+&gt output
+&gt     Simon&gt nicely:
+&gt
+&gt
+&gt     Simon&gt (defmacro with-indentation ((stream n &amp;optional (c #\space))
+&gt     Simon&gt                             &amp;body body)
+&gt     Simon&gt   `(pprint-logical-block
+&gt     Simon&gt        (,stream
+&gt     Simon&gt         nil
+&gt     Simon&gt         :per-line-prefix (make-string ,n :initial-element 
+&gt ,c))
+&gt     Simon&gt      ,@body))
+&gt
+&gt
+&gt     Simon&gt Perhaps there's another way to write a WITH-INDENTATION 
+&gt macro?
+&gt     Simon&gt Hmmmm.
+&gt     Simon&gt Perhaps I could define my own stream class that:
+&gt     Simon&gt - knows about the current indentation level
+&gt     Simon&gt - passes output on to a "real" stream
+&gt     Simon&gt - makes modifications according to the current indentation 
+&gt level.
+&gt
+&gt As it happens that's exactly what I did myself in Java on a project.
+&gt
+&gt Prettyprinting is a different (more advanced) concept. It is concerned
+&gt with filling a page with structured output and working out when best
+&gt to put in line breaks. Indenting is then necessary to visually
+&gt associate the parts of the structure after such line breaks.
+&gt
+&gt That said, I have recently used pprint-logical-block to do some
+&gt indenting. I had more success in LW with PPRINT-INDENT than
+&gt :PER-LINE-PREFIX. Unfortunately, the same code in CLISP produced very
+&gt different (and inferior) output.
+&gt
+&gt     Simon&gt When I find time I'll take a look at the documentation for 
+&gt defining
+&gt     Simon&gt ones own streams.
+&gt
+&gt     Simon&gt For the moment I've simply changed my code to get most of 
+&gt what I want
+&gt     Simon&gt in a different (and more hacky) way.
+&gt
+&gt __Jason
+&gt
+--
+Marco Antoniotti
+NYU Courant Bioinformatics Group		tel. +1 - 212 - 998 3488
+715 Broadway 10th FL				fax. +1 - 212 - 998 3484
+New York, NY, 10003, U.S.A.
+
+
+________________________________________________________________________
+This email has been scanned for all viruses by the MessageLabs Email
+Security System. For more information on a proactive email security
+service working around the clock, around the globe, visit
+http://www.messagelabs.com
+________________________________________________________________________
+
+</pre>
+                 </article>
+                </section>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:55 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

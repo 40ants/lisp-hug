@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>LWM menu-item accelerators...</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>LWM menu-item accelerators...</h1>
+                <pre>
+Hi,
+
+I'm sure you have all already done something like this so if I'm polluting the list with something obvious, please ignore me.
+
+Yesterday I just had to sit down and try to come up with a solution to my "missing accelerators in the LW editor" problem.
+I would like to give certain menu items like "compile buffer" and "compile definitions" a keyboard shortcut, like Command-E, etc.
+Since the menu item names in LWM are not unique (e.g. "Buffers | Compile" and "Definitions | Compile") it's not possible to use the nice OS X feature that let's you map menu items to keyboard shortcuts of your choice. Well, at least I don't know how to do that.
+
+I don't know if this is at all interesting to you but take this for what it's worth... I'm not sure about everything I'm doing here but it seems to work. Although, If somebody has something better or I've missed something obvious I would like to hear about that :)
+
+;;; RIG MENU ITEMS - LWM5.1.2
+(defparameter *rigged-menu-item-accelerators* '(("File"
+                                                 (("Close" "accelerator-shift-w")))
+                                                ("Buffers"
+                                                 (("Compile" "accelerator-h")))
+                                                ("Definitions"
+                                                 (("Compile" "accelerator-return")))
+                                                ("Expression"
+                                                 (("Evaluate Region" "accelerator-shift-e")
+                                                  ("Compile Region" "accelerator-e")))
+                                                ("Window"
+                                                 (("Clone" "accelerator-shift-n")))))
+
+(defun rig-lw-menu-items(self)
+  (dolist (menu (capi:interface-menu-bar-items self))
+    (capi::map-menu-items-recursive menu            
+                                    #'(lambda(item) (when-let (accelerator (second (find (capi:menu-title item)
+                                                                                         (second (find (capi:menu-title menu) 
+                                                                                                       *rigged-menu-item-accelerators*
+                                                                                                       :key #'car :test #'equal))
+                                                                                         :key #'car  :test #'equal)))
+                                                      (setf (capi::menu-item-accelerator item) accelerator
+                                                            (capi-internals:menu-title item) (format () "~a" (capi:menu-title item))))))
+    (capi::update-menu-items-for-accelerator menu)))
+
+(unless (find-method #'capi:interface-display (list :after) (list (find-class 'lw-tools::lispworks-interface)) ())
+  (defmethod capi:interface-display :after ((self lispworks-tools::lispworks-interface))
+    (rig-lw-menu-items self)))
+;;;
+
+
+BTW, as a feature request to Lispworks people: would it be possible give the menu items unique names?  Why not use "Buffers | Compile Buffer" and "Definitions | Compile Definition"? I'd rather use the built-in feature of the OS for this...
+
+
+best regards,
+
+Mika
+
+Dr. Mika Kuuskankare
+Composer, programmer and researcher
+Centre for Music &amp; Technology 
+Sibelius Academy
+
+Henkilökohtainen postiosoite/Personal post address
+PL 342 - PO Box 342
+FIN-00121 Helsinki, FINLAND
+Mobile: +358 (0)40 5415 233 (Finland)
+Skype: mkuuskan
+personal home page: www.siba.fi/~mkuuskan
+project home page: www.siba.fi/PWGL
+
+
+
+
+
+
+
+
+</pre>
+               </article>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:36 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

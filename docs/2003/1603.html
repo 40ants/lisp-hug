@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Problems with grid-layout</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Problems with grid-layout</h1>
+                <pre>I'm trying to implement a capi interface which has a very dynamic
+grid-layout as one of its parts. I set the layout-description of this
+grid-layout this way (where slot-input-pane generates two sub-panes,
+one is a column-layout consisting of a title-pane and a button and one
+is either a grid-layout with complex contents or an empty title-pane):
+
+(defmethod make-edit-lists ((csf customer-select-form))
+  (with-slots (edit edit-lists edit-main edit-buttons edited-customer) csf
+    (let ((alist-panes (loop for things in (customer-alists edited-customer)
+                             for slot = (first things)
+                             append (slot-input-pane csf slot nil))))
+      (setf (layout-description edit-lists) alist-panes))))
+
+This almost works, but sometimes the program crashes while doing
+the (setf layout-description), and I end up with a backtrace like
+the one below.
+
+Any ideas?
+
+Error: In a call to ARRAY-DIMENSION: NIL is not of type ARRAY.
+  1 (abort) Return to event loop.
+
+Type :b for backtrace, :c &lt;option number&gt to proceed,  or :? for other options
+
+CL-USER 1 : 1 &gt :b
+Call to (METHOD CAPI:CALCULATE-CONSTRAINTS (CAPI:GRID-LAYOUT))
+Call to (METHOD CAPI::CALCULATE-INTERNAL-CONSTRAINTS (CAPI::SIMPLE-ELEMENT))
+Call to CLOS::NEXT-METHOD-CALL-1
+Call to (METHOD CAPI::CALCULATE-INTERNAL-CONSTRAINTS :AROUND (CAPI:SIMPLE-PANE))
+Call to (METHOD CAPI::CALCULATE-EXTERNAL-CONSTRAINTS (CAPI::SIMPLE-ELEMENT))
+Call to CLOS::NEXT-METHOD-CALL-1
+Call to CLOS::NEXT-METHOD-CALL-1
+Call to (METHOD CAPI::CALCULATE-EXTERNAL-CONSTRAINTS :AROUND (CAPI:SIMPLE-PANE))
+Call to CAPI-INTERNALS:GET-CONSTRAINTS
+Call to (SUBFUNCTION 3 (METHOD CAPI:CALCULATE-CONSTRAINTS (CAPI:GRID-LAYOUT)))
+Call to CAPI::CALCULATE-GRID-CONSTRAINTS-1
+Call to (METHOD CAPI:CALCULATE-CONSTRAINTS (CAPI:GRID-LAYOUT))
+Call to (METHOD CAPI::CALCULATE-INTERNAL-CONSTRAINTS (CAPI::SIMPLE-ELEMENT))
+Call to CLOS::NEXT-METHOD-CALL-1
+Call to (METHOD CAPI::CALCULATE-INTERNAL-CONSTRAINTS :AROUND (CAPI:SIMPLE-PANE))
+Call to (METHOD CAPI::CALCULATE-EXTERNAL-CONSTRAINTS (CAPI::SIMPLE-ELEMENT))
+Call to CLOS::NEXT-METHOD-CALL-1
+Call to (METHOD CAPI::CALCULATE-EXTERNAL-CONSTRAINTS :AROUND (CAPI::SIMPLE-ELEME
+NT))
+Call to CLOS::NEXT-METHOD-CALL-1
+Call to (METHOD CAPI::CALCULATE-EXTERNAL-CONSTRAINTS :AROUND (CAPI:SIMPLE-PANE))
+Call to CAPI-INTERNALS:GET-CONSTRAINTS
+Call to CAPI::PANE-UPDATE-GEOMETRY-OF-CHILDREN
+Call to (METHOD CAPI:MAP-PANE-CHILDREN (CAPI:LAYOUT T))
+Call to (METHOD CAPI::CHANGE-CHILDREN-GEOMETRY (CAPI::PANE-WITH-CHILDREN))
+Call to (METHOD CAPI:MAP-PANE-CHILDREN (CAPI:LAYOUT T))
+Call to (METHOD CAPI::CHANGE-CHILDREN-GEOMETRY (CAPI::PANE-WITH-CHILDREN))
+Call to (METHOD CAPI:MAP-PANE-CHILDREN (CAPI:LAYOUT T))
+Call to (METHOD CAPI::CHANGE-CHILDREN-GEOMETRY (CAPI::PANE-WITH-CHILDREN))
+Call to (METHOD CAPI:MAP-PANE-CHILDREN (CAPI:LAYOUT T))
+Call to (METHOD CAPI::CHANGE-CHILDREN-GEOMETRY (CAPI::PANE-WITH-CHILDREN))
+Call to (METHOD CAPI::CHANGE-CHILDREN-GEOMETRY (CAPI::PANE-WITH-CHILDREN))
+Call to CAPI::DO-REDISPLAY
+Call to (METHOD CAPI::REDISPLAY (CAPI::PANE-WITH-CHILDREN))
+Call to CLOS::NEXT-METHOD-CALL-1
+Call to (METHOD CAPI-INTERNALS:CAPI-GEOMETRY-CHANGE-CALLBACK (CAPI:INTERFACE T T
+ T T T))
+Call to MP::PROCESS-ALL-EVENTS
+Call to CAPI-MOTIF-LIBRARY::DO-DESTROY
+Call to CAPI::EXECUTE-WITH-INTERFACE-INTERNAL
+Call to CAPI-MOTIF-LIBRARY::PERFORM-WINDOW-DESTROY
+Call to (METHOD CAPI:MAP-PANE-CHILDREN (CAPI:LAYOUT T))
+Call to (METHOD CAPI::IMMEDIATE-DESTROY :AFTER (CAPI::PANE-WITH-CHILDREN))
+Call to (METHOD CAPI:DESTROY (CAPI:SIMPLE-PANE))
+Call to (METHOD CAPI:MAP-PANE-CHILDREN (CAPI:LAYOUT T))
+Call to CAPI::LAYOUT-INSTALL-PANES
+Call to (METHOD CAPI::MAYBE-INSTALL-DESCRIPTION (CAPI:LAYOUT))
+Call to (METHOD CAPI::REDO-LAYOUT (CAPI:LAYOUT))
+Call to (METHOD CAPI::INVALIDATE-PANE-CONSTRAINTS-WITH-CONTROL-OVER-REDISPLAY (C
+API:LAYOUT))
+Call to CAPI::INVALIDATE-PANE-CONSTRAINTS-WITH-REDISPLAY
+Call to CAPI::REDISPLAY-LAYOUT-CREATING-UNMAPPED-CHILDREN
+Call to (METHOD CAPI::SET-LAYOUT-DESCRIPTION (CAPI:LAYOUT T))
+Call to CAPI::EXECUTE-CALLBACK
+Call to CAPI-INTERNALS:LOOP-PROCESS-EVENTS
+Call to CAPI::INTERFACE-EVENT-LOOP
+Call to CAPI::INITIALIZE-AND-PROCESS-EVENTS
+Call to (METHOD CAPI-LIBRARY:INTERFACE-PROCESS-WRAPPER (CAPI-MOTIF-LIBRARY::SCRE
+
+-- 
+  (espen)
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Problems with grid-layout</h1>
+                 <pre>Espen Vestre &lt;ev@netfonds.no&gt writes:
+
+&gt This almost works, but sometimes the program crashes while doing
+&gt the (setf layout-description), and I end up with a backtrace like
+&gt the one below.
+
+It now seems to work o.k. The only change I made was to set the
+layout-description while it was _not_ visible in a switchable
+layout which is its "grandparent". Just luck, or should one always
+use switchable-layouts in cases like this?
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:54 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

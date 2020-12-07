@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Possible compiler bug in zerop/multiple-value-call (LW5.1 Win32)</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Possible compiler bug in zerop/multiple-value-call (LW5.1 Win32)</h1><div>Found this effect - the hard way :(&nbsp;&nbsp; (deep deep under some macros)</div>
+<div>&nbsp;</div>
+<div>(Grenades on plusp too - haven&#39;t tested too much for other functions).</div>
+<div>&nbsp;</div>
+<div>Here is the problem in isolation (LW 5.1 Win32 clean start with default config):</div>
+<div>&nbsp;</div>
+<div><br>CL-USER 1 &gt; (defun test () (zerop (multiple-value-call #&#39;identity 1)))<br>TEST</div>
+<div>CL-USER 2 &gt; (test)<br>NIL</div>
+<div>CL-USER 3 &gt; (compile &#39;test)<br>;;;*** Warning in TEST: Variable F is declared type NIL, but is bound to a value of type NIL<br>TEST<br>((NIL #&lt;CONDITIONS::SIMPLE-STYLE-WARNING 200CFF8B&gt;))<br>NIL</div>
+<div>CL-USER 4 &gt; (test)</div>
+<div>Error: Exception C0000005 [flags 0] at 200DE322 <br>&nbsp;&nbsp;&nbsp;&nbsp; {Offset 104 inside #&lt;Function TEST 200DE2BA&gt;}<br>eax&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 4 ebx 200DE2BA ecx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 100 edx 215A96EB<br>esp 215B8A24 ebp 215B8A3C esi&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 3 edi&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 4<br>
+&nbsp; 1 (abort) Return to level 0.<br>&nbsp; 2 Return to top loop level 0.</div>
+<div>Type :b for backtrace, :c &lt;option number&gt; to proceed,&nbsp; or :? for other options</div>
+<div>CL-USER 5 : 1 &gt;:b<br>Call to TEST<br>Call to EVAL<br>Call to CAPI::CAPI-TOP-LEVEL-FUNCTION<br>Call to CAPI::INTERACTIVE-PANE-TOP-LOOP<br>Call to (SUBFUNCTION MP::PROCESS-SG-FUNCTION MP::INITIALIZE-PROCESS-STACK)</div>
+
+<div>&nbsp;</div>
+<div>&nbsp;</div>
+
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Possible compiler bug in zerop/multiple-value-call (LW5.1 Win32)</h1>
+                 <pre>
+On Wed, Jun 11, 2008 at 12:44:30AM -0500, Matthew Lamari wrote:
+&gt Found this effect - the hard way :(   (deep deep under some macros)
+&gt 
+&gt (Grenades on plusp too - haven't tested too much for other functions).
+&gt 
+&gt Here is the problem in isolation (LW 5.1 Win32 clean start with default
+&gt config):
+&gt 
+&gt CL-USER 1 &gt (defun test () (zerop (multiple-value-call #'identity 1)))
+&gt TEST
+&gt CL-USER 2 &gt (test)
+&gt NIL
+&gt CL-USER 3 &gt (compile 'test)
+&gt ;;;*** Warning in TEST: Variable F is declared type NIL, but is bound to a
+&gt value of type NIL
+&gt TEST
+&gt ((NIL #&lt;CONDITIONS::SIMPLE-STYLE-WARNING 200CFF8B&gt))
+&gt NIL
+&gt CL-USER 4 &gt (test)
+&gt Error: Exception C0000005 [flags 0] at 200DE322
+&gt      {Offset 104 inside #&lt;Function TEST 200DE2BA&gt}
+&gt eax        4 ebx 200DE2BA ecx      100 edx 215A96EB
+&gt esp 215B8A24 ebp 215B8A3C esi        3 edi        4
+&gt   1 (abort) Return to level 0.
+&gt   2 Return to top loop level 0.
+&gt Type :b for backtrace, :c &lt;option number&gt to proceed,  or :? for other
+&gt options
+&gt CL-USER 5 : 1 &gt:b
+&gt Call to TEST
+&gt Call to EVAL
+&gt Call to CAPI::CAPI-TOP-LEVEL-FUNCTION
+&gt Call to CAPI::INTERACTIVE-PANE-TOP-LOOP
+&gt Call to (SUBFUNCTION MP::PROCESS-SG-FUNCTION MP::INITIALIZE-PROCESS-STACK)
+
+Almost identical error in LW for Linux, 5.1 (though not a clean start
+or with default config).
+
+    CL-USER 4 &gt (compile 'test)
+    ;;;*** Warning in TEST: Variable F is declared type NIL, but is bound to a value of type NIL
+    TEST
+    ((NIL #&lt;CONDITIONS::SIMPLE-STYLE-WARNING 2256407F&gt))
+    NIL
+
+    CL-USER 5 &gt (test)
+
+    Error: Segmentation violation(11) [code 0] at 2255DB22
+	 {Offset 104 inside #&lt;Function TEST 2255DABA&gt}
+    eax        4 ; ebx 2255DABA ; ecx      100 ; edx 221DEE17
+    esp 21B5928C ; ebp 21B592A4 ; esi        3 ; edi        4
+      1 (abort) Return to level 0.
+      2 Return to top loop level 0.
+
+    Type :b for backtrace, :c &lt;option number&gt to proceed,  or :? for other options
+
+    CL-USER 6 : 1 &gt :b
+    Call to TEST
+    Call to EVAL
+    Call to CAPI::CAPI-TOP-LEVEL-FUNCTION
+    Call to CAPI::INTERACTIVE-PANE-TOP-LOOP
+    Call to (SUBFUNCTION MP::PROCESS-SG-FUNCTION MP::INITIALIZE-PROCESS-STACK)
+
+-- L
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Possible compiler bug in zerop/multiple-value-call (LW5.1 Win32)</h1>
+                 <pre>
+On Wed, Jun 11, 2008 at 9:20 AM, Larry Clapp &lt;larry@theclapp.org&gt wrote:
+&gt
+&gt On Wed, Jun 11, 2008 at 12:44:30AM -0500, Matthew Lamari wrote:
+&gt&gt Found this effect - the hard way :(   (deep deep under some macros)
+&gt&gt
+&gt&gt (Grenades on plusp too - haven't tested too much for other functions).
+&gt&gt
+&gt&gt Here is the problem in isolation (LW 5.1 Win32 clean start with default
+&gt&gt config):
+&gt&gt
+&gt&gt CL-USER 1 &gt (defun test () (zerop (multiple-value-call #'identity 1)))
+&gt&gt TEST
+&gt&gt CL-USER 2 &gt (test)
+&gt&gt NIL
+&gt&gt CL-USER 3 &gt (compile 'test)
+&gt&gt ;;;*** Warning in TEST: Variable F is declared type NIL, but is bound to a
+&gt&gt value of type NIL
+&gt&gt TEST
+&gt&gt ((NIL #&lt;CONDITIONS::SIMPLE-STYLE-WARNING 200CFF8B&gt))
+&gt&gt NIL
+&gt&gt CL-USER 4 &gt (test)
+&gt&gt Error: Exception C0000005 [flags 0] at 200DE322
+&gt&gt      {Offset 104 inside #&lt;Function TEST 200DE2BA&gt}
+&gt&gt eax        4 ebx 200DE2BA ecx      100 edx 215A96EB
+&gt&gt esp 215B8A24 ebp 215B8A3C esi        3 edi        4
+&gt&gt   1 (abort) Return to level 0.
+&gt&gt   2 Return to top loop level 0.
+&gt&gt Type :b for backtrace, :c &lt;option number&gt to proceed,  or :? for other
+&gt&gt options
+&gt&gt CL-USER 5 : 1 &gt:b
+&gt&gt Call to TEST
+&gt&gt Call to EVAL
+&gt&gt Call to CAPI::CAPI-TOP-LEVEL-FUNCTION
+&gt&gt Call to CAPI::INTERACTIVE-PANE-TOP-LOOP
+&gt&gt Call to (SUBFUNCTION MP::PROCESS-SG-FUNCTION MP::INITIALIZE-PROCESS-STACK)
+&gt
+&gt Almost identical error in LW for Linux, 5.1 (though not a clean start
+&gt or with default config).
+&gt
+&gt    CL-USER 4 &gt (compile 'test)
+&gt    ;;;*** Warning in TEST: Variable F is declared type NIL, but is bound to a value of type NIL
+&gt    TEST
+&gt    ((NIL #&lt;CONDITIONS::SIMPLE-STYLE-WARNING 2256407F&gt))
+&gt    NIL
+&gt
+&gt    CL-USER 5 &gt (test)
+&gt
+&gt    Error: Segmentation violation(11) [code 0] at 2255DB22
+&gt         {Offset 104 inside #&lt;Function TEST 2255DABA&gt}
+&gt    eax        4 ; ebx 2255DABA ; ecx      100 ; edx 221DEE17
+&gt    esp 21B5928C ; ebp 21B592A4 ; esi        3 ; edi        4
+&gt      1 (abort) Return to level 0.
+&gt      2 Return to top loop level 0.
+&gt
+&gt    Type :b for backtrace, :c &lt;option number&gt to proceed,  or :? for other options
+&gt
+&gt    CL-USER 6 : 1 &gt :b
+&gt    Call to TEST
+&gt    Call to EVAL
+&gt    Call to CAPI::CAPI-TOP-LEVEL-FUNCTION
+&gt    Call to CAPI::INTERACTIVE-PANE-TOP-LOOP
+&gt    Call to (SUBFUNCTION MP::PROCESS-SG-FUNCTION MP::INITIALIZE-PROCESS-STACK)
+&gt
+&gt -- L
+&gt
+&gt
+And to round things out, on LWM 5.1 too:
+CL-USER 1 &gt (defun test ()
+              (zerop (multiple-value-call #'identity 1)))
+TEST
+
+CL-USER 2 &gt (test)
+NIL
+
+CL-USER 3 &gt (compile 'test)
+;;;*** Warning in TEST: Variable F is declared type NIL, but is bound
+to a value of type NIL
+TEST
+((NIL #&lt;CONDITIONS::SIMPLE-STYLE-WARNING 200D6FAB&gt))
+NIL
+
+CL-USER 4 &gt (test)
+
+Error: Bus error(10) [code 20ED69E0] at 200EC020
+     {Offset 160 inside TEST}
+  1 (abort) Return to level 0.
+  2 Return to top loop level 0.
+
+Type :b for backtrace, :c &lt;option number&gt to proceed,  or :? for other options
+
+//JT
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Possible compiler bug in zerop/multiple-value-call (LW5.1 Win32)</h1>
+                 <p>
+                  Unable to parse email body. Email id is 8200
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:39 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

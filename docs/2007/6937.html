@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Reference eligibility for garbage collection across a function call</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Reference eligibility for garbage collection across a function call</h1>
+                <pre>
+This may be Win32 specific:
+
+I am wondering if there is a strict definition or understanding around
+of what makes data eligible for garbage collection.  Clearly (as one
+of my examples shows), LW can make an item eligible the last time it
+can possibly be accessed, not necessarily keeping it around in
+"scope".  In my example, I pass a huge list from test2 to test, and in
+the defun example does the list gets cleared mid-function in the
+clean-down.
+
+However, in the defmethod example, the outer test2 function call (or
+something else) seems to keep the parameter eligible for garbage
+collection
+
+What makes the defmethod work differently, and is this phenomenon
+documented anywhere?
+
+Thanks,
+Matt
+
+
+To repeat the phenomenon:
+
+Open up process browser, and make sure mem usage AND VM Size are
+showing for the lispworks IDE.  Note the ram usage beforehand.
+
+
+(declaim (optimize (safety 0) (speed 3) (debug 0)))
+
+
+(defmacro do-compiled (&amp;rest rest)
+  `(funcall
+    (compile
+     nil
+     (lambda ()
+       ,@rest))))
+
+; Example 1
+(do-compiled
+ (defun test (list)
+   (print "Press ENTER to CLEAN-DOWN")
+   (read-line)
+   (hcl:clean-down)
+   (print "Extra memory should be cleared - Press ENTER to EXIT")
+   (read-line))
+
+ (defun test2 ()
+   (hcl:clean-down)
+   (test (make-list 10000000)))
+ )
+
+(test2)
+
+
+
+; Example 2
+
+(do-compiled
+ (defmethod test (list)
+   (print "Press ENTER to CLEAN-DOWN")
+   (read-line)
+   (hcl:clean-down)
+   (print "10000000 element list should still be hogging ram - Press
+ENTER to EXIT")
+   (read-line))
+
+ (defmethod test2 ()
+   (hcl:clean-down)
+   (test (make-list 10000000)))
+ )
+
+(test2)
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Reference eligibility for garbage collection across a function call</h1>
+                 <pre>
+On 2 Sep 2007, at 05:49, Matthew Lamari wrote:
+
+
+&gt
+&gt What makes the defmethod work differently, and is this phenomenon
+&gt documented anywhere?
+&gt
+
+One obvious difference between a normal function and generic function  
+call is what the compiler can know about possible references to  
+objects.  For instance, in something like (the compiled code of)
+
+(defun foo (x) (print "x not referenced"))
+
+It's a pretty safe bet that, well, X is really not referenced by the  
+function.
+
+But that assumption is *not* safe for this:
+
+(defmethod foo (x) (print "x not referenced"))
+
+Because
+
+(defmethod foo :after (x) (format t "~&amp;I lied: x is ~A~%" x))
+
+The only way of *knowing* whether arguments to generic functions are  
+used is knowing all the methods that exist *or might ever exist* for  
+the GF.  Absent sealing, you can never know the latter.
+
+--tim
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Reference eligibility for garbage collection across a function call</h1>
+                 <p>
+                  Unable to parse email body. Email id is 6940
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:42 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

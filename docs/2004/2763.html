@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Lispworks POP interface</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Lispworks POP interface</h1>
+                <pre>     I'm writing a Lispworks email indexing application
+which needs to download email from a POP server.
+Has anybody already written a Lispworks interface to POP?
+I've looked at the open source Allegro imap.cl file which
+interfaces Allegro 6.2 to POP.
+
+Has anybody already tried to convert imap.cl to a Lispworks version?
+imap.cl calls:
+
+(socket:make-socket :remote-host host :remote-port port)
+
+and imap.cl calls:
+
+(send-command-get-results
+     socket
+     command-string
+     untagged-response-function
+     check-for-success-function)
+
+The above might have to be replace by Lispworks calls like:
+
+(with-open-stream (x
+(comm:open-tcp-stream
+host port
+:element-type '(unsigned-byte 8)))
+(write-sequence command-string x)
+(force-output x)
+(let ((response (make-array 20 :element-type 'base-char)))
+(values (read-sequence response x) res)))
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Lispworks POP interface</h1>
+                 <pre>
+On Sep 8, 2004, at 12:43 PM, Lawrence Au wrote:
+
+&gt     I'm writing a Lispworks email indexing application
+&gt which needs to download email from a POP server.
+&gt Has anybody already written a Lispworks interface to POP?
+&gt I've looked at the open source Allegro imap.cl file which
+&gt interfaces Allegro 6.2 to POP.
+
+If you used imap.cl you might want to consider using the acl-compat 
+library that is part of Portable AllegroServe. With this approach you 
+probably won't have to change any of the networking code.
+
+
+Best,
+
+John DeSoi, Ph.D.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Lispworks POP interface</h1>
+                 <pre>On Wed, 8 Sep 2004 12:43:47 -0400, Lawrence Au &lt;laau@erols.com&gt wrote:
+
+&gt     I'm writing a Lispworks email indexing application which needs
+&gt to download email from a POP server.  Has anybody already written a
+&gt Lispworks interface to POP?  I've looked at the open source Allegro
+&gt imap.cl file which interfaces Allegro 6.2 to POP.
+&gt
+&gt Has anybody already tried to convert imap.cl to a Lispworks version?
+&gt imap.cl calls:
+
+I've used Franz' code to implement an application in LispWorks to test
+an IMAP server. IIRC this was rather easy using ACL-COMPAT. You should
+check that first. Let me know if you don't succeed and I'll dig out
+the code I was talking about.
+
+Cheers,
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Lispworks POP interface</h1>
+                 <pre>Lawrence Au wrote:
+
+&gt   I'm writing a Lispworks email indexing application
+&gt which needs to download email from a POP server.
+&gt Has anybody already written a Lispworks interface to POP?
+
+Yes I have.  It has not been roughly tested and right now
+it is copyright.
+If you give it a try you can use it.  If others could
+give it a quick try I would appreciate it.
+
+If I do release it it will be under a BSD license.
+
+You can get it from
+
+http://www3.telus.net/public/whumeniu/cl-email.zip
+
+Wade
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Lispworks POP interface</h1>
+                 <pre>Lawrence Au &lt;laau@erols.com&gt writes:
+
+&gt Has anybody already written a Lispworks interface to POP?
+
+yes, it's rather toyish (it's really a part of my personal
+spam-fighting software), but maybe I should clean it a little up and
+release it?
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Lispworks POP interface</h1>
+                 <pre>Espen Vestre &lt;ev@netfonds.no&gt writes:
+
+&gt yes, it's rather toyish (it's really a part of my personal
+&gt spam-fighting software), but maybe I should clean it a little up and
+&gt release it?
+
+oh well, no time for that, I'll just paste the relevant part of
+the code here. I hope it can serve as a useful starting point!
+
+(defun crlf-read-line (stream)
+  (let ((foo (read-line stream nil nil)))
+    (when foo
+      (string-trim '(#\Return) foo))))
+
+(defun pop-prompt (stream)
+  (force-output stream)
+  (let ((line (read-line stream nil nil)))
+    (unless line
+      (error "Timeout for ~a" stream))
+    (case (elt line 0)
+      (#\- (error "Error from pop server: ~a" line))
+      (#\+ line)
+      (otherwise (error "Unexpected response rom pop server: ~a" line)))))
+
+(defun connect-to-server (pop-server username password)
+  (let ((pop (comm:open-tcp-stream pop-server 110
+                              :direction :io
+                              :element-type 'base-char
+                              :read-timeout 10)))
+    (pop-prompt pop)
+    (format pop "user ~a~%" username)
+    (pop-prompt pop)
+    (format pop "pass ~a~%" password)
+    (pop-prompt pop)
+    pop))
+
+(defun new-mail-listing (pop-server username password)
+  (with-open-stream (pop (connect-to-server pop-server username password))
+    (format pop "list~%")
+    (pop-prompt pop)
+    (prog1 (loop for line = (crlf-read-line pop)
+                 while (and line (not (equal line ".")))
+                 collect line)
+      (format pop "quit~%"))))
+
+(defun new-mails (pop)
+  (format pop "list~%")
+  (pop-prompt pop)
+  (loop for line = (crlf-read-line pop)
+        while (and line (not (equal line ".")))
+        collect (parse-integer line :junk-allowed t)))
+
+(defmacro with-pop-connection ((stream pop-server username password)
+                               &amp;body body)
+  `(with-open-stream (,stream (connect-to-server ,pop-server ,username 
+                                             ,password))
+     (prog1
+         (progn
+           ,@body)
+       (format ,stream "quit~%"))))
+
+(defun get-headers (message)
+  (loop with plist = nil
+        with prev = nil
+        for string in message
+        for rest-message on message
+        while (not (equal string ""))
+        for kolon = (and (alphanumericp (elt string 0))
+                         (position #\: string))
+        do
+        (if kolon
+            (let ((header (intern (string-upcase (subseq string 0 kolon))
+                                  :keyword))
+                  (value (ignore-errors
+                           (subseq string (+ kolon 2)))))
+              (setf (getf plist header)
+                    (concatenate 'string (getf plist header) value))
+              (setf prev header))
+          (setf (getf plist prev)
+                (concatenate 'string (getf plist prev) string)))
+        finally return (values plist rest-message)))
+
+
+(defun delete-mail (pop number)
+  (format pop "dele ~a~%" number)
+  (pop-prompt pop))
+
+
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Lispworks POP interface</h1>
+                 <pre>Lawrence Au schrieb:
+
+&gt I'm writing a Lispworks email indexing application
+&gt which needs to download email from a POP server.
+&gt Has anybody already written a Lispworks interface to POP?
+&gt I've looked at the open source Allegro imap.cl file which
+&gt interfaces Allegro 6.2 to POP.
+&gt
+&gt Has anybody already tried to convert imap.cl to a Lispworks version?
+
+
+Yes I tried it and it seems that it works using ACL-COMPAT.
+
+It might be interesting for you (and maybe others?)
+that I plan to open source my email system called "Mel" which consists
+of ~ 10000 LOC under a BSD style license soon.
+
+It contains implementations of POP3, IMAP, Maildir, SMTP, MIME 
+(including multipart stuff).
+
+I'm over writing an article series for a German magazine about it.
+
+ciao,
+Jochen Schmidt
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Lispworks POP interface</h1>
+                 <pre>&gt    I'm writing a Lispworks email indexing application
+&gtwhich needs to download email from a POP server.
+&gtHas anybody already written a Lispworks interface to POP?
+
+CL-HTTP has a POP3 interface in its distribution. It
+also works with LispWorks.
+
+
+&gtI've looked at the open source Allegro imap.cl file which
+&gtinterfaces Allegro 6.2 to POP. 
+&gt
+&gtHas anybody already tried to convert imap.cl to a Lispworks version?
+&gtimap.cl calls:
+&gt
+&gt(socket:make-socket :remote-host host :remote-port port)
+&gt
+&gtand imap.cl calls:
+&gt
+&gt(send-command-get-results
+&gt    socket
+&gt    command-string
+&gt    untagged-response-function
+&gt    check-for-success-function)
+&gt
+&gtThe above might have to be replace by Lispworks calls like:
+&gt
+&gt(with-open-stream (x
+&gt(comm:open-tcp-stream
+&gthost port
+&gt:element-type '(unsigned-byte 8)))
+&gt(write-sequence command-string x)
+&gt(force-output x)
+&gt(let ((response (make-array 20 :element-type 'base-char)))
+&gt(values (read-sequence response x) res)))
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:51 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

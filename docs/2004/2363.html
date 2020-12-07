@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>(defmacro ... &amp;environment env)</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>(defmacro ... &amp;environment env)</h1>
+                <pre>Hi,
+
+I have a question concerning the usage of the &amp;environment arg, in 
+order to find out about the kind of the var that is passed to the macro 
+(print-var-kind &lt;var&gt).
+
+I succeed in finding out, if it is :lexical, :special or 
+:assumed-special, only the last run of (test4 5) doesn't work. I would 
+like to see in the result that the variable is :lexical, or even better 
+:shadowed.
+
+But it seems that the data I find in the  "venv" of the environment 
+does not allow me to make this distinction between test1 and test4.
+
+On the other hand, test5 correctly detects the shadowing and identifies 
+a to :lexical, since in the venv list (stack?) there are two entries 
+for a. The function var-kind could easily be extended to identify it as 
+:shadowed.
+
+Well, again unfortunately this does not work for global special vars!
+I probably should not dare to write this, but is it really correct that 
+in the case of test4, x is considered special? What I am I missing to 
+find out better??
+
+I hope I have expressed myself clearly enough, I am not a 
+computer-scientist.... Please tell me, if you need more detailed 
+information.
+
+Thanks anyway for listening,
+
+	Peter
+
+------
+This is my code:
+
+(defun find-var-in-env (name env)
+   (find name (slot-value env 'compiler::venv)
+         :key #'(lambda (venv) (slot-value venv 'compiler::name))))
+
+(defun var-kind (name env)
+   (let ((info (find-var-in-env name env)))
+     (values
+      (if (null info)
+          :assumed-special
+        (if (slot-value info 'compiler::specialp)
+            :special
+          :lexical))
+      info)))
+
+(defmacro print-var-kind (var &amp;environment env)
+   (let ((var-kind (var-kind var env)))
+     `(progn
+        (format t "~s: ~s" ',var ,var-kind)
+        ,var)))
+
+(defvar x 3) ; one might forget to name it *x*...
+
+(defun test1 (a)
+   "a is lexicall"
+   (print-var-kind a))
+
+(defun test2 ()
+   "x is declared special"
+   (declare (special x))
+   (print-var-kind x))
+
+(defun test3 ()
+   "x is assumed special"
+   (print-var-kind x))
+
+(defun test4 (x)
+   "x is special, but shadowed lexically"
+   (print-var-kind x))
+
+(defun test5 ()
+   (let (a)
+     (declare (special a))
+     (let ((a 100))
+       (print-var-kind a))))
+
+;--------------------------------------
+
+CL-USER 23 &gt (test1 5)
+A: :LEXICAL
+5
+
+CL-USER 24 &gt (test2)
+X: :SPECIAL
+3
+
+CL-USER 25 &gt (test3)
+X: :ASSUMED-SPECIAL
+3
+
+CL-USER 26 &gt (test4 5)
+X: :SPECIAL
+5
+
+CL-USER 28 &gt (test5)
+A: :LEXICAL
+100
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: (defmacro ... &amp;environment env)</h1>
+                 <pre>
+There's a subtle distinction between shadowing a variable and dynamically
+binding a variable.
+
+It's first important to distinguish between the name of a variable,
+the variable itself, and the current place where its value is stored.
+
+Variables are named by lisp symbols.  Those symbols are not themselves 
+the variables, but merely serve to name them.
+
+At any given point in the code the compiler (or interpreter) knows
+where the value of any given variable is stored.  This location might
+be a register, on the stack or in memory.
+
+When a symbol naming a non-special variable appears in a new binding 
+context (e.g. as a LET variable or in the formal parameters of a function), 
+that variable shadows other variables of the same name while lexically 
+within that binding context.  Within the lexical context that name will
+refer to that variable unless also within a narrower lexical context in 
+which the variable is shadowed.
+
+When a symbol naming a special variable appears in a binding context, 
+it establishes a new dynamic binding for that same variable.
+
+When a variable is shadowed, that means that there's some other variable 
+with the same name which will be found instead when the compiler (or
+interpreter) looks for a variable by that name.  The shadowing variable 
+and the shadowed variable are different variables even though they are
+named by the same lisp symbol.
+
+When a variable is dymanically bound (as in TEST4), that means that a 
+new container for storing the value of that variable has been associated
+with that variable and this association will persist for, and no longer 
+than, the extent of that dynamic ebvironment.
+
+
+I don't know that I've explained it all that well, but I hope it's 
+helpful.
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:52 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

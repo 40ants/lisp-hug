@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Frustrations with popup-confirmer</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Frustrations with popup-confirmer</h1>
+                <pre>
+Hello all
+    I'd like someone to tell me what stupidity I'm committing with the
+following code. I have a simple interface I want to wrap in a
+popup-confirmer and my implementations for :value-function and
+:ok-check will not enable the OK button. The code below will not
+run on it's own but hopefully it's simple enough for someone to
+spot my error. Note that it appears that although I call
+redisplay-interface on changes the value-function and ok-check do not
+appear to be called ...
+
+	cheers
+
+		Andrew
+
+;---------------------------------------------------------------------
+; INTERFACE SHEETS-SEARCH-PRESENTER
+;---------------------------------------------------------------------
+
+(define-interface sheet-search-presenter ()
+  ()
+  (:panes
+   (tp-search title-pane :text "Search"
+              :visible-min-width 80)
+   (tip-search text-input-pane
+               :accessor tip-search
+               :visible-min-width 160
+               :change-callback #'cb-on-change-search)
+   (mclp-sheets multi-column-list-panel
+                :accessor mlcp-sheets
+                :columns '((:title "Title"))
+                :selection-callback #'cb-on-selection
+                :column-function #'(lambda (sheet) (list (title sheet)))
+                :visible-min-height 200))
+  (:layouts
+   (column-main column-layout '(row-search mclp-sheets))
+   (row-search row-layout '(tp-search tip-search)
+               :y-adjust :center))
+  (:default-initargs
+   :layout 'column-main))
+
+;(display (make-instance 'sheet-search-presenter))
+
+(defmethod initialize-instance :after ((ifc sheet-search-presenter) &amp;rest args)
+  (set-matching-sheets "" (mlcp-sheets ifc)))
+
+(defun cb-on-change-search (text pane ifc pos)
+  (set-matching-sheets (text-input-pane-text (tip-search ifc))
+                       (mlcp-sheets ifc))
+  (redisplay-interface ifc))
+
+(defun cb-on-selection (data ifc)
+  (redisplay-interface ifc))
+
+(defun set-matching-sheets (query pane)
+  (let ((matches (loop :for sheet :in (sheets *sheet-db*)
+                       :if (matches-query sheet query)
+                       :collect sheet)))
+    (setf (collection-items pane)
+          (if matches
+            (make-array (list (length matches)) :initial-contents matches)
+            #()))))
+
+;---------------------------------------------------------------------
+; POPUP-CONFIRMER SHEET-SEARCH-PRESENTER
+;---------------------------------------------------------------------
+
+(defun search-for-sheet ()
+  (popup-confirmer (make-instance 'sheet-search-presenter)
+                   "Select a sheet"
+                   :modal nil
+                   :value-function #'sheet-value-function
+                   :ok-check #'sheet-ok-check-function))
+
+;; Simply returns the selected item or nil
+(defun sheet-value-function (ifc)
+  (aif (sel (choice-selected-item (mlcp-sheets ifc)))
+       sel nil))
+
+;; Passes through the result of sheet-value-function which should
+;; if I've read the manual be enough to change the enabled state
+;; of the OK button
+(defun sheet-ok-check-function (val)
+  (format t "hello")
+  val)
+
+;(search-for-sheet)
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Frustrations with popup-confirmer</h1>
+                 <pre>
+Telepathy.  I was struggling with exactly the same issues 15 minutes 
+ago.
+
+One thing that is missing in your code is the second value for 
+:value-function.  But I must say that that by itself will probably not 
+work as expected yet.
+
+Cheers
+--
+Marco
+
+
+
+On Dec 30, 2005, at 12:26 PM, Andrew Lawson wrote:
+
+&gt
+&gt Hello all
+&gt     I'd like someone to tell me what stupidity I'm committing with the
+&gt following code. I have a simple interface I want to wrap in a
+&gt popup-confirmer and my implementations for :value-function and
+&gt :ok-check will not enable the OK button. The code below will not
+&gt run on it's own but hopefully it's simple enough for someone to
+&gt spot my error. Note that it appears that although I call
+&gt redisplay-interface on changes the value-function and ok-check do not
+&gt appear to be called ...
+&gt
+&gt 	cheers
+&gt
+&gt 		Andrew
+&gt
+&gt ;---------------------------------------------------------------------
+&gt ; INTERFACE SHEETS-SEARCH-PRESENTER
+&gt ;---------------------------------------------------------------------
+&gt
+&gt (define-interface sheet-search-presenter ()
+&gt   ()
+&gt   (:panes
+&gt    (tp-search title-pane :text "Search"
+&gt               :visible-min-width 80)
+&gt    (tip-search text-input-pane
+&gt                :accessor tip-search
+&gt                :visible-min-width 160
+&gt                :change-callback #'cb-on-change-search)
+&gt    (mclp-sheets multi-column-list-panel
+&gt                 :accessor mlcp-sheets
+&gt                 :columns '((:title "Title"))
+&gt                 :selection-callback #'cb-on-selection
+&gt                 :column-function #'(lambda (sheet) (list (title 
+&gt sheet)))
+&gt                 :visible-min-height 200))
+&gt   (:layouts
+&gt    (column-main column-layout '(row-search mclp-sheets))
+&gt    (row-search row-layout '(tp-search tip-search)
+&gt                :y-adjust :center))
+&gt   (:default-initargs
+&gt    :layout 'column-main))
+&gt
+&gt ;(display (make-instance 'sheet-search-presenter))
+&gt
+&gt (defmethod initialize-instance :after ((ifc sheet-search-presenter) 
+&gt &amp;rest args)
+&gt   (set-matching-sheets "" (mlcp-sheets ifc)))
+&gt
+&gt (defun cb-on-change-search (text pane ifc pos)
+&gt   (set-matching-sheets (text-input-pane-text (tip-search ifc))
+&gt                        (mlcp-sheets ifc))
+&gt   (redisplay-interface ifc))
+&gt
+&gt (defun cb-on-selection (data ifc)
+&gt   (redisplay-interface ifc))
+&gt
+&gt (defun set-matching-sheets (query pane)
+&gt   (let ((matches (loop :for sheet :in (sheets *sheet-db*)
+&gt                        :if (matches-query sheet query)
+&gt                        :collect sheet)))
+&gt     (setf (collection-items pane)
+&gt           (if matches
+&gt             (make-array (list (length matches)) :initial-contents 
+&gt matches)
+&gt             #()))))
+&gt
+&gt ;---------------------------------------------------------------------
+&gt ; POPUP-CONFIRMER SHEET-SEARCH-PRESENTER
+&gt ;---------------------------------------------------------------------
+&gt
+&gt (defun search-for-sheet ()
+&gt   (popup-confirmer (make-instance 'sheet-search-presenter)
+&gt                    "Select a sheet"
+&gt                    :modal nil
+&gt                    :value-function #'sheet-value-function
+&gt                    :ok-check #'sheet-ok-check-function))
+&gt
+&gt ;; Simply returns the selected item or nil
+&gt (defun sheet-value-function (ifc)
+&gt   (aif (sel (choice-selected-item (mlcp-sheets ifc)))
+&gt        sel nil))
+&gt
+&gt ;; Passes through the result of sheet-value-function which should
+&gt ;; if I've read the manual be enough to change the enabled state
+&gt ;; of the OK button
+&gt (defun sheet-ok-check-function (val)
+&gt   (format t "hello")
+&gt   val)
+&gt
+&gt ;(search-for-sheet)
+&gt
+--
+Marco Antoniotti					http://bioinformatics.nyu.edu/~marcoxa
+NYU Courant Bioinformatics Group		tel. +1 - 212 - 998 3488
+715 Broadway 10th FL				fax. +1 - 212 - 998 3484
+New York, NY, 10003, U.S.A.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Frustrations with popup-confirmer</h1>
+                 <p>
+                  Unable to parse email body. Email id is 5107
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:46 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

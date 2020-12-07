@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>List Buffers command in MacOS X editor</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>List Buffers command in MacOS X editor</h1>
+                <pre>
+Hello,
+
+When in buffers list pane after executing  "List Buffers" command in  
+the editor (macosx only, on windows it works), i can navigate with  
+keyboard arrow keys, but cannot switch to the selected buffer by  
+pressing a key (tried Enter, Return, Space, Hyper-o, Control-o and  
+about any other shortcut). I can only switch to a buffer by  
+doubleclicking. Do you experience this also? Is there a workaround/ 
+fix? Does it drive you crazy?
+
+
+Thank you, Denis.
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: List Buffers command in MacOS X editor</h1>
+                 <pre>
+
+On Oct 9, 2007, at 2:52 PM, Denis Mashkevich wrote:
+
+&gt Do you experience this also?
+
+yes
+
+&gt Is there a workaround/fix?
+
+Normally on Mac OS X one cycles editor *windows* with command-`.  
+Unfortunately by default, LispWorks opens new editor buffers in the  
+same window which is very un-mac-like and really annoying. One  
+workaround is to bind control-` to cycle buffers so I can cycle though  
+*buffers* in one window as I would cycle through editor *windows* in a  
+standard mac text editing application:
+
+(editor:bind-key "Circulate Buffers" #\control-\` :global :mac)
+
+Alternatively, use System Preferences:Keyboard &amp; Mouse:Keyboard  
+Shortcuts to bind something like command-shift-n to Editor (from the  
+menu Window:Tools:Editor - but only enter the last bit in Keyboard  
+Shortcuts, not the whole menu path). Then you can use this keyboard  
+shortcut to create a new editor window and *then* open your file in  
+it. This way each file is associated with it's own editor window.
+
+Sadly, even this doesn't work 100% reliably - for some reason  
+LispWorks will need you to cycle windows or click in the menu bar  
+before issuing this key command to get it to work. Other times there's  
+no problem.
+
+Or you can just not buck the system and use circulate buffers bound to  
+the keystroke of your choice as above.
+
+&gt Does it drive you crazy?
+
+
+yes - can you tell? ;^)
+
+regards,
+
+Ralph
+
+
+Raffael Cavallaro, Ph.D.
+raffaelcavallaro@mac.com
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: List Buffers command in MacOS X editor</h1>
+                 <pre>
+
+On Oct 9, 2007, at 2:52 PM, Denis Mashkevich wrote:
+
+&gt When in buffers list pane after executing  "List Buffers" command  
+&gt in the editor (macosx only, on windows it works), i can navigate  
+&gt with keyboard arrow keys, but cannot switch to the selected buffer  
+&gt by pressing a key (tried Enter, Return, Space, Hyper-o, Control-o  
+&gt and about any other shortcut). I can only switch to a buffer by  
+&gt doubleclicking. Do you experience this also? Is there a workaround/ 
+&gt fix? Does it drive you crazy?
+
+I filed a bug report for this in 2004 (IMPACT: Annoying :).
+
+My solution was to develop an editor function that pops up a menu of  
+buffers. This supports type-ahead, arrow keys, and return key to select.
+
+
+
+John DeSoi, Ph.D.
+http://pgedit.com/
+Power Tools for PostgreSQL
+
+
+
+=====
+
+(defun select-buffer-popup-menu (window)
+   (let* ((bufs (loop for b in *buffer-list*
+                      unless (buffer-flag b)
+                      collect b))
+          (pane (window-text-pane window))
+          (owner (capi:top-level-interface pane)))
+     (setf bufs (delete-if (lambda (x) (eq (elt (buffer-name x) 0) # 
+\*)) bufs)) ;like *message buffer*
+     (setf bufs (sort bufs #'string&lt; :key #'buffer-name))
+     (unless (eq (type-of owner) 'lw-tools:editor) ;so this can be  
+used by any type of edit area
+       (setf owner (capi:find-interface 'lw-tools:editor)
+             pane (capi:editor-pane owner)
+             window (capi:editor-window pane)))
+     (capi:execute-with-interface
+      owner
+      'capi:display-popup-menu
+      (make-instance 'capi:menu :items bufs
+                     :print-function (lambda (b) (if (buffer-modified b)
+                                                   (string-append  
+(buffer-name b) " *")
+                                                   (buffer-name b)))
+                     :callback (lambda (x) (process-character (list  
+'change-to-buffer x window) window))
+                     :callback-type :data)
+      :owner owner)))
+
+
+
+(defcommand "My Select Buffer" (p)
+   "Select a buffer from a popup menu of active buffers. Use up/down  
+arrow keys to change items, Return to select, and Escape to cancel."
+   (declare (ignore p))
+   (let ((win (or (current-window) (first (buffer-windows (current- 
+buffer))))))
+     (if (not win)
+       (message "Can't find window interface")
+       (select-buffer-popup-menu win))))
+
+
+(bind-key "My Select Buffer" #\F3 :global :mac)
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: List Buffers command in MacOS X editor</h1>
+                 <p>
+                  Unable to parse email body. Email id is 7043
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Finding bounds of graphics port drawing</h1>
+                  <pre>
+I would like to find the bounds of objects drawn in a graphics port. It
+looks like gp:get-bounds should do that, but in the example below, only nil
+is returned. I thought it would return the bounding rectangle of the line
+drawn in the pane.
+
+Mitch
+
+(capi:define-interface test-bounds ()
+  ()
+  (:panes
+   (opane capi:output-pane))
+  (:layouts
+   (row1 capi:row-layout
+         '(opane)
+         :visible-min-width 200
+         :visible-min-height 200))
+  (:default-initargs
+   :layout 'row1))
+
+(capi:display (setf xxx (make-instance 'test-bounds)))
+
+(gp:draw-line (slot-value xxx 'opane) 10 10 50 50)
+
+(gp:get-bounds (slot-value xxx 'opane))
+
+&gt NIL NIL NIL NIL
+
+
+</pre>
+                 </article>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>RE: Finding bounds of graphics port drawing</h1>
+                   <pre>
+I see now that I need to use gp:with-pixmap-graphics-port.
+
+Mitch
+
+
+</pre>
+                  </article>
+                  <section class=tree>
+                   <article class=email>
+                    <h1>gp:get-bounds does not account for pen thickness when specified in drawing 
+                     function</h1>
+                    <pre>
+gp:get-bounds does not account for the pen thickness when calculating the
+bounds of a drawn entity if the thickness is specifed as a keyword in the
+drawing function.  It does take it into account if the thickness is changed
+in the graphics state of the port. Here is an example with lines of two
+different thicknesses specified in the draw function.
+
+Mitch
+
+(gp:with-pixmap-graphics-port (p1 (slot-value xxx 'opane) 200 200 :relative
+t)
+  (gp:draw-line p1 0 10 10 10
+                :thickness 1 :line-end-style :round :line-joint-style
+:round)
+  (multiple-value-bind (left top right bottom) (gp:get-bounds p1)
+    (format t "line thickness = 1 -&gt~%left = ~A~%top = ~A~%right =
+~A~%bottom = ~A~%-----------~%" left top right bottom))
+  (gp:clear-graphics-port p1)
+  (gp:draw-line p1 0 10 10 10
+                :thickness 20 :line-end-style :round :line-joint-style
+:round)
+  (multiple-value-bind (left top right bottom) (gp:get-bounds p1)
+    (format t "line thickness = 20 -&gt~%left = ~A~%top = ~A~%right =
+~A~%bottom = ~A~%-----------~%" left top right bottom)))
+
+&gt line thickness = 1 -&gt
+left = 0
+top = 10
+right = 12
+bottom = 12
+-----------
+line thickness = 20 -&gt
+left = 0
+top = 10
+right = 12
+bottom = 12
+-----------
+NIL
+
+
+</pre>
+                   </article>
+                  </section>
+                 </section>
+                </section>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:41 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

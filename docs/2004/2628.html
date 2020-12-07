@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Troubles using open-pipe</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Troubles using open-pipe</h1>
+                <pre>I am opening a pipe between my lisp app and a shell program. The program 
+reads from stdin and prints to stdout. The problem is that the program 
+doesn't print until the stdin stream is closed, and I can't figure out a 
+way to close the pipe (a bidirectional-stream of sorts) in only one 
+direction.  My code is
+
+#| ignore typos |#
+(setf stream (sys:open-pipe *my-app-path* :direction :io))
+(write-line "some stuff" stream)
+(write-line "some more stuff" stream)
+;; this is where I would need to close the ouput-stream
+(write-char #\eot stream) ;;my attempt
+(read-line stream)
+
+One thing I had tried was to manually (write-char #\eot stream) which (i 
+believe) puts an end-of-file character into the stream, but that *seems* 
+to be caught by lispworks which closes off the stream completely and 
+allows no more reading or writing...  strangely enough, however... if I 
+set the program to redirect output to a file, and still try the 
+(write-char #\eot stream), nothing is ever printed to the file.  It does 
+work if I redirect to file and run (close stream) instead, but then I 
+can no longer read from the stream, so that is not a good enough solution.
+
+Thanks!
+
+Andrew
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Troubles using open-pipe</h1>
+                 <pre>Andrew Shilliday wrote:
+&gt I am opening a pipe between my lisp app and a shell program. The program 
+&gt reads from stdin and prints to stdout. The problem is that the program 
+&gt doesn't print until the stdin stream is closed, and I can't figure out a 
+&gt way to close the pipe (a bidirectional-stream of sorts) in only one 
+&gt direction.  My code is
+&gt 
+&gt #| ignore typos |#
+&gt (setf stream (sys:open-pipe *my-app-path* :direction :io))
+&gt (write-line "some stuff" stream)
+&gt (write-line "some more stuff" stream)
+&gt ;; this is where I would need to close the ouput-stream
+&gt (write-char #\eot stream) ;;my attempt
+&gt (read-line stream)
+&gt 
+
+do
+
+(force-output stream)
+or
+
+(finish-output stream)
+
+see
+
+http://www.lispworks.com/reference/HyperSpec/Body/f_finish.htm
+
+Closing the stream will force the output to be sent and thus has the
+same affect.
+
+Wade
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Troubles using open-pipe</h1>
+                 <pre>
+On Jul 20, 2004, at 6:38 PM, Andrew Shilliday wrote:
+
+&gt I am opening a pipe between my lisp app and a shell program. The 
+&gt program reads from stdin and prints to stdout. The problem is that the 
+&gt program doesn't print until the stdin stream is closed, and I can't 
+&gt figure out a way to close the pipe (a bidirectional-stream of sorts) 
+&gt in only one direction.  My code is
+
+I don't know if this is related or not, but I reported a bug in January 
+where I/O with open-pipe on OS X seems to hang indefinitely until you 
+click the mouse on any window. Below is a test program that illustrates 
+this issue. I just tested with 4.3.7 on a dual 1.8 G5 running OS X 
+10.3.4. It stops after about 300 lines until I click the mouse on the 
+listener window. Last time I tested, it would never hang on my G4 
+PowerBook.
+
+Best,
+
+John DeSoi, Ph.D.
+
+
+
+(defun test (&amp;optional (lines 1000))
+   (let ((s (system:open-pipe "/bin/csh" :direction :io :buffered t))
+         (in (with-output-to-string (input)
+               (loop for i from 1 to lines do
+                     (write-line (format nil "echo '~d 0123456789 
+01234567890 0123456789 0123456789'" i) input)))))
+     (with-input-from-string (input in)
+       (loop for line = (read-line input nil nil)
+             while line do
+             (write-line line s)
+             (finish-output s)
+             (princ (read-as-string s)))
+       (close s)
+       (values))))
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:51 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Multithreading on multiple processor machine ...</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Multithreading on multiple processor machine ...</h1>
+                <pre>
+Is Lispworks set up to make use of multiple processors?  I'm testing  
+a multithreaded application on couple of machines (one with two  
+processors and one with a single one) and there doesn't seem to be  
+any difference in performance.  I sort of expected the dual processor  
+machine to be faster, but maybe things don't work that way or maybe  
+I'm using the mp package incorrectly ...
+
+I don't have to use process-allow-scheduling explicitly in my code,  
+right?  sleep should allow other processes to run too, right? All my  
+threads are created with process-run-function, but the main thread is  
+also being used for processing.
+
+I'm running within Lispworks version 5.0 environment using default  
+image with all the patches under OS X 10.4.11.
+
+Thanks for your help.
+
+-- Magda 
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Multithreading on multiple processor machine ...</h1>
+                 <pre>
+On Tue, 15 Jan 2008 18:23:16 -0500, Magdalena Bugajska &lt;magda@aic.nrl.navy.mil&gt wrote:
+
+&gt Is Lispworks set up to make use of multiple processors?
+
+No, not in the sense that several processors (or cores) can run Lisp
+code from the same image at the same time:
+
+  http://www.lispworks.com/documentation/lw50/LWUG/html/lwuser-192.htm
+
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Multithreading on multiple processor machine ...</h1>
+                 <pre>
+
+Magdalena Bugajska &lt;magda@aic.nrl.navy.mil&gt writes:
+&gt Is there any chance that it ever will? Seems like everything has
+&gt multiple processors in it nowadays ...
+
+You'll need to ask LispWorks, but I don't believe they have committed
+to that feature.
+
+&gt But I guess that explains the purpose of process-allow- 
+&gt scheduling ...  
+
+Not really. P-A-S is similar to pthread_yield in Posix threads and
+allows a thread to explicitly and voluntary be interrupted instead of
+waiting for the scheduler to do it.
+
+&gt Although given that I have none in my program currently, that means
+&gt that something else also controls interrupts.  What are the
+&gt conditions under which processes are interrupted?  
+
+To first order, it's the same conditions that allow any thread to be
+interrupted.  Commonly, it will be because the current thread/process
+time slice has expired.
+
+&gt I.e. what determines the output of the following program?
+&gt (let ((listener *standard-output*)) (mp:process-run-function
+&gt "helloer" nil #'(lambda () (dotimes (n 100000) (format listener "~A"
+&gt hello)))) (dotimes (n 100000) (format listener "~A" 'bye)))
+
+The scheduler determines the output.  And in general HELLO will be
+mixed in with BYE.  Here's my example with some time wasting code in
+the middle:
+
+    (defun run-2 (how-many)
+      (let ((listener *standard-output*)) 
+        (mp:process-run-function "helloer" nil 
+                                 #'(lambda () (dotimes (n how-many)
+                                                (format listener "hello ")
+                                                (fact 100))))
+        (dotimes (n how-many) 
+          (format listener "bye ")
+          (fact 10000))
+        (sleep 1)
+        (format listener"~&amp;")))
+
+    (defun fact (n)
+      (if (&lt; n 2)
+          1
+          (* n (fact (1- n)))))
+
+Try (run-2 100) 
+
+Cheers,
+Chris Dean
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:41 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

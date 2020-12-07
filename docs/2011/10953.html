@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Cannot make tree-view display updated values - gets error</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Cannot make tree-view display updated values - gets error</h1>
+                <pre>
+I make a capi:tree-view like this
+
+ 
+(capi:contain (make-instance 'capi:tree-view 
+                             :roots (mapcar (lambda (n) (make-instance
+'capi:item :data n)) '(1 2 3 4)) 
+                             :callback-type :item-element 
+                             :action-callback 'edit-item 
+                             :print-function 'print-it)))
+
+(defun edit-item (item element) 
+  (incf (capi:item-data item)) 
+  (capi:redisplay-collection-item element item))
+
+(defun print-it (x) 
+  (format nil "Value: ~A" (capi:item-data x)))
+
+When I double-click an item, I expect its value to increase by 1, and to be
+redisplayed. But I get
+
+Error: Exception C0000005 [flags 0] at 20803BC2 
+     {Offset 40 inside #&lt;Function 1 subfunction of (TOP-LEVEL-FORM 3)
+20803B9A&gt}
+eax       56 ebx       18 ecx      306 edx  1EACC74
+esp  35FE528 ebp  35FE628 esi        2 edi 20803B9A
+  1 (abort) Return to event loop.
+  2 Destroy interface "Container" (of type CAPI:INTERFACE)
+
+Call to ERROR
+Call to WIN32::SIGNAL-EXCEPTION-ERROR
+Call to (METHOD CAPI-LIBRARY:REPRESENTATION-UPDATE-TREE-VIEW-REDISPLAY-ITEMS
+(CAPI-WIN32-LIB::R-TREE-VIEW T))
+Call to (METHOD CAPI::UPDATE-REPRESENTATION :AFTER (CAPI::TREE-VIEW-MIXING
+T))
+Call to CLOS::METHOD-COMBINATION-TEMPLATE
+Call to CAPI::DO-REDISPLAY
+Call to (METHOD CAPI::REDISPLAY (CAPI::PANE-WITH-CHILDREN))
+Interpreted call to EDIT-ITEM
+Call to CAPI::EXECUTE-CALLBACK
+Call to CAPI:EXECUTE-WITH-INTERFACE
+Call to (SUBFUNCTION 1 (WIN32:DEFINE-COMMON-CONTROL-FUNCTION
+CAPI-WIN32-LIB::R-TREE-VIEW WIN32::NM_DBLCLK))
+Call to WIN32::WND-PROC
+Call to (SUBFUNCTION WIN32::|%FOREIGN-CALLABLE/wnd_proc_callback|
+(FLI:DEFINE-FOREIGN-CALLABLE "wnd_proc_callback"))
+Call to FLI::FOREIGN-CALLABLE-ENTRY-POINT-AUX-NESTED
+Call to WIN32::CALL-WINDOW-PROC$RAW
+Call to WIN32::WND-PROC
+
+If I inspect the tree-view roots, I find that the value of the
+double-clicked item has indeed been increased by 1. If I remove the call to
+capi:redisplay-collection-item, then the value is increased, but not
+redisplayed; the tree looks the same all the time.
+
+This is the smallest example I've been able to find for reproducing this. I
+have a capi:tree-view where some of the items are changed either by the
+program, or by the user via an action and a callback like in this example. I
+cannot make the tree-view display the updated value. Whatever I do I get
+this exception.  I may be doing something wrong, but what? 
+
+LWW 6.0.1
+
+
+Eivind
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Cannot make tree-view display updated values - gets error</h1>
+                 <pre>
+Eivind Midtgård wrote on Tue, 26 Apr 2011 18:22:12 +0200 20:22:
+
+| ...snip...|
+| (defun edit-item (item element)
+|   (incf (capi:item-data item))
+|   (capi:redisplay-collection-item element item))
+
+I would recommend trying capi:tree-view-update-an-item instead.
+
+| When I double-click an item, I expect its value to increase by 1, and
+| to be redisplayed. But I get
+|
+| Error: Exception C0000005 [flags 0] at 20803BC2
+| ...snip...|
+| LWW 6.0.1
+
+Strange but works fine on LWW 4.4.6 after changing only the following line
+  :callback-type '(:item :collection).
+--
+Sincerely,
+Dmitriy Ivanov
+lisp.ystok.ru
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:34 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

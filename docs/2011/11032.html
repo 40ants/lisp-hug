@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Can not (delete) last remaining element from a list</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Can not (delete) last remaining element from a list</h1>
+                <pre>Hello,
+
+I have a class with a list of streams :
+
+(defclass server ()
+	((streams :accessor streams :initform ())))
+
+
+When a new stream is registered, the stream is pushed on the list:
+
+	(push stream (streams server))
+
+
+When a stream is discarded, it is deleted:
+
+	(delete stream (streams server))
+
+
+All works well, I can add and remove elements.
+But when the list reaches one remaining element, this element is never removed:
+For example if I have the streams list as:
+
+(#&lt;COMM:SOCKET-STREAM 200939FB&gt)
+
+And I remove #&lt;COMM:SOCKET-STREAM 200939FB&gt.
+The result of (delete) returns nil - as expected - but my server's slot 'streams has still the element I wish to remove.
+
+I feel like I am missing something trivial.
+Can someone help me understand what is going wrong?
+
+
+Best,
+Camille
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Can not (delete) last remaining element from a list</h1>
+                 <pre>
+On Tue, May 31, 2011 at 11:58, Camille Troillard &lt;camille@osculator.net&gt wrote:
+&gt Hello,
+&gt
+&gt I have a class with a list of streams :
+&gt
+&gt (defclass server ()
+&gt &nbsp; &nbsp; &nbsp; &nbsp;((streams :accessor streams :initform ())))
+&gt
+&gt
+&gt When a new stream is registered, the stream is pushed on the list:
+&gt
+&gt &nbsp; &nbsp; &nbsp; &nbsp;(push stream (streams server))
+&gt
+&gt
+&gt When a stream is discarded, it is deleted:
+&gt
+&gt &nbsp; &nbsp; &nbsp; &nbsp;(delete stream (streams server))
+&gt
+&gt
+&gt All works well, I can add and remove elements.
+
+You are discarding the updated field value. It's only by chance that
+it appears to work for all but the last element.
+
+Use instead: (setf (streams server) (delete stream (streams server))
+or something equivalent.
+
+Cheers
+P.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Can not (delete) last remaining element from a list</h1>
+                 <pre>
+Camille Troillard &lt;camille@osculator.net&gt writes:
+
+&gt Hello,
+&gt
+&gt I have a class with a list of streams :
+&gt
+&gt (defclass server ()
+&gt 	((streams :accessor streams :initform ())))
+&gt
+&gt
+&gt When a new stream is registered, the stream is pushed on the list:
+&gt
+&gt 	(push stream (streams server))
+&gt
+&gt
+&gt When a stream is discarded, it is deleted:
+&gt
+&gt 	(delete stream (streams server))
+&gt
+&gt
+&gt All works well, I can add and remove elements.
+&gt But when the list reaches one remaining element, this element is never removed:
+&gt For example if I have the streams list as:
+&gt
+&gt (#&lt;COMM:SOCKET-STREAM 200939FB&gt)
+&gt
+&gt And I remove #&lt;COMM:SOCKET-STREAM 200939FB&gt.
+&gt The result of (delete) returns nil - as expected - but my server's slot 'streams has still the element I wish to remove.
+&gt
+&gt I feel like I am missing something trivial.
+&gt Can someone help me understand what is going wrong?
+&gt
+&gt
+&gt Best,
+&gt Camille
+
+Destructive functions are not meant to be called for their side-effects.
+They are destructive for reasons of efficiency. That means you should
+use the return value of a destructive function and not count on any
+modification of the argument(s). E.g.
+
+(setf (streams server) (delete stream (streams server)))
+
+Ansi Common Lisp by Paul Graham have a nice section about this (12.4 on
+p. 201) and incidentally uses delete as an example.
+
+Nico
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Can not (delete) last remaining element from a list</h1>
+                 <pre>
+Camille Troillard &lt;camille@osculator.net&gt writes:
+
+&gt On 31 mai 2011, at 15:18, Nico de Jager wrote:
+&gt
+&gt&gt Destructive functions are not meant to be called for their side-effects.
+&gt&gt They are destructive for reasons of efficiency. That means you should
+&gt&gt use the return value of a destructive function and not count on any
+&gt&gt modification of the argument(s). E.g.
+&gt&gt 
+&gt&gt (setf (streams server) (delete stream (streams server)))
+&gt&gt 
+&gt&gt Ansi Common Lisp by Paul Graham have a nice section about this (12.4 on
+&gt&gt p. 201) and incidentally uses delete as an example.
+&gt
+&gt Thank you very much Nico for the reference to the book.
+&gt I'll read that.
+&gt
+&gt Actually I got confused because I believed that delete was updating a
+&gt "place", in the spirit of what (push) does.
+
+Also, delete is a function, not a macro.
+
+
+&gt Someone kindly pointed out that I've misinterpreted the spec, and that
+&gt delete updates the given argument, not a place.
+
+It is important to understand that delete is not required to modify the
+argument, and even if it does, the argument (after the call) and the
+result may not be the same. The CLHS entry for delete states (emphasis
+added by me): 
+
+"delete item sequence &amp;key from-end test test-not start end count key
+=&gt result-sequence"
+
+"delete, delete-if, and delete-if-not are like remove, remove-if, and
+remove-if-not respectively, but they _may_ modify sequence."
+
+and
+
+"... delete, delete-if, and delete-if-not return a sequence of the same
+type as sequence that has the same elements except that those in the
+subsequence bounded by start and end and satisfying the test have been
+deleted. Sequence may be destroyed and used to construct the result;
+however, the result _might_ or _might_ _not_ be identical to sequence."
+
+Nico
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Can not (delete) last remaining element from a list</h1>
+                 <pre>
+Camille Troillard &lt;camille@osculator.net&gt writes:
+
+&gt On 31 mai 2011, at 15:18, Nico de Jager wrote:
+&gt
+&gt&gt Destructive functions are not meant to be called for their side-effects.
+&gt&gt They are destructive for reasons of efficiency. That means you should
+&gt&gt use the return value of a destructive function and not count on any
+&gt&gt modification of the argument(s). E.g.
+&gt&gt 
+&gt&gt (setf (streams server) (delete stream (streams server)))
+&gt&gt 
+&gt&gt Ansi Common Lisp by Paul Graham have a nice section about this (12.4 on
+&gt&gt p. 201) and incidentally uses delete as an example.
+&gt
+&gt Thank you very much Nico for the reference to the book.
+&gt I'll read that.
+&gt
+&gt Actually I got confused because I believed that delete was updating a
+&gt "place", in the spirit of what (push) does.  Someone kindly pointed
+&gt out that I've misinterpreted the spec, and that delete updates the
+&gt given argument, not a place.
+
+You could define a modify macro:
+
+    (defun delete* (seq item &amp;rest keys &amp;key &amp;allow-other-keys)
+       (apply (function delete)  item seq keys))
+
+    (define-modify-macro deletef (place item &amp;rest keys) delete*
+      "Delete the ITEM from the sequence at PLACE.  
+    Notice the order of the first two parameters is inversed with respect to
+    DELETE.")
+
+
+So you can write:
+
+    (deletef (streams server) stream)
+
+
+
+
+Note also that your original code wasn't conforming, because
+implementations are allowed to define DELETE as:
+
+    (defun delete (item seq &amp;rest keys &amp;key &amp;allow-other-keys)
+       (apply (function remove) item seq keys))
+
+so just calling most destructive CL functions may have strictly no side
+effect.
+
+-- 
+__Pascal Bourguignon__                     http://www.informatimago.com/
+A bad day in () is better than a good day in {}.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Can not (delete) last remaining element from a list</h1>Camille,<div><br></div><div>Sounds like others already sorted this out for you. But I&#39;ll just add that there is a nice discussion and some examples comparing delete and remove in Practical Common Lisp too that I found helpful in conjunction with ANSI Common Lisp and the Hyperspec referenced earlier: <a href="http://www.gigamonkeys.com/book/they-called-it-lisp-for-a-reason-list-processing.html">http://www.gigamonkeys.com/book/they-called-it-lisp-for-a-reason-list-processing.html</a> (its about halfway down the referenced page).</div>
+<div><br></div><div>Best,</div><div><br></div><div>Lang<br><br><div class="gmail_quote">On Tue, May 31, 2011 at 6:19 AM, Camille Troillard <span dir="ltr">&lt;<a href="mailto:camille@osculator.net">camille@osculator.net</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex;"><div class="im"><br>
+On 31 mai 2011, at 15:18, Nico de Jager wrote:<br>
+<br>
+&gt; Destructive functions are not meant to be called for their side-effects.<br>
+&gt; They are destructive for reasons of efficiency. That means you should<br>
+&gt; use the return value of a destructive function and not count on any<br>
+&gt; modification of the argument(s). E.g.<br>
+&gt;<br>
+&gt; (setf (streams server) (delete stream (streams server)))<br>
+&gt;<br>
+&gt; Ansi Common Lisp by Paul Graham have a nice section about this (12.4 on<br>
+&gt; p. 201) and incidentally uses delete as an example.<br>
+<br>
+</div>Thank you very much Nico for the reference to the book.<br>
+I&#39;ll read that.<br>
+<br>
+Actually I got confused because I believed that delete was updating a &quot;place&quot;, in the spirit of what (push) does.  Someone kindly pointed out that I&#39;ve misinterpreted the spec, and that delete updates the given argument, not a place.<br>
+
+<br>
+<br>
+Best Regards,<br>
+<font color="#888888">Camille<br>
+<br>
+</font></blockquote></div><br></div>
+
+
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:34 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

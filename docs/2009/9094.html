@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Creating your own radio group?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Creating your own radio group?</h1>
+                <pre>
+Hello,
+
+I have an interface which displays several instances of one data model
+object. It is very convenient to represent this layout by extending a
+CAPI grid class, and having multiple instances of this layout. That
+works fine.
+
+Now I wanted to create radio buttons to select which of the objects is
+active, and store the active button boolean value inside each object.
+Thus, I have several boolean variables that need to be updated through
+radio buttons, and the buttons need to be logically grouped together
+like for regular radio button panel, but displayed manually.
+
+I tried but it seems that displaying buttons from CAPI radio button
+panel in separate layouts does not work. So I need my own radio group
+which can be laid out anywhere. I decided to use capi:choice as base.
+
+The solution below seems to work otherwise, but for some reason the
+old radio button does not seem to get disabled. The actual data
+boolean gets updated correctly, however. I tried this both with and
+without capi:apply-in-current-pane-process, that does not seem to
+change anything. Even stranger is that if I update the button manually
+with
+
+    (setf (capi:button-selected radio1) t)
+
+(or nil) the button image gets updated.
+
+Am I doing something wrong?
+
+I am running LW5.11 on OSX.
+
+Best regards,
+
+Mikko Ahonen
+
+--
+
+(defvar *foo* nil)
+(defvar *bar* t)
+(defvar *foobar* nil)
+
+(defmacro with-gensyms (syms &amp;body body)
+  `(let ,(mapcar #'(lambda (s)
+                     `(,s (gensym)))
+                 syms)
+    ,@body))
+
+(defun radio-group-reset-other-buttons (group other-than-pane)
+  (loop for item across (capi:collection-items group)
+        do (unless (eq other-than-pane item)
+             (format t "unselect ~A~%" item)
+             (funcall (capi:callbacks-retract-callback item) item)
+             (setf (capi:button-selected item) nil))))
+
+(defmacro radio (name txt var group)
+  (with-gensyms (selected rb)
+    `(let ((,rb (make-instance 'capi:radio-button
+                               :selection-callback #'(lambda (pane)
+                                                       (format t "~A
+selection callback~%" pane)
+                                                       (setf ,var t)
+                                                       (setf
+(capi:choice-selected-item ,group) pane)
+
+(radio-group-reset-other-buttons ,group pane))
+                               :retract-callback #'(lambda (pane)
+                                                     (format t "~A
+retract callback~%" pane)
+                                                     (setf ,var nil))
+                               :callback-type '(:item)
+                               :text ,txt
+                               :selected ,var)))
+           (capi:append-items ,group (list ,rb))
+           (when ,var
+             (setf (capi:choice-selected-item ,group) ,rb))
+           ,rb)))
+
+(defmacro radio-group (&amp;rest args)
+    `(make-instance 'capi:choice
+                    :interaction :single-selection
+                    :items '()
+                    ,@args))
+
+(setf g (radio-group))
+
+(setf radio1 (radio :foo "Foo" *foo* g))
+
+(setf radio2 (radio :bar "Bar" *bar* g))
+
+(setf radio3 (radio :foobar "Foobar" *foobar* g))
+
+(capi:contain (make-instance 'capi:column-layout :description (list
+radio1 radio2 radio3)))
+
+(list *foo* *bar* *foobar*)
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Creating your own radio group?</h1>
+                 <p>
+                  Unable to parse email body. Email id is 9100
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Creating your own radio group?</h1>
+                 <pre>
+Hello,
+
+Thanks a lot for your example.
+
+It seems going through all panes in the interface gets quite slow when
+the interface is deep, i.e. I have several levels of layouts inside
+each other. In my interface your example was perceptibly slow for
+human eye.
+
+Perhaps I should try to avoid deep interfaces? It is just very useful
+way to develop things as components, which can be easily tested
+separately and located as groups in containers.
+
+But your example helped me to realize that using capi:layout for what
+I was doing was not such a good idea. I used my own class and it seems
+to work well.
+
+Btw, thanks for the excellent product! I have been programming with LW
+(and Lisp) for perhaps 8 months now, and more I get used to it, more I
+like it. It seems that libraries are very well thought out. The
+learning curve for Lisp beginners is quite steep, though, but well
+worth it.
+
+Best regards,
+
+Mikko Ahonen
+
+On Mon, Mar 30, 2009 at 8:15 PM,  &lt;davef@lispworks.com&gt wrote:
+&gt
+&gt Try this:
+&gt
+&gt ----------------------------------------------------------------------
+&gt (defun button (i &amp;optional selected)
+&gt &nbsp;(make-instance 'capi:radio-button :data i :text (format nil "r~D" i)
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; :selected selected
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; :selection-callback 'callback
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; :callback-type :data-interface))
+&gt
+&gt (defun text (i &amp;optional enabled)
+&gt &nbsp;(make-instance 'capi:text-input-pane :title (format nil "t~D" i) :enabled enabled))
+&gt
+&gt (capi:define-interface buttons-and-text ()
+&gt &nbsp;((radio-buttons :initarg :radio-buttons)
+&gt &nbsp; (text-panes :initarg :text-panes))
+&gt &nbsp;(:layouts
+&gt &nbsp; (grid
+&gt &nbsp; &nbsp;capi:grid-layout
+&gt &nbsp; &nbsp;(append radio-buttons text-panes)
+&gt &nbsp; &nbsp;:columns 2
+&gt &nbsp; &nbsp;:y-gap 20
+&gt &nbsp; &nbsp;:accessor grid)))
+&gt
+&gt (defun callback (data interface)
+&gt &nbsp;(loop for pane in (capi:layout-description (grid interface))
+&gt &nbsp; &nbsp; &nbsp; &nbsp;do
+&gt &nbsp; &nbsp; &nbsp; &nbsp;(etypecase pane
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(capi:radio-button
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (unless (eq (capi:item-data pane) data)
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (setf (capi:button-selected pane) nil)))
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(capi:text-input-pane
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (setf (capi:text-input-pane-enabled pane)
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (string= (capi:titled-pane-title pane) (format nil "t~D" data)))))))
+&gt
+&gt (let* ((r1 (button 1))
+&gt &nbsp; &nbsp; &nbsp; (r2 (button 2 t))
+&gt &nbsp; &nbsp; &nbsp; (r3 (button 3))
+&gt &nbsp; &nbsp; &nbsp; (r4 (button 4))
+&gt &nbsp; &nbsp; &nbsp; (t1 (text 1))
+&gt &nbsp; &nbsp; &nbsp; (t2 (text 2 t))
+&gt &nbsp; &nbsp; &nbsp; (t3 (text 3))
+&gt &nbsp; &nbsp; &nbsp; (t4 (text 4))
+&gt &nbsp; &nbsp; &nbsp; (grid (make-instance
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;'buttons-and-text
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;:radio-buttons (list r1 r2 r3 r4)
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;:text-panes (list t1 t2 t3 t4))))
+&gt &nbsp; &nbsp;(capi:display grid))
+&gt ----------------------------------------------------------------------
+&gt
+&gt The enabled/disabled state of the text panes is the "boolean"
+&gt controlled by each corresponding radio button.
+&gt
+&gt Hopefully this example will help you to implement the layout and
+&gt interaction you actually want.
+&gt
+&gt --
+&gt Dave Fox
+&gt LispWorks Ltd
+&gt St John's Innovation Centre, Cowley Road
+&gt Cambridge CB4 0WS
+&gt England
+&gt http://www.lispworks.com/
+&gt
+&gt LispWorks Ltd is registered in England, company number 5114963. &nbsp;The
+&gt company's registered address is c/o Streets Whitmarsh Sterland LLP,
+&gt 62 Hills Road, Cambridge CB2 1LA (but customers and suppliers should
+&gt write to our office address above). &nbsp;LispWorks Ltd is registered for
+&gt VAT with EC VAT ID: GB 833329531
+&gt
+&gt
+&gt
+&gt &nbsp;&gt Hello,
+&gt &nbsp;&gt
+&gt &nbsp;&gt I have an interface which displays several instances of one data model
+&gt &nbsp;&gt object. It is very convenient to represent this layout by extending a
+&gt &nbsp;&gt CAPI grid class, and having multiple instances of this layout. That
+&gt &nbsp;&gt works fine.
+&gt &nbsp;&gt
+&gt &nbsp;&gt Now I wanted to create radio buttons to select which of the objects is
+&gt &nbsp;&gt active, and store the active button boolean value inside each object..
+&gt &nbsp;&gt Thus, I have several boolean variables that need to be updated through
+&gt &nbsp;&gt radio buttons, and the buttons need to be logically grouped together
+&gt &nbsp;&gt like for regular radio button panel, but displayed manually.
+&gt &nbsp;&gt
+&gt &nbsp;&gt I tried but it seems that displaying buttons from CAPI radio button
+&gt &nbsp;&gt panel in separate layouts does not work. So I need my own radio group
+&gt &nbsp;&gt which can be laid out anywhere. I decided to use capi:choice as base..
+&gt &nbsp;&gt
+&gt &nbsp;&gt The solution below seems to work otherwise, but for some reason the
+&gt &nbsp;&gt old radio button does not seem to get disabled. The actual data
+&gt &nbsp;&gt boolean gets updated correctly, however. I tried this both with and
+&gt &nbsp;&gt without capi:apply-in-current-pane-process, that does not seem to
+&gt &nbsp;&gt change anything. Even stranger is that if I update the button manually
+&gt &nbsp;&gt with
+&gt &nbsp;&gt
+&gt &nbsp;&gt &nbsp; &nbsp; (setf (capi:button-selected radio1) t)
+&gt &nbsp;&gt
+&gt &nbsp;&gt (or nil) the button image gets updated.
+&gt &nbsp;&gt
+&gt &nbsp;&gt Am I doing something wrong?
+&gt &nbsp;&gt
+&gt &nbsp;&gt I am running LW5.11 on OSX.
+&gt &nbsp;&gt
+&gt &nbsp;&gt Best regards,
+&gt &nbsp;&gt
+&gt &nbsp;&gt Mikko Ahonen
+&gt &nbsp;&gt
+&gt &nbsp;&gt --
+&gt &nbsp;&gt
+&gt &nbsp;&gt (defvar *foo* nil)
+&gt &nbsp;&gt (defvar *bar* t)
+&gt &nbsp;&gt (defvar *foobar* nil)
+&gt &nbsp;&gt
+&gt &nbsp;&gt (defmacro with-gensyms (syms &amp;body body)
+&gt &nbsp;&gt &nbsp; `(let ,(mapcar #'(lambda (s)
+&gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;`(,s (gensym)))
+&gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;syms)
+&gt &nbsp;&gt &nbsp; &nbsp; ,@body))
+&gt &nbsp;&gt
+&gt &nbsp;&gt (defun radio-group-reset-other-buttons (group other-than-pane)
+&gt &nbsp;&gt &nbsp; (loop for item across (capi:collection-items group)
+&gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; do (unless (eq other-than-pane item)
+&gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(format t "unselect ~A~%" item)
+&gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(funcall (capi:callbacks-retract-callback item) item)
+&gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(setf (capi:button-selected item) nil))))
+&gt &nbsp;&gt
+&gt &nbsp;&gt (defmacro radio (name txt var group)
+&gt &nbsp;&gt &nbsp; (with-gensyms (selected rb)
+&gt &nbsp;&gt &nbsp; &nbsp; `(let ((,rb (make-instance 'capi:radio-button
+&gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;:selection-callback #'(lambda (pane)
+&gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(format t "~A
+&gt &nbsp;&gt selection callback~%" pane)
+&gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(setf ,var t)
+&gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(setf
+&gt &nbsp;&gt (capi:choice-selected-item ,group) pane)
+&gt &nbsp;&gt
+&gt &nbsp;&gt (radio-group-reset-other-buttons ,group pane))
+&gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;:retract-callback #'(lambda (pane)
+&gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(format t "~A
+&gt &nbsp;&gt retract callback~%" pane)
+&gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(setf ,var nil))
+&gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;:callback-type '(:item)
+&gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;:text ,txt
+&gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;:selected ,var)))
+&gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(capi:append-items ,group (list ,rb))
+&gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(when ,var
+&gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(setf (capi:choice-selected-item ,group) ,rb))
+&gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;,rb)))
+&gt &nbsp;&gt
+&gt &nbsp;&gt (defmacro radio-group (&amp;rest args)
+&gt &nbsp;&gt &nbsp; &nbsp; `(make-instance 'capi:choice
+&gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; :interaction :single-selection
+&gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; :items '()
+&gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ,@args))
+&gt &nbsp;&gt
+&gt &nbsp;&gt (setf g (radio-group))
+&gt &nbsp;&gt
+&gt &nbsp;&gt (setf radio1 (radio :foo "Foo" *foo* g))
+&gt &nbsp;&gt
+&gt &nbsp;&gt (setf radio2 (radio :bar "Bar" *bar* g))
+&gt &nbsp;&gt
+&gt &nbsp;&gt (setf radio3 (radio :foobar "Foobar" *foobar* g))
+&gt &nbsp;&gt
+&gt &nbsp;&gt (capi:contain (make-instance 'capi:column-layout :description (list
+&gt &nbsp;&gt radio1 radio2 radio3)))
+&gt &nbsp;&gt
+&gt &nbsp;&gt (list *foo* *bar* *foobar*)
+&gt &nbsp;&gt
+&gt
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Creating your own radio group?</h1>
+                 <pre>
+Hi Mikko,
+
+Do you mean that it is slow to display on the screen, slow to resize or
+something else?
+
+Regards,
+
+Martin Simmons
+LispWorks Ltd
+http://www.lispworks.com/
+
+
+&gt&gt&gt&gt&gt On Tue, 31 Mar 2009 04:07:29 +0300, Mikko Ahonen said:
+&gt 
+&gt Hello,
+&gt 
+&gt Thanks a lot for your example.
+&gt 
+&gt It seems going through all panes in the interface gets quite slow when
+&gt the interface is deep, i.e. I have several levels of layouts inside
+&gt each other. In my interface your example was perceptibly slow for
+&gt human eye.
+&gt 
+&gt Perhaps I should try to avoid deep interfaces? It is just very useful
+&gt way to develop things as components, which can be easily tested
+&gt separately and located as groups in containers.
+&gt 
+&gt But your example helped me to realize that using capi:layout for what
+&gt I was doing was not such a good idea. I used my own class and it seems
+&gt to work well.
+&gt 
+&gt Btw, thanks for the excellent product! I have been programming with LW
+&gt (and Lisp) for perhaps 8 months now, and more I get used to it, more I
+&gt like it. It seems that libraries are very well thought out. The
+&gt learning curve for Lisp beginners is quite steep, though, but well
+&gt worth it.
+&gt 
+&gt Best regards,
+&gt 
+&gt Mikko Ahonen
+&gt 
+&gt On Mon, Mar 30, 2009 at 8:15 PM,  &lt;davef@lispworks.com&gt wrote:
+&gt &gt
+&gt &gt Try this:
+&gt &gt
+&gt &gt ----------------------------------------------------------------------
+&gt &gt (defun button (i &amp;optional selected)
+&gt &gt &nbsp;(make-instance 'capi:radio-button :data i :text (format nil "r~D" i)
+&gt &gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; :selected selected
+&gt &gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; :selection-callback 'callback
+&gt &gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; :callback-type :data-interface))
+&gt &gt
+&gt &gt (defun text (i &amp;optional enabled)
+&gt &gt &nbsp;(make-instance 'capi:text-input-pane :title (format nil "t~D" i) :enabled enabled))
+&gt &gt
+&gt &gt (capi:define-interface buttons-and-text ()
+&gt &gt &nbsp;((radio-buttons :initarg :radio-buttons)
+&gt &gt &nbsp; (text-panes :initarg :text-panes))
+&gt &gt &nbsp;(:layouts
+&gt &gt &nbsp; (grid
+&gt &gt &nbsp; &nbsp;capi:grid-layout
+&gt &gt &nbsp; &nbsp;(append radio-buttons text-panes)
+&gt &gt &nbsp; &nbsp;:columns 2
+&gt &gt &nbsp; &nbsp;:y-gap 20
+&gt &gt &nbsp; &nbsp;:accessor grid)))
+&gt &gt
+&gt &gt (defun callback (data interface)
+&gt &gt &nbsp;(loop for pane in (capi:layout-description (grid interface))
+&gt &gt &nbsp; &nbsp; &nbsp; &nbsp;do
+&gt &gt &nbsp; &nbsp; &nbsp; &nbsp;(etypecase pane
+&gt &gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(capi:radio-button
+&gt &gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (unless (eq (capi:item-data pane) data)
+&gt &gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (setf (capi:button-selected pane) nil)))
+&gt &gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(capi:text-input-pane
+&gt &gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (setf (capi:text-input-pane-enabled pane)
+&gt &gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (string= (capi:titled-pane-title pane) (format nil "t~D" data)))))))
+&gt &gt
+&gt &gt (let* ((r1 (button 1))
+&gt &gt &nbsp; &nbsp; &nbsp; (r2 (button 2 t))
+&gt &gt &nbsp; &nbsp; &nbsp; (r3 (button 3))
+&gt &gt &nbsp; &nbsp; &nbsp; (r4 (button 4))
+&gt &gt &nbsp; &nbsp; &nbsp; (t1 (text 1))
+&gt &gt &nbsp; &nbsp; &nbsp; (t2 (text 2 t))
+&gt &gt &nbsp; &nbsp; &nbsp; (t3 (text 3))
+&gt &gt &nbsp; &nbsp; &nbsp; (t4 (text 4))
+&gt &gt &nbsp; &nbsp; &nbsp; (grid (make-instance
+&gt &gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;'buttons-and-text
+&gt &gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;:radio-buttons (list r1 r2 r3 r4)
+&gt &gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;:text-panes (list t1 t2 t3 t4))))
+&gt &gt &nbsp; &nbsp;(capi:display grid))
+&gt &gt ----------------------------------------------------------------------
+&gt &gt
+&gt &gt The enabled/disabled state of the text panes is the "boolean"
+&gt &gt controlled by each corresponding radio button.
+&gt &gt
+&gt &gt Hopefully this example will help you to implement the layout and
+&gt &gt interaction you actually want.
+&gt &gt
+&gt &gt --
+&gt &gt Dave Fox
+&gt &gt LispWorks Ltd
+&gt &gt St John's Innovation Centre, Cowley Road
+&gt &gt Cambridge CB4 0WS
+&gt &gt England
+&gt &gt http://www.lispworks.com/
+&gt &gt
+&gt &gt LispWorks Ltd is registered in England, company number 5114963. &nbsp;The
+&gt &gt company's registered address is c/o Streets Whitmarsh Sterland LLP,
+&gt &gt 62 Hills Road, Cambridge CB2 1LA (but customers and suppliers should
+&gt &gt write to our office address above). &nbsp;LispWorks Ltd is registered for
+&gt &gt VAT with EC VAT ID: GB 833329531
+&gt &gt
+&gt &gt
+&gt &gt
+&gt &gt &nbsp;&gt Hello,
+&gt &gt &nbsp;&gt
+&gt &gt &nbsp;&gt I have an interface which displays several instances of one data model
+&gt &gt &nbsp;&gt object. It is very convenient to represent this layout by extending a
+&gt &gt &nbsp;&gt CAPI grid class, and having multiple instances of this layout. That
+&gt &gt &nbsp;&gt works fine.
+&gt &gt &nbsp;&gt
+&gt &gt &nbsp;&gt Now I wanted to create radio buttons to select which of the objects is
+&gt &gt &nbsp;&gt active, and store the active button boolean value inside each object.
+&gt &gt &nbsp;&gt Thus, I have several boolean variables that need to be updated through
+&gt &gt &nbsp;&gt radio buttons, and the buttons need to be logically grouped together
+&gt &gt &nbsp;&gt like for regular radio button panel, but displayed manually.
+&gt &gt &nbsp;&gt
+&gt &gt &nbsp;&gt I tried but it seems that displaying buttons from CAPI radio button
+&gt &gt &nbsp;&gt panel in separate layouts does not work. So I need my own radio group
+&gt &gt &nbsp;&gt which can be laid out anywhere. I decided to use capi:choice as base.
+&gt &gt &nbsp;&gt
+&gt &gt &nbsp;&gt The solution below seems to work otherwise, but for some reason the
+&gt &gt &nbsp;&gt old radio button does not seem to get disabled. The actual data
+&gt &gt &nbsp;&gt boolean gets updated correctly, however. I tried this both with and
+&gt &gt &nbsp;&gt without capi:apply-in-current-pane-process, that does not seem to
+&gt &gt &nbsp;&gt change anything. Even stranger is that if I update the button manually
+&gt &gt &nbsp;&gt with
+&gt &gt &nbsp;&gt
+&gt &gt &nbsp;&gt &nbsp; &nbsp; (setf (capi:button-selected radio1) t)
+&gt &gt &nbsp;&gt
+&gt &gt &nbsp;&gt (or nil) the button image gets updated.
+&gt &gt &nbsp;&gt
+&gt &gt &nbsp;&gt Am I doing something wrong?
+&gt &gt &nbsp;&gt
+&gt &gt &nbsp;&gt I am running LW5.11 on OSX.
+&gt &gt &nbsp;&gt
+&gt &gt &nbsp;&gt Best regards,
+&gt &gt &nbsp;&gt
+&gt &gt &nbsp;&gt Mikko Ahonen
+&gt &gt &nbsp;&gt
+&gt &gt &nbsp;&gt --
+&gt &gt &nbsp;&gt
+&gt &gt &nbsp;&gt (defvar *foo* nil)
+&gt &gt &nbsp;&gt (defvar *bar* t)
+&gt &gt &nbsp;&gt (defvar *foobar* nil)
+&gt &gt &nbsp;&gt
+&gt &gt &nbsp;&gt (defmacro with-gensyms (syms &amp;body body)
+&gt &gt &nbsp;&gt &nbsp; `(let ,(mapcar #'(lambda (s)
+&gt &gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;`(,s (gensym)))
+&gt &gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;syms)
+&gt &gt &nbsp;&gt &nbsp; &nbsp; ,@body))
+&gt &gt &nbsp;&gt
+&gt &gt &nbsp;&gt (defun radio-group-reset-other-buttons (group other-than-pane)
+&gt &gt &nbsp;&gt &nbsp; (loop for item across (capi:collection-items group)
+&gt &gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; do (unless (eq other-than-pane item)
+&gt &gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(format t "unselect ~A~%" item)
+&gt &gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(funcall (capi:callbacks-retract-callback item) item)
+&gt &gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(setf (capi:button-selected item) nil))))
+&gt &gt &nbsp;&gt
+&gt &gt &nbsp;&gt (defmacro radio (name txt var group)
+&gt &gt &nbsp;&gt &nbsp; (with-gensyms (selected rb)
+&gt &gt &nbsp;&gt &nbsp; &nbsp; `(let ((,rb (make-instance 'capi:radio-button
+&gt &gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;:selection-callback #'(lambda (pane)
+&gt &gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(format t "~A
+&gt &gt &nbsp;&gt selection callback~%" pane)
+&gt &gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(setf ,var t)
+&gt &gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(setf
+&gt &gt &nbsp;&gt (capi:choice-selected-item ,group) pane)
+&gt &gt &nbsp;&gt
+&gt &gt &nbsp;&gt (radio-group-reset-other-buttons ,group pane))
+&gt &gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;:retract-callback #'(lambda (pane)
+&gt &gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(format t "~A
+&gt &gt &nbsp;&gt retract callback~%" pane)
+&gt &gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(setf ,var nil))
+&gt &gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;:callback-type '(:item)
+&gt &gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;:text ,txt
+&gt &gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;:selected ,var)))
+&gt &gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(capi:append-items ,group (list ,rb))
+&gt &gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(when ,var
+&gt &gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(setf (capi:choice-selected-item ,group) ,rb))
+&gt &gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;,rb)))
+&gt &gt &nbsp;&gt
+&gt &gt &nbsp;&gt (defmacro radio-group (&amp;rest args)
+&gt &gt &nbsp;&gt &nbsp; &nbsp; `(make-instance 'capi:choice
+&gt &gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; :interaction :single-selection
+&gt &gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; :items '()
+&gt &gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ,@args))
+&gt &gt &nbsp;&gt
+&gt &gt &nbsp;&gt (setf g (radio-group))
+&gt &gt &nbsp;&gt
+&gt &gt &nbsp;&gt (setf radio1 (radio :foo "Foo" *foo* g))
+&gt &gt &nbsp;&gt
+&gt &gt &nbsp;&gt (setf radio2 (radio :bar "Bar" *bar* g))
+&gt &gt &nbsp;&gt
+&gt &gt &nbsp;&gt (setf radio3 (radio :foobar "Foobar" *foobar* g))
+&gt &gt &nbsp;&gt
+&gt &gt &nbsp;&gt (capi:contain (make-instance 'capi:column-layout :description (list
+&gt &gt &nbsp;&gt radio1 radio2 radio3)))
+&gt &gt &nbsp;&gt
+&gt &gt &nbsp;&gt (list *foo* *bar* *foobar*)
+&gt &gt &nbsp;&gt
+&gt &gt
+&gt 
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Creating your own radio group?</h1>
+                 <pre>
+Hello,
+
+Slow to display on screen. Of course slow is relative, but what I mean
+is that I can see that all changes do not happen at the same time.
+
+I found the with-atomic-redisplay which would probably help.
+
+But for me it does not make sense to loop through items in perhaps
+over a hundred layout-descriptions just to update a few known panes.
+(I am for example using simple-layouts to remove extra border pixels
+from around text input panes to fit more of them nicely on screen).
+
+Mikko
+
+On Tue, Mar 31, 2009 at 8:37 PM, Martin Simmons &lt;martin@lispworks.com&gt wrote:
+&gt
+&gt Hi Mikko,
+&gt
+&gt Do you mean that it is slow to display on the screen, slow to resize or
+&gt something else?
+&gt
+&gt Regards,
+&gt
+&gt Martin Simmons
+&gt LispWorks Ltd
+&gt http://www.lispworks.com/
+&gt
+&gt
+&gt&gt&gt&gt&gt&gt On Tue, 31 Mar 2009 04:07:29 +0300, Mikko Ahonen said:
+&gt&gt
+&gt&gt Hello,
+&gt&gt
+&gt&gt Thanks a lot for your example.
+&gt&gt
+&gt&gt It seems going through all panes in the interface gets quite slow when
+&gt&gt the interface is deep, i.e. I have several levels of layouts inside
+&gt&gt each other. In my interface your example was perceptibly slow for
+&gt&gt human eye.
+&gt&gt
+&gt&gt Perhaps I should try to avoid deep interfaces? It is just very useful
+&gt&gt way to develop things as components, which can be easily tested
+&gt&gt separately and located as groups in containers.
+&gt&gt
+&gt&gt But your example helped me to realize that using capi:layout for what
+&gt&gt I was doing was not such a good idea. I used my own class and it seems
+&gt&gt to work well.
+&gt&gt
+&gt&gt Btw, thanks for the excellent product! I have been programming with LW
+&gt&gt (and Lisp) for perhaps 8 months now, and more I get used to it, more I
+&gt&gt like it. It seems that libraries are very well thought out. The
+&gt&gt learning curve for Lisp beginners is quite steep, though, but well
+&gt&gt worth it.
+&gt&gt
+&gt&gt Best regards,
+&gt&gt
+&gt&gt Mikko Ahonen
+&gt&gt
+&gt&gt On Mon, Mar 30, 2009 at 8:15 PM, &nbsp;&lt;davef@lispworks.com&gt wrote:
+&gt&gt &gt
+&gt&gt &gt Try this:
+&gt&gt &gt
+&gt&gt &gt ----------------------------------------------------------------------
+&gt&gt &gt (defun button (i &amp;optional selected)
+&gt&gt &gt &nbsp;(make-instance 'capi:radio-button :data i :text (format nil "r~D" i)
+&gt&gt &gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; :selected selected
+&gt&gt &gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; :selection-callback 'callback
+&gt&gt &gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; :callback-type :data-interface))
+&gt&gt &gt
+&gt&gt &gt (defun text (i &amp;optional enabled)
+&gt&gt &gt &nbsp;(make-instance 'capi:text-input-pane :title (format nil "t~D" i) :enabled enabled))
+&gt&gt &gt
+&gt&gt &gt (capi:define-interface buttons-and-text ()
+&gt&gt &gt &nbsp;((radio-buttons :initarg :radio-buttons)
+&gt&gt &gt &nbsp; (text-panes :initarg :text-panes))
+&gt&gt &gt &nbsp;(:layouts
+&gt&gt &gt &nbsp; (grid
+&gt&gt &gt &nbsp; &nbsp;capi:grid-layout
+&gt&gt &gt &nbsp; &nbsp;(append radio-buttons text-panes)
+&gt&gt &gt &nbsp; &nbsp;:columns 2
+&gt&gt &gt &nbsp; &nbsp;:y-gap 20
+&gt&gt &gt &nbsp; &nbsp;:accessor grid)))
+&gt&gt &gt
+&gt&gt &gt (defun callback (data interface)
+&gt&gt &gt &nbsp;(loop for pane in (capi:layout-description (grid interface))
+&gt&gt &gt &nbsp; &nbsp; &nbsp; &nbsp;do
+&gt&gt &gt &nbsp; &nbsp; &nbsp; &nbsp;(etypecase pane
+&gt&gt &gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(capi:radio-button
+&gt&gt &gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (unless (eq (capi:item-data pane) data)
+&gt&gt &gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (setf (capi:button-selected pane) nil)))
+&gt&gt &gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(capi:text-input-pane
+&gt&gt &gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (setf (capi:text-input-pane-enabled pane)
+&gt&gt &gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (string= (capi:titled-pane-title pane) (format nil "t~D" data)))))))
+&gt&gt &gt
+&gt&gt &gt (let* ((r1 (button 1))
+&gt&gt &gt &nbsp; &nbsp; &nbsp; (r2 (button 2 t))
+&gt&gt &gt &nbsp; &nbsp; &nbsp; (r3 (button 3))
+&gt&gt &gt &nbsp; &nbsp; &nbsp; (r4 (button 4))
+&gt&gt &gt &nbsp; &nbsp; &nbsp; (t1 (text 1))
+&gt&gt &gt &nbsp; &nbsp; &nbsp; (t2 (text 2 t))
+&gt&gt &gt &nbsp; &nbsp; &nbsp; (t3 (text 3))
+&gt&gt &gt &nbsp; &nbsp; &nbsp; (t4 (text 4))
+&gt&gt &gt &nbsp; &nbsp; &nbsp; (grid (make-instance
+&gt&gt &gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;'buttons-and-text
+&gt&gt &gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;:radio-buttons (list r1 r2 r3 r4)
+&gt&gt &gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;:text-panes (list t1 t2 t3 t4))))
+&gt&gt &gt &nbsp; &nbsp;(capi:display grid))
+&gt&gt &gt ----------------------------------------------------------------------
+&gt&gt &gt
+&gt&gt &gt The enabled/disabled state of the text panes is the "boolean"
+&gt&gt &gt controlled by each corresponding radio button.
+&gt&gt &gt
+&gt&gt &gt Hopefully this example will help you to implement the layout and
+&gt&gt &gt interaction you actually want.
+&gt&gt &gt
+&gt&gt &gt --
+&gt&gt &gt Dave Fox
+&gt&gt &gt LispWorks Ltd
+&gt&gt &gt St John's Innovation Centre, Cowley Road
+&gt&gt &gt Cambridge CB4 0WS
+&gt&gt &gt England
+&gt&gt &gt http://www.lispworks.com/
+&gt&gt &gt
+&gt&gt &gt LispWorks Ltd is registered in England, company number 5114963. &nbsp;The
+&gt&gt &gt company's registered address is c/o Streets Whitmarsh Sterland LLP,
+&gt&gt &gt 62 Hills Road, Cambridge CB2 1LA (but customers and suppliers should
+&gt&gt &gt write to our office address above). &nbsp;LispWorks Ltd is registered for
+&gt&gt &gt VAT with EC VAT ID: GB 833329531
+&gt&gt &gt
+&gt&gt &gt
+&gt&gt &gt
+&gt&gt &gt &nbsp;&gt Hello,
+&gt&gt &gt &nbsp;&gt
+&gt&gt &gt &nbsp;&gt I have an interface which displays several instances of one data model
+&gt&gt &gt &nbsp;&gt object. It is very convenient to represent this layout by extending a
+&gt&gt &gt &nbsp;&gt CAPI grid class, and having multiple instances of this layout. That
+&gt&gt &gt &nbsp;&gt works fine.
+&gt&gt &gt &nbsp;&gt
+&gt&gt &gt &nbsp;&gt Now I wanted to create radio buttons to select which of the objects is
+&gt&gt &gt &nbsp;&gt active, and store the active button boolean value inside each object.
+&gt&gt &gt &nbsp;&gt Thus, I have several boolean variables that need to be updated through
+&gt&gt &gt &nbsp;&gt radio buttons, and the buttons need to be logically grouped together
+&gt&gt &gt &nbsp;&gt like for regular radio button panel, but displayed manually.
+&gt&gt &gt &nbsp;&gt
+&gt&gt &gt &nbsp;&gt I tried but it seems that displaying buttons from CAPI radio button
+&gt&gt &gt &nbsp;&gt panel in separate layouts does not work. So I need my own radio group
+&gt&gt &gt &nbsp;&gt which can be laid out anywhere. I decided to use capi:choice as base.
+&gt&gt &gt &nbsp;&gt
+&gt&gt &gt &nbsp;&gt The solution below seems to work otherwise, but for some reason the
+&gt&gt &gt &nbsp;&gt old radio button does not seem to get disabled. The actual data
+&gt&gt &gt &nbsp;&gt boolean gets updated correctly, however. I tried this both with and
+&gt&gt &gt &nbsp;&gt without capi:apply-in-current-pane-process, that does not seem to
+&gt&gt &gt &nbsp;&gt change anything. Even stranger is that if I update the button manually
+&gt&gt &gt &nbsp;&gt with
+&gt&gt &gt &nbsp;&gt
+&gt&gt &gt &nbsp;&gt &nbsp; &nbsp; (setf (capi:button-selected radio1) t)
+&gt&gt &gt &nbsp;&gt
+&gt&gt &gt &nbsp;&gt (or nil) the button image gets updated.
+&gt&gt &gt &nbsp;&gt
+&gt&gt &gt &nbsp;&gt Am I doing something wrong?
+&gt&gt &gt &nbsp;&gt
+&gt&gt &gt &nbsp;&gt I am running LW5.11 on OSX.
+&gt&gt &gt &nbsp;&gt
+&gt&gt &gt &nbsp;&gt Best regards,
+&gt&gt &gt &nbsp;&gt
+&gt&gt &gt &nbsp;&gt Mikko Ahonen
+&gt&gt &gt &nbsp;&gt
+&gt&gt &gt &nbsp;&gt --
+&gt&gt &gt &nbsp;&gt
+&gt&gt &gt &nbsp;&gt (defvar *foo* nil)
+&gt&gt &gt &nbsp;&gt (defvar *bar* t)
+&gt&gt &gt &nbsp;&gt (defvar *foobar* nil)
+&gt&gt &gt &nbsp;&gt
+&gt&gt &gt &nbsp;&gt (defmacro with-gensyms (syms &amp;body body)
+&gt&gt &gt &nbsp;&gt &nbsp; `(let ,(mapcar #'(lambda (s)
+&gt&gt &gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;`(,s (gensym)))
+&gt&gt &gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;syms)
+&gt&gt &gt &nbsp;&gt &nbsp; &nbsp; ,@body))
+&gt&gt &gt &nbsp;&gt
+&gt&gt &gt &nbsp;&gt (defun radio-group-reset-other-buttons (group other-than-pane)
+&gt&gt &gt &nbsp;&gt &nbsp; (loop for item across (capi:collection-items group)
+&gt&gt &gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; do (unless (eq other-than-pane item)
+&gt&gt &gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(format t "unselect ~A~%" item)
+&gt&gt &gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(funcall (capi:callbacks-retract-callback item) item)
+&gt&gt &gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(setf (capi:button-selected item) nil))))
+&gt&gt &gt &nbsp;&gt
+&gt&gt &gt &nbsp;&gt (defmacro radio (name txt var group)
+&gt&gt &gt &nbsp;&gt &nbsp; (with-gensyms (selected rb)
+&gt&gt &gt &nbsp;&gt &nbsp; &nbsp; `(let ((,rb (make-instance 'capi:radio-button
+&gt&gt &gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;:selection-callback #'(lambda (pane)
+&gt&gt &gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(format t "~A
+&gt&gt &gt &nbsp;&gt selection callback~%" pane)
+&gt&gt &gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(setf ,var t)
+&gt&gt &gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(setf
+&gt&gt &gt &nbsp;&gt (capi:choice-selected-item ,group) pane)
+&gt&gt &gt &nbsp;&gt
+&gt&gt &gt &nbsp;&gt (radio-group-reset-other-buttons ,group pane))
+&gt&gt &gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;:retract-callback #'(lambda (pane)
+&gt&gt &gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(format t "~A
+&gt&gt &gt &nbsp;&gt retract callback~%" pane)
+&gt&gt &gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(setf ,var nil))
+&gt&gt &gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;:callback-type '(:item)
+&gt&gt &gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;:text ,txt
+&gt&gt &gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;:selected ,var)))
+&gt&gt &gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(capi:append-items ,group (list ,rb))
+&gt&gt &gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(when ,var
+&gt&gt &gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(setf (capi:choice-selected-item ,group) ,rb))
+&gt&gt &gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;,rb)))
+&gt&gt &gt &nbsp;&gt
+&gt&gt &gt &nbsp;&gt (defmacro radio-group (&amp;rest args)
+&gt&gt &gt &nbsp;&gt &nbsp; &nbsp; `(make-instance 'capi:choice
+&gt&gt &gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; :interaction :single-selection
+&gt&gt &gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; :items '()
+&gt&gt &gt &nbsp;&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ,@args))
+&gt&gt &gt &nbsp;&gt
+&gt&gt &gt &nbsp;&gt (setf g (radio-group))
+&gt&gt &gt &nbsp;&gt
+&gt&gt &gt &nbsp;&gt (setf radio1 (radio :foo "Foo" *foo* g))
+&gt&gt &gt &nbsp;&gt
+&gt&gt &gt &nbsp;&gt (setf radio2 (radio :bar "Bar" *bar* g))
+&gt&gt &gt &nbsp;&gt
+&gt&gt &gt &nbsp;&gt (setf radio3 (radio :foobar "Foobar" *foobar* g))
+&gt&gt &gt &nbsp;&gt
+&gt&gt &gt &nbsp;&gt (capi:contain (make-instance 'capi:column-layout :description (list
+&gt&gt &gt &nbsp;&gt radio1 radio2 radio3)))
+&gt&gt &gt &nbsp;&gt
+&gt&gt &gt &nbsp;&gt (list *foo* *bar* *foobar*)
+&gt&gt &gt &nbsp;&gt
+&gt&gt &gt
+&gt&gt
+&gt
+&gt
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:37 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

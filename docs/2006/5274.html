@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>FLI (C to Lisp) performance optimizations</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>FLI (C to Lisp) performance optimizations</h1>
+                <pre>
+I need hints on how to speed up (what I think are) performance issues in a 
+program where C is calling my lisp .DLL.  The lisp DLL is in essence a 
+"driver" and is being commanded to do things by the C front end.
+
+A test case I'm looking at makes about 700 calls from C to lisp with doubles 
+as parameters and 325 calls with C strings (fairly short - approx. 3 to 10 
+chars), and makes about 400 calls with references to doubles (i.e. lisp 
+returns a double to C) - and then does this about 1,000 times.  I.E. about 
+1,000,000 calls with one or two parameters, which unfortunately need to be 
+converted on the way in and sometimes on the way out.
+
+A similar program done only in C does this in a very short amount of time 
+(about 1/2 second).  The C / Lisp combination takes about 2 minutes, of which 
+about 40% looks like it is due to my (very straighforward) use of FLI.
+
+I'm about to rebalance the program so that most of this calling takes place 
+only within C, leaving only big, infrequently-called lumps written in lisp.
+
+But, if someone has suggestions on how to achieve wildly better performance 
+while retaining the above interface (which would let me do more work in lisp, 
+something I'd prefer), I'd be interested in hearing them!
+
+I don't have a good intuition on how much work goes on behind the scenes in 
+the FLI.
+
+For example: 
+
+- In a large number of cases, the parameter strings (converted to lisp from c) 
+are simply pumped out character by character.  Can I / should I leave them as 
+anonymous blobs of bytes which the FLI does no conversion on?  Will that save 
+enormous amounts of work (time)?
+
+- What if the number of operations on doubles is low?  Would it save time if I 
+treated them as unconverted "handles" and called back to C routines to 
+manipulate them?
+
+- Is there any huge time advantage to stuffing these things into a C array and 
+converting en-masse?
+
+Thanks
+pt
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: FLI (C to Lisp) performance optimizations</h1>
+                 <pre>
+Paul Tarvydas wrote:
+
+&gt I need hints on how to speed up (what I think are) performance issues in a 
+&gt program where C is calling my lisp .DLL.  The lisp DLL is in essence a 
+&gt "driver" and is being commanded to do things by the C front end.
+&gt 
+&gt A test case I'm looking at makes about 700 calls from C to lisp with doubles 
+&gt as parameters and 325 calls with C strings (fairly short - approx. 3 to 10 
+&gt chars), and makes about 400 calls with references to doubles (i.e. lisp 
+&gt returns a double to C) - and then does this about 1,000 times.  I.E. about 
+&gt 1,000,000 calls with one or two parameters, which unfortunately need to be 
+&gt converted on the way in and sometimes on the way out.
+
+that's going to be time-consuming. avoid.
+
+&gt A similar program done only in C does this in a very short amount of time 
+&gt (about 1/2 second).  The C / Lisp combination takes about 2 minutes, of which 
+&gt about 40% looks like it is due to my (very straighforward) use of FLI.
+&gt 
+&gt I'm about to rebalance the program so that most of this calling takes place 
+&gt only within C, leaving only big, infrequently-called lumps written in lisp.
+&gt 
+&gt But, if someone has suggestions on how to achieve wildly better performance 
+&gt while retaining the above interface (which would let me do more work in lisp, 
+&gt something I'd prefer), I'd be interested in hearing them!
+
+well, the obvious answer is that unless your calcs are sequentially 
+dependent, you should pass an array or two full of the numbers, so there 
+are very few calls, but much computation. type conversion may still be 
+the same amount, but you drop the repeated fn-call overhead.
+
+&gt I don't have a good intuition on how much work goes on behind the scenes in 
+&gt the FLI.
+
+heck, I don't either, but I sure wouldn't do what you've done.
+
+&gt For example: 
+&gt 
+&gt - In a large number of cases, the parameter strings (converted to lisp from c) 
+&gt are simply pumped out character by character.  Can I / should I leave them as 
+&gt anonymous blobs of bytes which the FLI does no conversion on?  Will that save 
+&gt enormous amounts of work (time)?
+
+yes. bytes are bytes.
+
+&gt - What if the number of operations on doubles is low?  Would it save time if I 
+&gt treated them as unconverted "handles" and called back to C routines to 
+&gt manipulate them?
+
+depending on how complex the calcs are, I'd think about duplicating 
+functions in both langs.
+
+&gt - Is there any huge time advantage to stuffing these things into a C array and 
+&gt converting en-masse?
+
+the conversion time probably won't change much. but you can avoid 
+inter-language fn-call overhead...
+
+  -- clint
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:45 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

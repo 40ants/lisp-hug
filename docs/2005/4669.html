@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Scrolling an editor pane during create callback</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Scrolling an editor pane during create callback</h1>
+                <pre>Hi!
+
+If you compile the code below and execute (FOO) you'll get an editor
+pane with two push buttons.  If you press UP the editor will scroll to
+the start of the text, if you press DOWN, the editor will scroll to
+the end of the text.  Fine.
+
+However, note that there's a call to DOWN in the create callback of
+the interface.  This one doesn't seem to have any effect.  I tried
+several other strategies but without success.  What I want is to
+programmatically set the scrolling position of an editor pane to a
+certain position at the very moment when it's displayed.
+
+Is there a way to do that?
+
+Thanks,
+Edi.
+
+
+
+(defparameter *size* 4000)
+
+(defun adjust-scrollbar (pane pos)
+  (let ((buffer (capi:editor-pane-buffer pane))
+        (window (capi:editor-window pane)))
+      (when window
+        (editor:with-point ((start (editor:buffers-start buffer)))
+          (editor:increment-point start pos)
+          (editor::move-line-to-position window start nil)
+          (editor::update-window-after-scroll window nil)))))
+
+(defun up (editor)
+  (adjust-scrollbar editor 0))
+
+(defun down (editor)
+  (adjust-scrollbar editor (length (capi:editor-pane-text editor))))
+
+(capi:define-interface foo-interface ()
+  ()
+  (:panes
+   (up-button
+    capi:push-button
+    :text "Up"
+    :callback-type :none
+    :callback (lambda () (up editor)))
+   (down-button
+    capi:push-button
+    :text "Down"
+    :callback-type :none
+    :callback (lambda ()
+                (down editor)))
+   (editor
+    capi:editor-pane
+    :buffer-name "foo"
+    :accessor editor))
+  (:layouts
+   (row-layout
+    capi:row-layout
+    '(up-button down-button))
+   (column-layout
+    capi:column-layout
+    '(row-layout editor)))
+  (:default-initargs
+   :layout 'column-layout
+   :create-callback (lambda (interface)
+                      (setf (capi:editor-pane-text (editor interface))
+                            (coerce
+                             (loop for i below *size*
+                                   collect (code-char (+ #.(char-code #\A)
+                                                         (mod i 26))))
+                             'string))
+                      (down (editor interface)))
+   :best-width 300
+   :best-height 300))
+
+(defun foo ()
+  (capi:display (make-instance 'foo-interface)))
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Scrolling an editor pane during create callback</h1>
+                 <pre>Hi Edi,
+
+On Oct 20, 2005, at 4:23 PM, Edi Weitz wrote:
+
+&gt However, note that there's a call to DOWN in the create callback of
+&gt the interface.  This one doesn't seem to have any effect.  I tried
+&gt several other strategies but without success.  What I want is to
+&gt programmatically set the scrolling position of an editor pane to a
+&gt certain position at the very moment when it's displayed.
+
+
+I think the problem might be related to the editor input style that  
+ensures the point is always visible [try (apropos "always-visible")  
+for some references]. I have that off on the Mac and your window  
+opens with the text scrolled to the bottom.
+
+Other than changing the input style, one possible fix might be to  
+make sure you move the (editor:current-point) for the buffer rather  
+than just a temporary point as you have done in the adjust-scrollbar  
+function.
+
+Best,
+
+
+
+John DeSoi, Ph.D.
+http://pgedit.com/
+Power Tools for PostgreSQL
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Scrolling an editor pane during create callback</h1>
+                 <pre>
+
+--- Edi Weitz &lt;edi@agharta.de&gt wrote:
+
+&gt Hi!
+&gt 
+&gt If you compile the code below and execute (FOO) you'll get an editor
+&gt pane with two push buttons.  If you press UP the editor will scroll to
+&gt the start of the text, if you press DOWN, the editor will scroll to
+&gt the end of the text.  Fine.
+....
+
+This works for me (LWW 4.3.7). I don't notice any flicker.
+
+(defun foo ()
+  (let ((interface (make-instance 'foo-interface)))
+    (capi:display interface)
+    (down (editor interface))))
+
+
+Jeff
+
+
+		
+__________________________________ 
+Yahoo! FareChase: Search multiple travel sites in one click.
+http://farechase.yahoo.com
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: Scrolling an editor pane during create callback</h1>
+                  <pre>On Fri, 21 Oct 2005 10:35:02 -0700 (PDT), Jeff Caldwell &lt;jdcal@yahoo.com&gt wrote:
+
+&gt This works for me (LWW 4.3.7). I don't notice any flicker.
+&gt
+&gt (defun foo ()
+&gt   (let ((interface (make-instance 'foo-interface)))
+&gt     (capi:display interface)
+&gt     (down (editor interface))))
+
+Hmm, somehow it doesn't feel right.  If you change the create callback
+to look like this, for example,
+
+  (lambda (interface)
+    (sleep 1)
+    (setf (capi:editor-pane-text (editor interface))
+           (coerce
+            (loop for i below *size*
+                  collect (code-char (+ #.(char-code #\A)
+                                        (mod i 26))))
+            'string)))
+
+then it ceases to work so in a way it only works "by accident."
+
+More importantly, your approach doesn't work in my actual application
+which is a lot more complicated than my silly little example.  I'll
+try to come up with a better example.
+
+Thanks,
+Edi.
+
+
+</pre>
+                 </article>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>Re: Scrolling an editor pane during create callback</h1>
+                   <pre>
+
+--- Edi Weitz &lt;edi@agharta.de&gt wrote:
+
+&gt On Fri, 21 Oct 2005 10:35:02 -0700 (PDT), Jeff Caldwell &lt;jdcal@yahoo.com&gt
+&gt wrote:
+&gt 
+&gt &gt This works for me (LWW 4.3.7). I don't notice any flicker.
+&gt &gt
+&gt &gt (defun foo ()
+&gt &gt   (let ((interface (make-instance 'foo-interface)))
+&gt &gt     (capi:display interface)
+&gt &gt     (down (editor interface))))
+&gt 
+&gt Hmm, somehow it doesn't feel right.  If you change the create callback
+&gt to look like this, for example,
+&gt 
+&gt   (lambda (interface)
+&gt     (sleep 1)
+&gt     (setf (capi:editor-pane-text (editor interface))
+&gt            (coerce
+&gt             (loop for i below *size*
+&gt                   collect (code-char (+ #.(char-code #\A)
+&gt                                         (mod i 26))))
+&gt             'string)))
+&gt 
+&gt then it ceases to work so in a way it only works "by accident."
+&gt 
+&gt More importantly, your approach doesn't work in my actual application
+&gt which is a lot more complicated than my silly little example.  I'll
+&gt try to come up with a better example.
+&gt 
+&gt Thanks,
+&gt Edi.
+&gt 
+&gt 
+
+With your change above, the following works for me:
+
+(defun foo ()
+  (let ((interface (make-instance 'foo-interface)))
+    (capi:display interface)
+    (mp:process-allow-scheduling)
+    (down (editor interface))))
+
+
+Do you think the last line should use apply-in-pane-process?
+
+    (capi:apply-in-pane-process (editor interface)
+                                (lambda ()
+                                  (down (editor interface))))))
+
+What is the difference between mp:process-allow-scheduling and mp:yield?
+mp:yield did not work for me.
+
+Jeff
+
+Jeff
+
+
+		
+__________________________________ 
+Start your day with Yahoo! - Make it your home page! 
+http://www.yahoo.com/r/hs
+
+
+</pre>
+                  </article>
+                  <section class=tree>
+                   <article class=email>
+                    <h1>Re: Scrolling an editor pane during create callback</h1>
+                    <pre>
+
+--- Jeff Caldwell &lt;jdcal@yahoo.com&gt wrote:
+....
+&gt What is the difference between mp:process-allow-scheduling and mp:yield?
+&gt mp:yield did not work for me.
+
+After I STFE (sent the email) I RTFM page on mp:yield more carefully than I
+did the first time. 
+
+"Normally code compiled at safety 0 cannot be preempted because the necessary
+checks are ommited. This can be overcome by calling yield  at regular
+intervals. Usually there is no need to call this if you use functions from
+the common-lisp package because these are not compiled at safety 0, but for
+example if you find that preemption is not working in a loop with no function
+calls, yield  can be useful. Note that process-allow-scheduling  also allows
+preemption, but also checks the wait functions of other processes."
+
+LWW uses native threads, so why are any checks necessary? Can't native
+threads always be preempted? If so, are the checks discussed above there only
+for e.g. LWL, non-native-thread implementations? 
+
+Process-allow-scheduling checks 'other processes'. Is that sentence using
+'process' as a synonym for 'thread' (e.g. mp -- multiprocessing)? If mp:yield
+doesn't check other threads, is the doc saying that mp:yield yields to its
+own thread? What would that even mean?
+
+Jeff
+
+ 
+
+
+		
+__________________________________ 
+Start your day with Yahoo! - Make it your home page! 
+http://www.yahoo.com/r/hs
+
+
+</pre>
+                   </article>
+                   <section class=tree>
+                    <article class=email>
+                     <h1>Re: Scrolling an editor pane during create callback</h1>
+                     <pre>On Fri, 21 Oct 2005 23:53:02 -0700 (PDT), Jeff Caldwell &lt;jdcal@yahoo.com&gt wrote:
+
+&gt LWW uses native threads, so why are any checks necessary? Can't
+&gt native threads always be preempted? If so, are the checks discussed
+&gt above there only for e.g. LWL, non-native-thread implementations?
+
+Yeah, I was just about to ask the same question.  I'm glad I read your
+message again... :)
+
+Cheers,
+Edi.
+
+
+</pre>
+                    </article>
+                   </section>
+                  </section>
+                  <section class=tree>
+                   <article class=email>
+                    <h1>Re: Scrolling an editor pane during create callback</h1>
+                    <pre>On Fri, 21 Oct 2005 22:26:03 -0700 (PDT), Jeff Caldwell &lt;jdcal@yahoo.com&gt wrote:
+
+&gt With your change above, the following works for me:
+&gt
+&gt (defun foo ()
+&gt   (let ((interface (make-instance 'foo-interface)))
+&gt     (capi:display interface)
+&gt     (mp:process-allow-scheduling)
+&gt     (down (editor interface))))
+
+Yep.  But (see other message) why does this make a difference at all
+if LWW uses native threads?
+
+&gt Do you think the last line should use apply-in-pane-process?
+
+I think so, yes.
+
+Thanks,
+Edi.
+
+PS: This doesn't solve my original program, BTW.  I'm still trying to
+    build a simple example that illustrates this...
+
+
+</pre>
+                   </article>
+                   <section class=tree>
+                    <article class=email>
+                     <h1>Re: Scrolling an editor pane during create callback</h1>
+                     <pre>
+
+--- Edi Weitz &lt;edi@agharta.de&gt wrote:
+....
+&gt 
+&gt Yep.  But (see other message) why does this make a difference at all
+&gt if LWW uses native threads?
+
+My best guess is a race condition, which is why I tried mp:yield and friends.
+My hypothesis is that capi:display scrolls editor panes to the top after the
+pane's :create-callback has been called. In foo, capi:display creates a
+second process and returns. The race is between foo trying to (down (editor
+interface)) and capi:display trying to do it's version of (up (editor
+interface)). 
+
+I think it's not a bug in that inter-process coordination is always a
+problem. To really solve it, one would need to have a callback or other
+synchronization method provided by capi:display, called or triggered after
+all work, including scrolling editor panes to the top, had been performed.
+
+....
+&gt PS: This doesn't solve my original program, BTW.  I'm still trying to
+&gt     build a simple example that illustrates this...
+&gt 
+
+If my hypothesis is correct, and if there is in fact no synchronization
+method available in capi:display to tell you when the initialization has been
+fully performed, then all I can think of for you to do is to wait until
+capi:display has done it's (up (editor interface)) before you do your (down
+(editor interface)). 
+
+Because your application is complex, it's taking longer to initialize than
+the example you posted here. The race now being won in the example but losing
+it in your app. Perhaps your app's initialization being preempted or is also
+yielding for some reason, returning control back to foo before the interface
+has scrolled its editor panes. Try adding e.g. (sleep 0.1) after
+(mp:process-allow-scheduling). Adjust the timing until things work and the
+user isn't terribly annoyed.
+
+If that works, you'll at least have a work-around until LispWorks can tell
+you about or provide you with a real synchronization mechanism. Without that
+mechanism, though, the app may perform differently on machines of different
+speeds.
+
+Anyway, whether I sort-of-understand what's happening or not, I'm interested
+to know if adding a given amount of sleep after the
+mp:process-allow-scheduling "fixes" your problem.
+
+Jeff
+
+
+
+
+	
+		
+__________________________________ 
+Yahoo! Mail - PC Magazine Editors' Choice 2005 
+http://mail.yahoo.com
+
+
+</pre>
+                    </article>
+                    <section class=tree>
+                     <article class=email>
+                      <h1>Re: Scrolling an editor pane during create callback</h1>
+                      <pre>On Sun, 23 Oct 2005 07:52:48 -0700 (PDT), Jeff Caldwell &lt;jdcal@yahoo.com&gt wrote:
+
+&gt My best guess is a race condition, which is why I tried mp:yield and
+&gt friends.  My hypothesis is that capi:display scrolls editor panes to
+&gt the top after the pane's :create-callback has been called. In foo,
+&gt capi:display creates a second process and returns. The race is
+&gt between foo trying to (down (editor interface)) and capi:display
+&gt trying to do it's version of (up (editor interface)).
+
+Seems like a reasonable guess to me.  It'd be interesting to get the
+whole story from someone who knows, though... :)
+
+&gt I think it's not a bug in that inter-process coordination is always
+&gt a problem. To really solve it, one would need to have a callback or
+&gt other synchronization method provided by capi:display, called or
+&gt triggered after all work, including scrolling editor panes to the
+&gt top, had been performed.
+
+In theory, an AFTER method for CAPI:INTERFACE-DISPLAY should do that,
+shouldn't it?
+
+&gt If my hypothesis is correct, and if there is in fact no
+&gt synchronization method available in capi:display to tell you when
+&gt the initialization has been fully performed, then all I can think of
+&gt for you to do is to wait until capi:display has done it's (up
+&gt (editor interface)) before you do your (down (editor interface)).
+&gt
+&gt Because your application is complex, it's taking longer to
+&gt initialize than the example you posted here. The race now being won
+&gt in the example but losing it in your app. Perhaps your app's
+&gt initialization being preempted or is also yielding for some reason,
+&gt returning control back to foo before the interface has scrolled its
+&gt editor panes. Try adding e.g. (sleep 0.1) after
+&gt (mp:process-allow-scheduling). Adjust the timing until things work
+&gt and the user isn't terribly annoyed.
+&gt
+&gt If that works, you'll at least have a work-around until LispWorks
+&gt can tell you about or provide you with a real synchronization
+&gt mechanism. Without that mechanism, though, the app may perform
+&gt differently on machines of different speeds.
+&gt
+&gt Anyway, whether I sort-of-understand what's happening or not, I'm
+&gt interested to know if adding a given amount of sleep after the
+&gt mp:process-allow-scheduling "fixes" your problem.
+
+No, it doesn't.  I had tried that already.  Of course, there's still
+the chance that there's a bug in my code somewhere.  Currently, in my
+"real" app the scrolling position gets only updated after I click into
+the editor pane once and then leave it.  Oh, yeah, best of all is that
+I only have these problems in the delivered app - in the IDE all is
+fine.  Sigh...  (This doesn't apply to my toy example, though.)
+
+Thanks for your thoughts on this,
+Edi.
+
+
+</pre>
+                     </article>
+                     <section class=tree>
+                      <article class=email>
+                       <h1>Re: Scrolling an editor pane during create callback</h1>
+                       <pre>
+
+--- Edi Weitz &lt;edi@agharta.de&gt wrote:
+
+....
+&gt In theory, an AFTER method for CAPI:INTERFACE-DISPLAY should do that,
+&gt shouldn't it?
+
+One would think but it didn't. ... (trace 'editor::move-line-to-position)
+showed me nothing at all. I used some (setf (symbol-function ...) foo to get
+some more information.
+
+In the example used to produce the following, the only call to your example's
+(down (editor interface)) comes from the :create-callback. I also removed the
+mp:process-allow-scheduling from foo.
+
+CL-USER 9 &gt (foo)
+adjust-scrollbar pane #&lt;CAPI:EDITOR-PANE EDITOR  2188E44C&gt pos 4000 window
+#&lt;EDITOR::WM-WINDOW "foo" 218902C4&gt buffer-point #&lt;EDITOR::I-POINT "foo" 0
+offset 0 2068A86C&gt
+
+editor::move-line-to-position (#&lt;EDITOR::WM-WINDOW "foo" 218902C4&gt
+#&lt;EDITOR::POINT "foo" 0 offset 4000 20665A64&gt NIL)
+Call to ADJUST-SCROLLBAR
+Call to (METHOD CAPI::CREATE :AROUND (CAPI:INTERFACE))
+Call to (METHOD CAPI::DO-DISPLAY-AUX (T T T))
+Call to (SUBFUNCTION CAPI::DEFAULT-TOP-LEVEL
+CAPI::INITIALIZE-AND-PROCESS-EVENTS)
+Call to CAPI::INITIALIZE-AND-PROCESS-EVENTS
+Call to (SUBFUNCTION MP::PROCESS-SG-FUNCTION MP::INITIALIZE-PROCESS-STACK)
+#&lt;FOO-INTERFACE "Untitled LispWorks Interface - 3" 2188E0D4&gt
+
+editor::move-line-to-position (#&lt;EDITOR::WM-WINDOW "foo" 218902C4&gt
+#&lt;EDITOR::I-POINT "foo" 0 offset 0 218903EC&gt NIL)
+Call to EDITOR::MAYBE-UPDATE-WINDOW-IMAGE
+Call to EDITOR::REDISPLAY-WINDOW
+Call to EDITOR:REDISPLAY
+Call to WIN32::PROCESS-MESSAGES
+Call to MP::WIN32-PROCESS-WAIT-FOR-EVENT
+Call to MP:PROCESS-READ-EVENT
+Call to CAPI-INTERNALS:LOOP-PROCESS-EVENTS
+Call to (METHOD EDITOR::PROCESS-EVENTS-UNTIL (CAPI:INTERACTIVE-PANE T))
+Call to EDITOR::RUBBER-STREAM-WAIT
+....
+
+It looks like it is the editor, not capi:interface-display, that is moving
+the line back to position 0, and the editor is doing so after capi:create
+:around and capi:interface-display have finished.
+
+Your example, by the way, works fine for me in delivery at level 0 and at
+level 5 (when foo includes the call to mp:process-allow-scheduling followed
+by the call to down).
+
+You might try the same debugging technique I used above in your delivered
+application. Make an output stream you can see later, e.g. an open file, call
+it *so*. Include a (format *so* "~&amp;down ...") call in #'down.
+
+(setf *mltp* #'editor::move-line-to-position)
+
+(setf (symbol-function 'editor::move-line-to-position)
+   (lambda (&amp;rest args)
+      (format *so* "~&amp;editor::move-line-to-position ~A" args)
+      (dbg:output-backtrace :all :stream *so*)
+      (apply *mltp* args)))
+
+Maybe the timing is somehow very different in your app than in the example.
+
+Jeff
+
+
+
+
+		
+__________________________________ 
+Yahoo! FareChase: Search multiple travel sites in one click.
+http://farechase.yahoo.com
+
+
+</pre>
+                      </article>
+                      <section class=tree>
+                       <article class=email>
+                        <h1>Re: Scrolling an editor pane during create callback</h1>
+                        <pre>On Sun, 23 Oct 2005 10:32:24 -0700 (PDT), Jeff Caldwell &lt;jdcal@yahoo.com&gt wrote:
+
+&gt You might try the same debugging technique I used above in your
+&gt delivered application. Make an output stream you can see later,
+&gt e.g. an open file, call it *so*. Include a (format *so* "~&amp;down
+&gt ...") call in #'down.
+&gt
+&gt (setf *mltp* #'editor::move-line-to-position)
+&gt
+&gt (setf (symbol-function 'editor::move-line-to-position)
+&gt    (lambda (&amp;rest args)
+&gt       (format *so* "~&amp;editor::move-line-to-position ~A" args)
+&gt       (dbg:output-backtrace :all :stream *so*)
+&gt       (apply *mltp* args)))
+
+Thanks, that was a very helpful tip.  I could now find out that in my
+app ADJUST-SCROLLBAR is called in the right places and does what it's
+supposed to do but /always/ (even long after startup and
+initialization) there's a call immediately following it which moves
+the editor pane back to position 0:
+
+  editor::move-line-to-position (#&lt;EDITOR::WM-WINDOW "foo" 218E34D4&gt #&lt;EDITOR::I-POINT "foo" 0 offset 0 218E33EC&gt NIL)
+  Call to (SUBFUNCTION 1 FOO::MAIN)  ; that's the redefinition from above
+  Call to EDITOR::MAYBE-UPDATE-WINDOW-IMAGE
+  Call to EDITOR::REDISPLAY-WINDOW
+  Call to EDITOR:REDISPLAY
+  Call to WIN32::PROCESS-MESSAGES
+  Call to MP::WIN32-PROCESS-WAIT-FOR-EVENT
+  Call to MP:PROCESS-READ-EVENT
+  Call to CAPI-INTERNALS:LOOP-PROCESS-EVENTS
+  Call to CAPI::INTERFACE-EVENT-LOOP
+  Call to CAPI::INITIALIZE-AND-PROCESS-EVENTS
+  Call to (SUBFUNCTION MP::PROCESS-SG-FUNCTION MP::INITIALIZE-PROCESS-STACK)
+
+As I said, this behaviour mysteriously stops as soon as I click into
+the editor pane once and leave it.  Hmmm....
+
+Thanks again,
+Edi.
+
+
+</pre>
+                       </article>
+                      </section>
+                     </section>
+                    </section>
+                    <section class=tree>
+                     <article class=email>
+                      <h1>Re: Scrolling an editor pane during create callback</h1>
+                      <pre>Edi,
+
+On Oct 23, 2005, at 10:52 AM, Jeff Caldwell wrote:
+
+&gt My best guess is a race condition, which is why I tried mp:yield  
+&gt and friends.
+&gt My hypothesis is that capi:display scrolls editor panes to the top  
+&gt after the
+&gt pane's :create-callback has been called. In foo, capi:display  
+&gt creates a
+&gt second process and returns. The race is between foo trying to (down  
+&gt (editor
+&gt interface)) and capi:display trying to do it's version of (up (editor
+&gt interface)).
+
+
+You might also try using editor:process-character to call your  
+function that manipulates the editor. According to Martin, this is  
+critical on the Mac and necessary in some cases on Windows/Linux. I  
+have had to jump through a lot of hoops to make things work on the  
+Mac with the interface and editor running in separate processes.
+
+John
+
+
+
+John DeSoi, Ph.D.
+http://pgedit.com/
+Power Tools for PostgreSQL
+
+
+====
+     From:       martin@xanalys.com
+     Subject:     Re: (Lisp Support Call #30129)  editor pane issues
+     Date:     June 4, 2004 6:34:41 AM EDT
+     To:       desoi@icx.net
+     Cc:       lisp-support@xanalys.com
+     Reply-To:       lisp-support@xanalys.com
+
+
+&gt&gt&gt&gt&gt On Thu, 3 Jun 2004 15:38:18 -0400, John DeSoi &lt;desoi@icx.net&gt  
+&gt&gt&gt&gt&gt said:
+&gt&gt&gt&gt&gt
+
+   John&gt DESCRIPTION:
+
+   John&gt I'm trying to setup an interface editor pane to edit a file.  
+It works
+   John&gt except that the insertion point is placed at the end of the  
+editor
+   John&gt buffer and the text is scrolled to this location at the end.  
+If I hit
+   John&gt the home key, the display flashes but nothing happens.  
+Hitting it a
+   John&gt second time actually scrolls the buffer to the beginning.
+
+This is a multithreading problem, because the editor operations need  
+to run in
+their own thread in the Mac OS X version of LispWorks, not the thread  
+of the
+CAPI window.  The way to initiate this is using the function
+EDITOR:PROCESS-CHARACTER, which can be passed a list containing a  
+function and
+its arguments.  Note that you should not perform CAPI operations using
+EDITOR:PROCESS-CHARACTER, only editor operations.
+
+E.g.
+
+(defun set-buffer-file (ed path)
+   (let* ((pane (edit-pane ed))
+          (buff (capi:editor-pane-buffer pane))
+          (window (capi:editor-window pane)))
+     (editor:process-character
+      `(editor:find-alternate-file-command nil ,path ,buff)
+      window)))
+
+
+====
+
+     From:       martin@xanalys.com
+     Subject:     Re: (Lisp Support Call #30129)  editor pane issues
+     Date:     June 4, 2004 9:49:29 AM EDT
+     To:       desoi@icx.net
+     Cc:       lisp-support@xanalys.com
+     Reply-To:       lisp-support@xanalys.com
+
+
+&gt&gt&gt&gt&gt On Fri, 4 Jun 2004 08:47:14 -0400, John DeSoi &lt;desoi@icx.net&gt  
+&gt&gt&gt&gt&gt said:
+&gt&gt&gt&gt&gt
+
+   John&gt On Jun 4, 2004, at 6:34 AM, Martin Simmons wrote:
+
+
+&gt&gt This is a multithreading problem, because the editor operations need
+&gt&gt to run in
+&gt&gt their own thread in the Mac OS X version of LispWorks, not the thread
+&gt&gt of the
+&gt&gt CAPI window.  The way to initiate this is using the function
+&gt&gt EDITOR:PROCESS-CHARACTER, which can be passed a list containing a
+&gt&gt function and
+&gt&gt its arguments.  Note that you should not perform CAPI operations  
+&gt&gt using
+&gt&gt EDITOR:PROCESS-CHARACTER, only editor operations.
+&gt&gt
+
+   John&gt Works great now, thanks for your help on this.
+
+   John&gt Is this a work-around for OS X only or is it acceptable to  
+do this for
+   John&gt other platforms? Eventually I wish to target Linux and Windows.
+
+Yes, it is the best thing for all platforms.  On the other platforms,  
+editor
+commands are run in the thread of the CAPI window, but
+EDITOR:PROCESS-CHARACTER also sets up the current editor window and  
+buffer,
+which some editor commands need to function correctly.
+
+
+   John&gt I have other editor commands called from capi menus (e.g.
+   John&gt editor:revert-buffer-command). These seem to work OK. Do I  
+need to
+   John&gt change all of them to use editor:process-character?
+
+Yes.
+
+
+</pre>
+                     </article>
+                    </section>
+                    <section class=tree>
+                     <article class=email>
+                      <h1>Re: Scrolling an editor pane during create callback</h1>
+                      <pre>On Sun, 23 Oct 2005 14:51:11 -0400, John DeSoi &lt;desoi@pgedit.com&gt wrote:
+
+&gt You might also try using editor:process-character to call your
+&gt function that manipulates the editor. According to Martin, this is
+&gt critical on the Mac and necessary in some cases on Windows/Linux. I
+&gt have had to jump through a lot of hoops to make things work on the
+&gt Mac with the interface and editor running in separate processes.
+
+Thanks.  I remember this issue when porting to the Mac but I wasn't
+aware that it might be necessary for Windows as well.  I'll give it a
+try.
+
+Cheers,
+Edi.
+
+
+</pre>
+                     </article>
+                    </section>
+                    <section class=tree>
+                     <article class=email>
+                      <h1>Re: Scrolling an editor pane during create callback</h1>
+                      <pre>On Sun, 23 Oct 2005 14:51:11 -0400, John DeSoi &lt;desoi@pgedit.com&gt wrote:
+
+&gt You might also try using editor:process-character to call your
+&gt function that manipulates the editor.
+
+Yeah!  That actually did the trick.  I actually had to wrap
+PROCESS-CHARACTER around a function which was seemingly unrelated but
+now everything works as expected.
+
+Thanks a lot,
+Edi.
+
+
+</pre>
+                     </article>
+                    </section>
+                   </section>
+                   <section class=tree>
+                    <article class=email>
+                     <h1>Re: Scrolling an editor pane during create callback</h1>
+                     <pre>--- Jeff Caldwell wrote:
+
+&gt My best guess is a race condition, which is why I tried mp:yield and
+friends.
+&gt My hypothesis is that capi:display scrolls editor panes to the top after
+the
+&gt pane's :create-callback has been called. In foo, capi:display creates a
+&gt second process and returns. The race is between foo trying to (down (editor
+&gt interface)) and capi:display trying to do it's version of (up (editor
+                  ^^^^^^^^^^^^
+&gt interface)). 
+
+Of course it's code in the capi:interface process, not capi:display, which
+does the (up (editor interface)) equivalent after capi:display returns. I
+made the same error in other places in that post. Must connect brain with
+fingers ...
+
+Jeff
+
+
+
+		
+__________________________________ 
+Yahoo! FareChase: Search multiple travel sites in one click.
+http://farechase.yahoo.com
+
+
+</pre>
+                    </article>
+                   </section>
+                  </section>
+                 </section>
+                </section>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Scrolling an editor pane during create callback</h1>
+                 <pre>Hi John!
+
+On Thu, 20 Oct 2005 20:20:26 -0400, John DeSoi &lt;desoi@pgedit.com&gt wrote:
+
+&gt I think the problem might be related to the editor input style that
+&gt ensures the point is always visible [try (apropos "always-visible")
+&gt for some references]. I have that off on the Mac and your window
+&gt opens with the text scrolled to the bottom.
+
+I see the output of APROPOS and the corresponding DEFSTRUCT in the
+editor sources but what code do you actually use to switch "always
+visible" off?  It looks to me as if this is already the default for
+Mac as well as PC (in mac-mode.lisp and pc-mode.lisp).
+
+&gt Other than changing the input style, one possible fix might be to
+&gt make sure you move the (editor:current-point) for the buffer rather
+&gt than just a temporary point as you have done in the adjust-scrollbar
+&gt function.
+
+I'll try that.
+
+Thanks,
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:47 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

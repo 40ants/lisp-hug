@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>how to debng</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>how to debng</h1><!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML><HEAD>
+<META http-equiv=Content-Type content="text/html; charset=iso-8859-2">
+<META content="MSHTML 6.00.2900.6003" name=GENERATOR>
+<STYLE></STYLE>
+</HEAD>
+<BODY bgColor=#ffffff>
+<DIV><FONT face=Arial size=2>Hi.</FONT></DIV>
+<DIV><FONT face=Arial size=2></FONT>&nbsp;</DIV>
+<DIV><FONT face=Arial size=2>I have this sample function:</FONT></DIV>
+<DIV><FONT face=Arial size=2></FONT>&nbsp;</DIV>
+<DIV><FONT face=Arial size=2>(defun init ()<BR>&nbsp; (defvar *pics*)<BR>&nbsp; 
+(defvar *pics-temp*)<BR>&nbsp; (setf *pics* '("pic1" "pic2" "pic3" 
+"pic4"))<BR>&nbsp; (setf *pics-temp* ())<BR>&nbsp; (let ((len (length 
+*pics*)))<BR>&nbsp;&nbsp;&nbsp; (dotimes (i 
+len)<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (let ((x (random (- len 
+i))))<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (push (nth x *pics*) 
+*pics-temp*)<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (delete-if 
+(constantly t) *pics* :start x :end (1+ x))))))</FONT></DIV>
+<DIV><FONT face=Arial size=2></FONT>&nbsp;</DIV>
+<DIV><FONT face=Arial size=2>I want to see what is happening in 
+function.</FONT></DIV>
+<DIV><FONT face=Arial size=2>I know how to set breakpoint and enter stepper 
+after</FONT></DIV>
+<DIV><FONT face=Arial size=2>calling function from listener.</FONT></DIV>
+<DIV><FONT face=Arial size=2>How can I see variables or forms I choose, changing 
+values</FONT></DIV>
+<DIV><FONT face=Arial size=2>(in one window) while going through stepper 
+?</FONT>&nbsp;</DIV>
+<DIV><FONT face=Arial size=2></FONT>&nbsp;</DIV>
+<DIV><FONT face=Arial size=2>Thanks</FONT></DIV></BODY></HTML>
+
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: how to debng</h1>
+                 <pre>
+Haris Bogdanović &lt;fbogdanovic@xnet.hr&gt writes:
+
+&gt Hi.
+&gt  
+&gt I have this sample function:
+&gt  
+&gt (defun init ()
+&gt   (defvar *pics*)
+&gt   (defvar *pics-temp*)
+&gt   (setf *pics* '("pic1" "pic2" "pic3" "pic4"))
+&gt   (setf *pics-temp* ())
+&gt   (let ((len (length *pics*)))
+&gt     (dotimes (i len)
+&gt       (let ((x (random (- len i))))
+&gt         (push (nth x *pics*) *pics-temp*)
+&gt         (delete-if (constantly t) *pics* :start x :end (1+ x))))))
+&gt  
+&gt I want to see what is happening in function.
+&gt I know how to set breakpoint and enter stepper after
+&gt calling function from listener.
+&gt How can I see variables or forms I choose, changing values
+&gt (in one window) while going through stepper ? 
+
+Even before that, you should try to write it more properly.
+
+
+(defvar *pics*  '("pic1" "pic2" "pic3" "pic4")
+  "A list of strings naming 'pics'.")
+
+(defvar *pics-temp* '()
+  "A global temporary? list of 'pic' name.")
+
+
+(defun init ()
+  (let ((len (length *pics*)))
+    (dotimes (i len)
+      (let ((x (random (- len i))))
+        (push (nth x *pics*) *pics-temp*)
+        (setf *pics* (remove-if (constantly t) *pics* :start x :end (1+ x)))))))
+
+Since *pics* is bound to a literal list, that list cannot be
+destructively modified, so delete-if is out of the question.
+
+
+Instead of stepping, IMO it would be easier to see the behavior of the
+function if you printed some choosen variable during the workings of
+the function.
+
+
+(defun init ()
+  (let ((len (length *pics*)))
+    (dotimes (i len)
+      (let ((x (random (- len i))))
+        (show *pics* *pics-temp* len x)
+        (push (nth x *pics*) *pics-temp*)
+        (setf *pics* (remove-if (constantly t) *pics* :start x :end (1+ x)))))
+    (show *pics* *pics-temp*)
+    nil))
+
+;; The show macro is in http://www.informatimago.com/develop/lisp/com/informatimago/common-lisp/interactive.lisp
+
+
+CL-USER&gt (init)
+*PICS*      = ("pic1" "pic2" "pic3" "pic4")
+*PICS-TEMP* = NIL
+LEN         = 4
+X           = 2
+*PICS*      = ("pic1" "pic2" "pic4")
+*PICS-TEMP* = ("pic3")
+LEN         = 4
+X           = 0
+*PICS*      = ("pic2" "pic4")
+*PICS-TEMP* = ("pic1" "pic3")
+LEN         = 4
+X           = 0
+*PICS*      = ("pic4")
+*PICS-TEMP* = ("pic2" "pic1" "pic3")
+LEN         = 4
+X           = 0
+*PICS*      = NIL
+*PICS-TEMP* = ("pic4" "pic2" "pic1" "pic3")
+NIL
+
+
+Now that function is still bad since it's O(n*(2n)), since nth and
+remove-if are O(n).  Another thing that doesn't feel right, is this
+spread between the immutable original list, and the modification of
+*pics* (either destructively with delete-if, or not destructively with
+remove-if, since in the later case it means copying and copying the
+list over).  If you could choose one way or the other we could write a
+more elegant function.  Finally, the use of global variable is always
+wrong, and the name you chosed don't seem to indicate they've got any
+justification.
+
+
+
+
+For example, if you chosed to implement a destructive list shuffle
+function, you could write:
+
+
+(defun nshuffle-list (list)
+  (loop
+     :with wrapped = (cons nil list)
+     :for length :from (length list) :above 0
+     :collect (pop (cdr (nthcdr (random length) wrapped)))))
+
+NSHUFFLE-LIST
+CL-USER&gt (nshuffle-list (list "pic1" "pic2" "pic3" "pic4"))
+("pic1" "pic4" "pic3" "pic2")
+CL-USER&gt (nshuffle-list (list "pic1" "pic2" "pic3" "pic4"))
+("pic2" "pic1" "pic4" "pic3")
+CL-USER&gt 
+
+
+and to see how it works:
+
+
+(defun nshuffle-list (list)
+  (loop
+     :with wrapped = (cons nil list)
+     :for length :from (length list) :above 0
+     :for r = (random length)
+     :do (show wrapped result length r (nthcdr r wrapped))
+     :collect (pop (cdr (nthcdr r wrapped))) :into result
+     :finally (return result)))
+NSHUFFLE-LIST
+CL-USER&gt (nshuffle-list (list "pic1" "pic2" "pic3" "pic4"))
+WRAPPED            = (NIL "pic1" "pic2" "pic3" "pic4")
+RESULT             = NIL
+LENGTH             = 4
+R                  = 2
+(NTHCDR R WRAPPED) = ("pic2" "pic3" "pic4")
+WRAPPED            = (NIL "pic1" "pic2" "pic4")
+RESULT             = ("pic3")
+LENGTH             = 3
+R                  = 0
+(NTHCDR R WRAPPED) = (NIL "pic1" "pic2" "pic4")
+WRAPPED            = (NIL "pic2" "pic4")
+RESULT             = ("pic3" "pic1")
+LENGTH             = 2
+R                  = 1
+(NTHCDR R WRAPPED) = ("pic2" "pic4")
+WRAPPED            = (NIL "pic2")
+RESULT             = ("pic3" "pic1" "pic4")
+LENGTH             = 1
+R                  = 0
+(NTHCDR R WRAPPED) = (NIL "pic2")
+("pic3" "pic1" "pic4" "pic2")
+CL-USER&gt (nshuffle-list (list "pic1" "pic2" "pic3" "pic4"))
+WRAPPED            = (NIL "pic1" "pic2" "pic3" "pic4")
+RESULT             = NIL
+LENGTH             = 4
+R                  = 3
+(NTHCDR R WRAPPED) = ("pic3" "pic4")
+WRAPPED            = (NIL "pic1" "pic2" "pic3")
+RESULT             = ("pic4")
+LENGTH             = 3
+R                  = 1
+(NTHCDR R WRAPPED) = ("pic1" "pic2" "pic3")
+WRAPPED            = (NIL "pic1" "pic3")
+RESULT             = ("pic4" "pic2")
+LENGTH             = 2
+R                  = 0
+(NTHCDR R WRAPPED) = (NIL "pic1" "pic3")
+WRAPPED            = (NIL "pic3")
+RESULT             = ("pic4" "pic2" "pic1")
+LENGTH             = 1
+R                  = 0
+(NTHCDR R WRAPPED) = (NIL "pic3")
+("pic4" "pic2" "pic1" "pic3")
+CL-USER&gt 
+
+
+
+Notice that you have to feed it a new list everytime.  You could even
+write it so that the cons cells provided in by list argument are
+actually reused in the result:
+
+
+(defun nshuffle-list (list)
+  (loop
+     :with result = '()
+     :with wrapped = (cons nil list)
+     :for length :from (length list) :above 0
+     :for previous =  (nthcdr (random length) wrapped)
+     :for cell = (cdr previous)
+     :for rest = (cdr cell)
+     :do (setf (cdr cell) result
+               result cell
+               (cdr previous) rest)
+     :finally (return result)))
+
+
+CL-USER&gt (let ((list  (list "pic1" "pic2" "pic3" "pic4")))
+           (show (nshuffle-list list) list))
+(NSHUFFLE-LIST LIST) = ("pic2" "pic3" "pic1" "pic4")
+LIST                 = ("pic1" "pic4")
+("pic1" "pic4")
+CL-USER&gt (let ((list  (list "pic1" "pic2" "pic3" "pic4")))
+           (show (nshuffle-list list) list))
+(NSHUFFLE-LIST LIST) = ("pic2" "pic4" "pic1" "pic3")
+LIST                 = ("pic1" "pic3")
+("pic1" "pic3")
+
+
+On the other hand, if you went to the functional paradigm, you could
+write a function that doesn't modify it's argument:
+
+
+(defun shuffle-list (list)
+  (nshuffle-list (copy-list list)))
+
+so that you can apply it on literal lists:
+
+
+CL-USER&gt (let ((list '("pic1" "pic2" "pic3" "pic4")))
+           (show (shuffle-list list) list))
+
+(SHUFFLE-LIST LIST) = ("pic3" "pic4" "pic1" "pic2")
+LIST                = ("pic1" "pic2" "pic3" "pic4")
+("pic1" "pic2" "pic3" "pic4")
+CL-USER&gt (let ((list '("pic1" "pic2" "pic3" "pic4")))
+           (show (shuffle-list list) list))
+
+(SHUFFLE-LIST LIST) = ("pic4" "pic3" "pic2" "pic1")
+LIST                = ("pic1" "pic2" "pic3" "pic4")
+("pic1" "pic2" "pic3" "pic4")
+
+But this is a little cheating, and costly to reuse the destructive
+version this way, but the alternative would be to cons a lot of
+temporary lists.
+
+
+
+
+Anyways, this would let you write init as:
+
+(defun init ()
+  (setf *pics-temp* (shuffle-list *pics*)))
+
+and I guess now it's clear how it behave and you don't have to step it anymore.
+
+
+
+-- 
+__Pascal Bourguignon__                     http://www.informatimago.com/
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:35 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

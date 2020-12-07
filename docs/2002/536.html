@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Common SQL</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Common SQL</h1>
+                <pre>Here we go. Assume I have this classes.. (not really tested but just
+to get some code.
+
+
+(def-view-class foo ()
+        ((foo-id 
+        :db-kind :key
+        :type integer)
+        (bar
+           :accessor foo-bar
+           :db-kind :join
+           :db-info (:join-class bar
+                     :home-key foo-id
+                     :foreign-key bar-id
+                     :set nil)))
+        (:base-table foo))
+                      
+(def-view-class bar ()
+         ((bar-id 
+           :db-kind :key
+           :type integer)
+        (foo 
+           :accessor bar-foo
+           :db-kind :join
+           :db-info (:join-class foo
+                     :home-key bar-id
+                     :foreign-key foo-id
+                     :set nil)))
+        (:base-table bar))
+
+        
+How do I build a connecton from foo to bar and back and how to break
+it cleanly? 
+
+CommonSQL maps all to UPPERCASE so if I have a bar here it will get
+mapped to a table BAR. How can I change that to force it kept
+downcase? I do not want to write |bar|, which obviously does work.
+
+Now to my critique. The quality of the Documentation is IMHO
+especially about CommonSQL very bad. The only example I found was just
+the class declaration in the Reference Manual but no-where did I find
+and example on how to use that classes. I would think that improving
+the documentation should move up on the priority list from Xanalys. At
+least I would expect that Document strings are used. It's really
+nerving to have to figure out how things working but just looking at
+their name.
+
+Regards
+Friedrich
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Common SQL</h1>
+                 <pre>&gt&gt&gt&gt&gt Friedrich Dominicus writes:
+        
+Friedrich&gt How do I build a connecton from foo to bar and back and how to break
+Friedrich&gt it cleanly? 
+
+I don't understand this question.  Do you mean how to create a bar
+such that accessing the join slot it foo will retrieve bar?
+
+
+Friedrich&gt CommonSQL maps all to UPPERCASE so if I have a bar here it will get
+Friedrich&gt mapped to a table BAR. How can I change that to force it kept
+Friedrich&gt downcase? I do not want to write |bar|, which obviously does work.
+
+Since it "obviously does work", why in the world do you not want to
+use it?  If you're trying to avoid interning the symbol, just
+use (:base-table #:|bar|).
+
+Friedrich&gt Now to my critique. The quality of the Documentation is IMHO
+Friedrich&gt especially about CommonSQL very bad. 
+
+I agree (though I would probably have phrased it somewhat more
+diplomatically :-).  Many supported options are not even
+documented at all.
+
+I have a file implementing a fairly exhaustive test suite
+showing most (all?) the supported options of Common SQL.
+Would anyone be interested in that?  [I'd have to clear
+all the legalities with Memetrics and Xanalys first, of course.]
+
+
+--
+			Alain Picard
+			Memetrics
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Common SQL</h1>
+                 <pre>Alain Picard &lt;Alain.Picard@memetrics.com&gt writes:
+
+&gt &gt&gt&gt&gt&gt Friedrich Dominicus writes:
+&gt         
+&gt Friedrich&gt How do I build a connecton from foo to bar and back and how to break
+&gt Friedrich&gt it cleanly? 
+&gt 
+&gt I don't understand this question.  Do you mean how to create a bar
+&gt such that accessing the join slot it foo will retrieve bar?
+Well the classes do have a connection through their different keys but
+the only way I can see at the moment to relat them is by explicitly
+setting the slots of both to the appropriate values. 
+
+so in the example I've to do
+create the objects 
+than set the bar and foo slots from either foo or bar. And better do
+not forget the keys. 
+
+
+
+
+&gt 
+&gt 
+&gt Friedrich&gt CommonSQL maps all to UPPERCASE so if I have a bar here it will get
+&gt Friedrich&gt mapped to a table BAR. How can I change that to force it kept
+&gt Friedrich&gt downcase? I do not want to write |bar|, which obviously does work.
+&gt 
+&gt Since it "obviously does work", why in the world do you not want to
+&gt use it?  If you're trying to avoid interning the symbol, just
+&gt use (:base-table #:|bar|).
+Well it should be possible IMHO to have an optio to that the used case
+too e.g SQL:*MAP-CASE* :downcase or the like and from there on 'foo -&gt
+mapped to foo not FOO 
+&gt 
+&gt Friedrich&gt Now to my critique. The quality of the Documentation is IMHO
+&gt Friedrich&gt especially about CommonSQL very bad. 
+&gt 
+&gt I agree (though I would probably have phrased it somewhat more
+&gt diplomatically :-).  
+What phrases would you have preferred? I don't think that I was to
+harsh I just stated clearly that the documentation is not good. 
+
+&gtMany supported options are not even
+&gt documented at all.
+&gt 
+&gt I have a file implementing a fairly exhaustive test suite
+&gt showing most (all?) the supported options of Common SQL.
+&gt Would anyone be interested in that? 
+Well I would be interested of course. 
+
+Regards
+Friedrich
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Common SQL</h1>
+                 <pre>
+In uncommon sql there is a function called add-to-relation() that may
+be what you are looking for.  Essentially, something like:
+
+(let ((f (make-instance 'foo))
+      (b (make-instance 'bar)))
+  (add-to-relation f 'foo-bar b)
+  (add-to-relation b 'bar-foo f))
+
+-sdk
+
+
+&gt Here we go. Assume I have this classes.. (not really tested but just
+&gt to get some code.
+&gt 
+&gt 
+&gt (def-view-class foo ()
+&gt         ((foo-id 
+&gt         :db-kind :key
+&gt         :type integer)
+&gt         (bar
+&gt            :accessor foo-bar
+&gt            :db-kind :join
+&gt            :db-info (:join-class bar
+&gt                      :home-key foo-id
+&gt                      :foreign-key bar-id
+&gt                      :set nil)))
+&gt         (:base-table foo))
+&gt                       
+&gt (def-view-class bar ()
+&gt          ((bar-id 
+&gt            :db-kind :key
+&gt            :type integer)
+&gt         (foo 
+&gt            :accessor bar-foo
+&gt            :db-kind :join
+&gt            :db-info (:join-class foo
+&gt                      :home-key bar-id
+&gt                      :foreign-key foo-id
+&gt                      :set nil)))
+&gt         (:base-table bar))
+&gt 
+&gt         
+&gt How do I build a connecton from foo to bar and back and how to break
+&gt it cleanly? 
+&gt 
+&gt CommonSQL maps all to UPPERCASE so if I have a bar here it will get
+&gt mapped to a table BAR. How can I change that to force it kept
+&gt downcase? I do not want to write |bar|, which obviously does work.
+&gt 
+&gt Now to my critique. The quality of the Documentation is IMHO
+&gt especially about CommonSQL very bad. The only example I found was just
+&gt the class declaration in the Reference Manual but no-where did I find
+&gt and example on how to use that classes. I would think that improving
+&gt the documentation should move up on the priority list from Xanalys. At
+&gt least I would expect that Document strings are used. It's really
+&gt nerving to have to figure out how things working but just looking at
+&gt their name.
+&gt 
+&gt Regards
+&gt Friedrich
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Common SQL</h1>
+                 <pre>&gt&gt&gt&gt&gt Friedrich Dominicus writes:
+
+Friedrich&gt "Scott D. Kalter" &lt;mithril@brandx.net&gt writes:
+&gt&gt In uncommon sql there is a function called add-to-relation() that may
+&gt&gt be what you are looking for.  Essentially, something like:
+&gt&gt 
+&gt&gt (let ((f (make-instance 'foo))
+&gt&gt (b (make-instance 'bar)))
+&gt&gt (add-to-relation f 'foo-bar b)
+&gt&gt (add-to-relation b 'bar-foo f))
+Friedrich&gt Well I know that, but such a thing does not exist in
+Friedrich&gt CommonSQL. Therfor my question how I'm supposed to do that with
+Friedrich&gt CommonSQL.
+Friedrich&gt Regards
+Friedrich&gt Friedrich
+
+FWIW, the way we solved this is by writing a hairy macro
+called DEFINE-PERSISTENT-CLASS which defines concepts of
+"ownership" between objects, so that one can, for instance, 
+say
+
+(make-instance* owner 'owned-class :arg1 par1 ...)
+
+and
+
+(delete-from owner ownee)
+
+etc.  Thus, I'd say that def-view-class is a nice toolkit, but
+is not a "solution"; you need a lot of extra "intelligence"
+(sometimes domain specific) built on it to get a "solutions".
+
+How are other users of CommonSQL faring?
+
+--
+			Alain Picard
+			Memetrics
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:57 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

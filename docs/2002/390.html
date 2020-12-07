@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>getting the function name of a compiled function</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>getting the function name of a compiled function</h1>
+                <pre>Does anyone know the (apparently undocumented, internal) way to get the name of a compiled function?
+
+I.e, something like
+
+(function-name (symbol-function 'car)) -&gt CAR
+
+(for any function). Thanks!
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: getting the function name of a compiled function</h1>
+                 <pre>* Miller Bradford-ABM wrote:
+&gt Does anyone know the (apparently undocumented, internal) way to get the name of a compiled function?
+&gt I.e, something like
+
+&gt (function-name (symbol-function 'car)) -&gt CAR
+
+The third value of FUNCTION-LAMBDA-EXPRESSION is the `name' of a
+function, or NIL meaning (I think) either `has no name' or `I don't
+know the name'.
+
+In LWW:
+
+   (function-lambda-expression #'car) -&gt NIL, NIL, CAR
+
+and 
+
+   (function-lambda-expression #'(lambda (x) x)) -&gt (LAMBDA (X) X), NIL, NIL
+
+(the other values are defined in the spec)
+
+--tim
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: getting the function name of a compiled function</h1>
+                 <pre>Brad Miller &lt;Bradford.W.Miller@motorola.com&gt writes:
+
+&gt Thanks, this does seem to be the ANSI defined way to do this.
+&gt Unfortunately, it does not appear to be a reliable way to find out
+&gt the name of a function:
+&gt 
+&gt CL-USER 40 &gt (defun bar () t)
+&gt BAR
+&gt 
+&gt CL-USER 41 &gt (compile 'bar)
+&gt BAR
+&gt NIL
+&gt NIL
+&gt 
+&gt CL-USER 42 &gt (function-lambda-expression #'bar)
+&gt NIL
+&gt NIL
+&gt NIL
+&gt 
+&gt CL-USER 43 &gt (describe #'bar)
+&gt 
+&gt #&lt;function 20671D12&gt is a LOW:COMPILED-FUNCTION-OBJECT
+&gt CODE           #&lt;code BAR (26) 20671D12&gt
+&gt CONSTANTS      (T #&lt;function 20045DC2&gt)
+&gt 
+&gt CL-USER 44 &gt 
+&gt 
+&gt So LW knows that the name of the code is BAR but it isn't letting me
+&gt get to this information via function-lambda-expression...
+
+I suspect this is due to some optimization settings that you may have
+in your init file. This is what I get with a freshly started Lisp
+image (LWL 4.2 Personal Edition):
+
+  CL-USER 1 &gt (defun bar () t)
+  BAR
+  
+  CL-USER 2 &gt (compile 'bar)
+  BAR
+  NIL
+  NIL
+  
+  CL-USER 3 &gt (function-lambda-expression #'bar)
+  NIL
+  NIL
+  BAR
+  
+  CL-USER 4 &gt (proclaim '(optimize (debug 0)))
+  NIL
+  
+  CL-USER 5 &gt (defun foo () t)
+  FOO
+  
+  CL-USER 6 &gt (compile 'foo)
+  FOO
+  NIL
+  NIL
+  
+  CL-USER 7 &gt (function-lambda-expression #'foo)
+  NIL
+  NIL
+  NIL
+  
+  CL-USER 8 &gt 
+ 
+Edi. 
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: getting the function name of a compiled function</h1>
+                 <pre>* Brad Miller wrote:
+
+&gt Thanks, this does seem to be the ANSI defined way to do this.
+&gt Unfortunately, it does not appear to be a reliable way to find 
+&gt out the name of a function:
+
+&gt CL-USER 40 &gt (defun bar () t)
+&gt BAR
+
+&gt CL-USER 41 &gt (compile 'bar)
+&gt BAR
+&gt NIL
+&gt NIL
+
+&gt CL-USER 42 &gt (function-lambda-expression #'bar)
+&gt NIL
+&gt NIL
+&gt NIL
+
+Which LW are you using?  This works for me in both LWL 4.2.6 and LWW
+4.2.6.  Are you using compilation options which cause it to drop a lot
+of information?
+
+--tim
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:58 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

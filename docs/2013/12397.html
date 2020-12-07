@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Are compiled functions collected?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Are compiled functions collected?</h1>
+                <pre>
+Just curious, if I do:
+
+CL-USER &gt (setf foo (compile nil '(lambda () 'foo)))
+#&lt;Function 424 200A71E2&gt
+
+CL-USER &gt (setf foo 10)
+10
+
+Will the function I compiled eventually be collected? I understand this 
+might be implementation dependent. But, since LW is the only Lisp I 
+use... ;-)
+
+Thanks!
+
+Jeff M.
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Are compiled functions collected?</h1>
+                 <pre>
+
+* Jeffrey Massung &lt;52117C04.4060102@gmail.com&gt :
+Wrote on Sun, 18 Aug 2013 20:59:32 -0500:
+
+| CL-USER &gt (setf foo (compile nil '(lambda () 'foo)))
+| #&lt;Function 424 200A71E2&gt
+|
+| CL-USER &gt (setf foo 10)
+| 10
+|
+| Will the function I compiled eventually be collected? I understand
+| this might be implementation dependent. But, since LW is the only Lisp
+| I use... ;-)
+
+I believe it would, given that this *is* LW, after all.  And much as I
+would like to study LW GC code, the following simple test shows an
+explicit gc-all would collect them, and gives me confidence that this
+works as expected. ---Regards, Madhu
+
+
+(progn (gc-all) (room))
+(defvar $syms nil)
+
+(time
+ (loop repeat 15 for sym = (gensym)
+      do (set sym (compile nil `(lambda ()
+				  ,(make-string (expt 2 21)
+						:initial-element
+						(code-char (random 256))))))
+      (push sym $syms)))
+
+#+nil
+(length (funcall  (symbol-value (elt $syms 2))))
+
+(progn (gc-all) (room))
+(mapcar (lambda (sym) (set sym 10)) $syms)
+(progn (gc-all) (room))
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Are compiled functions collected?</h1>
+                 <p>
+                  Unable to parse email body. Email id is 12399
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:31 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

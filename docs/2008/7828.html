@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>midi input in LWW / fli reference-return</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>midi input in LWW / fli reference-return</h1>
+                <pre>
+Hi,
+I was thinking of reading input from a midi device, but have some
+basic problems with the fli.
+
+I have the following:
+
+(defconstant +max-pname-len+ 32)
+
+(fli:define-c-typedef word
+  (:unsigned :short))
+
+(fli:define-c-typedef dword
+  (:unsigned :long))
+
+(fli:define-c-typedef mmversion
+  (:unsigned :int))
+
+;;; typedef struct {
+;;;     WORD      wMid;
+;;;     WORD      wPid;
+;;;     MMVERSION vDriverVersion;
+;;;     TCHAR     szPname[MAXPNAMELEN];
+;;;     DWORD     dwSupport;
+;;; } MIDIINCAPS;
+
+(fli:define-c-struct midi-in-caps
+  (mid word)
+  (pid word)
+  (driver-version mmversion)
+  (p-name (:ef-mb-string :limit +max-pname-len+))
+  (support dword))
+
+;;; UINT midiInGetNumDevs(VOID);
+
+(fli:define-foreign-function (midi-in-get-num-devs "midiInGetNumDevs")
+    ()
+  :result-type :unsigned
+  :language :ansi-c)
+
+;;; MMRESULT midiInGetDevCaps(
+;;;   UINT_PTR     uDeviceID,
+;;;   LPMIDIINCAPS lpMidiInCaps,
+;;;   UINT         cbMidiInCaps
+;;; );
+
+(fli:define-foreign-function (midi-in-get-dev-caps "midiInGetDevCapsA")
+    ((i dword)
+     (midi-in-caps (:reference-return midi-in-caps))
+     (size-of dword))
+  :result-type :unsigned
+  :language :ansi-c)
+
+
+(defun print-dev-stats (id)
+       (fli:with-dynamic-foreign-objects ()
+         (let ((lp-midi-dev (fli:allocate-dynamic-foreign-object :type
+'midi-in-caps)))
+           (setf (fli:foreign-slot-value lp-midi-dev 'mid) 0
+                 (fli:foreign-slot-value lp-midi-dev 'pid) 0
+                 (fli:foreign-slot-value lp-midi-dev 'support) 0)
+           (if (= 0 (midi-in-get-dev-caps id lp-midi-dev (fli:size-of
+'midi-in-caps)))
+             (format t "~a ~a ~a ~a ~%"
+                     (fli:foreign-slot-value lp-midi-dev 'mid)
+                     (fli:foreign-slot-value lp-midi-dev 'pid)
+                     (fli:convert-from-foreign-string
+(fli:foreign-slot-pointer lp-midi-dev 'p-name))
+                     (fli:foreign-slot-value lp-midi-dev 'support))))))
+
+
+The midi-in-get-num-devs works reasonably well, but if a midi device
+is attached or
+removed while the lisp image is running, the number returned from the
+function stays
+the same. print-dev-stats on the other hand does not work. The fli
+call returns 0
+indicating success, but the struct slots do not get updated. I'm
+guessing I have
+misunderstood the way to use reference-return somehow.
+
+MIDI-MON 6 &gt (midi-in-get-num-devs)
+2
+
+MIDI-MON 7 &gt (print-dev-stats 0)
+0 0 etNumDevs 0
+NIL
+
+MIDI-MON 8 &gt (print-dev-stats 1)
+0 0 etNumDevs 0
+
+
+If anyone has any better approach to using midi, I'm all ears btw. All I want
+to do at the moment is to open a midi device an read in messages.
+-- 
+  -asbjxrn
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>RE: midi input in LWW / fli reference-return</h1>
+                 <pre>
+&gt -----Original Message-----
+&gt From: owner-lisp-hug@lispworks.com 
+&gt [mailto:owner-lisp-hug@lispworks.com] On Behalf Of Asbjørn Bjørnstad
+&gt Sent: Friday, March 07, 2008 5:27 PM
+&gt To: Lispworks HUG
+&gt Subject: midi input in LWW / fli reference-return
+&gt 
+&gt 
+&gt 
+&gt Hi,
+&gt I was thinking of reading input from a midi device, but have 
+&gt some basic problems with the fli.
+&gt 
+&gt I have the following:
+&gt 
+&gt (defconstant +max-pname-len+ 32)
+&gt 
+&gt (fli:define-c-typedef word
+&gt   (:unsigned :short))
+&gt 
+&gt (fli:define-c-typedef dword
+&gt   (:unsigned :long))
+&gt 
+&gt (fli:define-c-typedef mmversion
+&gt   (:unsigned :int))
+&gt 
+&gt ;;; typedef struct {
+&gt ;;;     WORD      wMid;
+&gt ;;;     WORD      wPid;
+&gt ;;;     MMVERSION vDriverVersion;
+&gt ;;;     TCHAR     szPname[MAXPNAMELEN];
+&gt ;;;     DWORD     dwSupport;
+&gt ;;; } MIDIINCAPS;
+&gt 
+&gt (fli:define-c-struct midi-in-caps
+&gt   (mid word)
+&gt   (pid word)
+&gt   (driver-version mmversion)
+&gt   (p-name (:ef-mb-string :limit +max-pname-len+))
+&gt   (support dword))
+&gt 
+&gt ;;; UINT midiInGetNumDevs(VOID);
+&gt 
+&gt (fli:define-foreign-function (midi-in-get-num-devs "midiInGetNumDevs")
+&gt     ()
+&gt   :result-type :unsigned
+&gt   :language :ansi-c)
+&gt 
+&gt ;;; MMRESULT midiInGetDevCaps(
+&gt ;;;   UINT_PTR     uDeviceID,
+&gt ;;;   LPMIDIINCAPS lpMidiInCaps,
+&gt ;;;   UINT         cbMidiInCaps
+&gt ;;; );
+&gt 
+&gt (fli:define-foreign-function (midi-in-get-dev-caps 
+&gt "midiInGetDevCapsA")
+&gt     ((i dword)
+&gt      (midi-in-caps (:reference-return midi-in-caps))
+&gt      (size-of dword))
+&gt   :result-type :unsigned
+&gt   :language :ansi-c)
+&gt 
+&gt 
+&gt (defun print-dev-stats (id)
+&gt        (fli:with-dynamic-foreign-objects ()
+&gt          (let ((lp-midi-dev (fli:allocate-dynamic-foreign-object :type
+&gt 'midi-in-caps)))
+&gt            (setf (fli:foreign-slot-value lp-midi-dev 'mid) 0
+&gt                  (fli:foreign-slot-value lp-midi-dev 'pid) 0
+&gt                  (fli:foreign-slot-value lp-midi-dev 'support) 0)
+&gt            (if (= 0 (midi-in-get-dev-caps id lp-midi-dev (fli:size-of
+&gt 'midi-in-caps)))
+&gt              (format t "~a ~a ~a ~a ~%"
+&gt                      (fli:foreign-slot-value lp-midi-dev 'mid)
+&gt                      (fli:foreign-slot-value lp-midi-dev 'pid)
+&gt                      (fli:convert-from-foreign-string 
+&gt (fli:foreign-slot-pointer lp-midi-dev 'p-name))
+&gt                      (fli:foreign-slot-value lp-midi-dev 
+&gt 'support))))))
+&gt 
+&gt 
+&gt The midi-in-get-num-devs works reasonably well, but if a midi 
+&gt device is attached or removed while the lisp image is 
+&gt running, the number returned from the function stays the 
+&gt same. print-dev-stats on the other hand does not work. The 
+&gt fli call returns 0 indicating success, but the struct slots 
+&gt do not get updated. I'm guessing I have misunderstood the way 
+&gt to use reference-return somehow.
+&gt 
+&gt MIDI-MON 6 &gt (midi-in-get-num-devs)
+&gt 2
+&gt 
+&gt MIDI-MON 7 &gt (print-dev-stats 0)
+&gt 0 0 etNumDevs 0
+&gt NIL
+&gt 
+&gt MIDI-MON 8 &gt (print-dev-stats 1)
+&gt 0 0 etNumDevs 0
+&gt 
+&gt 
+&gt If anyone has any better approach to using midi, I'm all ears 
+&gt btw. All I want to do at the moment is to open a midi device 
+&gt an read in messages.
+&gt -- 
+&gt   -asbjxrn
+&gt 
+
+Hi Asbjorn,
+
+I guess you haven't been far away from a solution. The following modification 
+made your code perfectly run on my Intel Core 2 Duo box:
+
+(fli:define-foreign-function (midi-in-get-dev-caps "midiInGetDevCapsA")
+    ((i word)
+     (midi-in-caps :pointer)
+     (size-of word))
+  :result-type :unsigned
+  :language :ansi-c)
+
+(defun print-dev-stats (id)
+  (fli:with-dynamic-foreign-objects ()
+    (let ((lp-midi-dev (fli:allocate-dynamic-foreign-object :type 'midi-in-caps)))
+      (setf (fli:foreign-slot-value lp-midi-dev 'mid) 0
+            (fli:foreign-slot-value lp-midi-dev 'pid) 0
+            (fli:foreign-slot-value lp-midi-dev 'driver-version) 0
+            (fli:foreign-slot-value lp-midi-dev 'support) 0)
+      (if (= 0 (midi-in-get-dev-caps id lp-midi-dev (fli:size-of 'midi-in-caps)))
+          (format t "~a ~a ~x '~a' ~a~%"
+                  (fli:foreign-slot-value lp-midi-dev 'mid)
+                  (fli:foreign-slot-value lp-midi-dev 'pid)
+                  (fli:foreign-slot-value lp-midi-dev 'driver-version)
+                  (fli:foreign-slot-value lp-midi-dev 'p-name)
+                  (fli:foreign-slot-value lp-midi-dev 'support))))))
+
+
+(defun list-devs ()
+  (loop :for i :from 0 :upto (midi-in-get-num-devs)
+        :do
+        (print-dev-stats i)))
+
+;; Steinberg Midex8 (slightly aged gear with 8 MIDI ins and outs) already connected
+
+CL-USER 17 &gt (list-devs)
+1 103 50A 'Midex8 1' 0
+1 103 50A 'Midex8 2' 0
+1 103 50A 'Midex8 3' 0
+1 103 50A 'Midex8 4' 0
+1 103 50A 'Midex8 5' 0
+1 103 50A 'Midex8 6' 0
+1 103 50A 'Midex8 7' 0
+1 103 50A 'Midex8 8' 0
+NIL
+
+;; I removed the Midex8
+
+CL-USER 18 &gt (list-devs)
+NIL
+
+;; Plugged in the USB wire to Midex8 and sitting patiently until it appears as removable hardware
+
+CL-USER 19 &gt (list-devs)
+1 103 50A 'Midex8 1' 0
+1 103 50A 'Midex8 2' 0
+1 103 50A 'Midex8 3' 0
+1 103 50A 'Midex8 4' 0
+1 103 50A 'Midex8 5' 0
+1 103 50A 'Midex8 6' 0
+1 103 50A 'Midex8 7' 0
+1 103 50A 'Midex8 8' 0
+NIL
+
+This took me about two hours and thus was a chargeable service request :))
+
+LOL - Happy Lisping
+
+Andreas
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: midi input in LWW / fli reference-return</h1>
+                 <pre>
+Hi Asbjørn,
+
+You might well have already seen/considered/decided against 
+this option, but PortMidi[1] has a CFFI-based CL binding[2]. 
+Then there's Common Music[3] that also wraps PortMidi.
+
+Of course, these systems would probably be less responsive 
+to MIDI devices coming and going than your "raw API" code 
+(based on my experience with the companion PortAudio 
+library). But studying their APIs might be instructive.
+
+I'd love to be able to say more based on my experience with 
+MIDI programming using Lisp, but unfortunately I don't have 
+any (yet)... :( But if anyone wants Lispworks code for 
+PortAudio, I might be able to help.
+
+Cheers,
+
+John :^P
+
+[1] http://www.cs.cmu.edu/~music/portmusic/
+[2] 
+http://portmedia.svn.sourceforge.net/viewvc/portmedia/portmidi/trunk/pm_cl/
+[3] http://commonmusic.sourceforge.net/doc/cm.html
+
+Asbjørn Bjørnstad wrote:
+&gt Hi,
+&gt I was thinking of reading input from a midi device, but have some
+&gt basic problems with the fli.
+
+   [snip]
+
+&gt If anyone has any better approach to using midi, I'm all ears btw. All I want
+&gt to do at the moment is to open a midi device an read in messages.
+
+-- 
+John Pallister
+john@synchromesh.com
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: midi input in LWW / fli reference-return</h1>
+                 <pre>
+On Sat, Mar 8, 2008 at 9:41 AM, Andreas Thiele &lt;andreas@atp-media.de&gt wrote:
+
+&gt  I guess you haven't been far away from a solution. The following modification
+&gt  made your code perfectly run on my Intel Core 2 Duo box:
+&gt
+&gt
+&gt  (fli:define-foreign-function (midi-in-get-dev-caps "midiInGetDevCapsA")
+&gt     ((i word)
+&gt      (midi-in-caps :pointer)
+&gt      (size-of word))
+&gt
+&gt   :result-type :unsigned
+&gt   :language :ansi-c)
+
+Thanks, that was it. As far as I understand the error, :reference will
+turn a object into a pointer to the object. (and back after the
+function call returns) But allocate-dynamic-foreign-object already
+returns a pointer so telling :reference that it is an object is the
+wrong thing to do. Using :reference-return hid the error a bit, as it
+didn't throw an error because it does not fill in the data in the
+object before calling the foreign function. Using just :reference
+caused this error which makes things clearer:
+Error: #&lt;Pointer to type (:STRUCT MIDI-IN-CAPS) = #x008E0050&gt cannot
+be converted to foreign type (:STRUCT MIDI-IN-CAPS).
+
+But I think your testing of removing the device and adding it again is
+flawed :) Try starting without the device added, then adding it. Or
+just run the midi-in-get-num-devs before and after adding/removing the
+device.
+
+&gt This took me about two hours and thus was a chargeable service request :))
+
+Fees will only be enumerated in consumables consumed at site. If you
+happen to drop by Singapore, let me know and you'll be handsomely
+rewarded. :)
+-- 
+  -asbjxrn
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>RE: midi input in LWW / fli reference-return</h1>
+                  <pre>&gt -----Original Message-----
+&gt From: owner-lisp-hug@lispworks.com 
+&gt [mailto:owner-lisp-hug@lispworks.com] On Behalf Of Asbjørn Bjørnstad
+&gt Sent: Saturday, March 08, 2008 5:03 AM
+&gt To: Andreas Thiele
+&gt ...
+&gt But I think your testing of removing the device and adding it 
+&gt again is flawed :) Try starting without the device added, 
+&gt then adding it. Or just run the midi-in-get-num-devs before 
+&gt and after adding/removing the device.
+&gt ...
+
+Asbjørn,
+
+using Steinberg Midex8 on my WinXP SP2 indeed everything is fine.
+For verification and your convenience I wrote the attached programm
+shut down my machine, pulled the Midex USB plug and powered up again.
+
+Loading midi1.lisp shows an initially empty window. I plug in the
+Midex, wait a few seconds, and device info appears within the window.
+I pull the Midex plug ignoring the device manager, wait a few seconds
+and the window get cleared. I plugin the Midex ...
+
+Everything fine, correct midi-in-get-num-devs, correct list.
+I guess there might be a problem with your device driver.
+
+Happy Lisping
+
+Andreas
+
+
+</pre>
+                 </article>
+                </section>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: midi input in LWW / fli reference-return</h1>
+                  <pre>
+On Sat, Mar 8, 2008 at 9:01 PM, Andreas Thiele &lt;andreas@atp-media.de&gt wrote:
+
+&gt  Everything fine, correct midi-in-get-num-devs, correct list.
+&gt  I guess there might be a problem with your device driver.
+
+Ok, tried running it on my system, and it didn't change when I
+unplugged the driver. Stopped the interface and restarted it and it
+threw an error. "device ID out of range". So you're right, it's
+probably something funny with my system. I checked with some other
+applications and they had similar strangeness happen.
+
+Thanks.
+-- 
+  -asbjxrn
+
+
+</pre>
+                 </article>
+                </section>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: midi input in LWW / fli reference-return</h1>
+                 <pre>
+On Sat, Mar 8, 2008 at 12:20 PM, John Pallister &lt;john@synchromesh.com&gt wrote:
+
+&gt  You might well have already seen/considered/decided against
+&gt  this option, but PortMidi[1] has a CFFI-based CL binding[2].
+&gt  Then there's Common Music[3] that also wraps PortMidi.
+
+I have had a quick look at Common Music before, but I thought that is
+was a bit too heavyweight for what I'm doing. I just want to make a
+simple rhythm recorder/trainer thingy. (But then if the project lives
+long enough for feature creep to present itself, maybe I will need
+that extra functionality.) PortMidi looks like it might be just what I
+need at the moment, though. Thanks, I'll have a look at it.
+
+&gt  Of course, these systems would probably be less responsive
+&gt  to MIDI devices coming and going than your "raw API" code
+&gt  (based on my experience with the companion PortAudio
+&gt  library). But studying their APIs might be instructive.
+
+It's not a requirement to detect new devices, but it would be nicer to
+the user. I found it a bit suspicious, as if my results were cached
+because I used the fli incorrectly.
+-- 
+  -asbjxrn
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: midi input in LWW / fli reference-return</h1>
+                 <pre>
+
+It might also be more than needed in your present case, but
+the MidiShare lirary is another intersting ans reliable option for the
+develoment of MIDI applications.
+
+http://midishare.sourceforge.net/
+
+Lisp bindings exist for LispWorks, Alegro, MCL, SBCL, etc.
+
+Jean
+
+
+&gt You might well have already seen/considered/decided against
+&gt this option, but PortMidi[1] has a CFFI-based CL binding[2].
+&gt Then there's Common Music[3] that also wraps PortMidi.
+&gt
+&gt Of course, these systems would probably be less responsive
+&gt to MIDI devices coming and going than your "raw API" code
+&gt (based on my experience with the companion PortAudio
+&gt library). But studying their APIs might be instructive.
+&gt
+&gt I'd love to be able to say more based on my experience with
+&gt MIDI programming using Lisp, but unfortunately I don't have
+&gt any (yet)... :( But if anyone wants Lispworks code for
+&gt PortAudio, I might be able to help.
+&gt
+&gt Cheers,
+&gt
+&gt John :^P
+&gt
+&gt [1] http://www.cs.cmu.edu/~music/portmusic/
+&gt [2]
+&gt http://portmedia.svn.sourceforge.net/viewvc/portmedia/portmidi/trunk/pm_cl/
+&gt [3] http://commonmusic.sourceforge.net/doc/cm.html
+&gt
+&gt Asbjørn Bjørnstad wrote:
+&gt&gt Hi,
+&gt&gt I was thinking of reading input from a midi device, but have some
+&gt&gt basic problems with the fli.
+&gt
+&gt    [snip]
+&gt
+&gt&gt If anyone has any better approach to using midi, I'm all ears btw. All I
+&gt&gt want
+&gt&gt to do at the moment is to open a midi device an read in messages.
+&gt
+&gt --
+&gt John Pallister
+&gt john@synchromesh.com
+&gt
+&gt
+&gt
+
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:40 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

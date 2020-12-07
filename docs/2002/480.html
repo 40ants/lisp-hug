@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>defsystem</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>defsystem</h1>
+                <pre>I'm using defsystem for the first time to clean up and describe a largish 
+project.  Evidence suggests that I'm not describing the dependencies 
+correctly (i.e. I get unbound errors for variables that should have been 
+loaded before something else).  I suspect that I'm rtfm'ing through 
+makefile-coloured eyes and am missing something obvious.
+
+My problem in the small: 5 .lisp files.  Macro.lisp contains a simple macro 
+for defining constants.  Const.lisp and Opcodes.lisp use this macro to 
+define constants.  Emit.lisp and assemble.lisp use the constants, i.e.
+
+1) compile and load macro
+2) then, compile and load const and opcodes
+3) then, compile and load emit and assemble.
+
+My description below works if I blow away all of the .fsl files, but didn't 
+appear to work when I'd made a typo and then did a minimum recompile 
+(unbound variables at runtime).  I tried to trick defsys into causing a 
+full recompile by editing "macro.lisp" (1), but the problem persisted until 
+I blew away the .fsl files again.
+
+(defmacro subdir (s) (concatenate 'string *path* s))
+....
+(defsystem bytecoder (:default-pathname (subdir "bytecoder"))
+   :members ("macro" "const" "opcodes" "emit" "assemble")
+   :rules ((:in-order-to :compile ("const" "opcodes")
+             (:requires (:load "macro"))
+             (:caused-by (:compile "macro")))
+           (:in-order-to :compile ("emit" "assemble")
+            (:requires (:load "macro" "const" "opcodes"))
+            (:caused-by (:compile "const" "opcodes")))))
+
+thanx for any suggestions
+pt
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: defsystem</h1>
+                 <pre>----- Original Message ----- 
+From: Paul Tarvydas &lt;tarvydas@attcanada.ca&gt
+
+
+|...snip...|
+| 
+| (defmacro subdir (s) (concatenate 'string *path* s))
+| ...
+| (defsystem bytecoder (:default-pathname (subdir "bytecoder"))
+|    :members ("macro" "const" "opcodes" "emit" "assemble")
+|    :rules ((:in-order-to :compile ("const" "opcodes")
+|              (:requires (:load "macro"))
+|              (:caused-by (:compile "macro")))
+|            (:in-order-to :compile ("emit" "assemble")
+|             (:requires (:load "macro" "const" "opcodes"))
+|             (:caused-by (:compile "const" "opcodes")))))
+| 
+
+I'd suggest indicating explicitly how to LOAD files as follows:
+
+(defsystem bytecoder (:default-pathname (subdir "bytecoder"))
+    :members ("macro" "const" "opcodes" "emit" "assemble")
+    :rules ((:in-order-to :compile ("const" "opcodes")
+              (:requires (:load "macro"))
+              (:caused-by (:compile "macro")))
+             (:in-order-to :load ("const" "opcodes")
+              (:requires (:load "macro"))
+              (:caused-by (:compile "macro")))
+
+            (:in-order-to :compile ("emit" "assemble")
+             (:requires (:load "macro" "const" "opcodes"))
+             (:caused-by (:compile "const" "opcodes")))
+            (:in-order-to :load ("emit" "assemble")
+             (:requires (:load "macro" "const" "opcodes"))
+             (:caused-by (:compile "const" "opcodes")))))
+---
+Sincerely,
+Dmitri Ivanov
+www.aha.ru/~divanov 
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: defsystem</h1>
+                 <p>
+                  Unable to parse email body. Email id is 484
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:58 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

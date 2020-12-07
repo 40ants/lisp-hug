@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>how much clear code should be clear</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>how much clear code should be clear</h1>
+                <pre>
+Hello -
+
+When I write code I try to write clear code. But the clearness of code is a very subjective term. Sometimes in the pursuit of clearness it feels like creating a clear mess at the end.
+
+For example, here is a code to convert an utf8 array of bytes into a LW string:
+http://paste.lisp.org/display/126511
+
+It works for its intended use despite the fact that it has flaws; also it is fast enough in comparison with native functions from the external-format package. Being fast speed ups the code where it is used.
+
+Not so long ago I again needed the code to convert from utf8 bytes to lisp strings with slight modifications in requirements. The code above looked and felt like being not clear so I rewrote it. Now it is like this:
+http://paste.lisp.org/display/126512
+
+It works. But there are much more code now. Also the new code is about 1.8 times slower that the original code, and when I sprinkle the original code with optimize directives the new code would be 2-2.5 times slower. Because I use both codes in a web application server, being fast means some additional requests per second. But it is still considerable faster on my data than functions from the external-format package.
+
+
+Questions: 1) when you look at those pieces of code, what do you perceive as a clean/bad code? 2) how do you keep your lisp code clean and clear? 3) how do you know when to stop clearing code? or not clear at all?
+
+Best,
+ Art
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: how much clear code should be clear</h1>
+                 <pre>
+I personally find the first implementation clearer than the second -
+the code can be read in a linear fashion, while the second requires me
+to read, understand and memorize a number of smaller functions before
+I can understand the main function.
+
+I had need of a similar function some time back; a slightly modified
+version of my code is added as an annotation to your first paste. With
+similar declarations, my code appars to be about 60% slower than yours
+(1000 calls using a test string that contains 10000 repetitions of
+"this is a test: æøåÆØÅ" takes about 25s with your code, and 40s with
+my code).
+
+On Thu, Dec 15, 2011 at 8:50 PM, Art Obrezan &lt;artobrezan@yahoo.com&gt wrote:
+&gt
+&gt Hello -
+&gt
+&gt When I write code I try to write clear code. But the clearness of code is a very subjective term. Sometimes in the pursuit of clearness it feels like creating a clear mess at the end.
+&gt
+&gt For example, here is a code to convert an utf8 array of bytes into a LW string:
+&gt http://paste.lisp.org/display/126511
+&gt
+&gt It works for its intended use despite the fact that it has flaws; also it is fast enough in comparison with native functions from the external-format package. Being fast speed ups the code where it is used.
+&gt
+&gt Not so long ago I again needed the code to convert from utf8 bytes to lisp strings with slight modifications in requirements. The code above looked and felt like being not clear so I rewrote it. Now it is like this:
+&gt http://paste.lisp.org/display/126512
+&gt
+&gt It works. But there are much more code now. Also the new code is about 1.8 times slower that the original code, and when I sprinkle the original code with optimize directives the new code would be 2-2.5 times slower. Because I use both codes in a web application server, being fast means some additional requests per second. But it is still considerable faster on my data than functions from the external-format package.
+&gt
+&gt
+&gt Questions: 1) when you look at those pieces of code, what do you perceive as a clean/bad code? 2) how do you keep your lisp code clean and clear? 3) how do you know when to stop clearing code? or not clear at all?
+&gt
+&gt Best,
+&gt &nbsp;Art
+&gt
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: how much clear code should be clear</h1>
+                  <pre>
+
+&gt With similar declarations, my code appars to be about 60% slower
+&gt than yours (1000 calls using a test string that contains 10000
+&gt repetitions of "this is a test: æøåÆØÅ" takes about 25s with your
+&gt code, and 40s with my code).
+
+I took the first piece of code from the project where that function is peppered with:
+
+(declare (optimize (speed 3) (safety 0) (debug 0) (float 0)))
+(declare (type (simple-array (unsigned-byte 8) (*)) buf))
+
+and only arrays of the (simple-array (unsigned-byte 8) (*)) type are processed by the function. In this case it is faster.
+
+But I don't like (declare). It's like a voodoo magic. So nowadays I try to refrain from (declare) with types and optimization options.
+
+Best,
+ Art
+
+
+</pre>
+                 </article>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>Re: how much clear code should be clear</h1>
+                   <pre>
+
+Am 16.12.2011 um 12:09 schrieb Art Obrezan:
+
+&gt 
+&gt 
+&gt&gt With similar declarations, my code appars to be about 60% slower
+&gt&gt than yours (1000 calls using a test string that contains 10000
+&gt&gt repetitions of "this is a test: æøåÆØÅ" takes about 25s with your
+&gt&gt code, and 40s with my code).
+&gt 
+&gt I took the first piece of code from the project where that function is peppered with:
+&gt 
+&gt (declare (optimize (speed 3) (safety 0) (debug 0) (float 0)))
+
+In this case hcl:fixnum-safety can also help. But IME one should be really careful with that and only use it in very controlled places.
+&gt 
+&gt 
+&gt But I don't like (declare). It's like a voodoo magic. So nowadays I try to refrain from (declare) with types and optimization options.
+
+The only thing I do not like with them is, that they make the code  more complicated and more difficult to read. I refrain from declarations most of the time and for most of the code I write too. I use them when I encounter real performance problems, which are not solvable by a restructuring of code or the use of different functions and algorithms. For computationally intensive code I also did work with custom packages, which shadowed certain CL symbols to provide functions and macros that handled the necessary declarations for my problem domain automatically for me. This enables very readable though at the same time very optimized domain code.
+
+cheers,
+Jochen
+
+
+
+</pre>
+                  </article>
+                 </section>
+                </section>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: how much clear code should be clear</h1>
+                 <pre>
+Art Obrezan wrote on Thu, 15 Dec 2011 11:50:42 -0800 (PST) 23:50:
+
+| Hello -
+|
+| When I write code I try to write clear code. But the clearness of code
+| is a very subjective term. Sometimes in the pursuit of clearness it
+| feels like creating a clear mess at the end.
+|
+| For example, here is a code to convert an utf8 array of bytes into a LW
+| string: http://paste.lisp.org/display/126511
+
+That seems quite good.
+I would only recommend defining *utf8-tail-lengths* with :element-type
+'(unsigned-byte 8).
+
+If you do need it very optimized, rewrite the code using the system:int32-
+function family.
+--
+Sincerely,
+Dmitriy Ivanov
+lisp.ystok.ru
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: how much clear code should be clear</h1>
+                  <pre>
+&gt That seems quite good.
+&gt I would only recommend defining *utf8-tail-lengths* with
+&gt :element-type '(unsigned-byte 8).
+
+I tried and saw no significant gain in that. Actually, fixnum is also not of a big help there (if any).
+
+&gt If you do need it very optimized, rewrite the code using
+&gt the system:int32- function family.
+
+I don't like it. The whole int32- family looks strange to me. Right now I'm of an opinion that if I ever think of int32- I'd better turn to c/asm through the ffi interface.
+
+One day I wondered how int32- was added to LW. My guess was that it started as a custom feature request to LW guys from some company and was added permanently later. But that was just a wild guess, as I said I was just wondering. :)
+
+Best,
+ Art
+
+
+</pre>
+                 </article>
+                </section>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: how much clear code should be clear</h1>
+                 <pre>
+Several years ago I had solve a similar problem.  I decided to use
+Dick Waters series
+package.  This allowed me to factor the code into a nice set of
+abstractions that was
+easy to work with.  The downside was a couple of truly horrific
+procedures that took
+care of the mismatch between the variable length unicode representations and the
+fixed width representations.  In any case, this is what the top level
+code looked like:
+
+(defun utf-8-&gtucs-2 (ustring)
+  "Convert a ustring to a lw:text-string."
+  (collect 'string
+           (#m code-char
+               (ucs-4-&gtucs-2
+                (utf-8-&gtucs-4
+                 (scan 'simple-vector-8b
+                       (code-unit-vector ustring)))))))
+
+Which I think is really easy to read.
+
+The definition of ucs-4-&gtucs-2 was simple as well:
+
+(defun ucs-4-&gtucs-2 (ucs-4-series)
+  "Series transducer that maps unicode extension characters
+   into the unicode replacement character."
+  (declare (optimizable-series-function)
+           (type (series ucs-4-code) ucs-4-series))
+  (map-fn 'ucs-2-code (lambda (code)
+                        (declare (type ucs-4-code code))
+                        (if (&lt;= code #xFFFF)
+                            code
+                            #xFFFD)) ;; unicode replacement char
+          ucs-4-series))
+
+The hard part was transducing utf-8 to ucs-4.  For this I needed a
+series macro that
+allows you to `look ahead' several elements in the series:
+
+(defmacro scan-ahead (series bindings default &amp;body body)
+  "Binds variables in BINDINGS to the series, the series displaced by one,
+   the series displaced by two, etc.  In effect, allows a fixed amount of
+   lookahead for the body.  The value of default is used to `pad out' the
+   tail of the series and will appear as the value of the last elements
+   near the end.  Example:
+
+   (scan-ahead #z(foo bar baz quux) (a b c) 'xyzzy  ....)
+
+   will bind A to the series #z(foo bar baz quux)
+             B to the series #z(bar baz quux xyzzy) and
+             C to the series #z(baz quux xyzzy xyzzy)"
+  (let ((n (length bindings)))
+    `(MULTIPLE-VALUE-BIND ,bindings
+         (CHUNK ,n 1 (CATENATE ,series (SUBSERIES (SERIES ,default) 1 ,n)))
+      ,@body)))
+
+This is used to peek ahead in the utf-8 octet series.  Then we need a
+transducing macro
+that takes the multiple series generated above and produces the output
+series.  It does
+a small code-walk to destructure a literal lambda expression.  This
+gives the illusion that
+it is a simple function that takes a functional argument:
+
+(defmacro decode-series (series &amp;key (padding nil) decoder (arity nil))
+  "DECODER must be a literal lambda expression with only REQUIRED args.
+   The decoder is invoked in turn on each overlapping n-tuple (where n
+   is the number of args) in the series.  The decoder should return
+   two values:  the decoded value and a `skip' count.  The decoded value
+   is placed in the output followed by `skip' copies of PADDING.
+  "
+  (destructure-function-lambda
+   arity decoder
+   (lambda (bindings docstring decls body)
+     (declare (ignore docstring decls))
+     (with-unique-names (output-code count)
+       `(SCAN-AHEAD ,series ,bindings ,padding
+          (MULTIPLE-VALUE-BIND (,output-code ,count)
+            (COLLECTING-FN '(VALUES T FIXNUM)
+                           (LAMBDA () (VALUES ,padding 0))
+                           (LAMBDA (,output-code ,count ,@bindings)
+                             (IF (&gt ,count 0)
+                                 (VALUES ,padding (1- ,count))
+                                 (PROGN ,@body)))
+                           ,@bindings)
+            ,output-code))))
+   (lambda () (error "Literal lambda needed for decode-series."))))
+
+Now that's an ugly macro.  However, it isn't just useful for decoding unicode.
+   Example:  Decode the %nn parts of a URI.
+
+   (decode-series uri-characters
+     :padding #\null
+     :decoder (lambda (c0 c1 c2)     ;; lookahead by two characters
+                (if (char/= c0 #\%)
+                    (values c0 0)    ;; if not a %, pass it through
+                    ;; Otherwise, decode the following characters,
+                    ;; and return that value.  Use #\NULL for next two
+                    ;; outputs.
+                    (values (+ (* (digit-char-p c1 16) 16) (digit-char-p c2 16))
+                             2))))
+
+The performance was pretty good, if I recall.  The series package
+code-walks all these
+forms and turns utf-8-&gtucs-2 into a huge tagbody that is quite efficient.
+
+On Thu, Dec 15, 2011 at 11:50 AM, Art Obrezan &lt;artobrezan@yahoo.com&gt wrote:
+&gt 2) how do you keep your lisp code clean and clear?
+
+Abstraction.  Always look for a way to separate the problem into
+simple building blocks.
+In this case, the series abstraction was the natural mechanism.
+
+-- 
+~jrm
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:33 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

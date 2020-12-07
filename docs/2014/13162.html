@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>equal-getf</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>equal-getf</h1>
+                <pre>
+Hi,
+
+I've been missing a getf using equal instead of eq, and googling revealed many versions of such a function – but I could not find a working setf-able function. So I tried to write one, below is my attempt. Am I on the right track? Basic testing tells me that it works, but I've never used define-setf-expander before, and I can't say I understand it very well yet.
+
+Regards
+Erik
+
+
+(defun equal-getf (plist indicator)
+(loop for key in plist by #'cddr
+      for value in (rest plist) by #'cddr
+      when (equal key indicator)
+      return value))
+
+(define-setf-expander equal-getf (place indicator &amp;environment env)
+(multiple-value-bind (vars vals store-vars writer-form reader-form)
+    (get-setf-expansion place env) ; get setf expansion for place
+  (declare (ignore writer-form))
+  (let* ((gindicator (gensym "gindicator"))  ; temp var for indicator
+         (gstore (if store-vars (first store-vars) (gensym "gstore"))))
+    (values (list* gindicator vars)     ; temporary variables
+            (list* indicator vals)      ; value forms
+            (list gstore)               ; store variables
+            `(if ,reader-form
+                 (loop for key-cons on ,reader-form by #'cddr do
+                       (when (equal (car key-cons) ,gindicator) ; a match, update it in-place
+                         (setf (cadr key-cons) ,gstore)
+                         (return ,gstore))
+                       finally
+                       (setf ,place (append (list ,gindicator ,gstore) ,place)) ; no match, add the new key-value pair
+                       (return ,gstore))
+               (setf ,place (list ,gindicator ,gstore))) ; place contained nil, set it to a new list
+            `(equal-getf ,gindicator ,reader-form)))))
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: equal-getf</h1>
+                 <pre>
+2014-08-22 22:48 GMT+01:00 Erik Ronström:
+&gt (defun equal-getf (plist indicator)
+&gt (loop for key in plist by #'cddr
+&gt       for value in (rest plist) by #'cddr
+&gt       when (equal key indicator)
+&gt       return value))
+
+This seems fine, although you could probably make it more general,
+taking a :test argument which defaults to eql, much like other Common
+Lisp functions.  With another name.
+
+&gt (define-setf-expander equal-getf (place indicator &amp;environment env)
+&gt (multiple-value-bind (vars vals store-vars writer-form reader-form)
+&gt     (get-setf-expansion place env) ; get setf expansion for place
+&gt   (declare (ignore writer-form))
+&gt   (let* ((gindicator (gensym "gindicator"))  ; temp var for indicator
+&gt          (gstore (if store-vars (first store-vars) (gensym "gstore"))))
+
+You should either support only one value, and assert that store-vars
+is a list of one element, or you should just use store-vars as is.
+The former is a much easier and generally cleaner path, but the latter
+is neither recommended nor disallowed by the spec either.
+
+&gt     (values (list* gindicator vars)     ; temporary variables
+&gt             (list* indicator vals)      ; value forms
+
+The left-to-right order of evaluation must be kept, it's just that for
+places, only their subforms are evaluated.  So, the indicator variable
+and form must be after.
+
+&gt             (list gstore)               ; store variables
+
+This is where you should just use store-vars.
+
+&gt             `(if ,reader-form
+&gt                  (loop for key-cons on ,reader-form by #'cddr do
+
+You should avoid evaluating the reader-form more than once.
+
+key-cons should be a gensym as well.
+
+&gt                        (when (equal (car key-cons) ,gindicator) ; a match, update it in-place
+&gt                          (setf (cadr key-cons) ,gstore)
+
+In case you support a variable list of store-vars, you could use
+(values ,@store-vars) instead of ,gstore.
+
+You'd have to decide if you'd really support multiple values from each
+of the arguments or not:
+
+- If so, the expansion can get quite a bit messier with at least one
+multiple-value-bind for each argument;
+
+- If not, you should be aware that every values place other than the
+first will be set to nil, and document this expander accordingly.
+
+If you only support a single value place, I really recommend you place
+the aforementioned assert.  In practice, how many times are you going
+to do such setf and what do you expect of it?:
+
+    (setf (equal-getf (values a b) (values :key1 :key2)) (values val1 val2))
+
+The generally supported setf of values is usually more appropriate,
+other than for the order of evaluation of the arguments:
+
+    (setf (values (equal-getf a :key1) (equal-getf b :key2)) (values val1 val2))
+
+where the former evaluates the subforms of a and b, then :key1 and
+:key2, and the latter evaluates the subforms of a, then :key1, then
+the subforms of b and then :key2.
+
+In the weird case you want the former, you can write equivalent code
+(essentially the expansion of a setf expander that would support
+multiple values):
+
+    (multiple-value-bind (sa sb)
+        (values &lt;subforms of a&gt &lt;subforms of b&gt)
+      (multiple-value-bind (k1 k2)
+          (values :key1 :key2)
+        (setf (values (&lt;place reader of a&gt sa) (&lt;place reader of b&gt sb))
+              (values val1 val2))))
+
+&gt                          (return ,gstore))
+&gt                        finally
+&gt                        (setf ,place (append (list ,gindicator ,gstore) ,place)) ; no match, add the new key-value pair
+
+You can use list* instead of append to avoid garbage.
+
+&gt                        (return ,gstore))
+&gt                (setf ,place (list ,gindicator ,gstore))) ; place contained nil, set it to a new list
+
+If you use list*, you don't have to make this exceptional case, and
+you can have the reader-form only once in the loop form without
+binding to a variable.
+
+&gt             `(equal-getf ,gindicator ,reader-form)))))
+
+The function arguments are in reverse.
+
+I think you started very well anyway.
+
+Best regards,
+
+Paulo Madeira
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: equal-getf</h1>
+                 <pre>
+2014-08-23 8:54 GMT+01:00 Erik Ronström:
+&gt I understand why I must evaluate them in the correct order, but I don't see how. If I just swap the two lines, isn't the wrong variables passed to define-setf-expander? Or should I bind them to gensymed variables and return those?
+
+Well, instead of (list* gindicator vars), you must (append vars (list
+gindicator)), and the same for the forms.
+
+&gt You are right, silly mistake! However I am puzzled that the setf expansion still worked, that suggests that the reader form is never used?!
+
+With setf, it is never used, but with e.g. push and incf, or any other
+read-modify-write macro, it is used.
+
+&gt Also it seems strange to ignore the writer-form returned by get-setf-expansion, but I couldn't figure out how to use it.
+
+Yes, I missed that one, but you must use it in the case the list
+doesn't contain the indicator, or if it's empty (just a special case).
+
+You must bind the new list, the one with the two elements at the head,
+to the place's store-var(s), as in:
+
+    (let ((,gstore (list* ,gindicator ,gmy-store ,&lt;gensym with the
+value of reader-form&gt)))
+      ,writer-form
+      ,gmy-store)
+
+or
+
+    (multiple-value-bind (,@store-vars)
+        (list* ,gindicator ,gmy-store ,&lt;
+
+You should likewise provide your own store-var(s) gensym(s), because
+yours will have a value, while the place's will have a list.
+
+&gt (define-setf-expander equal-getf (place indicator &amp;environment env)
+&gt   (multiple-value-bind (vars vals store-vars writer-form reader-form)
+&gt       (get-setf-expansion place env) ; get setf expansion for place
+&gt     (declare (ignore writer-form))
+&gt     (assert (= 1 (length store-vars)))
+&gt     (let ((gindicator (gensym "gindicator"))  ; temp var for indicator
+&gt           (gstore (first store-vars)))
+
+So here, make your own store-var too.
+
+&gt       (values (list* gindicator vars)     ; temporary variables
+&gt               (list* indicator vals)      ; value forms
+&gt               store-vars                  ; store variables
+
+And use it here, e.g. (list gmy-store).
+
+&gt               (let ((key-cons (gensym "key-cons")))
+&gt                 `(loop for ,key-cons on ,reader-form by #'cddr do
+
+Store the value of the reader-form in a variable, so you evaluate it only once.
+
+&gt                            (when (equal (car ,key-cons) ,gindicator)
+&gt                              (setf (cadr ,key-cons) ,gstore)
+&gt                              (return ,gstore))
+&gt                            finally
+&gt                            (setf ,place (list* ,gindicator ,gstore ,place))
+
+Here, instead of (setf ,place, which will evaluate the subforms again,
+use the form I mentioned before with the writer-form.
+
+And instead of (list* ... ,place), use (list* ... ,&lt;reader-form gansym&gt).
+
+&gt                            (return ,gstore))) ; storing form
+&gt               `(equal-getf ,reader-form ,gindicator)))))
+
+Best regards,
+
+Paulo Madeira
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: equal-getf</h1>
+                 <pre>
+2014-08-25 8:22 GMT+01:00 Erik Ronström:
+&gt All right, I'm starting to understand how define-setf-expander works (I think).
+
+That's the spirit!
+
+&gt This is how the code has progressed so far. I renamed the function, added a test parameter, and also a version of remf.
+&gt
+&gt Erik
+&gt
+&gt
+&gt (defun agetf (plist indicator &amp;key (test #'equal) default)
+&gt   (loop for key in plist by #'cddr
+&gt         for value in (rest plist) by #'cddr
+&gt         when (funcall test key indicator)
+&gt         return value)
+&gt   default)
+
+Very well, but the keyword arguments will add a little bit of
+complexity in the setf expander.  One way to avoid it is by using
+optional arguments, but that introduces a style problem when you want
+to provide a later argument but not an earlier one.
+
+&gt (define-setf-expander agetf (place indicator &amp;key (test #'equal) &amp;environment env)
+&gt   (multiple-value-bind (temps vals stores store-form access-form)
+&gt       (get-setf-expansion place env) ; Get setf expansion for place
+&gt     (let ((i-temp (gensym))
+&gt           (store (gensym))
+&gt           (s-temp (first stores)))
+&gt       (if (cdr stores) (error "Can't expand this."))
+
+A better test would be (or (null stores) (rest stores)), otherwise
+you'll let go a no-values places, and binding ,s-temp will signal an
+error stating you can't bind to nil.
+
+&gt       ;;; Return the setf expansion as five values.
+&gt       (values (append temps (list i-temp))    ; Temporary variables
+&gt               (append vals (list indicator))  ; Value forms
+
+Here's the complexity of the keyword arguments: they too should all be
+evaluated once only from left-to-right.
+
+There is an easy way, providing a temp for the form (list
+,@rest-args), where rest-args is the &amp;rest argument, and in the writer
+and reader forms, use destructuring-bind to obtain the keyword
+arguments.
+
+This will take care of evaluating repeated keyword arguments (e.g.
+:test 'eql :test 'equal), even though the first is what counts, and
+it'll take care of evaluating all forms in case :allow-other-keys is
+true (e.g. :test 'eql :foo (max 1 most-positive-fixnum)
+:allow-other-keys t).
+
+If you care about maximum efficiency, the expansion will suffer a bit
+more in added complexity, much like half of what destructuring-bind
+does, but to save the resulting code from accessing the keyword
+arguments repeatedly.
+
+I suggest you just go for the simple way here, because I think the
+performance and garbage impact will be negligible for 99.999% of the
+times.
+
+&gt               (list store)                    ; Store variables
+&gt               (let ((key-cons (gensym "key-cons"))
+&gt                     (gaccess-form (gensym "access-form"))
+&gt                     (gtest (gensym "test")))
+&gt                 `(let ((,gaccess-form ,access-form)
+&gt                        (,gtest ,test))
+
+Here, you'd do:
+
+    (destructuring-bind (&amp;key ((,gtest :test) 'eql) default)
+        ,rest-temp
+      ...
+
+&gt                    (loop for ,key-cons on ,access-form by #'cddr do
+&gt                          (when (funcall ,gtest (car ,key-cons) ,i-temp)
+&gt                            (setf (cadr ,key-cons) ,store)
+&gt                            (return ,store))
+&gt                          finally
+&gt                          (let ((,s-temp (list* ,i-temp ,store ,access-form)))
+&gt                            ,store-form
+&gt                            (return ,store)))))   ; Storing form
+&gt               `(agetf ,access-form ,i-temp :test ,test) ; Accessing form
+
+Here, due to keyword arguments, you'd:
+
+    (apply 'agetf ,access-form ,i-temp ,rest-temp)
+
+&gt               ))))
+&gt
+&gt (defmacro aremf (place indicator &amp;key (test #'equal))
+&gt   (let ((gplace (gensym))
+&gt         (gindicator (gensym))
+&gt         (key-cons (gensym))
+&gt         (gtest (gensym)))
+&gt     `(let ((,gplace ,place)
+&gt            (,gindicator ,indicator)
+&gt            (,gtest ,test))
+&gt        (if (funcall ,gtest (car ,gplace) ,gindicator)
+&gt            (progn
+&gt              (setf ,place (cddr ,gplace))
+
+This isn't a setf expander.  However, you need to use
+get-setf-expansion too.  With the current code, you're evaluating the
+subforms of place more than once.
+
+Another thing to care about is the actual evaluation of the
+reader-form.  If I remember correctly, read-modify-write macros
+evaluate all arguments from left-to-right.  For the (each, in case of
+multiple) place argument, only its subforms are evaluated.  After
+this:
+
+1. The reader-form of (each) place is evaluated (from left-to-right)
+2. The modification computation is performed (for each place from
+left-to-right), and its return values are bound to the store-vars (of
+each place)
+4. The writer-form of (each) place is evaluated (from left-to-right)
+
+http://www.lispworks.com/documentation/HyperSpec/Body/05_aaa.htm
+http://www.lispworks.com/documentation/HyperSpec/Body/05_ac.htm
+
+PS: I wrote something about this topic, but I moved it to the end of
+the message, because I think it would confuse rather than help by
+leaving it here.
+
+&gt              t)
+&gt          (loop for ,key-cons on (cdr ,gplace) by #'cddr do
+&gt                (when (funcall ,gtest (cadr ,key-cons) ,gindicator)
+
+Just before getting to the end of the list, ,gtest will be called with
+a first argument of nil, so you need to check for (cdr ,key-cons)
+before.
+
+&gt                  (setf (cdr ,key-cons) (cdddr ,key-cons))
+&gt                  (return t))
+&gt                finally
+&gt                (return nil))))))
+
+You're almost there, good job.
+
+Implementing the setf of agetf and the aremf macro are really good
+exercises about defining and using setf expansions, and a great step
+for understanding what happens under the hood.
+
+Addenda:
+
+The notable multiple place macros are setf, psetf, shiftf, rotatef and
+assert.  There rules for assert are explicitly undefined.
+
+Surprisingly, only psetf and rotatef aren't violations to the
+read-modify-write macro rules, except for dealing with multiple values
+places.
+
+For setf:
+
+1. For each pair of arguments (from left-to-right):
+1.1. The subforms of place are evaluated and bound
+1.2. The newvalue form is evaluated, and its values are bound to the
+place's store-vars
+1.3. The writer-form of place is evaluated (by the rules, this would
+happen after point 1, as in psetf)
+
+(setf a b c d) =&gt (progn (setf a b) (setf c d))
+
+For psetf:
+
+1. For each pair of arguments (from left-to-right):
+1.1. The subforms of place are evaluated and bound
+1.2. The newvalue form is evaluated, and its return values are bound
+to the place's store-vars
+2. For each pair (from left-to-right):
+2.1. The writer-form of place is evaluated
+3. Return nil
+
+For shiftf:
+
+1. For each place (from left-to-right):
+1.1. The subforms of place are evaluated and bound
+2. The reader-form of the first place is evaluated, and its return
+values are saved
+3. For each of the rest of the places (from left-to-right):
+3.1. The reader-form of place is evaluated, and its return values are
+bound to the store-vars of the previous place
+4. The newvalue form is evaluated, and its return values are bound to
+the store-vars of the last place (by the rules, this would happen
+before point 3)
+5. For each place (from left-to-right)
+5.1. The writer-form of place is evaluated
+6. The values returned by the first reader-form are returned (e.g.
+point 2 could just be a multiple-value-prog1)
+
+For rotatef:
+
+1. For each place (from left-to-right):
+1.1. The subforms of place are evaluated and bound
+2. The reader-form of the first place is evaluated, and its return
+values are bound to the store-vars of the last place
+3. For each of the rest of the places (from left-to-right):
+3.1. The reader-form of place is evaluated, and its return values are
+bound to the store-vars of the previous place
+4. For each place:
+4.1. The writer-form of place is evaluated
+5. Return nil
+
+Best regards,
+
+Paulo Madeira
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: equal-getf</h1>
+                 <pre>
+&gt&gt&gt&gt&gt On Mon, 25 Aug 2014 13:34:09 +0100, Paulo Madeira said:
+&gt 
+&gt 2014-08-25 8:22 GMT+01:00 Erik Ronström:
+&gt 
+&gt &gt (define-setf-expander agetf (place indicator &amp;key (test #'equal) &amp;environment env)
+&gt &gt   (multiple-value-bind (temps vals stores store-form access-form)
+&gt &gt       (get-setf-expansion place env) ; Get setf expansion for place
+&gt &gt     (let ((i-temp (gensym))
+&gt &gt           (store (gensym))
+&gt &gt           (s-temp (first stores)))
+&gt &gt       (if (cdr stores) (error "Can't expand this."))
+&gt 
+&gt A better test would be (or (null stores) (rest stores)), otherwise
+&gt you'll let go a no-values places, and binding ,s-temp will signal an
+&gt error stating you can't bind to nil.
+&gt 
+&gt &gt       ;;; Return the setf expansion as five values.
+&gt &gt       (values (append temps (list i-temp))    ; Temporary variables
+&gt &gt               (append vals (list indicator))  ; Value forms
+&gt 
+&gt Here's the complexity of the keyword arguments: they too should all be
+&gt evaluated once only from left-to-right.
+&gt 
+&gt There is an easy way, providing a temp for the form (list
+&gt ,@rest-args), where rest-args is the &amp;rest argument, and in the writer
+&gt and reader forms, use destructuring-bind to obtain the keyword
+&gt arguments.
+&gt 
+&gt This will take care of evaluating repeated keyword arguments (e.g.
+&gt :test 'eql :test 'equal), even though the first is what counts, and
+&gt it'll take care of evaluating all forms in case :allow-other-keys is
+&gt true (e.g. :test 'eql :foo (max 1 most-positive-fixnum)
+&gt :allow-other-keys t).
+&gt 
+&gt If you care about maximum efficiency, the expansion will suffer a bit
+&gt more in added complexity, much like half of what destructuring-bind
+&gt does, but to save the resulting code from accessing the keyword
+&gt arguments repeatedly.
+&gt 
+&gt I suggest you just go for the simple way here, because I think the
+&gt performance and garbage impact will be negligible for 99.999% of the
+&gt times.
+&gt 
+&gt &gt               (list store)                    ; Store variables
+&gt &gt               (let ((key-cons (gensym "key-cons"))
+&gt &gt                     (gaccess-form (gensym "access-form"))
+&gt &gt                     (gtest (gensym "test")))
+&gt &gt                 `(let ((,gaccess-form ,access-form)
+&gt &gt                        (,gtest ,test))
+&gt 
+&gt Here, you'd do:
+&gt 
+&gt     (destructuring-bind (&amp;key ((,gtest :test) 'eql) default)
+&gt         ,rest-temp
+&gt       ...
+&gt 
+&gt &gt                    (loop for ,key-cons on ,access-form by #'cddr do
+&gt &gt                          (when (funcall ,gtest (car ,key-cons) ,i-temp)
+&gt &gt                            (setf (cadr ,key-cons) ,store)
+&gt &gt                            (return ,store))
+&gt &gt                          finally
+&gt &gt                          (let ((,s-temp (list* ,i-temp ,store ,access-form)))
+&gt &gt                            ,store-form
+&gt &gt                            (return ,store)))))   ; Storing form
+&gt &gt               `(agetf ,access-form ,i-temp :test ,test) ; Accessing form
+&gt 
+&gt Here, due to keyword arguments, you'd:
+&gt 
+&gt     (apply 'agetf ,access-form ,i-temp ,rest-temp)
+
+I think you can optimize this quite easily by binding a unique temp var for
+every element of rest-args (which is known at expansion time) and then doing:
+
+`(agetf ,access-form ,i-temp ,@rest-args-temps)
+
+Likewise, I would make the list modification code into a function called
+primitive-aputf and write the storing form like this:
+
+`(let ((,s-temp ,access-form))
+   (setq ,s-temp
+         (primitive-aputf ,s-temp ,i-temp ,store ,@rest-args-temps))
+   ,store-form
+   ,store)
+
+Note that this always evaluates store-form, like cl:getf.
+
+-- 
+Martin Simmons
+LispWorks Ltd
+http://www.lispworks.com/
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: equal-getf</h1>
+                 <pre>
+2014-08-26 17:04 GMT+01:00 Martin Simmons:
+&gt I think you can optimize this quite easily by binding a unique temp var for
+&gt every element of rest-args (which is known at expansion time) and then doing:
+&gt
+&gt `(agetf ,access-form ,i-temp ,@rest-args-temps)
+
+Well, I'd agree with you if agetf itself was a macro, needing literal
+symbols to match keyword arguments, but since it's a function, you
+should be able to:
+
+    (setf (agetf place indicator (intern "TEST" "KEYWORD") 'equal) newvalue)
+
+You can still bind each keyword argument to a variable, but you must
+have additional runtime logic to determine which variable to use for
+each keyword argument.
+
+One way this runtime logic could be implemented would be to define the
+form for each supported keyword argument variable to nil, except for
+the last, where we'd evaluate the following, given the variables will
+be bound with let*:
+
+    (funcall
+     #'(lambda (&amp;key ,ka ,kb ... ,ky ,kz)
+         (setf ,ga ,ka)
+         (setf ,gb ,kb)
+         ...
+         (setf ,gy ,ky)
+         ,kz)
+     ,@rest-args)
+
+In this specific case:
+
+    (funcall
+     #'(lambda (&amp;key ((,ktest :test) 'eql) ((,kdefault :default)))
+         (setf ,gtest ,ktest)
+         ,kdefault)
+     ,@rest-args)
+
+It could also be a fixed function that returns multiple values, and
+have the last form perform a multiple-value-setq (I leave this as an
+exercise, this reply is long already).
+
+Now that I think of it, it doesn't sound that bad.  The compiler can
+do its magic and we destructure the keyword arguments only once.
+
+
+Erik: One more thing I forgot to mention is that you need to declare
+ignore the default argument in the writer-form, otherwise the
+following might signal a compilation warning that there's an unused
+variable:
+
+    (setf (agetf place indicator :default 0) 1)
+
+
+Arguably, for aremf, it might be strange that the following code
+doesn't evaluate other keyword arguments:
+
+    (aremf place indicator :test 'equal :foo (bar x) :baz (error
+"wow") :allow-other-keys t)
+
+But now I feel I'm just nitpicking.
+
+&gt Likewise, I would make the list modification code into a function called
+&gt primitive-aputf and write the storing form like this:
+&gt
+&gt `(let ((,s-temp ,access-form))
+&gt    (setq ,s-temp
+&gt          (primitive-aputf ,s-temp ,i-temp ,store ,@rest-args-temps))
+&gt    ,store-form
+&gt    ,store)
+
+Given such a function, you could use the much simpler define-modify-macro.
+
+&gt Note that this always evaluates store-form, like cl:getf.
+
+Yes, the general rules for read-modify-write macros state they should
+write to the place in the end.
+
+However, the specification of remf and pushnew allow them to not write
+in specific conditions, e.g. remf may instead just change the list and
+pushnew may do nothing if some element passes the test.
+
+Portable code can't rely on the specific behavior, and when
+implementing similar definitions, we may choose to follow lead and
+decide to allow both.  When implementing, the always-write at the end
+seems to be always fine, with what I think is a rather minor
+performance impact comparing to list iteration and testing.
+
+Best regards,
+
+Paulo Madeira
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: equal-getf</h1>
+                 <p>
+                  Unable to parse email body. Email id is 13170
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: equal-getf</h1>
+                 <pre>
+2014-08-27 18:18 GMT+01:00 Martin Simmons:
+&gt I think you missed that I used rest-args-temps in the form, not rest-args.
+&gt Ironically, it is rest-args-temps that will not work if agetf is a macro.
+&gt ...
+&gt My point was that, for the example at hand, you don't need access to any
+&gt individual keyword argument at macroexpansion time.  You just need to pass
+&gt them all down to the underlying getter and setter functions (agetf and
+&gt primitive-aputf).
+
+I noticed you used rest-args-temps, what I missed was that this went
+together with primitive-aputf.  So, you're right, you don't need to
+access individual keyword arguments in the expansion.
+
+You're quite right about rest-args-temps not being suitable for a
+macro, I missed the fact they're evaluated in the vals forms.
+
+&gt That's not allowed if you put &amp;key in the lambda-list of the
+&gt define-setf-expander form because it expects to able to find the keyword at
+&gt macroexpansion time.  It is allowed if the define-setf-expander only uses
+&gt &amp;rest though.
+&gt ...
+&gt Yes.  Unfortunately define-modify-macro doesn't allow &amp;key, but I suppose it
+&gt would only need &amp;rest.
+
+Good points.
+
+&gt Yes, but that doesn't prevent multiple evaluation of the keyword arguments
+&gt when used with incf etc.  Note that rest-args is a list of forms, so they need
+&gt to be bound to unique temp vars to prevent multiple evaluation.
+
+Here's an example of what I tried to describe:
+
+    (defun foo (bar &amp;key a b c)
+      ...)
+
+    (define-setf-expander foo (bar &amp;rest args &amp;environment env)
+      (multiple-value-bind (vars vals store-vars writer-form reader-form)
+          (get-setf-expansion bar env)
+        (let ((gargs (mapcar #'(lambda (arg)
+                                 (gensym (symbol-name arg)))
+                             args))
+              (kargs (mapcar #'(lambda (arg)
+                                 (gensym (symbol-name arg)))
+                             args))
+              (dummy (gensym (symbol-name '#:dummy))))
+          (values (append vars
+                          gargs
+                          (list dummy))
+                  (append vals
+                          (make-list (length args) 'nil)
+                          (list `(multiple-value-setq (,@gargs)
+                                   (funcall
+                                    #'(lambda (&amp;key ,@kargs)
+                                        (values ,@kargs))
+                                    ,@args))))
+                  ...
+                  (locally (declare (ignore ,dummy))
+                    ...)
+                  (locally (declare (ignore ,dummy))
+                    ...)))))
+
+However, this would only be useful if the keyword arguments had to be
+individually used in the expansion.
+
+Your proposal is way better and simpler.  Specifically, if
+primitive-aputf is declared notinline or is compiled in a separate
+file, it can be portably patched later.
+
+&gt That's true, but the form above is part of the define-setf-expander of agetf
+&gt (c.f. the description of getf in 5.1.2.2 Function Call Forms as Places
+&gt http://www.lispworks.com/documentation/HyperSpec/Body/05_abb.htm).  The aremf
+&gt macro can do something different if likes.
+
+Yes, but getf's specification overrides the general rules and the ones
+in that page (see the last paragraph in the Description section):
+
+http://www.lispworks.com/documentation/HyperSpec/Body/f_getf.htm
+
+Given conflicts are resolved, I gather portable code can't trust that
+getf always writes:
+
+http://www.lispworks.com/documentation/HyperSpec/Body/01_eada.htm
+
+
+PS: I want to apologize upfront if the noise I'm causing is bothering
+people in this list.
+
+
+Best regards,
+
+Paulo Madeira
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: equal-getf</h1>
+                 <pre>
+2014-08-27 20:21 GMT+01:00 Paulo Madeira:
+&gt         (let ((gargs (mapcar #'(lambda (arg)
+&gt                                  (gensym (symbol-name arg)))
+&gt                              args))
+&gt               (kargs (mapcar #'(lambda (arg)
+&gt                                  (gensym (symbol-name arg)))
+&gt                              args))
+
+This should be:
+
+        (let ((gargs (mapcar #'(lambda (arg)
+                                 (gensym (symbol-name arg)))
+                             '(a b c)))
+-             (kargs (mapcar #'(lambda (arg)
+-                                (gensym (symbol-name arg)))
+-                            args))
+
+And have a function that does the same no matter the expansion, and
+use it instead of the lambda in the multiple-value-setq:
+
+    (defun foo-key-values (&amp;key a b c)
+      (values a b c))
+
+That's what gives not actually testing code...
+
+Martin, your knowledge is very deep and your insight has made me
+review some things I thought I knew well.  Thank you.
+
+Best regards,
+
+Paulo Madeira
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:29 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

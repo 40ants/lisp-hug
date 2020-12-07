@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>How to provide extra initargs for interfaces?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>How to provide extra initargs for interfaces?</h1>
+                <pre>
+Hello all,
+
+Let's say I'm working on an interface foo which has
+a pane bar-pane which is of type bar. Then I would have
+use a definition something like:
+
+(capi:define-interface foo () ()
+  (:panes
+    (bar bar-pane)
+    ...)
+  ...)
+
+Now, the bar-pane class accepts some initargs
+with its make-instance; e.g.,
+
+(make-instance 'bar-pane :option-1 'baz)
+
+Is there a way I can setup an initarg for the
+interface such that I could
+
+(make-instance 'foo :bar-option-1 'baz)
+
+If interfaces were regular classes, I think I'd use
+an initialize-instance or shared-initialize for this
+(but please correct me if that's not the way one should
+get this behavior.) However, the define-interface macro
+expands to
+
+(DSPEC:DEF (CAPI:DEFINE-INTERFACE FOO)
+  (DEFCLASS FOO (CAPI:INTERFACE) ((BAR)) (:METACLASS CAPI::CAPI-CLASS))
+  NIL
+  NIL
+  (DEFMETHOD CAPI::INITIALIZE-INTERFACE
+    :AFTER
+    ((#:SELF3826 FOO) &amp;REST #:ARGS3827 &amp;KEY &amp;ALLOW-OTHER-KEYS)
+    (WITH-SLOTS (BAR) #:SELF3826
+      (DECLARE (IGNORABLE BAR))
+      (LET ((CAPI::SELF #:SELF3826) (CAPI:INTERFACE #:SELF3826))
+        (DECLARE (IGNORABLE CAPI::SELF CAPI:INTERFACE))
+        (SETF (SLOT-VALUE #:SELF3826 'BAR)
+              (MAKE-INSTANCE 'BAR-PANE :NAME 'BAR))
+        (SETF (SLOT-VALUE #:SELF3826 'CAPI::PANES)
+              (LIST* (SLOT-VALUE #:SELF3826 'BAR)
+                     (SLOT-VALUE #:SELF3826 'CAPI::PANES))))))
+  'FOO)
+
+and capi::initialize-interface seems to set the bar slot
+unconditionally. So, is there a way to do what I'm trying
+to do? I'd like to make only one bar-pane, and the initarg
+that I'd like to get to it does have some important behavior
+in the initialization of bar, so I'd like to make one bar-pane,
+and to make it right the first time.
+
+Now, I am aware that I can do this by adding a slot to the
+interface and providing an initarg for that slot, e.g.,
+
+(capi:define-interface foo ()
+  ((bar-option
+     :initarg :bar-option))
+  (:panes
+    (bar bar-pane
+          :option-1 bar-option)))
+
+but this is rather unappealing as it adds an otherwise unnecessary
+slot, and I can no longer omit an :option-1 initarg from my instance
+of bar.
+
+Thoughts?
+
+
+-- 
+=====================
+Joshua Taylor
+tayloj@rpi.edu
+
+"A lot of good things went down one time,
+     back in the goodle days."
+               John Hartford
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: How to provide extra initargs for interfaces?</h1>
+                 <pre>
+On Sat, 6 Jan 2007 00:13:05 -0500, "Taylor, Joshua" &lt;tayloj@rpi.edu&gt wrote:
+
+&gt Let's say I'm working on an interface foo which has a pane bar-pane
+&gt which is of type bar. Then I would have use a definition something
+&gt like:
+&gt
+&gt (capi:define-interface foo () ()
+&gt   (:panes
+&gt     (bar bar-pane)
+&gt     ...)
+&gt   ...)
+&gt
+&gt Now, the bar-pane class accepts some initargs with its
+&gt make-instance; e.g.,
+&gt
+&gt (make-instance 'bar-pane :option-1 'baz)
+&gt
+&gt Is there a way I can setup an initarg for the interface such that I
+&gt could
+&gt
+&gt (make-instance 'foo :bar-option-1 'baz)
+
+Have you considered doing something like (untested)
+
+  (define-interface foo ()
+    ((option :initarg :option))
+    (:panes
+     (bar-pane :option-1 option)
+     ...
+
+i.e. stuffing the additional slots into the interface itself?
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: How to provide extra initargs for interfaces?</h1>
+                 <pre>
+On 1/6/07, Edi Weitz &lt;edi@agharta.de&gt wrote:
+&gt On Sat, 6 Jan 2007 00:13:05 -0500, "Taylor, Joshua" &lt;tayloj@rpi.edu&gt wrote:
+&gt
+&gt &gt Let's say I'm working on an interface foo which has a pane bar-pane
+&gt &gt which is of type bar. Then I would have use a definition something
+&gt &gt like:
+&gt &gt
+&gt &gt (capi:define-interface foo () ()
+&gt &gt   (:panes
+&gt &gt     (bar bar-pane)
+&gt &gt     ...)
+&gt &gt   ...)
+&gt &gt
+&gt &gt Now, the bar-pane class accepts some initargs with its
+&gt &gt make-instance; e.g.,
+&gt &gt
+&gt &gt (make-instance 'bar-pane :option-1 'baz)
+&gt &gt
+&gt &gt Is there a way I can setup an initarg for the interface such that I
+&gt &gt could
+&gt &gt
+&gt &gt (make-instance 'foo :bar-option-1 'baz)
+&gt
+&gt Have you considered doing something like (untested)
+&gt
+&gt   (define-interface foo ()
+&gt     ((option :initarg :option))
+&gt     (:panes
+&gt      (bar-pane :option-1 option)
+&gt      ...
+&gt
+&gt i.e. stuffing the additional slots into the interface itself?
+&gt
+
+Actually, I mentioned the same thing in my first email. :)
+This does work, and I've used it in the past. I'm wondering
+if there is a way to do this that doesn't involve using an
+extra slot. Also, probably more importantly, I don't want to
+be forced to provide the initarg. I want to be able to do
+
+(make-instance 'foo) ; no initarg provided
+
+and have the bar end up being
+
+(make-instance 'bar-pane) ; no initarg provided
+
+but that
+
+(make-instance 'foo :option 3)
+
+would set bar to
+
+(make-instance 'bar-pane :option-1 3)
+
+
+-- 
+=====================
+Joshua Taylor
+tayloj@rpi.edu
+
+"A lot of good things went down one time,
+     back in the goodle days."
+               John Hartford
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: How to provide extra initargs for interfaces?</h1>
+                 <pre>
+On 1/6/07, Mika Kuuskankare &lt;mkuuskan@siba.fi&gt wrote:
+&gt ... or
+&gt (defmethod initialize-instance :after ((self foo) &amp;rest args &amp;key
+&gt option-1)
+&gt         (with-slots (bar) self
+&gt                 blah blah))
+
+This allows me to catch the initarg, and perform some code based
+on it, but the slot will have already been filled at this point.
+
+I'm going to make my examples a little more concrete now, and maybe
+what I need will become a little more clear.
+
+(defclass array-pane (capi:output-pane)
+  ((array))
+  (:default-initargs
+    :rows 5
+    :cols 5))
+
+(defmethod initialize-instance :after
+    ((i array-pane) &amp;rest initargs &amp;key rows cols)
+  "Set the array, and set hints of the pane based on the
+dimensions of the array."
+  (setf (slot-value i 'array) (make-array (list rows cols)))
+  (capi:set-hint-table
+   i (list :visible-min-width (* 10 rows)
+           :visible-max-width (* 10 rows))))
+
+Array-pane has an array which is initialized via
+initialize-instance, and there are capi properties
+dependent on the size of the array.
+
+(capi:define-interface array-interface () ()
+    (:panes
+     ((ap array-pane))))
+
+Here's an interface which contains an array-pane.
+I'd like to be able to write
+
+(make-instance 'array-interface :rows r :cols c)
+
+and have ap be
+
+(make-instance 'array-pane :rows r :cols c)
+
+Ideally I won't have to destructively modify any
+arrays, nor will I need to explicitly set the hints
+table again, nor will I need to add any extra slots
+to the interface. Thoughts?
+
+-- 
+=====================
+Joshua Taylor
+tayloj@rpi.edu
+
+"A lot of good things went down one time,
+     back in the goodle days."
+               John Hartford
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: How to provide extra initargs for interfaces?</h1>
+                 <pre>
+Well, I've been working on this a bit more, and I wonder if I've found
+a workaround. Hopefully someone with more CAPI knowhow can
+tell me whether this is OK:
+
+
+;; a class in which the slot array is an array whose size
+;; is determined by initargs. The visible-size of the pane
+;; also depends on the initargs
+(defclass array-pane (capi:output-pane)
+ ((array))
+ (:default-initargs
+   :rows 5
+   :cols 5))
+
+(defmethod initialize-instance :after
+   ((i array-pane) &amp;rest initargs &amp;key rows cols)
+ "Set the array, and set hints of the pane based on the
+dimensions of the array."
+ (setf (slot-value i 'array) (make-array (list rows cols)))
+ (capi:set-hint-table
+  i (list :visible-min-width (* 10 rows)
+          :visible-max-width (* 10 rows))))
+
+;; Here's an interface which contains a single
+;; pane, an array pane, but in order to grab the
+;; initargs, the array pane is created in an
+;; initialize-instance
+(capi:define-interface array-interface ()
+  ((ap))
+  (:layouts
+   (main-layout capi:column-layout '(ap)))
+  (:default-initargs
+    :rows 5
+    :cols 8))
+
+;; This method creates the array pane. Note that the pane
+;; is given a name, just as it would be with the
+;; initialize-interface that define-interface would define.
+(defmethod initialize-instance :before
+    ((ai array-interface) &amp;rest initargs &amp;key rows cols)
+  (with-slots (ap) ai
+    (setf ap (make-instance 'array-pane
+			    :rows rows
+			    :cols cols
+			    :name 'ap))))
+
+;; initialize-interface also sets the capi::panes slot
+;; of the class, but capi::panes isn't bound at the
+;; time that the :before method is evaluated, but
+;; it is bound when the :after method comes about.
+(defmethod initialize-instance :after
+    ((ai array-interface) &amp;rest initargs)
+  (with-slots (capi::panes ap) ai
+    (setf capi::panes (list* ap capi::panes))))
+
+
+I admit that this seems a little hackish, and it depends
+on knowing to what define-interface expands, so it's
+not going to be guaranteed across versions. Nonetheless,
+can any CAPI guru tell me if this will work correctly
+(My tests make it seem like it does, but it would be nice
+to have some reassuring) or if there are other subtleties
+that I'm missing. Thanks!
+
+-- 
+=====================
+Joshua Taylor
+tayloj@rpi.edu
+
+"A lot of good things went down one time,
+     back in the goodle days."
+               John Hartford
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: How to provide extra initargs for interfaces?</h1>
+                 <pre>
+On Sat, 6 Jan 2007 08:01:24 -0500, "Taylor, Joshua" &lt;tayloj@rpi.edu&gt wrote:
+
+&gt Actually, I mentioned the same thing in my first email. :)
+
+Right, I should have read until the end... :)
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: How to provide extra initargs for interfaces?</h1>
+                 <p>
+                  Unable to parse email body. Email id is 6330
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: How to provide extra initargs for interfaces?</h1>
+                 <pre>
+On 1/8/07, Martin Simmons &lt;martin@lispworks.com&gt wrote:
+&gt
+&gt &gt&gt&gt&gt&gt On Sat, 6 Jan 2007 00:13:05 -0500, Taylor, Joshua said:
+&gt &gt
+&gt &gt Hello all,
+&gt &gt
+&gt &gt Let's say I'm working on an interface foo which has
+&gt &gt a pane bar-pane which is of type bar. Then I would have
+&gt &gt use a definition something like:
+&gt &gt
+&gt &gt (capi:define-interface foo () ()
+&gt &gt   (:panes
+&gt &gt     (bar bar-pane)
+&gt &gt     ...)
+&gt &gt   ...)
+&gt &gt
+&gt &gt Now, the bar-pane class accepts some initargs
+&gt &gt with its make-instance; e.g.,
+&gt &gt
+&gt &gt (make-instance 'bar-pane :option-1 'baz)
+&gt &gt
+&gt &gt Is there a way I can setup an initarg for the
+&gt &gt interface such that I could
+&gt &gt
+&gt &gt (make-instance 'foo :bar-option-1 'baz)
+&gt
+&gt Yes, this can be done by specifying (:initarg initarg-spec) as a value for the
+&gt initarg of the pane.  The initarg-spec can be keyword, e.g.
+&gt
+&gt (capi:define-interface foo () ()
+&gt   (:panes
+&gt     (bar bar-pane :bar-option-1 (:initarg :bar-option-1))
+&gt     ...)
+&gt   ...)
+&gt
+&gt or something that can follow &amp;key in a lambda-list, e.g.
+&gt
+&gt (capi:define-interface foo () ()
+&gt   (:panes
+&gt     (bar bar-pane :bar-option-1 (:initarg (bar-option-1 22)))
+&gt     ...)
+&gt   ...)
+&gt
+&gt There is an example of the first case in
+&gt examples/capi/graphics/pinboard-test.lisp and we will add it to the
+&gt documentation for define-interface.
+&gt
+&gt --
+&gt Martin Simmons
+&gt LispWorks Ltd
+&gt http://www.lispworks.com/
+&gt
+&gt
+This is great! It gets me *almost* everything I want. However,
+there's one bit that it's still missing for me. If the initarg isn't
+given, I'd like to see the :initform be used. Consider the following
+example:
+
+(defclass foo (capi:output-pane)
+  ((slot1 :initarg :slot1
+	  :initform 3)))
+
+(capi:define-interface
+    foo-interface () ()
+    (:panes
+     (f foo
+	:slot1 (:initarg :slot1))))
+
+(let ((fi (make-instance 'foo-interface :slot1 5)))
+  (with-slots (f) fi
+    (slot-value f 'slot1)))
+; =&gt 5
+
+(let ((fi (make-instance 'foo-interface)))
+  (with-slots (f) fi
+    (slot-value f 'slot1)))
+; =&gt NIL
+; I was hoping to see 3
+
+In the second instance of foo-interface, slot1 is set to NIL
+rather than 5 because the define-interface expands to a
+make-instance where the value is placed unconditionally.
+Is there a mechanism for getting something like
+... &amp;key (arg value arg-p) .. ?
+
+(And if there's not, it's not *all* that bad, but it means that defaults
+have to be kept in the pane definition as initforms *and* in the
+interface definition as default initargs; I'd like to have the defaults
+in just one place. Nonetheless, this is nice to know about.)
+
+Thanks!
+
+-- 
+=====================
+Joshua Taylor
+tayloj@rpi.edu
+
+"A lot of good things went down one time,
+     back in the goodle days."
+               John Hartford
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: How to provide extra initargs for interfaces?</h1>
+                 <p>
+                  Unable to parse email body. Email id is 6335
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: How to provide extra initargs for interfaces?</h1>
+                 <pre>
+On 1/9/07, Martin Simmons &lt;martin@lispworks.com&gt wrote:
+&gt
+&gt &gt&gt&gt&gt&gt On Mon, 8 Jan 2007 15:50:08 -0500, Taylor, Joshua said:
+&gt &gt
+&gt &gt On 1/8/07, Martin Simmons &lt;martin@lispworks.com&gt wrote:
+&gt &gt &gt
+&gt &gt &gt &gt&gt&gt&gt&gt On Sat, 6 Jan 2007 00:13:05 -0500, Taylor, Joshua said:
+&gt &gt &gt &gt
+&gt &gt &gt &gt Hello all,
+&gt &gt &gt &gt
+&gt &gt &gt &gt Let's say I'm working on an interface foo which has
+&gt &gt &gt &gt a pane bar-pane which is of type bar. Then I would have
+&gt &gt &gt &gt use a definition something like:
+&gt &gt &gt &gt
+&gt &gt &gt &gt (capi:define-interface foo () ()
+&gt &gt &gt &gt   (:panes
+&gt &gt &gt &gt     (bar bar-pane)
+&gt &gt &gt &gt     ...)
+&gt &gt &gt &gt   ...)
+&gt &gt &gt &gt
+&gt &gt &gt &gt Now, the bar-pane class accepts some initargs
+&gt &gt &gt &gt with its make-instance; e.g.,
+&gt &gt &gt &gt
+&gt &gt &gt &gt (make-instance 'bar-pane :option-1 'baz)
+&gt &gt &gt &gt
+&gt &gt &gt &gt Is there a way I can setup an initarg for the
+&gt &gt &gt &gt interface such that I could
+&gt &gt &gt &gt
+&gt &gt &gt &gt (make-instance 'foo :bar-option-1 'baz)
+&gt &gt &gt
+&gt &gt &gt Yes, this can be done by specifying (:initarg initarg-spec) as a value for the
+&gt &gt &gt initarg of the pane.  The initarg-spec can be keyword, e.g.
+&gt &gt &gt
+&gt &gt &gt (capi:define-interface foo () ()
+&gt &gt &gt   (:panes
+&gt &gt &gt     (bar bar-pane :bar-option-1 (:initarg :bar-option-1))
+&gt &gt &gt     ...)
+&gt &gt &gt   ...)
+&gt &gt &gt
+&gt &gt &gt or something that can follow &amp;key in a lambda-list, e.g.
+&gt &gt &gt
+&gt &gt &gt (capi:define-interface foo () ()
+&gt &gt &gt   (:panes
+&gt &gt &gt     (bar bar-pane :bar-option-1 (:initarg (bar-option-1 22)))
+&gt &gt &gt     ...)
+&gt &gt &gt   ...)
+&gt &gt &gt
+&gt &gt &gt There is an example of the first case in
+&gt &gt &gt examples/capi/graphics/pinboard-test.lisp and we will add it to the
+&gt &gt &gt documentation for define-interface.
+&gt &gt &gt
+&gt &gt &gt --
+&gt &gt &gt Martin Simmons
+&gt &gt &gt LispWorks Ltd
+&gt &gt &gt http://www.lispworks.com/
+&gt &gt &gt
+&gt &gt &gt
+&gt &gt This is great! It gets me *almost* everything I want. However,
+&gt &gt there's one bit that it's still missing for me. If the initarg isn't
+&gt &gt given, I'd like to see the :initform be used. Consider the following
+&gt &gt example:
+&gt &gt
+&gt &gt (defclass foo (capi:output-pane)
+&gt &gt   ((slot1 :initarg :slot1
+&gt &gt         :initform 3)))
+&gt &gt
+&gt &gt (capi:define-interface
+&gt &gt     foo-interface () ()
+&gt &gt     (:panes
+&gt &gt      (f foo
+&gt &gt       :slot1 (:initarg :slot1))))
+&gt &gt
+&gt &gt (let ((fi (make-instance 'foo-interface :slot1 5)))
+&gt &gt   (with-slots (f) fi
+&gt &gt     (slot-value f 'slot1)))
+&gt &gt ; =&gt 5
+&gt &gt
+&gt &gt (let ((fi (make-instance 'foo-interface)))
+&gt &gt   (with-slots (f) fi
+&gt &gt     (slot-value f 'slot1)))
+&gt &gt ; =&gt NIL
+&gt &gt ; I was hoping to see 3
+&gt &gt
+&gt &gt In the second instance of foo-interface, slot1 is set to NIL
+&gt &gt rather than 5 because the define-interface expands to a
+&gt &gt make-instance where the value is placed unconditionally.
+&gt &gt Is there a mechanism for getting something like
+&gt &gt .. &amp;key (arg value arg-p) .. ?
+&gt &gt
+&gt &gt (And if there's not, it's not *all* that bad, but it means that defaults
+&gt &gt have to be kept in the pane definition as initforms *and* in the
+&gt &gt interface definition as default initargs; I'd like to have the defaults
+&gt &gt in just one place. Nonetheless, this is nice to know about.)
+&gt
+&gt There is no direct way to omit the initarg, but see the define-interface
+&gt documentation on the :make-instance-extra-apply-args keyword argument for
+&gt another way to add complete lists of initargs to a pane.
+&gt
+
+Ah, I'd missed that in the docs. This is a useful one to have too. I'll probably
+end up using the (:initarg name-of-initarg) option, and just provide a
+default-initarg for this application, but it's good to have the flexibility
+for future reference. Thanks!
+
+-- 
+=====================
+Joshua Taylor
+tayloj@rpi.edu
+
+"A lot of good things went down one time,
+     back in the goodle days."
+               John Hartford
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:43 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

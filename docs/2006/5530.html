@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>FORMAT not thread-safe?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>FORMAT not thread-safe?</h1>
+                <pre>
+Hi,
+
+the following code
+
+---------------------------------------------
+(defvar *threads-count* 20)
+(defvar *row-count* 12000)
+(defvar *template* "Z-test_output.~A")
+
+(defun write-it-z(fname)
+   (with-open-file (output fname :direction :output :if-does-not- 
+exist :create :if-exists :supersede :element-type 'character)
+     (dotimes (i *row-count*)
+       (format output "~F ~F ~F ~F ~F ~F ~F ~F ~F ~F~%" 1 2 3 4 5 6 7  
+8 9 10))))
+
+(lw:set-default-character-element-type 'lw:simple-char)	
+
+(mp:initialize-multiprocessing)
+(defun do-it()
+   (dotimes (i *threads-count*)
+     (mp:process-run-function "test-function" '(:priority 3) #'write- 
+it-z (format nil *template* i))))
+
+
+(do-it)
+-----------------------------------------------
+
+creates files with varying output on all platforms under Lispworks  
+4.4.6. Does it mean that FORMAT is not thread-safe? Is it intended to  
+be not thread-safe? If it is not intended, how can it be worked around?
+
+David
+
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: FORMAT not thread-safe?</h1>
+                 <pre>
+David Tolpin &lt;dvd@davidashen.net&gt writes:
+
+&gt 4.4.6. Does it mean that FORMAT is not thread-safe? Is it intended to  
+&gt be not thread-safe? If it is not intended, how can it be worked around?
+
+I've always assumed it not to be thread-safe, so my logging library
+uses a lock, but I don't remember if I actually found that information
+somewhere or just assumed it based on similar tests to yours.
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: FORMAT not thread-safe?</h1>
+                 <pre>
+On Wed, 26 Apr 2006 14:43:23 +0500, David Tolpin &lt;dvd@davidashen.net&gt wrote:
+
+&gt If it is not intended, how can it be worked around?
+
+Don't know if it's intended, but how about something like this?
+
+  (defvar *format-lock* (mp:make-lock :name "format-lock"))
+
+  (lw:defadvice (format thread-safe :around)
+      (&amp;rest args)
+    (mp:with-lock (*format-lock*)
+      (apply #'lw:call-next-advice args)))
+
+Or is that hammer too big?
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: FORMAT not thread-safe?</h1>
+                 <pre>
+David Tolpin &lt;dvd@davidashen.net&gt writes:
+
+&gt A logging facility using a lock prevents log message from being  
+&gt intermixed. My test is a different matter, it shows that
+&gt format called in one thread inserts numeric value formatted in a  
+&gt different thread into its output.
+
+Ouch! Sorry for not looking into this in detail the first time!
+
+You're absolutely right. That seems like a huge bug to me. It could
+perhaps explain some errors I get occasionally in PrimeTrader.
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: FORMAT not thread-safe?</h1>
+                 <pre>
+At 11:28 26/04/2006, David Tolpin wrote:
+
+
+&gtOn 28/08/5766, at 15:18, Edi Weitz wrote:
+&gt
+&gt&gt
+&gt&gtOn Wed, 26 Apr 2006 14:43:23 +0500, David Tolpin
+&gt&gt&lt;dvd@davidashen.net&gt wrote:
+&gt&gt
+&gt&gt&gtIf it is not intended, how can it be worked around?
+&gt&gt
+&gt&gtDon't know if it's intended, but how about something like this?
+&gt&gt
+&gt&gt   (defvar *format-lock* (mp:make-lock :name "format-lock"))
+&gt&gt
+&gt&gt   (lw:defadvice (format thread-safe :around)
+&gt&gt       (&amp;rest args)
+&gt&gt     (mp:with-lock (*format-lock*)
+&gt&gt       (apply #'lw:call-next-advice args)))
+&gt&gt
+&gt&gtOr is that hammer too big?
+&gt
+&gtI think so. FORMAT is called in the PostScript backend to output
+&gtalmost every PostScript command, and that will decrease the performance.
+
+I think it is a buffering problem.
+Changes below seem to fix it for me on LWW4.4.6
+
+(defun write-it-z(fname)
+   (with-open-file (output fname :direction :output :if-does-not-exist 
+:create :if-exists :supersede :element-type 'character)
+     (dotimes (i *row-count*)
+       (without-preemption
+        (format output "~F ~F ~F ~F ~F ~F ~F ~F ~F ~F~%" 1 2 3 4 5 6 7 8 9 10)
+        (stream:stream-flush-buffer output)))))
+
+cheers
+
+paulm
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: FORMAT not thread-safe?</h1>
+                 <pre>
+Paul Miller &lt;paulm@xanalys.com&gt writes:
+
+&gt I think it is a buffering problem.
+
+I think it's a bug in the ~f implementation.
+
+&gt Changes below seem to fix it for me on LWW4.4.6
+
+But isn't that because of the without-preemption?
+
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: FORMAT not thread-safe?</h1>
+                 <pre>
+Espen Vestre &lt;ev@netfonds.no&gt writes:
+
+&gt I think it's a bug in the ~f implementation.
+
+Here's a somewhat different piece of code exploring this possibility:
+
+(defun tilde-f-tester ()
+  (let ((f (format nil "~f" 1.0)))
+    (unless (equal f "1.0")
+      (format t "Ouch! f=~a!~%" f))))
+
+(defun test-loop ()
+  (loop for i below 10000 do (tilde-f-tester)))
+
+(defun test-it ()
+  (loop for i below 100 do
+        (mp:process-run-function "tester" nil #'test-loop)))
+
+Sample output (all tests done with 4.4.6 on debian linux so far):
+
+[ev@merced:/tmp/tmp]$ Ouch! f=0!
+Ouch! f=0!
+Ouch! f=0!
+Ouch! f=0!
+Ouch! f=0!
+Ouch! f=0!
+Ouch! f=0!
+Ouch! f=0!
+Ouch! f=0!
+Ouch! f=0!
+Ouch! f=0!
+Ouch! f=0!
+Ouch! f=0!
+Ouch! f=0!
+Ouch! f=0!
+Ouch! f=0!
+Ouch! f=0!
+
+
+(I'm now hoping for a quick LispWorks fix and praying to the great
+ bitmaster in the skies that this bug can explain a significant
+ fraction of the PrimeTrader bugs I see ;-))
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: FORMAT not thread-safe?</h1>
+                 <pre>
+Espen Vestre &lt;ev@netfonds.no&gt writes:
+
+&gt [ev@merced:/tmp/tmp]$ Ouch! f=0!
+&gt Ouch! f=0!
+&gt Ouch! f=0!
+&gt Ouch! f=0!
+
+I modified my code to write out a list of the character codes of the
+wrongly formatted string, and that sure was interesting! It seems to
+always be 3 characters long, and it always has 0 in the right place
+and sometimes also 1, but the decimal point is replaced with a zero
+char, and so is the 1 (most of the time):
+
+Ouch! f=(0 0 48)!
+Ouch! f=(49 0 48)!
+Ouch! f=(0 0 48)!
+Ouch! f=(0 0 48)!
+Ouch! f=(0 0 48)!
+Ouch! f=(0 0 48)!
+Ouch! f=(0 0 48)!
+Ouch! f=(0 0 48)!
+Ouch! f=(0 0 48)!
+Ouch! f=(0 0 48)!
+Ouch! f=(0 0 48)!
+Ouch! f=(49 0 48)!
+Ouch! f=(0 0 48)!
+
+This explains an exotic bug we got a few times at Netfonds (and worked
+around), which we thought was due to the sql library, but which we now
+see is due to ~a formatting (which also doesn't work, presumably
+because the buggy code is somewhere deep down in the fp formatting
+code) in multiple threads.
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: FORMAT not thread-safe?</h1>
+                 <pre>
+To the LispWorks guys: Do you want a bug report on this? It's probably
+o.k. to wait for a fix in 5.0 if you manage that in time for the
+release, otherwise I'd like a private patch for this issue, I'm pretty
+sure it must hit both the PrimeTrader server and client every now and
+then (they are both heavily multithreaded and use ~f formatting in a
+lot of concurrent threads), so it's a quite severe bug for us (BTW:
+thanks David for spotting this!).
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: FORMAT not thread-safe?</h1>
+                 <p>
+                  Unable to parse email body. Email id is 5544
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: FORMAT not thread-safe?</h1>
+                 <pre>
+Martin Simmons &lt;martin@lispworks.com&gt writes:
+
+&gt It has been fixed in 5.0 by other changes in this area.
+
+Great news - thanks!
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:45 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>CAPI: text-input-pane-selection and more</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>CAPI: text-input-pane-selection and more</h1>
+                <pre>Hi!
+
+I'm currently trying to write an application where I have two
+(multi-line) text-input-panes (or maybe editor-panes, I'm not sure
+about that yet) that interact with each other. There are mainly two
+things I want to achieve:
+
+1. If the user makes a selection in one of the panes the selection in
+   the other pane should be changed by the program according to the
+   user's action.
+
+2. I want to control how the extension is extended if the user
+   double-clicks or triple-clicks in one of the panes.
+
+As you might have guessed the reason for my email is that I don't know
+how to do this... :)
+
+For the first point I think this has to be done by change-callbacks
+for both panes but I couldn't find anything in the docs about the
+current selection. Fiddling around with APROPOS revealed
+CAPI:TEXT-INPUT-PANE-SELECTION which seems to yield the values that I
+want. This function also seems to be SETFable but I can't find out how
+to use it.
+
+For the second point I currently have no idea at all... :(
+
+BTW, this is only my second CAPI application (and the first one was
+rather simple) so I might have missed a few points. However, it looks
+to me as if I've bought a really nice product which is extremely
+lacking as far as the quality of the documentation is concerned. A few
+examples:
+
+1. APROPOS reveals a lot of exported symbols that I couldn't find in
+   the docs, including but not limited to
+
+     CAPI:TEXT-INPUT-PANE-SELECTION
+     CAPI:TEXT-INPUT-PANE-SELECTED-TEXT
+     CAPI:TEXT-INPUT-PANE-BEFORE-CHANGE-CALLBACK
+     CAPI:SET-TEXT-INPUT-PANE-SPINBOX-RANGE
+
+   My apologies if they are in the docs somewhere but if they are then
+   they're hidden very well.
+
+2. LW comes with a full-blown rich-text editor in the examples/capi
+   folder which is quite amazing given the length of the
+   code. However, most of the functions used in this program aren't
+   documented either although the example seems to be six years old
+   and is still working.
+
+If a new release of LispWorks is scheduled I'd rather like to have
+better documentation than more features (if the wish list is still
+open).
+
+I'm using LW pro 4.2.7 on Windows and Linux, doing most of the CAPI
+development with WinXP pro.
+
+Thanks,
+Edi.
+
+PS: I've also had a couple of issues with the Interface Builder. I'd
+    be happy to send separate bug reports if you're interested.
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: CAPI: text-input-pane-selection and more</h1>
+                 <p>
+                  Unable to parse email body. Email id is 859
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: CAPI: text-input-pane-selection and more</h1>
+                 <pre>Edi Weitz &lt;edi@agharta.de&gt writes:
+
+&gt 2. I want to control how the extension is extended if the user
+&gt    double-clicks or triple-clicks in one of the panes.
+
+Sorry, a typo. I wanted to say "how the SELECTION is extended..."
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: CAPI: text-input-pane-selection and more</h1>
+                 <pre>Nick Levine &lt;ndl@ravenbrook.com&gt writes:
+
+Thanks for the quick reply!!
+
+&gt    1. If the user makes a selection in one of the panes the selection
+&gt       in the other pane should be changed by the program according to
+&gt       the user's action.
+&gt 
+&gt Something like (untested):
+&gt 
+&gt (let ((text-input-one (make-instance 'capi:text-input-pane
+&gt                                      :change-callback-type :none))
+&gt       (text-input-two (make-instance 'capi:text-input-pane
+&gt                                      :change-callback-type :none)))
+&gt   (capi:contain (make-instance 'capi:column-layout
+&gt                                :description (list text-input-one
+&gt                                                   text-input-two)))
+&gt   (setf (capi:text-input-pane-change-callback text-input-one)
+&gt         (lambda ()
+&gt           (setf (capi:text-input-pane-text text-input-one)
+&gt                 (do-whatever-with 
+&gt                  (capi:text-input-pane-text text-input-two))))
+&gt         (capi:text-input-pane-change-callback text-input-two)
+&gt         (lambda ()
+&gt           (setf (capi:text-input-pane-text text-input-two)
+&gt                 (do-whatever-with 
+&gt                  (capi:text-input-pane-text text-input-one))))))
+
+Hmm, but this doesn't address my main concern - how to get and set the
+selection (the selected text) in the text-input-pane. Or at least I
+don't see it.
+ 
+&gt    2. I want to control how the extension is extended if the user
+&gt       double-clicks or triple-clicks in one of the panes.
+&gt 
+&gt The choices that support double click are controlled by the
+&gt :interaction keyword when initializing a capi:choice.
+
+This is a mis-understanding due to my typo. I was interested in
+extending the selection, meaning the selected text in the
+text-input-pane.
+
+&gt I don't imagine you'll ever get your hands on a triple-click,
+&gt certainly not on Windows.
+
+But other apps (even Emacs on Windows which is not a typical Windows
+app I think) can do that. Does this mean I have to resort to the WIN32
+API?
+
+&gt    PS: I've also had a couple of issues with the Interface Builder. I'd
+&gt        be happy to send separate bug reports if you're interested.
+&gt 
+&gt Not I. I have never imagined that Interface Builders are ever going to
+&gt be capable of doing anything particularly useful.  :-)
+
+I've found myself building the actual interface manually but I think
+the IB is quite convenient for finding out what's there and trying out
+things.
+
+Thanks again,
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: CAPI: text-input-pane-selection and more</h1>
+                 <p>
+                  Unable to parse email body. Email id is 863
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: CAPI: text-input-pane-selection and more</h1>
+                  <pre>
+----- Original Message -----
+From: "David Fox" &lt;davef@xanalys.com&gt
+Subject: Re: CAPI: text-input-pane-selection and more
+
+
+&gt :confirm-change-function
+&gt A function called to validate a change. Note: Implemented for
+Motif/Lesstif only, &gtnot MSWindows or MacOS. (&lt;------ What a treat!)
+
+
+
+</pre>
+                 </article>
+                </section>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: CAPI: text-input-pane-selection and more</h1>
+                  <pre>David Fox &lt;davef@xanalys.com&gt writes:
+
+&gt Here's an example which I think does what you're after for 1, though
+&gt I don't think we can rely on the change-callback on Motif since
+&gt there is no callback on selection in this widget. My example
+&gt interface feels pretty wierd (i.e. do a select gesture in pane1, see
+&gt a selection in pane2) so I'm wondering why you want to do this at
+&gt all.
+
+Thanks, the example code was very helpful. What I have in mind isn't
+as weird as you might think... :)
+
+I'll probably release it publicly once it's done.
+
+&gt As Nick pointed out triple-click is non-standard and the CAPI does
+&gt not support it, while double-click has a standard action.
+
+Does that mean I can react to double clicks in an editor pane? How do
+I do that? I see there's ACTION-CALLBACK for some other kinds of panes
+but not for text panes.
+
+&gt Yes we will indeed be addressing many of the documentation gaps,
+&gt especially for the CAPI, FLI and EDITOR packages. These are the
+&gt areas which the 'wish list' feedback on this mailing list last year
+&gt identified as most in need of better documentation.
+
+That's good to hear! Thanks.
+
+&gt If you think they're of general interest do post, though it sounds
+&gt like a bug report (standard format please) to
+&gt lisp-support@xanalys.com might be more appropriate.
+
+OK, I'll send bug reports if I find some time.
+
+One other thing: About this rich-text-pane (or what's it called) - it
+looks like the symbols are exported to the Linux version but it's only
+really available in the Windows version. I guess this is part of the
+WIN32 API because the interface (from what I see in the example code)
+doesn't "feel" like the rest of CAPI. Is that right?
+
+Anyway - I might want to visually emphasize parts of the text in an
+editor-pane (or text-input-pane or something similar), be it by the
+use of different foreground colors, different background colors, bold
+face, or whatever. Is that possible without a rich-text-pane?
+
+Thanks again,
+Edi.
+
+
+</pre>
+                 </article>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>Re: CAPI: text-input-pane-selection and more</h1>
+                   <p>
+                    Unable to parse email body. Email id is 867
+                  </article>
+                  <section class=tree>
+                   <article class=email>
+                    <h1>Re: CAPI: text-input-pane-selection and more</h1>
+                    <pre>David Fox &lt;davef@xanalys.com&gt writes:
+
+&gt What you need to do is subclass CAPI:EDITOR-PANE and specify your
+&gt own input model by the :INPUT-MODEL initarg. Inspect the INPUT-MODEL
+&gt slot after (MAKE-INSTANCE 'CAPI:EDITOR-PANE) and you will see which
+&gt gestures need a modified action.
+
+Thanks, that did help very much! I also noticed (after reading your
+mail) that the INPUT-MODEL stuff is actually mentioned in the
+docs. Shame on me... :(
+
+&gt Yes. You can use editor functions to set colors in the text of an
+&gt CAPI:EDITOR-PANE, using the Face mechanism that implements the
+&gt syntax coloring. I think that's the portable solution you're
+&gt after. Here's some code that should help.
+&gt 
+&gt (defvar *red-yellow*
+&gt   (editor:make-face 'ry
+&gt                     :foreground :red 
+&gt                     :background :yellow))
+&gt 
+&gt (defvar *buffer* (editor:buffer-from-name "foo.txt"))
+&gt (defvar *s* (editor:buffers-start *buffer*))
+&gt (defvar *e* (editor:buffers-end *buffer*))
+&gt (editor::push-region-face *red-yellow* *s* *e*)
+
+OK, another one that helped me get further. However, this also results
+in three new questions:
+
+1. It looks like the arguments to EDITOR::PUSH-REGION-FACE have to be
+   of type EDITOR::POINT or EDITOR::I-POINT (which also means the
+   buffer is encoded therein), so in order to color an arbitrary part
+   of my buffer I have to create an EDITOR::POINT, right?
+
+   I found the function EDITOR::MAKE-I-POINT (IIRC) but couldn't get
+   it to work. What I'm currently doing is this:
+
+     (defun make-point (buffer offset)
+       (let ((point (editor:copy-point (editor:buffers-start buffer))))
+         (setf (slot-value point 'editor::offset) offset)
+         point))
+
+   And then, to color, say, position 3 to 7 of a certain editor-pane
+   of my interface I do something like this:
+
+     (editor::push-region-face *red-yellow*
+                               (make-point (editor-pane-buffer (target-pane my-interface)) 3)
+                               (make-point (editor-pane-buffer (target-pane my-interface)) 7)))
+
+   Is this completely stupid or am I close to how it should be done?
+
+2. I haven't yet found out how to reset the whole pane to a
+   "non-colored" state. I though this one should work...
+
+      (defparameter *normal*
+        (editor:make-face 'bw
+                          :foreground :black
+                          :background :white))
+
+      (defun reset-target-region ()
+        (editor::push-region-face *normal*
+                                  (editor:buffers-start (editor-pane-buffer (target-pane my-interface)))
+                                  (editor:buffers-end (editor-pane-buffer (target-pane my-interface)))))
+
+   ...but it doesn't. Every other combination of foreground and
+   background colors seems to work but black-and-white doesn't,
+   i.e. the *red-yellow* parts stay as they are . Why?
+
+3. If I'm implementing my own callback for, say, (:BUTTON-1
+   :SECOND-PRESS), I use CAPI::MOUSE-EDITOR-CALL which gives me "raw"
+   x and y coordinates. I then use EDITOR::MOUSE-SET-POINT to
+   translate these to a point. Is that the right way to do it?
+
+&gt In LispWorks4.3 (tentatively scheduled for the end of June) we will
+&gt be including editor source code allowing you to find this
+&gt undocumented functionality for yourself.
+
+That's great! I'm glad to hear this. I remember being one of those to
+recommend this (pointing to Digitool doing this with the source code
+to Fred) and I'm happy to see that Xanalys is listening to their
+customers... :)
+
+Thanks,
+Edi.
+
+
+</pre>
+                   </article>
+                  </section>
+                 </section>
+                </section>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:56 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

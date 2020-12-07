@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>newbie CAPI question</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>newbie CAPI question</h1>
+                <pre>
+Hi all,
+
+I'm new to both Lisp and CAPI, and I'm working my way up the Lispworks
+learning curve, but I've got a feeling that I'm "doing it wrong".  I'm
+cobbling together a little database application, so I started with a
+login window as shown below.
+
+What seems un-Lispy to me is the way I'm extracting values from the
+window in do-login: pulling values by accessors works for a simple
+window, but as I scale up to add grids of database records, this seems
+really inelegant.  I'm thinking that there must be some generally
+accepted way of iterating across a pane, finding the values entered by
+the user, and mapping them into CLOS slots (where the CLOS objects are
+being persisted via CLSQL or something similar) without having to
+specify each accessor directly.  Or perhaps this isn't even the best
+way to go about it?
+
+I'd appreciate any advice (or pointers to other material that I should
+be reading) on 1) better approaches for the code below, and 2)
+building CAPI applications with GUI/CLOS mappings.
+
+Thanks much,
+Kev
+
+
+(capi:define-interface login-window ()
+  ()
+  (:panes
+   (title-pane-1
+    capi:title-pane
+    :text "Username:")
+   (text-input-pane-1
+    capi:text-input-pane
+    :accessor username)
+   (title-pane-2
+    capi:title-pane
+    :text "Password:")
+   (password-pane-1
+    capi:password-pane
+    :accessor password)
+   (title-pane-3
+    capi:title-pane
+    :text "Database:")
+   (text-input-pane-2
+    capi:text-input-pane
+    :text "default"
+    :accessor database)
+   (push-button-1
+    capi:push-button
+    :text "Login"
+    :default-p t
+    :callback 'do-login))
+  (:layouts
+   (login-layout
+    capi:grid-layout
+    '(title-pane-1 text-input-pane-1
+                   title-pane-2 password-pane-1
+                   title-pane-3 text-input-pane-2
+                   "" push-button-1)
+    :x-adjust '(:right )
+    :y-adjust '(:center)
+    :x-gap 6
+    :y-gap 6
+    :internal-border 6))
+  (:default-initargs
+   :best-height 55
+   :best-width 250
+   :layout 'login-layout
+   :title "Login"))
+
+
+(defun do-login (data interface)
+(declare (ignore data))
+(capi:display-message (concatenate 'string
+                                   "Login: "
+                                   (capi:text-input-pane-text
+(username interface))
+                                   "/"
+                                   (capi:text-input-pane-text
+(password interface))
+                                   "@"
+                                   (capi:text-input-pane-text
+(database interface)))))
+
+(defun test-login ()
+  (capi:contain (make-instance 'login-window)))
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: newbie CAPI question</h1>
+                 <p>
+                  Unable to parse email body. Email id is 9908
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: newbie CAPI question</h1>
+                 <pre>
+Perhaps I'm misunderstanding, but I thought I was safe there, since
+do-login is the callback from the button.  Or is it only the
+push-button itself that's safe inside the callback?  Should the
+callback use capi:in-pane-process to access data outside the scope of
+the push-button?
+
+Kev
+
+On Sat, Feb 6, 2010 at 1:55 PM, Paul Tarvydas
+&lt;tarvydas@visualframeworksinc.com&gt wrote:
+&gt ...
+&gt&gt Code running a callback does NOT need this complication,
+&gt
+&gt I meant "code running IN a callback ..."
+&gt
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: newbie CAPI question</h1>
+                 <p>
+                  Unable to parse email body. Email id is 9912
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: newbie CAPI question</h1>
+                 <pre>
+
+Paul Tarvydas writes:
+ &gt 
+ &gt ...
+ &gt &gt What seems un-Lispy to me is the way I'm extracting values from the
+ &gt &gt window in do-login: pulling values by accessors works for a simple
+ &gt &gt window, but as I scale up to add grids of database records, this seems
+ &gt &gt really inelegant.  I'm thinking that there must be some generally
+ &gt &gt accepted way of iterating across a pane, finding the values entered by
+ &gt &gt the user, and mapping them into CLOS slots (where the CLOS objects are
+ &gt &gt being persisted via CLSQL or something similar) without having to
+ &gt &gt specify each accessor directly.  Or perhaps this isn't even the best
+ &gt &gt way to go about it?
+ &gt &gt 
+ &gt &gt I'd appreciate any advice (or pointers to other material that I should
+ &gt &gt be reading) on 1) better approaches for the code below, and 2)
+ &gt &gt building CAPI applications with GUI/CLOS mappings.
+ &gt ...
+ &gt 
+ &gt 
+ &gt d) Remember that you can sub-class capi doo-dads.  You can add your
+ &gt own getter/setter/update-view methods if this makes sense in your
+ &gt design.  Remember that CLOS oo works differently from most other
+ &gt kinds of oo - you can add methods specialized on combinations of
+ &gt method parameter types, so sub-classing isn't always necessary, or,
+ &gt sub-classing can help tune the control-flow through a maze of
+ &gt widgets.  Capi callbacks need not be functions, they can be methods,
+ &gt too.
+ &gt 
+
+I think this is an important point (amongst the others).  I came from a
+Visual Basic/MSVC perspective and it took me a while to "get" the
+subclassing aspects of CAPI (the more practice you get at Common Lisp
+the more it becomes clear).  If you view the interface as well as the
+controls within it as candidates for subclassing, you can add a lot of
+"local" semantics- data slots, generic functions, etc to tailor behavior
+to your requirements.
+
+That means you need not be bound to specifying only capi controls in the
+interface definition- if you create a class that inherits from a CAPI
+object, then you can use it in the interface just as a CAPI object of
+the type you inherited from.  You can take that too far by piling all
+kinds of extra junk in the class which tends to bind the interface to
+your app data, which in turn causes accumulation of complexity in the
+interface control code- which turns into a real drag.
+
+In practical terms, it means you can incorporate arbitrary amounts of
+metadata in the controls rather than in parallel data-structures, and
+use the controls themselves as parameters in generic functions.  Though
+the tradeoff is binding app data to the interface structure, it reduces
+the variable space you have to maintain.  Which is to say the ability to
+do so is a tool which needs to be used appropriately.
+
+To strengthen the division between data and interface, it might be
+possible to consider the inherited capi class as the "interface form" of
+a data class, then construct the interface by obtaining the right
+objects from the data portion of the app rather than contructing things
+at display time.  I've not tried a capi app that way, I don't know
+relevant, important, or correct the concept is.
+
+Greg
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: newbie CAPI question</h1>
+                 <pre>
+A solution is to make an abstract class to store your data and mix it with a
+CAPI class to create your interface. For instance :
+
+(defclass my-data ()  (data-1 data-2 .... etc.))
+
+(defclass my-interface (interface my-data) ())
+
+Now your slots are added to the interface class and you can simply iterate
+thru the slots of your abstract class to get the names of the slots you want
+to save on disk. To do this you get the slot list of your abstract class :
+
+(clos:class-slots (find-class my-data))
+
+You iterate thru this list and
+
+to get the names of the slot :
+
+(slot-value the-slot 'clos::name) ;I think there is a method to do the same
+
+To get the value associated with this slot-name in your instance :
+
+(slot-value my-instance the-name)
+
+Another way to do the same is to subclass the CAPI class and use
+clos:class-direct-slots to map only the slots of your subclass.
+
+Best
+
+Denis
+
+
+Le 6/02/10 20:37, «&nbsp;[NOM]&nbsp;» &lt;[ADRESSE]&gt a écrit&nbsp;:
+
+&gt 
+&gt Hi all,
+&gt 
+&gt I'm new to both Lisp and CAPI, and I'm working my way up the Lispworks
+&gt learning curve, but I've got a feeling that I'm "doing it wrong".  I'm
+&gt cobbling together a little database application, so I started with a
+&gt login window as shown below.
+&gt 
+&gt What seems un-Lispy to me is the way I'm extracting values from the
+&gt window in do-login: pulling values by accessors works for a simple
+&gt window, but as I scale up to add grids of database records, this seems
+&gt really inelegant.  I'm thinking that there must be some generally
+&gt accepted way of iterating across a pane, finding the values entered by
+&gt the user, and mapping them into CLOS slots (where the CLOS objects are
+&gt being persisted via CLSQL or something similar) without having to
+&gt specify each accessor directly.  Or perhaps this isn't even the best
+&gt way to go about it?
+&gt 
+&gt I'd appreciate any advice (or pointers to other material that I should
+&gt be reading) on 1) better approaches for the code below, and 2)
+&gt building CAPI applications with GUI/CLOS mappings.
+&gt 
+&gt Thanks much,
+&gt Kev
+&gt 
+&gt 
+&gt (capi:define-interface login-window ()
+&gt   ()
+&gt   (:panes
+&gt    (title-pane-1
+&gt     capi:title-pane
+&gt     :text "Username:")
+&gt    (text-input-pane-1
+&gt     capi:text-input-pane
+&gt     :accessor username)
+&gt    (title-pane-2
+&gt     capi:title-pane
+&gt     :text "Password:")
+&gt    (password-pane-1
+&gt     capi:password-pane
+&gt     :accessor password)
+&gt    (title-pane-3
+&gt     capi:title-pane
+&gt     :text "Database:")
+&gt    (text-input-pane-2
+&gt     capi:text-input-pane
+&gt     :text "default"
+&gt     :accessor database)
+&gt    (push-button-1
+&gt     capi:push-button
+&gt     :text "Login"
+&gt     :default-p t
+&gt     :callback 'do-login))
+&gt   (:layouts
+&gt    (login-layout
+&gt     capi:grid-layout
+&gt     '(title-pane-1 text-input-pane-1
+&gt                    title-pane-2 password-pane-1
+&gt                    title-pane-3 text-input-pane-2
+&gt                    "" push-button-1)
+&gt     :x-adjust '(:right )
+&gt     :y-adjust '(:center)
+&gt     :x-gap 6
+&gt     :y-gap 6
+&gt     :internal-border 6))
+&gt   (:default-initargs
+&gt    :best-height 55
+&gt    :best-width 250
+&gt    :layout 'login-layout
+&gt    :title "Login"))
+&gt 
+&gt 
+&gt (defun do-login (data interface)
+&gt (declare (ignore data))
+&gt (capi:display-message (concatenate 'string
+&gt                                    "Login: "
+&gt                                    (capi:text-input-pane-text
+&gt (username interface))
+&gt                                    "/"
+&gt                                    (capi:text-input-pane-text
+&gt (password interface))
+&gt                                    "@"
+&gt                                    (capi:text-input-pane-text
+&gt (database interface)))))
+&gt 
+&gt (defun test-login ()
+&gt   (capi:contain (make-instance 'login-window)))
+&gt 
+
+-------------------------------------------------------
+Denis Pousseur
+70 rue de Wansijn
+1180 Bruxelles, Belgique
+
+Tel : 32 (0)2 219 31 09
+Mail :  denis.pousseur@gmail.com
+-------------------------------------------------------
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: newbie CAPI question</h1>
+                 <pre>
+Kevin Clifton wrote on Sat, 6 Feb 2010 12:37:54 -0700 22:37:
+
+| What seems un-Lispy to me is the way I'm extracting values from the
+| window in do-login: pulling values by accessors works for a simple
+| window, but as I scale up to add grids of database records, this seems
+| really inelegant.  I'm thinking that there must be some generally
+| accepted way of iterating across a pane, finding the values entered by
+| the user, and mapping them into CLOS slots (where the CLOS objects are
+| being persisted via CLSQL or something similar) without having to
+| specify each accessor directly.  Or perhaps this isn't even the best
+| way to go about it?
+
+YstokGrid was conceived for dealing with database records, see
+http://lisp.ystok.ru/ygrid/
+--
+Sincerely,
+Dmitriy Ivanov
+lisp.ystok.ru
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:36 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

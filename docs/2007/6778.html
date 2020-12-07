@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>sql:connect to ODBC datasource where filename is long</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>sql:connect to ODBC datasource where filename is long</h1>
+                <p>
+                 Unable to parse email body. Email id is 6778
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>RE: connect to ODBC datasource where filename is long</h1>
+                 <pre>
+&gt The only kludge I can think of is to copy the mdb file to somewhere
+&gt shorter, hack programmatically at the DSN to fix it up and in an
+&gt unwind-protect copy the database back to where it came from. 
+
+Another hack would be to use a hardlink, which is possible for NTFS file
+systems:
+
+http://www.microsoft.com/resources/documentation/windows/xp/all/proddocs/en-
+us/fsutil_hardlink.mspx?mfr=true
+
+-- 
+Frank Buss, fb@frank-buss.de
+http://www.frank-buss.de, http://www.it4-systems.de
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: sql:connect to ODBC datasource where filename is long</h1>
+                 <pre>
+Hello Nick,
+
+| I use the ODBC Data Source Administrator to add a User DSN called foo
+| with the database located at:
+|
+| c:\123456789 123456789 123456789 123456789 123456789 123456789
+| 123456789 123456789 123456789 123456789 123456789 123456789 123456789
+| 123456789 a.mdb
+|
+| (that's 148 characters long). I go (sql:connect "foo") and all is
+| fine and dandy.
+|
+| I sql:disconnect, rename the file to
+|
+| c:\123456789 123456789 123456789 123456789 123456789 123456789
+| 123456789 123456789 123456789 123456789 123456789 123456789 123456789
+| 123456789 ab.mdb
+|
+| (149 characters), use the ODBC administrator to reconfigure the DSN
+| and go (sql:connect). This time, instead of a connection, I get a
+| little dialog ("Select Database") which is open to some random
+| directory and in which I have to select a *.mdb file (for instance,
+| the one I was trying to connect to) before I can continue.
+|...snip...|
+
+I believe the ODBC administrator is to blame.
+
+The limit for file or folder names in Windows 2000 is 215 characters.
+Moreover,
+SQLGetInfo(...,SQL_MAX_CATALOG_NAME_LEN) returns 260 both for 3.5 and 4.0
+Access drivers.
+
+I would recommend a so-called DNS-less connection by specifying the pathname
+directly in the connect call rather than to referring to some DSN, but I do
+not know whether CommonSQL supports it.
+
+With YSQL, which implements DNS-less connection via SQLDriverConnect, and
+the Access driver version 4.00.6200.00, I get the following
+
+(sql:connect nil :database-type :access
+    :driver-av-pairs '((:dbq "c:\\123456789 123456789 123456789 123456789
+123456789 123456789 123456789 123456789 123456789 123456789 123456789
+123456789 123456789 123456789 ab.mdb")))
+=&gt
+#&lt;ACCESS-3.5-DATABASE "NIL@c:\123456789 123456789 123456789 123456789
+123456789 123456789 123456789 123456789 123456789 123456789 123456789
+123456789 123456789 123456789 ab.mdb" 2069BF04&gt
+
+FWIW, my drive C is formatted as FAT.
+--
+Sincerely,
+Dmitriy Ivanov
+lisp.ystok.ru
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:42 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

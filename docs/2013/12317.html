@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Using opengl in a thread?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Using opengl in a thread?</h1><div dir="ltr">Hi I&#39;ve got a lisp project which uses Lispworks Opengl and capi to display some data. The display takes a super long time to render and then the rendering to disk, so I want to be able to continue while its processing. But when its rendering, it freezes the lispworks process until its finished. Is there any way to make it nonblocking so I can run my graphing function without it freezing lispworks?</div>
+
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Using opengl in a thread?</h1>
+                 <pre>
+Use multi-processing (see the MP package, LW user guide chapters 16 and 
+35).
+
+LW's mailboxes make this quite easy.
+
+Look at mp:process-run-function and mp:mailbox-send (and all of its 
+friends, mp:mailbox-...).
+
+In linux (LWL) and windows (LWW), each top-level gui is a separate 
+process already.  In mac (LWM), apparently, all GUI's run in the same 
+process.  I have a "template" for handling these cases uniformly - ping 
+me tomorrow (July 2) and I can dig it up and explain.
+
+There are, probably, other tricks, like rendering to an off-screen 
+pixmap in a process.  You would have to provide more info for us to help 
+you with these options...
+
+pt
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Using opengl in a thread?</h1>
+                 <pre>
+Hi,
+
+1. which platform do you use (OS X, Linux, Windows, all of them) ?
+
+2. does your rendering contain/only/  OpenGL calls (glDrawElements, glBegin/glEnd, etc.) and
+no other graphics related calls like CAPI (and/or Cocoa in case of OS X) ?
+
+2.1. If yes, then it should be fairly easy: you have to create the OpenGL context in the thread which
+is supposed to render.
+
+As long as all OpenGL calls are issued in the thread where the OpenGL context is created,
+you should be safe.
+
+But if I understood the problem correctly: you are rendering (with GL), then grab the frame buffer
+and write it to disk ? In that case, you can still decouple OpenGL rendering from all the rest,
+but somewhere you have to queue the captured frames, since the write-to-disk will be the
+slowest of all parts (esp. when compression comes into play).
+
+HTH,
+/wg
+
+
+On 07/01/2013 07:25 PM, quinn jarrell wrote:
+&gt Hi I've got a lisp project which uses Lispworks Opengl and capi to 
+&gt display some data. The display takes a super long time to render and 
+&gt then the rendering to disk, so I want to be able to continue while its 
+&gt processing. But when its rendering, it freezes the lispworks process 
+&gt until its finished. Is there any way to make it nonblocking so I can 
+&gt run my graphing function without it freezing lispworks?
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Using opengl in a thread?</h1>
+                 <pre>
+
+* Paul Tarvydas &lt;51D20486.5070405@gmail.com&gt :
+Wrote on Mon, 01 Jul 2013 18:36:54 -0400:
+
+| In linux (LWL) and windows (LWW), each top-level gui is a separate
+| process already.  In mac (LWM), apparently, all GUI's run in the same
+| process.  I have a "template" for handling these cases uniformly -
+| ping me tomorrow (July 2) and I can dig it up and explain.
+
+LWL (Linux) also has a main thread "GTK Event Loop", which also appears
+to have some central "serializaing" role for GUI operations. I wonder if
+you special cased that; in any case I believe I'd benefit and learn from
+looking your template.
+
+I'd like to note that most of the irrecoverable freezeups I see on LWL
+happen around this thread, typically with other threads waiting for
+locks held by this thread, probably from some problem in the underlying
+GTK C library---invariably requiring a kill -9 on the lisp process and
+to restart it.  So far I haven't filed MP bug reports around GTK, on the
+assumption that the fault is in the GTK layers. ---Madhu
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Using opengl in a thread?</h1><div dir="ltr"><span style="font-family:arial,sans-serif;font-size:13px">Hi, thanks for all your replies. </span><div style="font-family:arial,sans-serif;font-size:13px"><br></div><div style="font-family:arial,sans-serif;font-size:13px">
+So heres some more info on what I&#39;m trying to do.</div><div style="font-family:arial,sans-serif;font-size:13px">1. I&#39;m running on Mac and Linux.</div><div style="font-family:arial,sans-serif;font-size:13px"><br></div>
+<div style="font-family:arial,sans-serif;font-size:13px">2. I&#39;m using only opengl calls and normal lisp calls (no capi other than define interface)</div><div style="font-family:arial,sans-serif;font-size:13px"><br></div>
+<div style="font-family:arial,sans-serif;font-size:13px">2.1 I thought I had put everything in a separate thread but i&#39;ll try again later tonight</div><div style="font-family:arial,sans-serif;font-size:13px"><br></div>
+<div style="font-family:arial,sans-serif;font-size:13px">And yeah, you&#39;ve got the gist of it. I&#39;ve got a graph which I just move across and after every move, I use readpixels and then put them into an image on disk using opticl. Is there a faster way of saving to disk? I&#39;m writing to different images every move, so the best ive got right now is that once the pixels are read, it throws them off to a separate thread so I can save without blocking. </div>
+</div><div class="gmail_extra"><br><br><div class="gmail_quote">On Wed, Jul 10, 2013 at 6:25 PM, quinn jarrell <span dir="ltr">&lt;<a href="mailto:quinnjarr@gmail.com" target="_blank">quinnjarr@gmail.com</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div dir="ltr">Hi, thanks for all your replies. <div><br></div><div>So heres some more info on what I&#39;m trying to do.</div>
+<div>1. I&#39;m running on Mac and Linux.</div><div><br></div><div>2. I&#39;m using only opengl calls and normal lisp calls (no capi other than define interface)</div>
+<div><br></div><div>2.1 I thought I had put everything in a separate thread but i&#39;ll try again later tonight</div><div><br></div><div>And yeah, you&#39;ve got the gist of it. I&#39;ve got a graph which I just move across and after every move, I use readpixels and then put them into an image on disk using opticl. Is there a faster way of saving to disk? I&#39;m writing to different images every move, so the best ive got right now is that once the pixels are read, it throws them off to a separate thread so I can save without blocking. </div>
+
+</div><div class="HOEnZb"><div class="h5"><div class="gmail_extra"><br><br><div class="gmail_quote">On Fri, Jul 5, 2013 at 6:59 PM, Paul Tarvydas <span dir="ltr">&lt;<a href="mailto:paultarvydas@gmail.com" target="_blank">paultarvydas@gmail.com</a>&gt;</span> wrote:<br>
+
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div><br>
+On 13-07-02 10:16 AM, Madhu wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+you special cased that; in any case I believe I&#39;d benefit and learn from<br>
+looking your template.<br>
+</blockquote>
+<br></div>
+FWIW, here is a brute force, simplified example of how I run gui&#39;s in separate process, like actors / FBP, using mailboxes (in one direction only - input or output) to wire things together.  Each separate gui gets a &quot;controller&quot; process (that I caled &quot;reactor&quot;). When a button is clicked, it just fires a message to the mailbox of that gui&#39;s controller.  The reactor for &quot;demo1&quot; is a simple state machine, whereas the reactor for &quot;demo2&quot; is just an echo.  The plumbing and state are carried around as instance variables of the interfaces.  Run &quot;main&quot; to spin it up.  [I did succeed in folding the reactor process into the gui&#39;s process on LWW, but after Martin&#39;s suggestion (re. LWM not having separate process for each top-level gui) I re-separated them :-].  (Obviously, macro-logy, Hoyte-esque state machines, cl-actor, etc. could be employed).<br>
+
+
+<br>
+pt<br>
+<br>
+<br>
+<br>
+;; two GUI&#39;s talking to each other<br>
+<br>
+(in-package &quot;COMMON-LISP-USER&quot;)<br>
+<br>
+(capi:define-interface demo1 ()<br>
+  ((my-input :accessor my-input :initarg :my-input)           ;; my input pin (mailbox)<br>
+   (other :accessor other :initarg :other)                    ;; output pin (mailbox)<br>
+   (reactor :accessor reactor :initarg :reactor)              ;; process for processing inputs<br>
+   (state :accessor state :initarg :state))<br>
+  (:panes<br>
+   (title-pane-1<br>
+    capi:title-pane<br>
+    :text &quot;&quot;<br>
+    :accessor title)<br>
+   (push-button-1<br>
+    capi:push-button<br>
+    :text &quot;one&quot;<br>
+    :callback-type :interface<br>
+    :callback #&#39;(lambda (intf) (mp:mailbox-send (other intf) &#39;one)))<br>
+   (push-button-2<br>
+    capi:push-button<br>
+    :text &quot;two&quot;<br>
+    :callback-type :interface<br>
+    :callback #&#39;(lambda (intf) (mp:mailbox-send (other intf) &#39;two)))<br>
+   (stop-button<br>
+    capi:push-button<br>
+    :text &quot;stop&quot;<br>
+    :callback-type :interface<br>
+    :callback #&#39;(lambda (intf)<br>
+                  (mp:mailbox-send (other intf) &#39;quit)<br>
+                  (mp:mailbox-send (my-input intf) &#39;quit))))<br>
+  (:layouts<br>
+   (column-layout-1<br>
+    capi:column-layout<br>
+    &#39;(title-pane-1 push-button-1 push-button-2 stop-button)))<br>
+  (:default-initargs<br>
+   :best-height 66<br>
+   :best-width 126<br>
+   :layout &#39;column-layout-1<br>
+   :title &quot;demo1&quot;))<br>
+<br>
+(defun run1 (my other)<br>
+  (let ((intf (make-instance &#39;demo1 :my-input my :other other :reactor &#39;react1 :state &#39;idle)))<br>
+    (capi:display intf)<br>
+    (mp:process-run-function<br>
+     &quot;demo1&quot; ()<br>
+     #&#39;(lambda ()<br>
+         (loop<br>
+          (let ((msg (mp:mailbox-wait-for-event my :process-other-messages-p t)))<br>
+            (when (eq msg &#39;quit)<br>
+              (capi:apply-in-pane-process intf &#39;capi:destroy intf)<br>
+              (return))<br>
+            (funcall (reactor intf) intf msg)))))))<br>
+<br>
+(defun react1 (intf input-msg)<br>
+  (let (text)<br>
+    (case (state intf)<br>
+      (idle<br>
+       (case input-msg<br>
+         (eh<br>
+          (setf text &quot;got eh, want bee&quot;)<br>
+          (setf (state intf) &#39;waiting-for-bee))<br>
+         (bee<br>
+          (setf text &quot;got bee, want eh&quot;)<br>
+          (setf (state intf) &#39;waiting-for-eh))))<br>
+      (waiting-for-bee<br>
+       (case input-msg<br>
+         (bee<br>
+          (setf text &quot;I&#39;m happy&quot;)<br>
+          (setf (state intf) &#39;idle))<br>
+         (eh<br>
+          (setf text &quot;send a bee!&quot;))))<br>
+      (waiting-for-eh<br>
+       (case input-msg<br>
+         (bee<br>
+          (setf text &quot;send me a eh!&quot;))<br>
+         (eh<br>
+          (setf text &quot;mmm&quot;)<br>
+          (setf (state intf) &#39;idle)))))<br>
+    (capi:apply-in-pane-process<br>
+     intf<br>
+     #&#39;(setf capi:title-pane-text) text (title intf))))<br>
+<br>
+(capi:define-interface demo2 ()<br>
+  ((my-input :accessor my-input :initarg :my-input)           ;; my input pin (mailbox)<br>
+   (other :accessor other :initarg :other)                    ;; output pin (mailbox)<br>
+   (reactor :accessor reactor :initarg :reactor))             ;; process for processing inputs<br>
+  (:panes<br>
+   (title-pane-1<br>
+    capi:title-pane<br>
+    :text &quot;&quot;<br>
+    :accessor title)<br>
+   (push-button-1<br>
+    capi:push-button<br>
+    :text &quot;Eh&quot;<br>
+    :callback-type :interface<br>
+    :callback #&#39;(lambda (intf) (mp:mailbox-send (other intf) &#39;eh)))<br>
+   (push-button-2<br>
+    capi:push-button<br>
+    :text &quot;Bee&quot;<br>
+    :callback-type :interface<br>
+    :callback #&#39;(lambda (intf) (mp:mailbox-send (other intf) &#39;bee))))<br>
+  (:layouts<br>
+   (column-layout-1<br>
+    capi:column-layout<br>
+    &#39;(title-pane-1 push-button-1 push-button-2)))<br>
+  (:default-initargs<br>
+   :best-height 66<br>
+   :best-width 126<br>
+   :layout &#39;column-layout-1<br>
+   :title &quot;demo2&quot;))<br>
+<br>
+(defun run2 (my other)<br>
+  (let ((intf (make-instance &#39;demo2 :my-input my :other other<br>
+                             :reactor #&#39;(lambda (intf input-msg)<br>
+(capi:apply-in-pane-process<br>
+                                           intf<br>
+                                           #&#39;(setf capi:title-pane-text)<br>
+                                           (format nil &quot;rcvd: ~A&quot; input-msg)<br>
+                                           (title intf))))))<br>
+    (capi:display intf)<br>
+    (mp:process-run-function &quot;demo2&quot; ()<br>
+                             #&#39;(lambda ()<br>
+                                 (loop<br>
+                                  (let ((msg (mp:mailbox-wait-for-event my :process-other-messages-p t)))<br>
+                                    (when (eq msg &#39;quit)<br>
+                                      (capi:apply-in-pane-process intf &#39;capi:destroy intf)<br>
+                                      (return))<br>
+                                    (funcall (reactor intf) intf msg)))))))<br>
+<br>
+<br>
+(defun main ()<br>
+  (let ((mb1 (mp:make-mailbox))<br>
+        (mb2 (mp:make-mailbox)))<br>
+    (run1 mb1 mb2)<br>
+    (run2 mb2 mb1)<br>
+    #&#39;(lambda ()  ;; (funcall *) or hit the stop button to end<br>
+        (mp:mailbox-send mb1 &#39;quit)<br>
+        (mp:mailbox-send mb2 &#39;quit))))<div><div><br>
+<br>
+______________________________<u></u>_________________<br>
+Lisp Hug - the mailing list for LispWorks users<br>
+<a href="mailto:lisp-hug@lispworks.com" target="_blank">lisp-hug@lispworks.com</a><br>
+<a href="http://www.lispworks.com/support/lisp-hug.html" target="_blank">http://www.lispworks.com/<u></u>support/lisp-hug.html</a><br>
+<br>
+</div></div></blockquote></div><br></div>
+</div></div></blockquote></div><br></div>
+
+
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:31 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

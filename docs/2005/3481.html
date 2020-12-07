@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Webservers, template systems, and UTF-8</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Webservers, template systems, and UTF-8</h1>
+                <pre>Hi,
+
+Thanks for all the responses on the "Recommendations for web servers" 
+thread. I'll summarise and post soon.
+
+I've been trying a few of the suggested combinations and reading about 
+them. I pretty much have to be manipulating Unicode in my program and 
+will be producing HTML with UTF-8 encoding.
+
+I've seen a number of mentions of single byte character restrictions on 
+HTML out.
+
+What kind of support for UTF-8 is present?
+
+Same question for template systems. For example, I've been having some 
+difficulty with CL-WHO and extended characters in LWM. (I know it is 
+rude to mention this here before talking to Edi but I'm not sure it 
+isn't me causing the problem yet... I'm just having difficulty... I had 
+the same difficulty with CXML but that was very easy to fix).
+
+Thanks,
+Bob
+
+----
+Bob Hutchison          -- blogs at &lt;http://www.recursive.ca/hutch/&gt
+Recursive Design Inc.  -- &lt;http://www.recursive.ca/&gt
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Webservers, template systems, and UTF-8</h1>
+                 <pre>On Sat, 22 Jan 2005 12:23:10 -0500, Bob Hutchison &lt;hutch@recursive.ca&gt wrote:
+
+&gt Thanks for all the responses on the "Recommendations for web
+&gt servers" thread. I'll summarise and post soon.
+
+Good idea.
+
+&gt I've been trying a few of the suggested combinations and reading
+&gt about them. I pretty much have to be manipulating Unicode in my
+&gt program and will be producing HTML with UTF-8 encoding.
+&gt
+&gt I've seen a number of mentions of single byte character restrictions
+&gt on HTML out.
+&gt
+&gt What kind of support for UTF-8 is present?
+
+What do you need?  I think (correct me if I'm wrong) that on LW the
+problem is that once you have a socket output stream you can't change
+it's external format.  Is is that what bothers you?
+
+&gt Same question for template systems. For example, I've been having
+&gt some difficulty with CL-WHO and extended characters in LWM. (I know
+&gt it is rude to mention this here before talking to Edi but I'm not
+&gt sure it isn't me causing the problem yet... I'm just having
+&gt difficulty... I had the same difficulty with CXML but that was very
+&gt easy to fix).
+
+This might as well be a problem in CL-WHO - I think I've never used it
+for anything other than ISO-8859-1.  But that should be easy to fix.
+Send a bug report to the mailing list and I'll see what I can do.
+
+Cheers,
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Webservers, template systems, and UTF-8</h1>
+                 <pre>On Sat, 22 Jan 2005 14:19:16 -0500, Bob Hutchison &lt;hutch@recursive.ca&gt wrote:
+
+&gt Internally I use lw:simple-char pretty much exclusively. I'm going
+&gt to need to receive and send that, maybe using UTF-8, to
+&gt web-browsers. If the only problem is that the socket is opened
+&gt improperly to start, then a quick change to mod_lisp and TBNL (if
+&gt necessary) may be all that is needed.
+
+I think the problem is that you /can't/ open the socket properly
+(whether you use mod_lisp or one of the "pure" Lisp webservers).  Can
+LispWorks socket streams have arbitrary element types and external
+formats?  The documentation for OPEN-TCP-STREAM, e.g., seems to
+suggest that you have to use BASE-CHAR (or a subtype of integer) and
+can't make a decision about the external format of the socket stream.
+
+And of course for a general-purpose framework like TBNL it'd be nice
+if you could change the stream on the fly (like with AllegroCL's
+"simple streams") depending on your output.  A binary picture needs
+another external format than a UTF-8 XML document.
+
+A workaround might be to always use octet streams and do the encoding
+yourself using something like Gilbert Baumann's "runes" and "rods" -
+see CXML.
+
+&gt I've sent the change I made to CL-WHO to you via email a little
+&gt while ago. It was very simple to fix (you were making an array of
+&gt base-chars when everything else in my program was using simple-chars
+&gt because I had set lw:*default-character-element-type*).
+
+Thanks, I've made a new release of CL-WHO which should fix this.
+
+Cheers,
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Webservers, template systems, and UTF-8</h1>
+                 <pre>On Sun, 23 Jan 2005 23:39:40 -0500, Bob Hutchison &lt;hutch@recursive.ca&gt wrote:
+
+&gt Providing UTF-8 content has proven to be a lot simpler than I
+&gt expected. There is a mod-lisp.lisp file that Marc Battyani
+&gt distributes with mod_lisp. I've modified this file and have attached
+&gt a copy to this message.
+
+Thanks, that's cool.  I've uploaded a new version of TBNL (0.3.10)
+which shows (within the 'test' directory) how this can be done with
+TBNL.
+
+&gt There are only a couple of things that had to be done.
+&gt
+&gt First, the socket has to be opened with a different element type,
+&gt like so:
+&gt
+&gt (make-instance 'comm:socket-stream :socket handle
+&gt                                     :direction :io
+&gt                                     :element-type '(unsigned-byte 8))
+
+You don't have to do that, by the way, if you COERCE the output of
+ENCODE-LISP-STRING to '(SIMPLE-ARRAY (UNSIGNED-BYTE 8) (*)).
+
+&gt Second, when writing extended characters, you should encode it to
+&gt UTF-8 then use something like:
+&gt
+&gt (write-sequence encoded-text *apache-socket*)
+&gt
+&gt to write it out.
+&gt
+&gt This assumes that you've encode the UTF-8 string into a sequence of
+&gt bytes. This is what you will get if you call
+&gt (EXTERNAL-FORMAT:ENCODE-LISP-STRING s :utf-8) where s is a string of
+&gt simple-chars.
+
+Where did you know this function from?  APROPOS?  I note that the
+symbol is exported but it's not documented.  I also couldn't figure
+out it's argument list.  (I was hoping that there was an option to
+create the necessary array type directly without the need to use
+COERCE.)
+
+Thanks,
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Webservers, template systems, and UTF-8</h1>
+                 <pre>On Mon, 24 Jan 2005 07:58:53 -0500, Bob Hutchison &lt;hutch@recursive.ca&gt wrote:
+
+&gt COERCE is an interesting thing isn't it? :-) I'm not sure what to
+&gt think of it.
+
+The following simple test seems to suggest that COERCE isn't very
+costly in this case:
+
+  CL-USER 13 &gt (dotimes (i 4) (hcl:mark-and-sweep i))
+  NIL
+
+  CL-USER 14 &gt (time (dotimes (i 100) (external-format:encode-lisp-string (make-string 10000 :initial-element #\a) :utf-8)))
+  Timing the evaluation of (DOTIMES (I 100) (EXTERNAL-FORMAT:ENCODE-LISP-STRING (MAKE-STRING 10000 :INITIAL-ELEMENT #\a) :UTF-8))
+
+  user time    =      3.374
+  system time  =      0.000
+  Elapsed time =   0:00:04
+  Allocation   = 5134080 bytes standard / 15349499 bytes conses
+  0 Page faults
+  NIL
+
+  CL-USER 15 &gt (dotimes (i 4) (hcl:mark-and-sweep i))
+  NIL
+
+  CL-USER 16 &gt (time (dotimes (i 100) (coerce (external-format:encode-lisp-string (make-string 10000 :initial-element #\a) :utf-8)
+                                      '(simple-array (unsigned-byte 8) (*)))))
+  Timing the evaluation of (DOTIMES (I 100) (COERCE (EXTERNAL-FORMAT:ENCODE-LISP-STRING (MAKE-STRING 10000 :INITIAL-ELEMENT #\a) :UTF-8) (QUOTE (SIMPLE-ARRAY (UNSIGNED-BYTE 8) (*)))))
+
+  user time    =      3.414
+  system time  =      0.000
+  Elapsed time =   0:00:04
+  Allocation   = 6136832 bytes standard / 15354097 bytes conses
+  0 Page faults
+  NIL
+
+However, you never know if COERCE will force your Lisp to cons and
+create some fresh structure (unless I'm missing something).
+
+&gt Yep, APROPOS. It looked promising. If you open the function browser,
+&gt paste in the function name (of course) then press the 'describe'
+&gt button and it tells you "Lambda List: (STRING
+&gt EXTERNAL-FORMAT)". There are probably better ways of finding this
+&gt information, but...
+
+Urgh, I need to work more with the IDE.  I tried the inspector and
+that didn't help.
+
+&gt Maybe somebody from Lispworks will comment on the permanence of this
+&gt function.
+
+Would be nice, yes.  I always value things that are documented... :)
+
+Cheers,
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Webservers, template systems, and UTF-8</h1>
+                 <pre>On Mon, 24 Jan 2005 14:05:35 +0100, "Marc Battyani" &lt;marc.battyani@fractalconcept.com&gt wrote:
+
+&gt Did you try lw:function-lambda-list ?
+
+No, as I just wrote in reply to Bob's email I entered
+
+  #'external-format:encode-lisp-string
+
+into the listener and then tried
+
+  WORKS -&gt VALUES -&gt INSPECT.
+
+Obviously, I need to invest some time re-reading the IDE docs... :(
+
+I also was confused by this behaviour (when I tried to find out more
+about this function by trial and error):
+
+  CL-USER 20 &gt (external-format:encode-lisp-string "foo")
+
+  Error: Undefined external format "foo".
+
+  CL-USER 22 &gt (external-format:encode-lisp-string "foo" "bar")
+
+  Error: Undefined external format "bar".
+
+  CL-USER 24 &gt (external-format:encode-lisp-string "foo" "bar" "baz")
+
+  Error: Undefined external format "baz".
+
+  CL-USER 26 &gt (external-format:encode-lisp-string "foo" "bar" "baz" "quux")
+
+  Error: Undefined external format "quux".
+
+Huh?
+
+Cheers,
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:49 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

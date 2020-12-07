@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>killing a top-level-listener</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>killing a top-level-listener</h1>
+                <pre>I am using #'system::listener-top-level in code that implements a 
+remote-repl in a delivered server image.
+I have a difficult to debug problem with #'system::listener-top-level.
+
+A standalone test (with only public functions ;-) is as follows:
+
+---------file: deliver.lisp---------
+
+(in-package :cl-user)
+
+;; bring us to the latest official LispWorks patch level
+
+(load-all-patches)
+
+;; make sure we have the comm module
+
+(require "comm")
+
+;; start the actual delivery process
+
+(deliver #'(lambda ()
+              (comm:start-up-server :service 10243)
+              (loop (sleep (* 60 60))))
+          "test-image"
+          0
+          :multiprocessing t
+          :keep-pretty-printer t
+          :keep-debug-mode t
+          :keep-conditions :all
+          :keep-load-function :full)
+
+(quit)
+
+---------eof----------
+
+Now deliver an image like this:
+
+/Applications/Lispworks/lispworks-tty -site-init - -init deliver.lisp
+
+Next start the image ./test-image
+
+And use telnet in another terminal to connect to it:
+
+[sven@voyager:~]$ telnet localhost 10243
+Trying ::1...
+telnet: connect to address ::1: Connection refused
+Trying 127.0.0.1...
+Connected to localhost.
+Escape character is '^]'.
+"foo"
+
+CL-USER 1 &gt (mp:ps)
+
+#&lt;MP:PROCESS Name "10243 server" Priority 3 State "Waiting for 
+connection"&gt
+#&lt;MP:PROCESS Name "foo" Priority 3 State "Running"&gt
+#&lt;MP:PROCESS Name "Initial delivery process" Priority 0 State "Sleeping 
+on mailbox"&gt
+#&lt;MP:PROCESS Name "The idle process" Priority -536870912 State "Running 
+(preempted)"&gt
+NIL
+
+CL-USER 2 &gt foo
+
+Error: The variable FOO is unbound.
+   1 (continue) Try evaluating FOO again.
+   2 Specify a value to use this time instead of evaluating FOO.
+   3 Specify a value to set FOO to.
+   4 (abort) Return to level 0.
+
+Type :b for backtrace, :c &lt;option number&gt to proceed,  or :? for other 
+options
+
+CL-USER 1 : 1 &gt Terminated
+
+After entering a sub listener handling an error, kill the telnet 
+process from yet another terminal.
+This make the image unustable: cpu goes to 100%, and it is no longer 
+possible to connect to it.
+Platform is LWM 4.3.7 on Mac OS 10.3.6.
+The problem does not occur when the listener is at level 0.
+
+I need a remote-repl style system to access a running server image for 
+maintenance tasks,
+that is robust (i.e. does not kill the server image when something goes 
+wrong).
+
+Sven
+
+
+
+</pre>
+               </article>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:50 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

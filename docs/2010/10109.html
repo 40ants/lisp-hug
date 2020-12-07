@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Re: Displaying and scrolling live data</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Re: Displaying and scrolling live data</h1><html><head></head><body style="font-size:10pt;font-family:Verdana,Arial,Helvetica,sans-serif;"><span class="Apple-style-span" style="font-family: Times; font-size: medium; "><pre style="white-space: pre-wrap; word-wrap: break-word; ">I just realized that this response from 6 March doesn't seem to have made it to the list. Is it because I answered directly to Raffael and cc:ed the list?</pre><pre style="white-space: pre-wrap; word-wrap: break-word; ">Anyway, I would be most grateful if someone could enlighten me when it comes to my questions regarding invalidate-rectangle etc.</pre><pre style="white-space: pre-wrap; word-wrap: break-word; ">/Sven again </pre><pre style="white-space: pre-wrap; word-wrap: break-word; ">---</pre><pre style="white-space: pre-wrap; word-wrap: break-word; ">Thanks for the nice demo Raffael!
+Possibly I can use image copying for parts of the scrolling, but a  
+difficulty is that I draw a note head when a "note on" event arrives  
+and later when the corresponding "note off" event arrives, I change  
+the note head (now scrolled to the left) into its right shape  
+(quarter note, half note etc).
+
+Anyway, I have made some progress. I stuffed all drawing and also  
+updates using set-horizontal-scroll-parameters into with-atomic- 
+redisplay and now have a smoother scroll.
+
+I lack understanding of the underpinnings of updating the pane though...
+-I realize that calls to invalidate-rectangle, queue up calls to the  
+display-callback and that some of these calls are thrown away. But  
+what calls are thrown away?
+-What happens when calling set-horizontal-scroll-parameters? It  
+doesn't seem to call invalidate-rectangle and even if I don't call  
+invalidate-rectangle after set-horizontal-scroll-parameters, things  
+are redrawn.
+Are the above things described somewhere?
+
+Thanks again!
+/Sven
+
+
+
+
+
+5 mar 2010 kl. 20.11 skrev Raffael Cavallaro:
+
+<blockquote type="cite" style="margin-top: 5px !important; margin-right: 0px !important; margin-bottom: 5px !important; margin-left: 0px !important; border-left-width: 2px !important; border-left-style: solid !important; border-left-color: blue !important; border-right-width: 2px !important; border-right-style: solid !important; border-right-color: blue !important; padding-top: 0px !important; padding-right: 8px !important; padding-bottom: 0px !important; padding-left: 16px !important; border-top-color: blue !important; border-bottom-color: blue !important; ">On Mar 5, 2010, at 6:39 AM, Sven Emtell wrote:
+<blockquote type="cite" style="margin-top: 5px !important; margin-right: 0px !important; margin-bottom: 5px !important; margin-left: 0px !important; border-left-width: 2px !important; border-left-style: solid !important; border-left-color: maroon !important; border-right-width: 2px !important; border-right-style: solid !important; border-right-color: maroon !important; padding-top: 0px !important; padding-right: 8px !important; padding-bottom: 0px !important; padding-left: 16px !important; border-top-color: maroon !important; border-bottom-color: maroon !important; ">During MIDI input, a timer is calling an update function (note- 
+pane-update) every 20ms. This updating function changes the :max- 
+range of the horizontal scroll-bar using capi:set-horizontal- 
+scroll-parameters followed by a "scroll :horizontal :move :end",  
+and then calls the display-callback function (display-note-pane).  
+The idea is to set the slug in its right-most position, so that  
+score notes enter the note-pane from the right and scroll to the  
+left.
+In the display-callback function, I have wrapped the drawing  
+inside a with-atomic-redisplay.
+Note:
+The score notes displayed will change during scrolling, so I have  
+to redraw them instead of just copying a bitmap.
+Some observations:
+-It works, but the drawing is not very smooth. It seems to jump a  
+little back and forth while scrolling.
+-When updating every 200ms instead, it looks OK, but slow.
+</blockquote>Other sorts of capi animation I've done as well as apple's docs  
+suggest that you'll never get more than 60fps screen refresh from a  
+Cocoa/AppKit application. If you do much computation and drawing  
+you'll start to see aliasing (e.g., wheels appearing to rotate  
+backwards) even at 60fps. So 20ms=50fps is right on the edge of  
+what is possible even with minimal computation and drawing per  
+frame. Have you tried a 33ms timer (i.e., 30 fps)?
+Another possibility: You could grab the already drawn notes in an  
+image, draw that to the pane, then draw the new notes over it. For  
+example, if you shift the notes by 1/10 of the visible pane width  
+each frame, you grab the rightmost 9/10 of the pane in an image  
+(gp:make-image-from-port), draw this image full left in the pane,  
+then draw the new notes in the rightmost 1/10 of the pane.
+Of course whether this would be faster than just redrawing is  
+entirely dependent on how much redrawing you're doing. My  
+benchmarks suggest that you can draw just under 200 polygons (i.e.,  
+gp:draw-polygon) at 30 fps on a 2+GHz machine. Anything more than  
+this and it's worthwhile to grab an image first, then do any new  
+drawing for each frame over the grabbed image from the previous frame.
+Something like this would do the side scrolling:
+(defun anim-test-sidescroll (&amp;key (framerate 10) (time 6)) ;; up  
+framerate to see effect
+(declare (optimize speed (safety 1) (debug 0)))
+(let* ((frame-x-offset 70) ;; how far we'll shift the pane  
+contents left each frame
+(circle-base-x-coordinate 600) ;; where we'll plunk down  
+new circles
+(current-image nil) ;; the image we've grabbed of the  
+port, left end choppped
+(old-image nil) ;; previous frame so we can free it and  
+avoid a leak
+(still-running t))
+(labels ((display-a-frame (self x y width height)
+(declare (ignorable x y width height))
+(when current-image (gp:draw-image self current- 
+image 0 0))
+(dotimes (n 4) ;; draw 4 circles in a vertical line  
+at the right edge
+(gp:draw-circle self
+(+ circle-base-x-coordinate (* n  
+3)) ;; x
+(+ 50 (* n 100) (random  
+100))        ;; y
+(+ 20 (random  
+15))                   ;; radius
+:filled t
+:foreground (nth n  
+'(:orange :blue :green :purple))))
+(setf old-image current-image) ;; swap these cause  
+we need a ref to old-image
+(setf current-image ;; grab the current port  
+contents with the left end chopped
+(gp:make-image-from-port self frame-x-offset 0
+;; need to truncate  
+width  by frame-x-offset
+;; or the image will  
+be stretched when displayed
+(- (gp:port-width  
+self) frame-x-offset)
+(gp:port-height self)))
+(when old-image (gp:free-image self old-image))) ;;  
+free the old image
+(pane-destroyed (self) ;; stop the animation loop if  
+pane goes bye bye
+(declare (ignorable self))
+(setf still-running nil)))
+(let* ((the-pane ;; make a pane that uses the above func for  
+display
+(capi:contain
+(make-instance 'capi:output-pane
+:display-callback #'display- 
+a-frame
+:destroy-callback #'pane- 
+destroyed)
+:best-height 600 :best-width 700)))
+(mp:process-run-function
+"anim-test-sidescroll-process" ()
+(lambda ()
+(loop for i below (round (* framerate time))
+while still-running do ;; loop for time  
+redisplaying at framerate
+(sleep (float (/ framerate) 1.0s0))
+(gp:invalidate-rectangle the-pane))))))))
+As you'll see if you experiment with the framerate keyword arg, you  
+don't see any increase in speed beyond :framerate 60 -  
+i.e., :framerate 300 looks just the same.
+hth,
+warmest regards,
+Ralph
+Raffael Cavallaro
+<a href="mailto:raffaelcavallaro@me.com">raffaelcavallaro@me.com</a>
+</blockquote><div><br></div></pre></span></body></html>
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Displaying and scrolling live data</h1>
+                 <p>
+                  Unable to parse email body. Email id is 10110
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:35 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>using Cocoa WebView with LispWorks 5 for OS X.</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>using Cocoa WebView with LispWorks 5 for OS X.</h1>
+                <pre>
+Does anyone have an example (or advice) for using WebKit?  Ideally, 
+within a CAPI window.
+
+I'm not yet familiar as I should be with CAPI, and I've never 
+programmed a line of Cocoa in my life. Though what I'm trying to do 
+seems like it shouldn't be hard.  I just want to open a browser 
+window within my UI and have it load a particular URL.
+
+This page of the Apple developer documentation shows the basic Cocoa 
+code for making a WebView component load a 
+URL: 
+http://developer.apple.com/documentation/Cocoa/Conceptual/DisplayWebContent/Tasks/SimpleBrowsing.html#//apple_ref/doc/uid/20002025-CJBEHAA
+
+That seems like it should be relatively direct to translate to the 
+LispWorks Objective-C FLI, but the part that is most confounding me 
+now is how to instantiate and size the WebView object in the first 
+place, and what to do with it, vis-a-vis CAPI, once I have it.  The 
+Apple documentation seems to always assume one is using Interface 
+Builder, which we are not (though if there is a LispWorks-to-IB 
+bridge, someone let me know).
+
+Thanks for any help,
+
+Chris Perkins
+Media Lab, Inc.
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: using Cocoa WebView with LispWorks 5 for OS X.</h1>
+                 <pre>
+On 12/19/06, Chris Perkins &lt;cperkins@medialab.com&gt wrote:
+&gt
+&gt Does anyone have an example (or advice) for using WebKit?  Ideally,
+&gt within a CAPI window.
+&gt
+&gt I'm not yet familiar as I should be with CAPI, and I've never
+&gt programmed a line of Cocoa in my life. Though what I'm trying to do
+&gt seems like it shouldn't be hard.  I just want to open a browser
+&gt window within my UI and have it load a particular URL.
+&gt
+&gt This page of the Apple developer documentation shows the basic Cocoa
+&gt code for making a WebView component load a
+&gt URL:
+&gt http://developer.apple.com/documentation/Cocoa/Conceptual/DisplayWebContent/Tasks/SimpleBrowsing.html#//apple_ref/doc/uid/20002025-CJBEHAA
+&gt
+&gt That seems like it should be relatively direct to translate to the
+&gt LispWorks Objective-C FLI, but the part that is most confounding me
+&gt now is how to instantiate and size the WebView object in the first
+&gt place, and what to do with it, vis-a-vis CAPI, once I have it.  The
+&gt Apple documentation seems to always assume one is using Interface
+&gt Builder, which we are not (though if there is a LispWorks-to-IB
+&gt bridge, someone let me know).
+&gt
+&gt Thanks for any help,
+&gt
+&gt Chris Perkins
+&gt Media Lab, Inc.
+
+It should be something like the following:
+
+(let ((web-view (make-instance 'capi:cocoa-view-pane :view-class "WebView"))
+      (request (objc:invoke "NSURLRequest" "requestWithURL:"
+                            (objc:invoke "NSURL" "URLWithString:"
+"http://www.google.com"))))
+  (capi:contain web-view)
+  (objc:invoke (capi:cocoa-view-pane-view web-view) "loadRequest:" request)
+  web-view)
+
+The code doesn't work because it can't find the WebView class.  Maybe
+someone else can help with that, but this is at least the right
+direction.
+
+-- 
+Bill Atkins
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: using Cocoa WebView with LispWorks 5 for OS X.</h1>
+                 <pre>
+Bill,
+
+Thanks, that's the start I needed.  I'm very close now (I 
+think).  Loading the WebKit framework and changing the message to go 
+to the mainFrame gets me past any LispWorks errors, but it's still 
+not displaying any web pages.
+
+This is what I have now:
+
+(objc:ensure-objc-initialized
+   :modules
+   '("/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation"
+     "/System/Library/Frameworks/Cocoa.framework/Versions/A/Cocoa"
+     "/System/Library/Frameworks/WebKit.framework/Versions/A/WebKit"))
+
+(defun get-web-view (url)
+   (let ((web-view (make-instance 'capi:cocoa-view-pane :view-class "WebView"))
+         (request (objc:invoke "NSURLRequest" "requestWithURL:"
+                                (objc:invoke "NSURL" "URLWithString:"
+                                             url))))
+
+     (capi:contain web-view)
+
+     (objc:invoke (objc:invoke (capi:cocoa-view-pane-view web-view) 
+"mainFrame") "loadRequest:" request)
+
+
+     web-view)
+
+
+
+Calling (get-web-view "http://www.google.com") puts up the CAPI 
+window and there are no errors in the process, but nothing shows in the pane.
+
+I'm not sure if this is because of a CAPI problem/limitation or if I 
+need to do something else on the Cocoa side.
+
+Any guidance welcome,
+
+Chris
+
+
+
+At 10:10 AM 12/19/2006, Bill Atkins wrote:
+
+&gtOn 12/19/06, Chris Perkins &lt;cperkins@medialab.com&gt wrote:
+&gt&gt
+&gt&gtDoes anyone have an example (or advice) for using WebKit?  Ideally,
+&gt&gtwithin a CAPI window.
+&gt&gt
+&gt&gtI'm not yet familiar as I should be with CAPI, and I've never
+&gt&gtprogrammed a line of Cocoa in my life. Though what I'm trying to do
+&gt&gtseems like it shouldn't be hard.  I just want to open a browser
+&gt&gtwindow within my UI and have it load a particular URL.
+&gt&gt
+&gt&gtThis page of the Apple developer documentation shows the basic Cocoa
+&gt&gtcode for making a WebView component load a
+&gt&gtURL:
+&gt&gthttp://developer.apple.com/documentation/Cocoa/Conceptual/DisplayWebContent/Tasks/SimpleBrowsing.html#//apple_ref/doc/uid/20002025-CJBEHAA
+&gt&gt
+&gt&gtThat seems like it should be relatively direct to translate to the
+&gt&gtLispWorks Objective-C FLI, but the part that is most confounding me
+&gt&gtnow is how to instantiate and size the WebView object in the first
+&gt&gtplace, and what to do with it, vis-a-vis CAPI, once I have it.  The
+&gt&gtApple documentation seems to always assume one is using Interface
+&gt&gtBuilder, which we are not (though if there is a LispWorks-to-IB
+&gt&gtbridge, someone let me know).
+&gt&gt
+&gt&gtThanks for any help,
+&gt&gt
+&gt&gtChris Perkins
+&gt&gtMedia Lab, Inc.
+&gt
+&gtIt should be something like the following:
+&gt
+&gt(let ((web-view (make-instance 'capi:cocoa-view-pane :view-class "WebView"))
+&gt      (request (objc:invoke "NSURLRequest" "requestWithURL:"
+&gt                            (objc:invoke "NSURL" "URLWithString:"
+&gt"http://www.google.com"))))
+&gt  (capi:contain web-view)
+&gt  (objc:invoke (capi:cocoa-view-pane-view web-view) "loadRequest:" request)
+&gt  web-view)
+&gt
+&gtThe code doesn't work because it can't find the WebView class.  Maybe
+&gtsomeone else can help with that, but this is at least the right
+&gtdirection.
+&gt
+&gt--
+&gtBill Atkins
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:43 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

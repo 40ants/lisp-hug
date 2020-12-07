@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>fast 64 bit arithmetic</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>fast 64 bit arithmetic</h1>
+                <pre>
+Hi guys,
+
+Any way to do fast 64 bit arithmetic like the INT32 functions do for 32 bit?
+
+(disassemble
+ (compile 'test
+          #'(lambda (a b)
+              (declare (optimize (safety 0) (debug 0) (speed 3) (space
+0) (compilation-speed 0)(float 0) (hcl:fixnum-safety 0))
+                       (type fixnum a b))
+              (+ (ash a 56) (ash b 56)))))
+4060007C74:
+       0:      4157             push  r15
+       2:      55               push  rbp
+       3:      4889E5           moveq rbp, rsp
+       6:      4989DF           moveq r15, rbx
+       9:      48C1E738         shlq  rdi, 38
+      13:      48C1E638         shlq  rsi, 38
+      17:      4803FE           addq  rdi, rsi
+      20:      B901000000       move  ecx, 1
+      25:      4889EC           moveq rsp, rbp
+      28:      5D               pop   rbp
+      29:      415F             pop   r15
+      31:      C3               ret  
+
+That's cool but if course it does not work if your result is bigger than
+64 bits:
+(format t "~x" (test 8 8))=&gt -1000000000000000
+
+So let's be less aggressive for the optimizations.
+(disassemble
+ (compile 'test
+          #'(lambda (a b)
+              (declare (optimize (safety 0) (debug 0) (speed 3) (space
+0) (compilation-speed 0)
+                                 (float 0) #+nil(hcl:fixnum-safety 0))
+                       (type fixnum a b))
+              (+ (ash a 56) (ash b 56)))))
+406000551C:
+       0:      4155             push  r13
+       2:      4153             push  r11
+       4:      4157             push  r15
+       6:      55               push  rbp
+       7:      4889E5           moveq rbp, rsp
+      10:      4989DF           moveq r15, rbx
+      13:      4989F3           moveq r11, rsi
+      16:      4D8B4FD4         moveq r9, [r15-2C]     ;
+system::ash-left$fixnum$fixnum
+      20:      498B590F         moveq rbx, [r9+F]
+      24:      B902000000       move  ecx, 2
+      29:      BEC0010000       move  esi, 1C0
+      34:      FFD3             call  rbx
+      36:      4989FD           moveq r13, rdi
+      39:      4D8B4FD4         moveq r9, [r15-2C]     ;
+system::ash-left$fixnum$fixnum
+      43:      498B590F         moveq rbx, [r9+F]
+      47:      B902000000       move  ecx, 2
+      52:      4C89DF           moveq rdi, r11
+      55:      BEC0010000       move  esi, 1C0
+      60:      FFD3             call  rbx
+      62:      4889FE           moveq rsi, rdi
+      65:      4D89E9           moveq r9, r13
+      68:      4C0BCE           orq   r9, rsi
+      71:      41F6C107         testb r9b, 7
+      75:      7518             jne   L1
+      77:      4C89EF           moveq rdi, r13
+      80:      4803FE           addq  rdi, rsi
+      83:      7010             jo    L1
+      85:      B901000000       move  ecx, 1
+      90:      4889EC           moveq rsp, rbp
+      93:      5D               pop   rbp
+      94:      415F             pop   r15
+      96:      415B             pop   r11
+      98:      415D             pop   r13
+     100:      C3               ret  
+L1:  101:      4C89EF           moveq rdi, r13
+     104:      4889EC           moveq rsp, rbp
+     107:      5D               pop   rbp
+     108:      415F             pop   r15
+     110:      415B             pop   r11
+     112:      415D             pop   r13
+     114:      498B9E070E0000   moveq rbx, [r14+E07]   ;
+system::*%+$any-code
+     121:      FFE3             jmp   rbx
+     123:      90               nop  
+
+(format t "~x" (test 8 8))=&gt 1000000000000000
+
+OK of course that works but it'svery far from being even reasonably fast.
+
+So what we need is something like INT32 which will do the computation in
+64 bitarithmeticand then convert the resultslike this:
+
+(disassemble
+ (compile 'test
+          #'(lambda (a b)
+              (declare (optimize (safety 0) (debug 0) (speed 3) (space
+0) (compilation-speed 0)
+                                 (float 0)(hcl:fixnum-safety 0))
+                       (type fixnum a b))
+              (sys:int32+ (sys:int32&lt;&lt; a 24) (sys:int32&lt;&lt; b 24)))))
+406000B2A4:
+       0:      4157             push  r15
+       2:      55               push  rbp
+       3:      4889E5           moveq rbp, rsp
+       6:      4989DF           moveq r15, rbx
+       9:      48C1FF03         sarq  rdi, 3
+      13:      48C1E718         shlq  rdi, 18
+      17:      48C1FE03         sarq  rsi, 3
+      21:      48C1E618         shlq  rsi, 18
+      25:      4803FE           addq  rdi, rsi
+      28:      4D8B4FD4         moveq r9, [r15-2C]     ;
+system::%%raw-integer-to-int32
+      32:      498B590F         moveq rbx, [r9+F]
+      36:      B901000000       move  ecx, 1
+      41:      FFD3             call  rbx
+      43:      4889EC           moveq rsp, rbp
+      46:      5D               pop   rbp
+      47:      415F             pop   r15
+      49:      C3               ret  
+
+Here it's less optimized than the first one but much better than the
+second one.
+
+Any ideas or tricks we could use? I even tried to use (unsigned-byte 64)
+types but with no luck so far.
+
+On a similar topic how could I read an int32 or an int64 from a simple
+array of (unsigned byte 8)
+
+(disassemble
+ (compile 'read-uint32
+          #'(lambda (frame idx)
+              (declare (optimize (safety 0) (debug 0) (speed 3) (space
+0) (compilation-speed 0)
+                                 (float 0)(hcl:fixnum-safety 0))
+                       (type (simple-array (unsigned-byte 8) (1024)) frame)
+                       (type fixnum idx))
+              (+ (aref frame (incf idx) (aref frame (incf idx)) 8) (ash
+(aref frame (incf idx)) 16) (ash (aref frame (incf idx)) 24)))))
+406002EAB4:
+       0:      4157             push  r15
+       2:      55               push  rbp
+       3:      4889E5           moveq rbp, rsp
+       6:      4989DF           moveq r15, rbx
+       9:      4883C608         addq  rsi, 8
+      13:      4989F1           moveq r9, rsi
+      16:      49C1F903         sarq  r9, 3
+      20:      4E0FB64C0F05     movzbq r9, [rdi+5+r9]
+      26:      49C1E103         shlq  r9, 3
+      30:      4883C608         addq  rsi, 8
+      34:      4989F0           moveq r8, rsi
+      37:      49C1F803         sarq  r8, 3
+      41:      4E0FB6440705     movzbq r8, [rdi+5+r8]
+      47:      49C1E003         shlq  r8, 3
+      51:      49C1E008         shlq  r8, 8
+      55:      4D03C8           addq  r9, r8
+      58:      4883C608         addq  rsi, 8
+      62:      4989F0           moveq r8, rsi
+      65:      49C1F803         sarq  r8, 3
+      69:      4E0FB6440705     movzbq r8, [rdi+5+r8]
+      75:      49C1E003         shlq  r8, 3
+      79:      49C1E010         shlq  r8, 10
+      83:      4D03C8           addq  r9, r8
+      86:      4989F0           moveq r8, rsi
+      89:      4983C008         addq  r8, 8
+      93:      49C1F803         sarq  r8, 3
+      97:      4E0FB6440705     movzbq r8, [rdi+5+r8]
+     103:      49C1E003         shlq  r8, 3
+     107:      49C1E018         shlq  r8, 18
+     111:      4B8D3C01         leaq  rdi, [r9+r8]
+     115:      B901000000       move  ecx, 1
+     120:      4889EC           moveq rsp, rbp
+     123:      5D               pop   rbp
+     124:      415F             pop   r15
+     126:      C3               ret  
+
+Well it does what it is supposed to do but it's somewhat overkilland
+thus not fast.Anybody has tried to alias a FLI pointer to do a C like cast?
+
+Marc
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+               </article>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:32 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

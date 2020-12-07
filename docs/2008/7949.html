@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>CAPI:EXTENDED-SELECTION-TREE-VIEW with state-image-function</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>CAPI:EXTENDED-SELECTION-TREE-VIEW with state-image-function</h1>
+                <pre>
+Hello lispworkers,
+
+The capiref documention for tree-view says:
+
+  The state-image-function is called on an item to determine the
+  state image: an additional optional image used to indicate the
+  state of an item. It can return one of the above, or NIL to indicate
+  that there is no state image.
+
+I wonder if changing the state-image dynamically is "officially" allowed.
+
+On LWW 4.4.6, the below code exhibits rather odd behavior when the value
+returned by the state-image-function is switched from nil to a non-null
+(number) and back via the popup menu. Actually, the image overwrite
+the node title, which is not shifted to the right when a non-null state is
+introduced.
+
+;; The image list from examples/capi/choice/
+(defvar *extend-tree-view-image-list*
+  (make-instance 'capi:image-list
+    :image-sets (list (capi:make-general-image-set
+         :id #.(gp:read-external-image
+                                            (current-pathname "tree.bmp"))
+         :image-count 4))
+    :image-width 16
+    :image-height 16))
+
+(defstruct node x state)
+
+(defvar *node-hash-table* (make-hash-table))
+
+(defun ensure-node (x)
+  (or (gethash x *node-hash-table*) ; reuse nodes
+      (setf (gethash x *node-hash-table*) (make-node :x x))))
+                                                    ;:state (mod x 4)))))
+
+(defun extend-tree-view-with-state-test-menu (tree node x y)
+  (declare (ignorable x y))
+  (when (node-p node)
+    (make-instance 'capi:menu
+      :items (list (make-instance 'capi:menu :title "Set state"
+                    :items '(0 1 2 3 nil)
+                    :selection-callback
+                      (lambda (state)
+                        (setf (node-state node) state)
+                        (capi:tree-view-update-an-item tree node nil))
+                    :callback-type :data)))))
+
+(capi:define-interface extend-tree-view-with-state-test ()
+  ()
+  (:panes
+   (tree capi:extended-selection-tree-view
+         :roots (list (make-node :x 0))
+         :children-function (lambda (node)
+                              (and (&lt; (node-x node) 100)
+                                   (let ((base (* (node-x node) 4)))
+                                     (list (ensure-node (+ base 1))
+                                           (ensure-node (+ base 2))
+                                           (ensure-node (+ base 3))
+                                           (ensure-node (+ base 4))))))
+         :print-function (lambda (node) (format nil "~d state ~a"
+                                       (node-x node) (node-state node)))
+         :image-lists (list :normal *extend-tree-view-image-list*
+                            :state *extend-tree-view-image-list*)
+         :image-function (lambda (node) (mod (node-x node) 4))
+         :use-state-images t
+         :state-image-function 'node-state
+         :visible-min-width 200
+         :visible-min-height 200
+         :retain-expanded-nodes t
+         :pane-menu 'extend-tree-view-with-state-test-menu))
+  (:layouts
+   (default-layout capi:simple-layout '(tree)))
+  (:default-initargs
+   :title "Tree View with State Images Test"))
+
+(capi:display (make-instance 'extend-tree-view-with-state-test))
+--
+Sincerely,
+Dmitriy Ivanov
+lisp.ystok.ru
+
+
+</pre>
+               </article>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:39 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

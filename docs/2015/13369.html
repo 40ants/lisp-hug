@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Function Arglist Displayer</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Function Arglist Displayer</h1>
+                <pre>
+Hi all,
+
+I'm trying to configure some colors in LW7.0 IDE. Right now I'm 
+struggling with the Function Arglist Displayer: can't find any ideas how 
+to configure its background/foreground colors. Any insights about it?
+
+I'm also interested in modifying properties of non-client area, i.e. 
+around actual editor pane. I would like
+to change its color and/or size. Any clues where to start looking?
+
+Br,
+/Alexey
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Function Arglist Displayer</h1>
+                 <pre>
+Courtesy of Ray Lanning…
+
+(defun set-pane-background-colors (x)
+  (typecase x
+    (capi:echo-area-pane
+     (setf (capi:simple-pane-background x) (color:make-rgb 1.0 .67 0.67)))
+    (capi:collector-pane
+     (setf (capi:simple-pane-background x) (color:make-rgb .85 1.0 .85)))
+    (capi:listener-pane
+     (setf (capi:simple-pane-background x) (color:make-rgb .85 .85 1.0)))
+    (capi:editor-pane
+     (setf (capi::simple-pane-background x) (color:make-rgb .9 .9 .85)
+;        (capi::simple-pane-foreground x) :black
+         ))
+    (capi:tab-layout
+     (mapcar 'set-pane-background-colors (capi:tab-layout-panes x)))
+;    (capi:output-pane
+;     (setf (capi:simple-pane-background x) :black
+;        (capi::simple-pane-foreground x) :white))
+    ))
+
+(let ((*HANDLE-WARN-ON-REDEFINITION* :warn)
+      (*redefinition-action* :warn))
+  (defmethod capi:interface-display :before ((self lw-tools:listener))
+    (capi:map-pane-descendant-children
+     self 'set-pane-background-colors))
+  (defmethod capi:interface-display :before ((self lw-tools:editor))
+    (capi:map-pane-descendant-children
+     self 'set-pane-background-colors))
+  )
+
+&gt On May 18, 2015, at 13:04 PM, Alexey Veretennikov &lt;txm.fourier@gmail.com&gt wrote:
+&gt 
+&gt 
+&gt Hi all,
+&gt 
+&gt I'm trying to configure some colors in LW7.0 IDE. Right now I'm struggling with the Function Arglist Displayer: can't find any ideas how to configure its background/foreground colors. Any insights about it?
+&gt 
+&gt I'm also interested in modifying properties of non-client area, i.e. around actual editor pane. I would like
+&gt to change its color and/or size. Any clues where to start looking?
+&gt 
+&gt Br,
+&gt /Alexey
+&gt 
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+&gt 
+&gt 
+
+73 de Dave, N7AIG
+
+David McClain
+N7AIG@arrl.net
+
+
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Function Arglist Displayer</h1>
+                 <pre>
+Alexey Veretennikov &lt;txm.fourier@gmail.com&gt writes:
+
+&gt I'm trying to configure some colors in LW7.0 IDE. Right now I'm
+&gt struggling with the Function Arglist Displayer: can't find any ideas
+&gt how to configure its background/foreground colors. Any insights about
+&gt it?
+
+This is what I have in my .lispworks file:
+
+;; Change the background colors of LispWorks' In-place completion and
+;; 'Function Arglist Displayer' windows:
+(setf capi::*editor-pane-in-place-background* :black)
+(setf capi-toolkit::*arglist-displayer-background* :black)
+
+Here is Martin Simmon's answer to a simmilar question for more details:
+http://thread.gmane.org/gmane.lisp.lispworks.general/9812
+
+Regards.
+Nico
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Function Arglist Displayer</h1>
+                 <pre>
+David McClain &lt;dbm@refined-audiometrics.com&gt writes:
+
+&gt Courtesy of Ray Lanning…
+&gt
+&gt (defun set-pane-background-colors (x)
+&gt   (typecase x
+&gt     (capi:echo-area-pane
+&gt      (setf (capi:simple-pane-background x) (color:make-rgb 1.0 .67 0.67)))
+&gt     (capi:collector-pane
+&gt      (setf (capi:simple-pane-background x) (color:make-rgb .85 1.0 .85)))
+&gt     (capi:listener-pane
+&gt      (setf (capi:simple-pane-background x) (color:make-rgb .85 .85 1.0)))
+&gt     (capi:editor-pane
+&gt      (setf (capi::simple-pane-background x) (color:make-rgb .9 .9 .85)
+&gt ;        (capi::simple-pane-foreground x) :black
+&gt          ))
+&gt     (capi:tab-layout
+&gt      (mapcar 'set-pane-background-colors (capi:tab-layout-panes x)))
+&gt ;    (capi:output-pane
+&gt ;     (setf (capi:simple-pane-background x) :black
+&gt ;        (capi::simple-pane-foreground x) :white))
+&gt     ))
+&gt
+&gt (let ((*HANDLE-WARN-ON-REDEFINITION* :warn)
+&gt       (*redefinition-action* :warn))
+&gt   (defmethod capi:interface-display :before ((self lw-tools:listener))
+&gt     (capi:map-pane-descendant-children
+&gt      self 'set-pane-background-colors))
+&gt   (defmethod capi:interface-display :before ((self lw-tools:editor))
+&gt     (capi:map-pane-descendant-children
+&gt      self 'set-pane-background-colors))
+&gt   )
+
+Hi David
+
+I have been using this after seeing it in one of your previous posts;
+thanks! Just two observations:
+
+&gt (capi:echo-area-pane (setf (capi:simple-pane-background x)
+&gt                            (color:make-rgb 1.0 .67 0.67)))
+
+Altering the background color of the echo area appears to be semi broken
+since LW 7.0. If, after setting it, you try to e.g. open a file with
+Ctrl-f Ctrl-x or invoke an editor command with Meta-x, the background of
+the echo area is reset to its vanilla value (default Emacs key bindings
+assumed). In contrast, argument completion, e.g., works fine and does
+not reset the background color.
+
+I'll report this as a bug if LispWorks don't respond here on the mailing
+list.
+
+
+&gt (defmethod capi:interface-display :before ((self lw-tools:editor))
+&gt     (capi:map-pane-descendant-children
+&gt      self 'set-pane-background-colors))
+
+If you split the editor window (Ctrl-x 5 or Ctrl-x 6) after changing the
+editor's background color, then the new editor pane don't have the new
+color, which is a bit annoying. I added the following to my init file to
+resolve this, but perhaps there is a better way:
+
+(defmethod editor::split-editor-window :after ((x t) horizontal top)
+  (capi:map-pane-descendant-children
+   (capi:locate-interface 'lw-tools:editor)
+   'set-pane-background-colors))
+
+Regards.
+Nico
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Function Arglist Displayer</h1>
+                 <pre>
+Nico de Jager &lt;nico@dejager.cc&gt writes:
+
+&gt David McClain &lt;dbm@refined-audiometrics.com&gt writes:
+&gt
+&gt&gt Courtesy of Ray Lanning…
+&gt&gt
+&gt&gt (defun set-pane-background-colors (x)
+&gt&gt   (typecase x
+&gt&gt     (capi:echo-area-pane
+&gt&gt      (setf (capi:simple-pane-background x) (color:make-rgb 1.0 .67 0.67)))
+&gt&gt     (capi:collector-pane
+&gt&gt      (setf (capi:simple-pane-background x) (color:make-rgb .85 1.0 .85)))
+&gt&gt     (capi:listener-pane
+&gt&gt      (setf (capi:simple-pane-background x) (color:make-rgb .85 .85 1.0)))
+&gt&gt     (capi:editor-pane
+&gt&gt      (setf (capi::simple-pane-background x) (color:make-rgb .9 .9 .85)
+&gt&gt ;        (capi::simple-pane-foreground x) :black
+&gt&gt          ))
+&gt&gt     (capi:tab-layout
+&gt&gt      (mapcar 'set-pane-background-colors (capi:tab-layout-panes x)))
+&gt&gt ;    (capi:output-pane
+&gt&gt ;     (setf (capi:simple-pane-background x) :black
+&gt&gt ;        (capi::simple-pane-foreground x) :white))
+&gt&gt     ))
+&gt&gt
+&gt&gt (let ((*HANDLE-WARN-ON-REDEFINITION* :warn)
+&gt&gt       (*redefinition-action* :warn))
+&gt&gt   (defmethod capi:interface-display :before ((self lw-tools:listener))
+&gt&gt     (capi:map-pane-descendant-children
+&gt&gt      self 'set-pane-background-colors))
+&gt&gt   (defmethod capi:interface-display :before ((self lw-tools:editor))
+&gt&gt     (capi:map-pane-descendant-children
+&gt&gt      self 'set-pane-background-colors))
+&gt&gt   )
+&gt
+&gt Hi David
+&gt
+&gt I have been using this after seeing it in one of your previous posts;
+&gt thanks! Just two observations:
+&gt
+&gt&gt (capi:echo-area-pane (setf (capi:simple-pane-background x)
+&gt&gt                            (color:make-rgb 1.0 .67 0.67)))
+&gt
+&gt Altering the background color of the echo area appears to be semi broken
+&gt since LW 7.0. If, after setting it, you try to e.g. open a file with
+&gt Ctrl-f Ctrl-x or invoke an editor command with Meta-x, the background of
+&gt the echo area is reset to its vanilla value (default Emacs key bindings
+&gt assumed). In contrast, argument completion, e.g., works fine and does
+&gt not reset the background color.
+&gt
+&gt I'll report this as a bug if LispWorks don't respond here on the mailing
+&gt list.
+&gt
+&gt
+&gt&gt (defmethod capi:interface-display :before ((self lw-tools:editor))
+&gt&gt     (capi:map-pane-descendant-children
+&gt&gt      self 'set-pane-background-colors))
+&gt
+&gt If you split the editor window (Ctrl-x 5 or Ctrl-x 6) after changing the
+&gt editor's background color, then the new editor pane don't have the new
+&gt color, which is a bit annoying. I added the following to my init file to
+&gt resolve this, but perhaps there is a better way:
+&gt
+&gt (defmethod editor::split-editor-window :after ((x t) horizontal top)
+&gt   (capi:map-pane-descendant-children
+&gt    (capi:locate-interface 'lw-tools:editor)
+&gt    'set-pane-background-colors))
+
+Another thing: there is already a CAPI:INTERFACE-DISPLAY :BEFORE method
+defined for LW-TOOLS:EDITOR, so it is probably better to add
+functionality with LispWorks' advice facility (or use an around method)
+rather than to redefine the existing method (for which we don't have the
+source code):
+
+(defadvice ((method capi:interface-display :before (lw-tools:editor))
+            change-editor-colors
+            :before
+            :documentation "Change editor colors.")
+    (interface)
+  (capi:map-pane-descendant-children interface 'set-pane-background-colors))
+
+
+Nico
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Function Arglist Displayer</h1>
+                 <pre>
+&gt&gt&gt&gt&gt On Tue, 19 May 2015 10:44:30 +0200, Nico de Jager said:
+&gt 
+&gt David McClain &lt;dbm@refined-audiometrics.com&gt writes:
+&gt 
+&gt &gt Courtesy of Ray Lanning…
+&gt &gt
+&gt &gt (defun set-pane-background-colors (x)
+&gt &gt   (typecase x
+&gt &gt     (capi:echo-area-pane
+&gt &gt      (setf (capi:simple-pane-background x) (color:make-rgb 1.0 .67 0.67)))
+&gt &gt     (capi:collector-pane
+&gt &gt      (setf (capi:simple-pane-background x) (color:make-rgb .85 1.0 .85)))
+&gt &gt     (capi:listener-pane
+&gt &gt      (setf (capi:simple-pane-background x) (color:make-rgb .85 .85 1.0)))
+&gt &gt     (capi:editor-pane
+&gt &gt      (setf (capi::simple-pane-background x) (color:make-rgb .9 .9 .85)
+&gt &gt ;        (capi::simple-pane-foreground x) :black
+&gt &gt          ))
+&gt &gt     (capi:tab-layout
+&gt &gt      (mapcar 'set-pane-background-colors (capi:tab-layout-panes x)))
+&gt &gt ;    (capi:output-pane
+&gt &gt ;     (setf (capi:simple-pane-background x) :black
+&gt &gt ;        (capi::simple-pane-foreground x) :white))
+&gt &gt     ))
+&gt &gt
+&gt &gt (let ((*HANDLE-WARN-ON-REDEFINITION* :warn)
+&gt &gt       (*redefinition-action* :warn))
+&gt &gt   (defmethod capi:interface-display :before ((self lw-tools:listener))
+&gt &gt     (capi:map-pane-descendant-children
+&gt &gt      self 'set-pane-background-colors))
+&gt &gt   (defmethod capi:interface-display :before ((self lw-tools:editor))
+&gt &gt     (capi:map-pane-descendant-children
+&gt &gt      self 'set-pane-background-colors))
+&gt &gt   )
+&gt 
+&gt Hi David
+&gt 
+&gt I have been using this after seeing it in one of your previous posts;
+&gt thanks! Just two observations:
+&gt 
+&gt &gt (capi:echo-area-pane (setf (capi:simple-pane-background x)
+&gt &gt                            (color:make-rgb 1.0 .67 0.67)))
+&gt 
+&gt Altering the background color of the echo area appears to be semi broken
+&gt since LW 7.0. If, after setting it, you try to e.g. open a file with
+&gt Ctrl-f Ctrl-x or invoke an editor command with Meta-x, the background of
+&gt the echo area is reset to its vanilla value (default Emacs key bindings
+&gt assumed). In contrast, argument completion, e.g., works fine and does
+&gt not reset the background color.
+&gt 
+&gt I'll report this as a bug if LispWorks don't respond here on the mailing
+&gt list.
+
+The echo area changes color in LispWorks 7.0 depending on the focus, but it
+captures the "normal" color before capi:interface-display is called so doesn't
+see your modified color.
+
+You can turn off the color change by setting the internal variable
+capi::*echo-area-show-focus-by-background* to nil or you can use the internal
+accessor capi::echo-area-pane-normal-background in set-pane-background-colors
+to set the "normal" color instead of the background.  None of this is
+supported of course.
+
+-- 
+Martin Simmons
+LispWorks Ltd
+http://www.lispworks.com/
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Function Arglist Displayer</h1>
+                 <pre>
+Alexey Veretennikov &lt;txm.fourier@gmail.com&gt writes:
+
+&gt Thank you! works for the editor. However I cannot define the advice
+&gt for a listener by some reason:
+&gt (lispworks:defadvice ((method capi:interface-display (lw-tools:listener))
+&gt                       change-listener-colors
+&gt                       :before
+&gt                       :documentation "Change listener colors.")
+&gt     (interface)
+&gt   (capi:map-pane-descendant-children interface 'set-listener-pane-colors))
+&gt
+&gt complains
+&gt **++++ Error in (COMPILER::ADVICE-DEFINITION CAPI:INTERFACE-DISPLAY
+&gt (METHOD CAPI:INTERFACE-DISPLAY (LISPWORKS-TOOLS:LISTENER))
+&gt EDITOR-COLOR-THEME::CHANGE-LISTENER-COLORS :ADVICE-BEFORE):
+&gt   Undefined function #1=(METHOD CAPI:INTERFACE-DISPLAY
+&gt (LISPWORKS-TOOLS:LISTENER)) in form (LISPWORKS:DEFADVICE #1#).
+&gt
+&gt In the class browser I can see this method however.
+
+Looking at the timestamp of your message, my guess is that you had a
+late night ;-) and saw the :before method of interface-display for
+lw-tools:listener in the class browser when you still had the definition
+in your init file or defined it yourself some other way. If I start
+LispWorks (7.0 both Linux and Windows) without loading the init file
+(http://www.lispworks.com/documentation/lw70/LW/html/lw-6.htm#pgfId-888833), 
+then I see no interface-display :before method for lw-tools:listener,
+thus you cannot define an advice for it.
+
+Also, when starting LispWorks from the command line on Linux with
+David's interface-display :before methods, I see "Warning: Defining..."
+for the listener, output-browser, shell and inspector, but "Warning:
+**Re**defining..." for the editor (see below). Only the editor has 'n
+predefined interface-display :before method, thus I only defined an
+advice for the editor and defined :before methods for the other tools.
+
+Warning: Defining (METHOD INTERFACE-DISPLAY :BEFORE (LISPWORKS-TOOLS:LISTENER)) visible from packages LISPWORKS-TOOLS, CAPI.
+Warning: Redefining (METHOD INTERFACE-DISPLAY :BEFORE (LISPWORKS-TOOLS:EDITOR)) visible from packages LISPWORKS-TOOLS, CAPI.
+Warning: Defining (METHOD INTERFACE-DISPLAY :BEFORE (LISPWORKS-TOOLS:OUTPUT-BROWSER)) visible from packages LISPWORKS-TOOLS, CAPI.
+Warning: Defining (METHOD INTERFACE-DISPLAY :BEFORE (LISPWORKS-TOOLS:SHELL)) visible from packages LISPWORKS-TOOLS, CAPI.
+Warning: Defining (METHOD INTERFACE-DISPLAY :BEFORE (LISPWORKS-TOOLS:INSPECTOR)) visible from packages LISPWORKS-TOOLS, CAPI.
+
+Hth.
+Nico
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:29 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

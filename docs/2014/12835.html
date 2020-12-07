@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>(Lisp-HUG) Resolution of Pane -&gt File Writes (CAPI)</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>(Lisp-HUG) Resolution of Pane -&gt File Writes (CAPI)</h1>
+                <pre>
+Hello Lisp Guys...
+
+Question:   I am writing an externalized image from a pane to a 
+freshly created WIN32 .BMP file and the pixels per inch resolution is 
+always 96-dpi.
+
+Is there a way to change the resolution of the output file to 
+something else such as 300dpi??
+
+I appreciate any feedback.
+
+Regards,
+
+Jack Harper
+Secure Outcomes Inc.
+Evergreen, Colorado USA
+
+
+
+
+
+
+                         (gp:write-external-image 
+; Write the thing to the Output File...
+                           (gp:externalize-image video-display-pane
+                             (gp:make-image-from-port 
+video-display-pane)) output-pathname)
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: (Lisp-HUG) Resolution of Pane -&gt File Writes (CAPI)</h1>
+                 <pre>
+Get a copy of IrfanView
+
+http://www.irfanview.com/
+
+and see if it can do it.
+
+If so, simply call out to IrfanView with the correct command line 
+parameters or script.
+
+If your original content is 96dpi, then whatever algorithm you are going 
+to use is going to have to "invent" pixels that aren't already present, 
+when going to a higher res like 300dpi.  The result is going to look 
+clunky unless you find some amazing smoothing / dithering algorithm.
+
+In general, the solution is to generate the original image at infinite 
+resolution, then reduce it to 96dpi or 300dpi.  This is the PDF 
+approach.  See CL-PDF which works wonderfully well with CL and CAPI.  Or 
+other SVG-like tools.
+
+pt
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: (Lisp-HUG) Resolution of Pane -&gt File Writes (CAPI)</h1>
+                 <pre>
+At 07:42 AM 1/30/2014, Paul Tarvydas wrote:
+
+&gtGet a copy of IrfanView
+&gt
+&gthttp://www.irfanview.com/
+&gt
+&gtand see if it can do it.
+
+
+Thank You Paul for the suggestion.
+
+
+Best that I can tell, the pixels/inch(cm) resolution of a CAPI pane 
+is hardwired to reflect the physical pixels/inch(cm) count of the LCD 
+monitor connected to your PC itself. You cannot change it.
+
+CAPI has a "Screen" object that is setup at Lisp start time with that 
+fixed resolution and that is used forever.
+
+The CAPI documentation specifically says that there is exactly one 
+Screen object when running under Windows.
+
+
+
+CL-USER 1 &gt (setf screen (capi:convert-to-screen))
+#&lt;CAPI:COLOR-SCREEN 0 R-SCREEN&gt
+
+CL-USER 2 &gt (capi:screen-logical-resolution screen)
+96
+96
+
+CL-USER 3 &gt
+
+
+Therefore, when I create the external file via:
+
+                         (gp:write-external-image 
+; Write the WebCam Photo to the File...
+                           (gp:externalize-image video-display-pane
+                             (gp:make-image-from-port 
+video-display-pane)) output-pathname)
+
+CAPI creates an external file formatted at 96 pixels/inch - and there 
+is no way to change that.
+
+
+I did wonder how one deals with, say, 1200bpi printers and the like - 
+The CAPI printer functions allows one to define a printer as, say, 
+1200bpi, but, best that I can tell, there is no way to actually 
+generate 1200bpi data for the printer to print.  You actually, in my 
+case, generate 96 bpi data and that is interpolated etc to fuzz it to 
+1200dpi for the printer.
+
+
+I do point out that I am not looking to stretch/contract an image by 
+changing the pixels or the pixel count - but rather, how to generate 
+a, say, 300 pixel/inch image that is one-inch on a side rather than a 
+96 pixel/inch image that is about ~3 inches on a side.  The actual 
+number of pixels and the pixels themselves do not change - it is 
+simply a change to the pixels/inch parameter in the file header...
+
+
+It looks like I will have to build an external FLI C++/WIN32/DLL 
+(Yuck!) thing to do it after the external file has been generated. Double-Yuck!
+
+
+Regards to the List -
+
+Jack Harper
+Secure Outcomes Inc
+Evergreen, Colorado USA
+
+
+
+
+
+
+
+
+
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: (Lisp-HUG) Resolution of Pane -&gt File Writes (CAPI)</h1>
+                 <pre>
+Great Idea Mikel and Camille -
+
+It is obviously a hack, but it should work. I appreciate the idea.
+
+Regards,
+
+Jack Harper
+Secure Outcomes Inc
+Evergreen, Colorado USA
+
+
+
+
+
+At 10:20 AM 1/30/2014, Camille Troillard wrote:
+&gtHi Jack,
+&gt
+&gtIt's seem the image resolution is given in a BMP file as two 32 bit 
+&gtvalues (for X resolution and for Y resolution, in pixel per meter) 
+&gtat specified offsets.  Maybe you could write a small routine that 
+&gtwould overwrite the given 96 dpi value with what you need?
+&gt
+&gthttp://en.wikipedia.org/wiki/BMP_file_format
+&gt
+&gt
+&gtBest,
+&gtCamille
+&gt
+&gt
+&gtOn 30 Jan 2014, at 17:44, Jack Harper &lt;jharper@secureoutcomes.net&gt wrote:
+&gt
+&gt &gt I do point out that I am not looking to stretch/contract an image 
+&gt by changing the pixels or the pixel count - but rather, how to 
+&gt generate a, say, 300 pixel/inch image that is one-inch on a side 
+&gt rather than a 96 pixel/inch image that is about ~3 inches on a 
+&gt side.  The actual number of pixels and the pixels themselves do not 
+&gt change - it is simply a change to the pixels/inch parameter in the 
+&gt file header...
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:30 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

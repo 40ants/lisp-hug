@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>LispWorks handling of Emacs-style -*- line (aka File Variables)</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>LispWorks handling of Emacs-style -*- line (aka File Variables)</h1>
+                <pre>
+Hi
+
+This weekend I was bitten by LispWorks' handling of Emacs-style -*-
+file variables. Given a UTF-8 encoded source file like the one below:
+
+;;;; -*- mode: lisp; syntax: common-lisp; base: 10; coding: utf-8-unix; external-format: (:utf-8 :eol-style :lf) -*-
+;;;; encoding.lisp
+
+(in-package #:cl-user)
+
+(defun foo ()
+  (format t "foo: © ë ~A~&amp;" #\U+03BB))
+
+;;;; eof
+
+
+CL-USER 1 &gt (load "encoding.lisp")
+; Loading text file /home/ndj/devel/cl/test/src/encoding.lisp
+#P"/home/ndj/devel/cl/test/src/encoding.lisp"
+
+CL-USER 2 &gt (foo)
+foo: Â© Ã« λ       &lt;== Why is it read as Latin-1?
+NIL
+
+CL-USER 3 &gt (load "encoding.lisp" :external-format '(:utf-8 :eol-style :lf))
+; Loading text file /home/ndj/devel/cl/test/src/encoding.lisp
+#P"/home/ndj/devel/cl/test/src/encoding.lisp"
+
+CL-USER 4 &gt (foo)
+foo: © ë λ         &lt;== Ok, the source file is UTF-8 encoded after all.
+NIL
+
+
+After re-reading the Internationalization chapter in the LW User Guide &amp;
+Reference Manual, looking at several -*- variable examples in LW and
+open source code, and finally reading the Emacs Info section on File
+Variables, I realized that I was somewhat misled by the LW manual
+examples 
+(e.g. http://www.lispworks.com/documentation/lw60/EDUG-U/html/eduser-u-96.htm), 
+as well as by most of the -*- file variable examples in LW and open
+source code. system:find-encoding-option is not as forgiving as Emacs
+and will ignore the external-format/encoding file variable if it is not
+terminated by a semicolon. So this fixed it:
+
+;;;; -*- mode: lisp; syntax: common-lisp; base: 10; coding: utf-8-unix; external-format: (:utf-8 :eol-style :lf); -*-
+
+The external-format and encoding variables values are read in the keyword
+package, so it can also be specified as e.g.:
+;;;; -*- encoding: (utf-8 eol-style lf); -*-
+
+I'm probably just stupid/inexperienced, but maybe this will save someone
+else a couple of hours or remind you how great it is to program in a
+language with a simple syntax. I wish Emacs (and thus LispWorks) used
+an association or property list for file variables...
+
+Regards.
+Nico
+
+
+</pre>
+               </article>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:34 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

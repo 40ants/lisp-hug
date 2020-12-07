@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>capi:top-level-interface-geometry</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>capi:top-level-interface-geometry</h1>
+                <pre>
+I use capi:top-level-interface-geometry to save the position and size
+of windows to an init file for my application. In some very rare cases
+(only under Windows), it will return 0 for width and height instead of
+the real values.
+
+I have to admit that I run this function outside of the interfaces
+process, since another process is gathering information about all the
+windows. May that be the source of the bad values? If you think I need
+to run this with execute-with-interface, then I guess I'll have to
+come up with some kludgy workaround, but I'd like to know that it's
+absolutely necessary before I do so.
+
+Anyway, I'm not able to reproduce this myself, I've run tests that
+collects the sizes of several windows 100 million times without coming
+up with a single zero value. In the strange world of Windows, I've
+seen examples that /graphic cards drivers/ interfere with things like
+this, so I wouldn't be suprised if the error is limited to very
+specific system configurations.
+
+Thanks in advance for any suggestions!
+-- 
+  (espen)
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>AW: capi:top-level-interface-geometry</h1>
+                 <pre>
+
+
+&gt -----Ursprüngliche Nachricht-----
+&gt Von: owner-lisp-hug@lispworks.com 
+&gt [mailto:owner-lisp-hug@lispworks.com] Im Auftrag von Espen Vestre
+&gt Gesendet: Donnerstag, 2. August 2007 17:32
+&gt An: lisp-hug@lispworks.com
+&gt Betreff: capi:top-level-interface-geometry
+&gt 
+&gt 
+&gt 
+&gt I use capi:top-level-interface-geometry to save the position 
+&gt and size of windows to an init file for my application. In 
+&gt some very rare cases (only under Windows), it will return 0 
+&gt for width and height instead of the real values.
+&gt 
+&gt I have to admit that I run this function outside of the 
+&gt interfaces process, since another process is gathering 
+&gt information about all the windows. May that be the source of 
+&gt the bad values? If you think I need to run this with 
+&gt execute-with-interface, then I guess I'll have to come up 
+&gt with some kludgy workaround, but I'd like to know that it's 
+&gt absolutely necessary before I do so.
+&gt 
+&gt Anyway, I'm not able to reproduce this myself, I've run tests 
+&gt that collects the sizes of several windows 100 million times 
+&gt without coming up with a single zero value. In the strange 
+&gt world of Windows, I've seen examples that /graphic cards 
+&gt drivers/ interfere with things like this, so I wouldn't be 
+&gt suprised if the error is limited to very specific system 
+&gt configurations.
+&gt 
+&gt Thanks in advance for any suggestions!
+&gt -- 
+&gt   (espen)
+&gt 
+
+Hi Espen,
+
+Well I don't know the correct answer. In my app I use it within destroy-callback of the main programm interface (window).
+
+The docu's example at CAPI Reference Manual/1 CAPI Reference Entries/top-level-interface-geometry is not executed within the
+interface's process, thus I guess it is not required.
+
+Functions required to run within an pane process often cause some error if invoked from another process.
+
+The esample for your convenience with my additional comments:
+
+;; Define and display an interface.
+(capi:define-interface test ()
+  ()
+  (:panes (panel capi:list-panel)))
+
+;; Andreas: Create interface window in it's own process
+(setq int (capi:display (make-instance 'test)))
+
+;; Now manually position the interface somewhere.
+
+;; Find where the interface is.
+;; Andreas: Executed in the listener or main program process
+(multiple-value-setq (tx ty twidth theight)
+    (capi:top-level-interface-geometry int))
+
+;; Now manually close the interface.
+;; Create a new interface in the same place.
+(setq int
+      (capi:display
+       (make-instance
+        'test
+        :best-x tx
+        :best-y ty
+        :best-width twidth
+        :best-height theight)))
+
+Andreas
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: AW: capi:top-level-interface-geometry</h1><HTML><BODY style="word-wrap: break-word; -khtml-nbsp-mode: space; -khtml-line-break: after-white-space; ">There are also some issues with multiple monitors.  I have found I have to check, say, if the monitor geometry<BR><DIV>has moved, or a display is completely gone.</DIV><DIV><BR class="khtml-block-placeholder"></DIV><DIV>Here is some code...  In general the interface geometry is stored when the destroy-callback is invoked</DIV><DIV>and it restored with my force-display function.  (winapi:monitor-from-point follows).</DIV><DIV><BR class="khtml-block-placeholder"></DIV><DIV>Wade</DIV><DIV><BR class="khtml-block-placeholder"></DIV><DIV><BR class="khtml-block-placeholder"></DIV><DIV><FONT class="Apple-style-span" face="Courier New">(defun force-display (interface &amp;rest keys &amp;key best-x best-y &amp;allow-other-keys)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">  (let* ((display (apply #'capi:display interface :allow-other-keys t keys)))</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">    (multiple-value-bind (actual-x actual-y)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">        (capi:top-level-interface-geometry display)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">      (unless best-x (setf best-x actual-x))</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">      (unless best-y (setf best-y actual-y))</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">      (when (and (winapi::monitor-from-point best-x best-y)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                 (or (/= best-x actual-x)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                     (/= best-y actual-y)))</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">        (capi:set-top-level-interface-geometry display :x best-x :y best-y))</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">      display)))</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New"><BR class="khtml-block-placeholder"></FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">(capi:define-interface run-report-interface ()</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">  ((running-log-interface :initarg :running-log-interface :accessor running-log-interface)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">   (report-last-selected-date :initform nil)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">   (report-start-date :initform nil)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">   (report-end-date :initform nil))</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">  (:panes</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">   (report-annotation capi::text-input-pane</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                        :title "Annotation"</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                        :title-position :left</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                        :font *report-entry-font*</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                        :background :white)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New"><BR class="khtml-block-placeholder"></FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">   (report-type-choice capi:list-panel</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                       :items '(|Diary Report|</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                                |Weekly Distance Report|</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                                |Schedule Report|</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                                |Race Report|)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                       :font *report-entry-font*</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                       :visible-min-width 150</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                       :visible-max-height 75)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New"><BR class="khtml-block-placeholder"></FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">   (report-interval-type capi:radio-button-panel</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                         :items '(|Current Year|</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                                  |Current Month|</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                                  |Selected Dates|)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                         :layout-class 'capi:column-layout</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                         :font *report-entry-font*</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                         :selection-callback </FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                         (lambda (interval log)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                           (with-slots (report-start-pane report-end-pane) log</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                             (case interval</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                               (|Selected Dates|</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                                (setf (capi:simple-pane-background report-start-pane) :white</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                                      (capi:simple-pane-background report-end-pane) :white</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                                      (capi:simple-pane-foreground report-start-pane) :black</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                                      (capi:simple-pane-foreground report-end-pane) :black</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                                      (capi:simple-pane-enabled report-start-pane) t</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                                      (capi:simple-pane-enabled report-end-pane) t))</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                               (otherwise</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                                (setf (capi:simple-pane-background report-start-pane) :lightgrey</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                                      (capi:simple-pane-background report-end-pane) :lightgrey</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                                      (capi:simple-pane-foreground report-start-pane) :grey</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                                      (capi:simple-pane-foreground report-end-pane) :grey</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                                      (capi:simple-pane-enabled report-start-pane) nil</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                                      (capi:simple-pane-enabled report-end-pane) nil))))))</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New"><BR class="khtml-block-placeholder"></FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">   (report-start-pane capi:title-pane</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                      :enabled nil</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                      :visible-min-width 100</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                      :font *report-entry-font*</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                      :background :lightgrey</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                      :foreground :grey)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New"><BR class="khtml-block-placeholder"></FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">   (report-end-pane capi:title-pane</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                    :enabled nil</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                    :visible-min-width 100</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                    :font *report-entry-font*</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                    :background :lightgrey</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                    :foreground :grey)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New"><BR class="khtml-block-placeholder"></FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">   (report-start-set-current-button capi:push-button</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                           :text "&lt;&lt; Current Date"</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                           :font *small-font*</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                           :callback-type :interface</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                           :callback (lambda (log) (set-report-start-current (running-log-interface log))))</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New"><BR class="khtml-block-placeholder"></FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">   (report-end-set-current-button capi:push-button</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                           :text "&lt;&lt; Current Date"</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                           :font *small-font*</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                           :callback-type :interface</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                           :callback (lambda (log) (set-report-end-current (running-log-interface log))))</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New"><BR class="khtml-block-placeholder"></FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">   (report-in-browser-panel capi:radio-button-panel</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                            :items '(t nil)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                            :font *report-entry-font*</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                            :print-function (lambda (item)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                                              (if item "Yes" "No"))</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                            :layout-class 'capi:row-layout</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                            :title "View Report After Generation"</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                            :title-position :left)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">   (generate-report-button capi:push-button</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                           :text "Generate Report"</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                           :font *display-font*</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                           :max-width :screen-width</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                           :callback-type :interface</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                           :callback 'generate-report))</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New"><BR class="khtml-block-placeholder"></FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">  (:layouts</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">   (report-dialog capi:column-layout</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                  '(report-row-1</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                    report-grid</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                    report-in-browser-panel</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                    report-annotation</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                    generate-report-button)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                  :y-gap 5)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New"><BR class="khtml-block-placeholder"></FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">   (report-row-1 capi:row-layout</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                 '(report-type-choice report-interval-type)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                 :x-gap 10)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New"><BR class="khtml-block-placeholder"></FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">   (report-grid capi:grid-layout </FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                '("Start Date:"</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                  report-start-pane</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                  report-start-set-current-button</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                  "End Date:"</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                  report-end-pane</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                  report-end-set-current-button)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                :rows 1 :columns 6</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                :x-adjust '(:right :center :center :right :center :center)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                :y-adjust :center))</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New"><BR class="khtml-block-placeholder"></FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">  (:default-initargs</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">   :auto-menus nil</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">   :destroy-callback (lambda (run-report)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                       (setf (getf (runner-plist (runner (running-log-interface run-report))) :report-interface-geometry)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                             (multiple-value-bind (best-x best-y)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                                 (capi:top-level-interface-geometry run-report)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                               (list :best-x best-x :best-y best-y)))</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                       (setf (run-report-interface (running-log-interface run-report)) nil))))</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">   </FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New"><BR class="khtml-block-placeholder"></FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">(defun show-report-tool (log)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">  (if (run-report-interface log)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">      (capi:show-interface (run-report-interface log))</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">    (destructuring-bind (&amp;key (best-x nil) (best-y nil))</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">        (getf (runner-plist (runner log)) :report-interface-geometry)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">      (setf (run-report-interface log)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">            (force-display (make-instance 'run-report-interface :running-log-interface log</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                                         :best-x best-x</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                                         :best-y best-y</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                                         :title (format nil "Running Log Report Tool for ~A" (runner-name (runner log))))</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                           :best-x best-x</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                           :best-y best-y</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                           :owner log)))))</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New"><BR class="khtml-block-placeholder"></FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">(in-package :winapi)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New"><BR class="khtml-block-placeholder"></FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">(defconstant MONITOR_DEFAULTTONULL 0)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">(defconstant MONITOR_DEFAULTTOPRIMARY 1)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">(defconstant MONITOR_DEFAULTTONEAREST 2)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">(defconstant MONITORINFOF_PRIMARY 1)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New"><BR class="khtml-block-placeholder"></FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">(fli:define-c-struct MONITORINFO</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">  (cbsize dword)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">  (rcmonitor rect)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">  (rcwork rect)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">  (dwflags dword))</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">(fli::define-precompiled-foreign-object-accessor-functions (((:struct monitorinfo) :no-alloc-p t :size t)))</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New"><BR class="khtml-block-placeholder"></FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">(defstruct monitor</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">  display-area</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">  work-area</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">  primary-p)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New"><BR class="khtml-block-placeholder"></FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">(defun monitorinfo-to-monitor (monitorinfo)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">  (let ((display-area-rect (fli:foreign-slot-value monitorinfo 'rcmonitor :copy-foreign-object nil))</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">        (work-area-rect (fli:foreign-slot-value monitorinfo 'rcwork :copy-foreign-object nil)))</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">    (make-monitor :display-area </FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                  (list </FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                   (fli:foreign-slot-value display-area-rect 'left)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                   (fli:foreign-slot-value display-area-rect 'top)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                   (fli:foreign-slot-value display-area-rect 'right)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                   (fli:foreign-slot-value display-area-rect 'bottom))</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                  :work-area </FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                  (list </FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                   (fli:foreign-slot-value work-area-rect 'left)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                   (fli:foreign-slot-value work-area-rect 'top)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                   (fli:foreign-slot-value work-area-rect 'right)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                   (fli:foreign-slot-value work-area-rect 'bottom))</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                  :primary-p</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                  (= (fli:foreign-slot-value monitorinfo 'dwflags) MONITORINFOF_PRIMARY))))</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                                                 </FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">  </FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New"><BR class="khtml-block-placeholder"></FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">(winapi-function |MonitorFromPoint|</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                 ((pt point)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                  (dwFlags dword))</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                 handle</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                 :module "user32")</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New"><BR class="khtml-block-placeholder"></FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">(winapi-function |GetMonitorInfoW|</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                 ((hmonitor handle)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                  (lpmi (:pointer monitorinfo)))</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                 :boolean</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                 :module "user32")</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New"><BR class="khtml-block-placeholder"></FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">(defun monitor-from-point (x y &amp;optional (default-return nil))</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">  (fli:with-dynamic-foreign-objects ()</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">    (let ((point (fli:allocate-dynamic-foreign-object :type 'point)))</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">      (setf (fli:foreign-slot-value point 'x) x)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">      (setf (fli:foreign-slot-value point 'y) y)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">      (let ((handle (|MonitorFromPoint| (fli:dereference point :copy-foreign-object nil)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                                        (ecase default-return</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                                          (:nearest MONITOR_DEFAULTTONEAREST)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                                          (:primary MONITOR_DEFAULTTOPRIMARY)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                                          ((nil) MONITOR_DEFAULTTONULL)))))</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">        (if (zerop handle)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">            nil</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">          (let ((monitorinfo (fli:allocate-dynamic-foreign-object :type 'monitorinfo)))</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">            (setf (fli:foreign-slot-value monitorinfo 'cbsize)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">                  (fli:size-of 'monitorinfo))</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">            (|GetMonitorInfoW| handle monitorinfo)</FONT></DIV><DIV><FONT class="Apple-style-span" face="Courier New">            (monitorinfo-to-monitor monitorinfo)))))))</FONT></DIV></BODY></HTML>
+
+                 </article>
+                </section>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: AW: capi:top-level-interface-geometry</h1>
+                  <pre>
+"Andreas Thiele" &lt;andreas@atp-media.de&gt writes:
+
+&gt The docu's example at CAPI Reference Manual/1 CAPI Reference
+&gt Entries/top-level-interface-geometry is not executed within the
+&gt interface's process, thus I guess it is not required.
+
+Thanks!
+
+Yes, I've seen that. On the other hand, I just remembered that
+LispWorks support gave me a somewhat vague answer on this matter
+some years ago - in general it is possible that capi functions
+are not thread safe even if they just call "readers" on window
+system objects.
+-- 
+  (espen)
+
+
+</pre>
+                 </article>
+                </section>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: AW: capi:top-level-interface-geometry</h1>
+                  <pre>
+Wade Humeniuk &lt;whumeniu@telus.net&gt writes:
+
+&gt There are also some issues with multiple monitors.  I have found I  
+&gt have to check, say, if the monitor geometry
+&gt has moved, or a display is completely gone.
+
+Thanks!
+
+Yes, and there are some really nasty problems with some graphic card
+drivers that try to remember the position and size of your windows -
+they seem to override the default windows api in a way that makes the
+top-level-interface-geometry and/or the :best-x/:best-y arguments
+completely bogus.
+
+(A window system enhancement is allowed to be part of a graphics card
+ driver? Welcome to the weird, weird world of Windows. Ugh.)
+-- 
+  (espen)
+
+
+</pre>
+                 </article>
+                </section>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:42 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

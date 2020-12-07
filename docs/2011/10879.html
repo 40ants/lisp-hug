@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>some CAPI issues</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>some CAPI issues</h1>
+<body bgcolor="#ffffff" background="https://img.web.de/v/p.gif" class="bgRepeatYes" style="background-repeat: repeat;  background-color: rgb(255, 255, 255); color: rgb(0, 0, 0); font-family: verdana,geneva; font-size: 9pt; padding-left: 0px;"><div style="min-height: 200px; background-image: url(https://img.web.de/v/p.gif); background-repeat: repeat; background-color: #ffffff; font-family: verdana,geneva; font-size: 9pt; padding-left: 0px;">#|<br />This is with LW 6.0.1 on windows XP<br /><br />The code below makes a small interface for exploring the column layout. You click the button Run/Add to add some elements to a column layout.<br /><br />I encounter three problems:<br /><br />1.<br /><br />Adding children is slow, and while children are added, I can not work with the children already displayed.<br /><br />Even if the children added to the bottom are outside of the visible portion of the column, the visible children are not responsive.<br /><br />I would be happy to receive some directions on how to efficiently add children outside of the visible portion of a pane while interacting with the elements already displayed.<br /><br />2.<br /><br />The children of the column-layout are simple-pinboard-layouts having motion and a left click callbacks.<br />The motion callback displays the text of a child in the message area and it shows a tooltip with same text.<br />If I click on one of the children its tooltip doesn't work any longer. The motion callback is still called since the message area is updated.<br /><br />Do you have any ideas how to repair the tooltip ?<br /><br />3.<br /><br />The mouse wheel (optical usb) does not scroll the column layout. I can scroll editors and other IDE panes, however.<br /><br />Based on this information: http://thread.gmane.org/gmane.lisp.lispworks.general/9852/focus=9890<br />I hoped it would work. Is there something I'm missing ?<br /><br /><br />I would be greatful to receive some help.<br /><br />Frank Schorr<br /><br />|#<br /><br />(cl:defpackage #:column-test<br />&nbsp; (:use #:capi #:common-lisp))<br /><br />(in-package #:column-test)<br /><br />(defparameter *interface* nil)<br /><br />(define-interface column-test ()<br />&nbsp; ((counter :accessor counter :initform 0))<br />&nbsp; (:panes <br />&nbsp;&nbsp; (column-pane column-layout<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; :y-gap 0<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; :vertical-scroll t<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; :accessor column-pane)<br />&nbsp;&nbsp; (add-button push-button<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; :text "Run/Add"<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; :callback 'add-button-callback<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; :callback-type :interface)<br />&nbsp;&nbsp; (restart-button push-button<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; :text "Restart"<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; :callback 'do-restart<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; :callback-type :item))<br />&nbsp; (:layouts<br />&nbsp;&nbsp; (buttons row-layout '(add-button restart-button))<br />&nbsp;&nbsp; (main-layout column-layout '(buttons column-pane)))<br />&nbsp; (:default-initargs<br />&nbsp;&nbsp; :layout 'main-layout<br />&nbsp;&nbsp; :best-width 200<br />&nbsp;&nbsp; :best-height 400<br />&nbsp;&nbsp; :message-area t))<br /><br />(defun start-interface ()<br />&nbsp; (setf *interface* (capi:display (make-instance 'column-test))))<br /><br />(defun do-restart (item)<br />&nbsp; (quit-interface item)<br />&nbsp; (start-interface))<br /><br />(defun add-button-callback (interface)<br />&nbsp; (loop repeat 20 do<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ;; (sleep 0.2)<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (add-item (column-pane interface) (format nil "Text ~a" (incf (counter interface))))))<br /><br />(defun press-callback (pane x y)<br />&nbsp; (declare (ignore x y))<br />&nbsp; (print (layout-description pane)))<br /><br />(defun motion-callback (pane x y)<br />&nbsp; (declare (ignore x y))<br />&nbsp; (let ((text (title-pane-text (first (layout-description pane)))))<br />&nbsp;&nbsp;&nbsp; (setf (titled-pane-message *interface*) text)<br />&nbsp;&nbsp;&nbsp; (display-tooltip pane :text text :x 0 :y 0)))<br /><br />(defun add-item (pane text) &nbsp;<br />&nbsp; (setf (layout-description pane)<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (append (layout-description pane)<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (list (make-instance 'simple-pinboard-layout<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; :child (make-instance 'title-pane :text text)<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; :input-model (list (list (list :button-1 :press) #'press-callback)<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (list :motion #'motion-callback)))<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; :separator))))<br /><br />#+run<br />(start-interface)<br /><br /></div>&nbsp;&nbsp;<br><br><table cellpadding="0" cellspacing="0" border="0"><tr><td bgcolor="#000000"><img src="https://img.web.de/p.gif" width="1" height="1" border="0" alt="" /></td></tr><tr><td style="font-family:verdana; font-size:12px; line-height:17px;">Schon geh&ouml;rt? WEB.DE hat einen genialen Phishing-Filter in die&nbsp;&nbsp;&nbsp;<br>Toolbar eingebaut! <a href="http://produkte.web.de/go/toolbar"><b>http://produkte.web.de/go/toolbar</b></a></td></tr></table>
+</body>
+
+
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: some CAPI issues</h1>
+                 <pre>
+Frank Schorr wrote on Fri, 25 Feb 2011 23:37:37 +0100 (CET) 01:37:
+
+| This is with LW 6.0.1 on windows XP
+
+Generally, it is not a good idea to put lots of pinboard layouts into the
+same interface. Why do not you place instances of capi:item-pinboard-object
+into a single scrollable pinboard layout?
+
+IMHO, the column-pane should be defined into the :layouts section instead of
+the :panes.
+
+I have tested on LWW 4.4.6 on Windows 2000. To me, the interface is quite
+responsible anyway. See my comments below.
+
+| 1. Adding children is slow, and while children are added, I can not work
+| with the children already displayed.
+|
+| Even if the children added to the bottom are outside of the visible
+| portion of the column, the visible children are not responsive.
+
+Strange, every pane displayed keeps on working to me.
+
+| 2. The children of the column-layout are simple-pinboard-layouts having
+| motion and a left click callbacks. The motion callback displays the
+| text of a child in the message area and it shows a tooltip with same
+| text. If I click on one of the children its tooltip doesn't work any
+| longer. The motion callback is still called since the message area is
+| updated.
+|
+| Do you have any ideas how to repair the tooltip ?
+
+I believe the tooltip should not pop-up the second time until you leave the
+pane and move into it again.
+
+| 3. The mouse wheel (optical usb) does not scroll the column layout. I can
+| scroll editors and other IDE panes, however.
+
+After I click to right of the text, the column layout receives focus and
+mouse wheel works to me.
+--
+Sincerely,
+Dmitriy Ivanov
+lisp.ystok.ru
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:34 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

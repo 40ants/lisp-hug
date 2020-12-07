@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Stepper (and debugger)-friendly macros. Case of debugger</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Stepper (and debugger)-friendly macros. Case of debugger</h1>
+                <pre>
+Hi Thomas!
+
+&gtI get much better results working back through the stack...
+
+The same problem occurs, the same remedy applies. If macroexpander
+copies the code, source-to-binary position correspondence is lost. Let
+me reformulate my example:
+
+(declaim (optimize (debug 3) (speed 0)))
+
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defmacro breakpointable (&amp;body x) `(progn ,@x))
+  (defmacro non-breakpointable (&amp;body x) `(progn ,@(copy-tree x)))
+  )
+
+(defun f1 ()
+  (breakpointable
+     (   ; one can set breakpoint here
+    break )))
+
+(defun f2 ()
+  (non-breakpointable
+     (   ; can't set breakpoint here as source was
+    break )))
+
+
+(defmacro assign-source (literal expanded)
+  "Says that, for stepper, expanded code is associated with
+ literal source"
+  `(setf (car ,literal) (car ,expanded)
+         (cdr ,literal) (cdr ,expanded)
+         ,expanded ,literal))
+
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defmacro breakpointable-again (&amp;body x)
+    (let ((result `(progn ,@(copy-tree x))))
+      (assign-source (first x) (first (cdr result)))
+      result))
+  )
+
+(defun f3 ()
+  (breakpointable-again
+    (  ; can set a breakpoint
+     break)))
+;;; EOF
+
+Put the code into a buffer and compile it. Then run f1, f2, f3 from a listener.
+For each function, use "find source" button from debugger when break occurs.
+
+You will see:
+In f1 debugger can find (break) position precisely.
+It fails to do so in (f2) and shows enclosing
+(non-breakpointable). In case of complex macros (e.g. "iterate") this is
+nasty as it can be really hard to locate the problem.
+In f3, due to call of "assign source" from macroexpander function,
+debugger can find (break) again.
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Stepper (and debugger)-friendly macros. Case of debugger</h1>
+                 <pre>
+Hi All,
+
+I wasn't really responding to the use of, or not, the stepper friendly macros. Rather, I was stating that the stepper is occasionally useful and I would not want to see it discarded.
+
+I need to look more closely at your suggestions, but my initial impression is that they affect only a handful of possibly bothersome instances. There are many macros in the system, and more created all the time. Not sure what your desires are?
+
+If it is based on an inability to discern macros from functions then that is the price one pays for such a flexible system. Any attempt to tighten up the macro facility, like they try to do with hygienic macros in Scheme or Dylan, is counterproductive from my perspective. But given the flexibility of Lisp, you are quite free to implement any variations that you like, and it won't destroy the language flexibility for the rest of us.
+
+- DM
+
+On Mar 3, 2013, at 10:49 AM, Denis Budyak &lt;budden73@gmail.com&gt wrote:
+
+&gt 
+&gt Hi Thomas!
+&gt 
+&gt&gt I get much better results working back through the stack...
+&gt 
+&gt The same problem occurs, the same remedy applies. If macroexpander
+&gt copies the code, source-to-binary position correspondence is lost. Let
+&gt me reformulate my example:
+&gt 
+&gt (declaim (optimize (debug 3) (speed 0)))
+&gt 
+&gt (eval-when (:compile-toplevel :load-toplevel :execute)
+&gt  (defmacro breakpointable (&amp;body x) `(progn ,@x))
+&gt  (defmacro non-breakpointable (&amp;body x) `(progn ,@(copy-tree x)))
+&gt  )
+&gt 
+&gt (defun f1 ()
+&gt  (breakpointable
+&gt     (   ; one can set breakpoint here
+&gt    break )))
+&gt 
+&gt (defun f2 ()
+&gt  (non-breakpointable
+&gt     (   ; can't set breakpoint here as source was
+&gt    break )))
+&gt 
+&gt 
+&gt (defmacro assign-source (literal expanded)
+&gt  "Says that, for stepper, expanded code is associated with
+&gt literal source"
+&gt  `(setf (car ,literal) (car ,expanded)
+&gt         (cdr ,literal) (cdr ,expanded)
+&gt         ,expanded ,literal))
+&gt 
+&gt (eval-when (:compile-toplevel :load-toplevel :execute)
+&gt  (defmacro breakpointable-again (&amp;body x)
+&gt    (let ((result `(progn ,@(copy-tree x))))
+&gt      (assign-source (first x) (first (cdr result)))
+&gt      result))
+&gt  )
+&gt 
+&gt (defun f3 ()
+&gt  (breakpointable-again
+&gt    (  ; can set a breakpoint
+&gt     break)))
+&gt ;;; EOF
+&gt 
+&gt Put the code into a buffer and compile it. Then run f1, f2, f3 from a listener.
+&gt For each function, use "find source" button from debugger when break occurs.
+&gt 
+&gt You will see:
+&gt In f1 debugger can find (break) position precisely.
+&gt It fails to do so in (f2) and shows enclosing
+&gt (non-breakpointable). In case of complex macros (e.g. "iterate") this is
+&gt nasty as it can be really hard to locate the problem.
+&gt In f3, due to call of "assign source" from macroexpander function,
+&gt debugger can find (break) again.
+&gt 
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+&gt 
+&gt 
+
+Dr. David McClain
+CTO &amp; Co-Founder
+Acudora (TM)
+e-mail: david@acudora.com
+Tel: (+1) 520-529-2437
+
+
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Stepper (and debugger)-friendly macros. Case of debugger</h1><div dir="ltr">I see that my response didn&#39;t really address the issue that you were raising. Now that I understand it, this is actually a problem with define-test in lisp-unit. It is not possible to go to source when there is an error in an assertion. While annoying, I&#39;ve had bigger issues to address and have just let this slide.<div>
+<br></div><div style>Isn&#39;t this problem addressed in LispWorks by <a href="http://www.lispworks.com/documentation/lw61/LW/html/lw-68.htm">Dspecs: Tools for Handling Definitions</a>?</div></div><div class="gmail_extra">
+<br clear="all"><div>----------------------------------------------------------------<br>Thomas M. Hermann<br>Odonata Research LLC<br><a href="http://www.odonata-research.com/">http://www.odonata-research.com/</a><br><a href="http://www.linkedin.com/in/thomasmhermann">http://www.linkedin.com/in/thomasmhermann</a></div>
+
+<br><br><div class="gmail_quote">On Sun, Mar 3, 2013 at 11:49 AM, Denis Budyak <span dir="ltr">&lt;<a href="mailto:budden73@gmail.com" target="_blank">budden73@gmail.com</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+Hi Thomas!<br>
+<br>
+&gt;I get much better results working back through the stack...<br>
+<br>
+The same problem occurs, the same remedy applies. If macroexpander<br>
+copies the code, source-to-binary position correspondence is lost. Let<br>
+me reformulate my example:<br>
+<br>
+(declaim (optimize (debug 3) (speed 0)))<br>
+<br>
+(eval-when (:compile-toplevel :load-toplevel :execute)<br>
+  (defmacro breakpointable (&amp;body x) `(progn ,@x))<br>
+  (defmacro non-breakpointable (&amp;body x) `(progn ,@(copy-tree x)))<br>
+  )<br>
+<br>
+(defun f1 ()<br>
+  (breakpointable<br>
+     (   ; one can set breakpoint here<br>
+    break )))<br>
+<br>
+(defun f2 ()<br>
+  (non-breakpointable<br>
+     (   ; can&#39;t set breakpoint here as source was<br>
+    break )))<br>
+<br>
+<br>
+(defmacro assign-source (literal expanded)<br>
+  &quot;Says that, for stepper, expanded code is associated with<br>
+ literal source&quot;<br>
+  `(setf (car ,literal) (car ,expanded)<br>
+         (cdr ,literal) (cdr ,expanded)<br>
+         ,expanded ,literal))<br>
+<br>
+(eval-when (:compile-toplevel :load-toplevel :execute)<br>
+  (defmacro breakpointable-again (&amp;body x)<br>
+    (let ((result `(progn ,@(copy-tree x))))<br>
+      (assign-source (first x) (first (cdr result)))<br>
+      result))<br>
+  )<br>
+<br>
+(defun f3 ()<br>
+  (breakpointable-again<br>
+    (  ; can set a breakpoint<br>
+     break)))<br>
+;;; EOF<br>
+<br>
+Put the code into a buffer and compile it. Then run f1, f2, f3 from a listener.<br>
+For each function, use &quot;find source&quot; button from debugger when break occurs.<br>
+<br>
+You will see:<br>
+In f1 debugger can find (break) position precisely.<br>
+It fails to do so in (f2) and shows enclosing<br>
+(non-breakpointable). In case of complex macros (e.g. &quot;iterate&quot;) this is<br>
+nasty as it can be really hard to locate the problem.<br>
+In f3, due to call of &quot;assign source&quot; from macroexpander function,<br>
+debugger can find (break) again.<br>
+</blockquote></div><br></div>
+
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Stepper (and debugger)-friendly macros. Case of debugger</h1><div dir="ltr">Hello Chris,<div><br></div><div style>Thanks for the response. I should have phrased my response better. The issue is not with lisp-unit, lisp-unit is only a good example. If an error is signaled in the actual body of define-test, for example in the bindings of a LET form or some form outside of an assertion, it is not possible to go to the source from the LW debugger.</div>
+</div><div class="gmail_extra"><br clear="all"><div>----------------------------------------------------------------<br>Thomas M. Hermann<br>Odonata Research LLC<br><a href="http://www.odonata-research.com/">http://www.odonata-research.com/</a><br>
+<a href="http://www.linkedin.com/in/thomasmhermann">http://www.linkedin.com/in/thomasmhermann</a></div>
+<br><br><div class="gmail_quote">On Mon, Mar 4, 2013 at 11:53 AM, Christopher Riesbeck <span dir="ltr">&lt;<a href="mailto:c-riesbeck@northwestern.edu" target="_blank">c-riesbeck@northwestern.edu</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+  
+    
+  
+  <div bgcolor="#FFFFFF" text="#000000">
+    Re going to source on an error, do you mean because lisp-unit
+    defaults to aborting on failure? <br>
+    <br>
+    if so, does rebinding lisp-unit:*error-listener* to
+    lisp-unit:debug-error help?<div><div class="h5"><br>
+    <br>
+    <br>
+    <div>On 3/4/2013 11:16 AM, Thomas M. Hermann
+      wrote:<br>
+    </div>
+    <blockquote type="cite">
+      
+      <div dir="ltr">I see that my response didn&#39;t really address the
+        issue that you were raising. Now that I understand it, this is
+        actually a problem with define-test in lisp-unit. It is not
+        possible to go to source when there is an error in an assertion.
+        While annoying, I&#39;ve had bigger issues to address and have just
+        let this slide.
+        <div>
+          <br>
+        </div>
+        <div>Isn&#39;t this problem addressed in LispWorks by <a href="http://www.lispworks.com/documentation/lw61/LW/html/lw-68.htm" target="_blank">Dspecs:
+            Tools for Handling Definitions</a>?</div>
+      </div>
+      <div class="gmail_extra">
+        <br clear="all">
+        <div>----------------------------------------------------------------<br>
+          Thomas M. Hermann<br>
+          Odonata Research LLC<br>
+          <a href="http://www.odonata-research.com/" target="_blank">http://www.odonata-research.com/</a><br>
+          <a href="http://www.linkedin.com/in/thomasmhermann" target="_blank">http://www.linkedin.com/in/thomasmhermann</a></div>
+        <br>
+        <br>
+        <div class="gmail_quote">On Sun, Mar 3, 2013 at 11:49 AM, Denis
+          Budyak <span dir="ltr">&lt;<a href="mailto:budden73@gmail.com" target="_blank">budden73@gmail.com</a>&gt;</span>
+          wrote:<br>
+          <blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+            Hi Thomas!<br>
+            <br>
+            &gt;I get much better results working back through the
+            stack...<br>
+            <br>
+            The same problem occurs, the same remedy applies. If
+            macroexpander<br>
+            copies the code, source-to-binary position correspondence is
+            lost. Let<br>
+            me reformulate my example:<br>
+            <br>
+            (declaim (optimize (debug 3) (speed 0)))<br>
+            <br>
+            (eval-when (:compile-toplevel :load-toplevel :execute)<br>
+              (defmacro breakpointable (&amp;body x) `(progn ,@x))<br>
+              (defmacro non-breakpointable (&amp;body x) `(progn
+            ,@(copy-tree x)))<br>
+              )<br>
+            <br>
+            (defun f1 ()<br>
+              (breakpointable<br>
+                 (   ; one can set breakpoint here<br>
+                break )))<br>
+            <br>
+            (defun f2 ()<br>
+              (non-breakpointable<br>
+                 (   ; can&#39;t set breakpoint here as source was<br>
+                break )))<br>
+            <br>
+            <br>
+            (defmacro assign-source (literal expanded)<br>
+              &quot;Says that, for stepper, expanded code is associated with<br>
+             literal source&quot;<br>
+              `(setf (car ,literal) (car ,expanded)<br>
+                     (cdr ,literal) (cdr ,expanded)<br>
+                     ,expanded ,literal))<br>
+            <br>
+            (eval-when (:compile-toplevel :load-toplevel :execute)<br>
+              (defmacro breakpointable-again (&amp;body x)<br>
+                (let ((result `(progn ,@(copy-tree x))))<br>
+                  (assign-source (first x) (first (cdr result)))<br>
+                  result))<br>
+              )<br>
+            <br>
+            (defun f3 ()<br>
+              (breakpointable-again<br>
+                (  ; can set a breakpoint<br>
+                 break)))<br>
+            ;;; EOF<br>
+            <br>
+            Put the code into a buffer and compile it. Then run f1, f2,
+            f3 from a listener.<br>
+            For each function, use &quot;find source&quot; button from debugger
+            when break occurs.<br>
+            <br>
+            You will see:<br>
+            In f1 debugger can find (break) position precisely.<br>
+            It fails to do so in (f2) and shows enclosing<br>
+            (non-breakpointable). In case of complex macros (e.g.
+            &quot;iterate&quot;) this is<br>
+            nasty as it can be really hard to locate the problem.<br>
+            In f3, due to call of &quot;assign source&quot; from macroexpander
+            function,<br>
+            debugger can find (break) again.<br>
+          </blockquote>
+        </div>
+        <br>
+      </div>
+    </blockquote>
+    <br>
+    </div></div><span class="HOEnZb"><font color="#888888"><pre cols="72">-- 
+.................................................
+Christopher Riesbeck
+Associate Professor, Electrical Engineering and Computer Science
+McCormick School of Engineering
+Northwestern University
+
+2145 Sheridan Rd., Evanston, IL 60208
+
+Home page: <a href="http://www.cs.northwestern.edu/~riesbeck/" target="_blank">http://www.cs.northwestern.edu/~riesbeck/</a>
+Calendar: <a href="http://calendar.yahoo.com/criesbeck" target="_blank">http://calendar.yahoo.com/criesbeck</a>
+</pre>
+  </font></span></div>
+
+</blockquote></div><br></div>
+
+
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:31 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

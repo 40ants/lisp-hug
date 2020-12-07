@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>FLI again</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>FLI again</h1>
+                <pre>davef@xanalys.com writes:
+
+&gt    Strange, it seem my mails don't find their way to this list. 
+&gt 
+&gt Hello Friedrich
+&gt 
+&gt I've not seen (as the list owner) any bounced message from you. It's
+&gt quite common that people attempt to post from addresses which are not
+&gt on the list, when this happens I do inform them.
+&gt 
+&gt    So here we go again: 
+&gt    I have read the Common Lisp cookbbook and looked at how to call an
+&gt    external C function. (example (calling gethostname)
+&gt 
+&gt    Well I extracted that function from the header and let the
+&gt    foreign-parser do the job
+&gt 
+&gt    I than have come up with this (IMHO wrong solution, which should
+&gt    crash)
+&gt    (defun get-hostname ()
+&gt      (let* ((limit 256))
+&gt        (fli:with-dynamic-foreign-objects ((buffer (:char)))
+&gt 	 (let ((ret-val (gethostname buffer limit)))
+&gt 	   (if (&gt ret-val 0)
+&gt 	       (break)
+&gt 	     (fli:convert-from-foreign-string buffer))))))
+&gt 
+&gt 
+&gt    Well why do I think it should crash? I'm not allocating any space for
+&gt    the external buffer. 
+
+The questions still persists, why doesn't it crash? 
+
+&gt 
+&gt 
+&gt    I than checked the knowledgebase and bound 17004, but that confuses me
+&gt    even more. 
+&gt 
+&gt Was exactly was it that confused you? The title of Example 2 does seem
+&gt to suggest that a supplied Lisp string can be modified by a foreign
+&gt function call (which is not true) though the text clearly states that
+&gt a new string is returned.
+&gt 
+&gt    So maybe someone can bring into some light.
+&gt    What I want to do
+&gt    I want to allocate a Lisp String (such that it can be handled by the
+&gt    Lisp GC) than I wont to hand this string over to C which fills it well
+&gt    on return it should be still a valid Lisp string.
+&gt 
+&gt Why do you want to first allocate the string in Lisp?
+I want Lisps GC to take care of the things. And it's was or is
+obviously (wrong?) that it should be the "cheapest" way. Allocate
+space for a string one time not more often.
+
+&gt 
+&gt    What is the right way doing it?
+&gt 
+&gt 
+&gt Here's three definitions which work for me:
+&gt 
+&gt 
+&gt (fli:define-foreign-function (getdomainname-1 "getdomainname" :source)
+&gt    ((:ignore (:reference-return (:ef-mb-string :limit 256)))
+why an :ignore?
+
+&gt     (:constant 256 :integer))
+&gt   )
+&gt 
+&gt 
+&gt 
+&gt (fli:define-foreign-function (%getdomainname "getdomainname" :source)
+&gt     ((buffer :pointer)
+&gt      (len :integer))
+&gt   :result-type :integer)
+&gt 
+&gt (defun getdomainname-2 (len)
+&gt   (fli:with-dynamic-foreign-objects ()
+&gt     (let ((buffer (fli:allocate-dynamic-foreign-object 
+&gt                    :type :char :nelems len)))
+&gt       (when (eq (%getdomainname buffer len) 0)
+&gt         (fli:convert-from-foreign-string buffer :length len)))))
+Well in my understanding I have to free the allocated object. If I do
+not than it should be a memory leak. What am I missing?
+
+Well now I have some more ways but I still do not understand much
+more. So I probably have to rephrase the questions
+
+a) if I use fli:alllcate-dyn... than in my understanding and according
+to the docs I have to free that memory by hand.
+b) can I do this?
+        (let ((str (make-string limit)))
+           (fill-str-in-c-function str ...)
+
+     and got it simply back without a new string getting allocated?
+
+c) I do not understand what the "right" solutions should be. Some of
+my solutions work although I think they should not! See the first
+question. 
+
+
+So I would appriciate if someone could clarfiy that a bit.
+
+Thanks
+Friedrich
+
+
+</pre>
+               </article>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:58 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

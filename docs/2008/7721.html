@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Multiprocessing</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Multiprocessing</h1>
+                <pre>
+Hello,
+
+I try to learn more about multiprocessing mechanisms, and I would like to
+know if I well understand some basics. Thanks by advance for your great
+assistance :)
+
+1)
+If a loop iterate at some time interval and send some tasks to other
+processes : Is it correct to say that, if the order of the tasks in the
+different processes will be done in parallel, on the other hand all the
+successive tasks (t1, t2, t3...) sent to a same process will be done
+sequentially, and that t2 never will be executed before the execution of t1
+is finished ?
+
+2)
+If a task is always in the mailbox queue of the process, does it means that
+it is non executed (and so that it can be aborted) ? Does the process do :
+
+pop the queue
+execute the task
+
+OR
+
+execute the task (always in the queue)
+pop the queue
+
+?
+
+For instance does this code do what I mean (replace a obsolete job by a new
+one of the same kind) ?
+
+(without-interrupts
+  (when (eq (mp:mailbox-peek (mp:process-mailbox process1)) prev-task)
+    (progn (mp:mailbox-read (mp:process-mailbox process1))
+      (mp:process-send process1 new-task))))
+
+Or, maybe more efficient :
+
+(without-interrupts
+  (when (eq (mp:mailbox-peek (mp:process-mailbox p1)) prev-task)
+    (setf (cdr prev-task) (cdr new-task))) ;when the car is the same
+
+
+
+Thanks
+
+Denis
+
+
+    
+
+
+
+-------------------------------------------------------
+Denis Pousseur
+70 rue de Wansijn
+1180 Bruxelles, Belgique
+
+Tel : 32 (0)2 219 31 09
+Mail :  denis.pousseur@gmail.com
+-------------------------------------------------------
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Multiprocessing</h1>
+                 <pre>
+
+On 16/02/2008, at 10:09, Denis Pousseur wrote:
+
+&gt
+&gt Hello,
+&gt
+&gt I try to learn more about multiprocessing mechanisms, and I would  
+&gt like to
+&gt know if I well understand some basics. Thanks by advance for your  
+&gt great
+&gt assistance :)
+&gt
+&gt 1)
+&gt If a loop iterate at some time interval and send some tasks to other
+&gt processes : Is it correct to say that, if the order of the tasks in  
+&gt the
+&gt different processes will be done in parallel, on the other hand all  
+&gt the
+&gt successive tasks (t1, t2, t3...) sent to a same process will be done
+&gt sequentially, and that t2 never will be executed before the  
+&gt execution of t1
+&gt is finished ?
+&gt
+&gt 2)
+&gt If a task is always in the mailbox queue of the process, does it  
+&gt means that
+&gt it is non executed (and so that it can be aborted) ? Does the  
+&gt process do :
+&gt
+&gt pop the queue
+&gt execute the task
+&gt
+&gt OR
+&gt
+&gt execute the task (always in the queue)
+&gt pop the queue
+&gt
+&gt ?
+&gt
+&gt For instance does this code do what I mean (replace a obsolete job  
+&gt by a new
+&gt one of the same kind) ?
+&gt
+&gt (without-interrupts
+&gt  (when (eq (mp:mailbox-peek (mp:process-mailbox process1)) prev-task)
+&gt    (progn (mp:mailbox-read (mp:process-mailbox process1))
+&gt      (mp:process-send process1 new-task))))
+&gt
+&gt Or, maybe more efficient :
+&gt
+&gt (without-interrupts
+&gt  (when (eq (mp:mailbox-peek (mp:process-mailbox p1)) prev-task)
+&gt    (setf (cdr prev-task) (cdr new-task))) ;when the car is the same
+&gt
+&gt
+&gt
+&gt Thanks
+&gt
+&gt Denis
+
+Hi Denis --
+
+Your question is not easy to answer -- there are lots of issues here  
+and it's hard to figure where to start.  My general advice would be  
+that you do some reading about the principles of doing multiprocessing  
+-- it is a notoriously difficult area and if you do not get it quite  
+right you are like to experience subtle errors can be very hard indeed  
+to track down.  Believe me, such subtle errors will steal your time  
+and hurt your productivity so if you really want to work with multiple  
+processes, understanding multiprocessing principles will be a  
+worthwhile investment!
+
+As far as Lispworks is concerned, it offers two synchronization  
+mechanisms to support your multiprocessing efforts: locks and  
+mailboxes, and additionally there's mp:without-preemption and  
+mp:without-interrupts. Both locks and mailboxes have the potential to  
+do all the synchronization needed, and they can be used in combination  
+too.  The exact behaviour of the mp:without-... operators is not very  
+well documented (IMHO), so I try not to rely on them -- locks and  
+mailboxes are well-known from the literature, will do everything you  
+need, so I believe they're a safe bet.  It is possible that  
+mp:without-... are more efficient under some circumstances - I don't  
+know anything about that.
+
+The code you present above seems to 'sit on two chairs at the same  
+time': You seem to be using mp:without-interrupts to gain exclusive  
+access, and then you PEEK in the mailbox.  Generally, I would not  
+think that is a good way to use a mailbox -- it has built-in exclusive  
+access, i.e. any Lisp process can safely use it without any other  
+synchronization being necessary.
+
+To give you an idea of how you might use a mailbox consider the  
+following definitions:
+
+(defvar *job-count* 0)
+
+(defun each-job-has-own-mailbox (fn arglist)
+   (let ((mbox (make-mailbox)))
+     (flet ((retrieve-result ()
+              (apply #'values (mailbox-read mbox))))
+       (process-run-function (format nil "JOB-~d" (incf *job-count*))
+                             nil
+                             (lambda (fn1 arglist1)
+                               (mailbox-send mbox (multiple-value-list  
+(apply fn1 arglist1))))
+                             fn arglist)
+       #'retrieve-result)))
+
+Here we're assigning a mailbox to each 'job' and offer an interface  
+where the user provides a function and an arglist, and gets in return  
+a closure to call to retrieve the result of the 'job'.  The code above  
+offers solutions as to how to know WHEN to call the closure -- it will  
+be block until the result becomes available.
+
+We might use this code like this
+
+MP-EXAMPLE 4 &gt (flet ((job-fn (a b)
+                         (- a b)))
+                  (let ((joblist (loop for job in '((1 3) (10 10) (20  
+10))
+                                       collect (list job (each-job-has- 
+own-mailbox #'job-fn job)))))
+                    (loop for jdesc in joblist
+                          do (format t "~&amp;JOB ~a is doing ~a." (second  
+jdesc) (first jdesc)))
+                    ;; collect results
+                    (loop for jdesc in joblist
+                          collect (list (first jdesc) (funcall (second  
+jdesc))))))
+JOB #&lt;Closure (EACH-JOB-HAS-OWN-MAILBOX . RETRIEVE-RESULT) 200BF4B2&gt  
+is doing (1 3).
+JOB #&lt;Closure (EACH-JOB-HAS-OWN-MAILBOX . RETRIEVE-RESULT) 200BF15A&gt  
+is doing (10 10).
+JOB #&lt;Closure (EACH-JOB-HAS-OWN-MAILBOX . RETRIEVE-RESULT) 200C0DBA&gt  
+is doing (20 10).
+(((1 3) -2) ((10 10) 0) ((20 10) 10))
+
+I am just print the 'jobs' to show the exist independently of the  
+results.  Using this code we use a closure to abstract the interface  
+to the spawn job.  The underlying mechanism used to synchronize is the  
+mailbox, but we could actually have used an MP:LOCK instead, with the  
+same result.  (In fact the mailbox may been implemented using a lock,  
+but that's not important at all.)
+
+A different way to accomplish the same thing, still using mailbox, is  
+to have just a single mailbox to which all results are sent.  This  
+might look something like this
+
+(defun arbiter-has-mailbox (fn joblist)
+   (let* ((mbox (make-mailbox))
+          (count 0))
+     (loop for job in joblist
+           do (process-run-function (format nil "JOB-~d" (incf *job- 
+count*))
+                                    nil
+                                    (lambda (mbox1 fn1 arglist1)
+                                      (mailbox-send mbox1 (apply fn1  
+arglist1)))
+                                    mbox fn job)
+           do (incf count))
+     (loop repeat count
+           collect (mailbox-read mbox))))
+
+which might be used like this
+
+MP-EXAMPLE 5 &gt (arbiter-has-mailbox (lambda (a b) (- a b)) '((1 3) (10  
+10) (20 10)))
+(-2 10 0)
+
+Not very elegant, perhaps, but effective.  One could probably come up  
+with something more flexible.  Clearly there's the issue of know how  
+many times to call MP:MAILBOX-READ on the mailbox, but we'll just  
+disregard that here.
+
+Please note that this code is just to get you started thinking and  
+give you an idea of what using mailboxes might look like - it's not  
+for production.
+
+HTH.
+
+best regards,
+
+-Klaus.
+
+PS Longtime readers of lisphug may know that I personally believe that  
+Erlang's message-passing infrastructure addresses these issues in a  
+particularly elegant and powerful way, to the extent that I have  
+implemented large parts of it in cl-muproc.  -K.
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: Multiprocessing</h1>
+                  <pre>
+&gt Hi Denis --
+&gt 
+&gt Your question is not easy to answer -- there are lots of issues here
+&gt and it's hard to figure where to start.  My general advice would be
+&gt that you do some reading about the principles of doing multiprocessing
+&gt -- it is a notoriously difficult area and if you do not get it quite
+&gt right you are like to experience subtle errors can be very hard indeed
+&gt to track down.  Believe me, such subtle errors will steal your time
+&gt and hurt your productivity so if you really want to work with multiple
+&gt processes, understanding multiprocessing principles will be a
+&gt worthwhile investment!
+&gt 
+&gt As far as Lispworks is concerned, it offers two synchronization
+&gt mechanisms to support your multiprocessing efforts: locks and
+&gt mailboxes, and additionally there's mp:without-preemption and
+&gt mp:without-interrupts. Both locks and mailboxes have the potential to
+&gt do all the synchronization needed, and they can be used in combination
+&gt too.  The exact behaviour of the mp:without-... operators is not very
+&gt well documented (IMHO), so I try not to rely on them -- locks and
+&gt mailboxes are well-known from the literature, will do everything you
+&gt need, so I believe they're a safe bet.  It is possible that
+&gt mp:without-... are more efficient under some circumstances - I don't
+&gt know anything about that.
+&gt 
+&gt The code you present above seems to 'sit on two chairs at the same
+&gt time': You seem to be using mp:without-interrupts to gain exclusive
+&gt access, and then you PEEK in the mailbox.  Generally, I would not
+&gt think that is a good way to use a mailbox -- it has built-in exclusive
+&gt access, i.e. any Lisp process can safely use it without any other
+&gt synchronization being necessary.
+&gt 
+&gt To give you an idea of how you might use a mailbox consider the
+&gt following definitions:
+&gt 
+&gt (defvar *job-count* 0)
+&gt 
+&gt (defun each-job-has-own-mailbox (fn arglist)
+&gt    (let ((mbox (make-mailbox)))
+&gt      (flet ((retrieve-result ()
+&gt               (apply #'values (mailbox-read mbox))))
+&gt        (process-run-function (format nil "JOB-~d" (incf *job-count*))
+&gt                              nil
+&gt                              (lambda (fn1 arglist1)
+&gt                                (mailbox-send mbox (multiple-value-list
+&gt (apply fn1 arglist1))))
+&gt                              fn arglist)
+&gt        #'retrieve-result)))
+&gt 
+&gt Here we're assigning a mailbox to each 'job' and offer an interface
+&gt where the user provides a function and an arglist, and gets in return
+&gt a closure to call to retrieve the result of the 'job'.  The code above
+&gt offers solutions as to how to know WHEN to call the closure -- it will
+&gt be block until the result becomes available.
+&gt 
+&gt We might use this code like this
+&gt 
+&gt MP-EXAMPLE 4 &gt (flet ((job-fn (a b)
+&gt                          (- a b)))
+&gt                   (let ((joblist (loop for job in '((1 3) (10 10) (20
+&gt 10))
+&gt                                        collect (list job (each-job-has-
+&gt own-mailbox #'job-fn job)))))
+&gt                     (loop for jdesc in joblist
+&gt                           do (format t "~&amp;JOB ~a is doing ~a." (second
+&gt jdesc) (first jdesc)))
+&gt                     ;; collect results
+&gt                     (loop for jdesc in joblist
+&gt                           collect (list (first jdesc) (funcall (second
+&gt jdesc))))))
+&gt JOB #&lt;Closure (EACH-JOB-HAS-OWN-MAILBOX . RETRIEVE-RESULT) 200BF4B2&gt
+&gt is doing (1 3).
+&gt JOB #&lt;Closure (EACH-JOB-HAS-OWN-MAILBOX . RETRIEVE-RESULT) 200BF15A&gt
+&gt is doing (10 10).
+&gt JOB #&lt;Closure (EACH-JOB-HAS-OWN-MAILBOX . RETRIEVE-RESULT) 200C0DBA&gt
+&gt is doing (20 10).
+&gt (((1 3) -2) ((10 10) 0) ((20 10) 10))
+&gt 
+&gt I am just print the 'jobs' to show the exist independently of the
+&gt results.  Using this code we use a closure to abstract the interface
+&gt to the spawn job.  The underlying mechanism used to synchronize is the
+&gt mailbox, but we could actually have used an MP:LOCK instead, with the
+&gt same result.  (In fact the mailbox may been implemented using a lock,
+&gt but that's not important at all.)
+&gt 
+&gt A different way to accomplish the same thing, still using mailbox, is
+&gt to have just a single mailbox to which all results are sent.  This
+&gt might look something like this
+&gt 
+&gt (defun arbiter-has-mailbox (fn joblist)
+&gt    (let* ((mbox (make-mailbox))
+&gt           (count 0))
+&gt      (loop for job in joblist
+&gt            do (process-run-function (format nil "JOB-~d" (incf *job-
+&gt count*))
+&gt                                     nil
+&gt                                     (lambda (mbox1 fn1 arglist1)
+&gt                                       (mailbox-send mbox1 (apply fn1
+&gt arglist1)))
+&gt                                     mbox fn job)
+&gt            do (incf count))
+&gt      (loop repeat count
+&gt            collect (mailbox-read mbox))))
+&gt 
+&gt which might be used like this
+&gt 
+&gt MP-EXAMPLE 5 &gt (arbiter-has-mailbox (lambda (a b) (- a b)) '((1 3) (10
+&gt 10) (20 10)))
+&gt (-2 10 0)
+&gt 
+&gt Not very elegant, perhaps, but effective.  One could probably come up
+&gt with something more flexible.  Clearly there's the issue of know how
+&gt many times to call MP:MAILBOX-READ on the mailbox, but we'll just
+&gt disregard that here.
+&gt 
+&gt Please note that this code is just to get you started thinking and
+&gt give you an idea of what using mailboxes might look like - it's not
+&gt for production.
+&gt 
+&gt HTH.
+&gt 
+&gt best regards,
+&gt 
+&gt -Klaus.
+&gt 
+&gt PS Longtime readers of lisphug may know that I personally believe that
+&gt Erlang's message-passing infrastructure addresses these issues in a
+&gt particularly elegant and powerful way, to the extent that I have
+&gt implemented large parts of it in cl-muproc.  -K.
+
+Hi Klaus,
+
+Thanks a lot for your answer : I will take my time to examine and test it.
+My first impression is that you are using mailbox in these examples to deal
+with messages (result of tasks) when I use it (maybe incorrectly) to
+implement a pile of tasks. My questions was thought for this particular
+context, so it's better if I precise a little bit.
+
+Here is how I define my processes at launch level with one mailbox per
+process : 
+
+(defun make-background-process (process-name &amp;optional (priority 0))
+  (let* ((wait-string (format nil "Waiting for tasks" process-name))
+         (return-string (format nil "Return from ~d" process-name))
+         (process (mp:process-run-function
+                   process-name (list :priority priority)
+                   #'(lambda ()
+                       (with-simple-restart (abort return-string)
+                         (loop do
+                               (with-simple-restart (abort return-string)
+                                 (let ((self mp:*current-process*))
+                                   (mp:process-wait wait-string
+#'mp:mailbox-peek (mp:process-mailbox self))
+                                   (let ((task (mp:mailbox-read
+(mp:process-mailbox self))))
+                                     (apply (car task) (cdr task)))))))))))
+    (setf (mp:process-mailbox process) (mp:make-mailbox))
+    process))
+
+And then to send task to processes I use this :
+
+(defun apply-in-background-process (process priority function &amp;rest args)
+  (push function args)
+  (mp:process-send process args :change-priority priority))
+
+
+Best Regards
+
+Denis
+
+-------------------------------------------------------
+Denis Pousseur
+70 rue de Wansijn
+1180 Bruxelles, Belgique
+
+Tel : 32 (0)2 219 31 09
+Mail :  denis.pousseur@gmail.com
+-------------------------------------------------------
+
+
+
+</pre>
+                 </article>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>Re: Multiprocessing</h1>
+                   <pre>
+
+On 19/02/2008, at 14:12, Denis Pousseur wrote:
+&gt Hi Klaus,
+&gt
+&gt Thanks a lot for your answer : I will take my time to examine and  
+&gt test it.
+&gt My first impression is that you are using mailbox in these examples  
+&gt to deal
+&gt with messages (result of tasks) when I use it (maybe incorrectly) to
+&gt implement a pile of tasks. My questions was thought for this  
+&gt particular
+&gt context, so it's better if I precise a little bit.
+&gt
+&gt Here is how I define my processes at launch level with one mailbox per
+&gt process :
+&gt
+&gt (defun make-background-process (process-name &amp;optional (priority 0))
+&gt  (let* ((wait-string (format nil "Waiting for tasks" process-name))
+&gt         (return-string (format nil "Return from ~d" process-name))
+&gt         (process (mp:process-run-function
+&gt                   process-name (list :priority priority)
+&gt                   #'(lambda ()
+&gt                       (with-simple-restart (abort return-string)
+&gt                         (loop do
+&gt                               (with-simple-restart (abort return- 
+&gt string)
+&gt                                 (let ((self mp:*current-process*))
+&gt                                   (mp:process-wait wait-string
+&gt #'mp:mailbox-peek (mp:process-mailbox self))
+&gt                                   (let ((task (mp:mailbox-read
+&gt (mp:process-mailbox self))))
+&gt                                     (apply (car task) (cdr  
+&gt task)))))))))))
+&gt    (setf (mp:process-mailbox process) (mp:make-mailbox))
+&gt    process))
+&gt
+&gt And then to send task to processes I use this :
+&gt
+&gt (defun apply-in-background-process (process priority function &amp;rest  
+&gt args)
+&gt  (push function args)
+&gt  (mp:process-send process args :change-priority priority))
+&gt
+&gt
+&gt Best Regards
+&gt
+&gt Denis
+&gt
+&gt -------------------------------------------------------
+&gt Denis Pousseur
+&gt 70 rue de Wansijn
+&gt 1180 Bruxelles, Belgique
+&gt
+&gt Tel : 32 (0)2 219 31 09
+&gt Mail :  denis.pousseur@gmail.com
+&gt -------------------------------------------------------
+&gt
+&gt
+
+Hi Denis --
+
+Your code seems to work, and having seen your code, I think I  
+understand your questions a little better.
+
+Basically, when you write multiprocessing code, you should assume that  
+all the processes run concurrently and that your code is responsible  
+for making them behave correctly, considered all together.  In  
+principle, code executing in one thread may be stopped at any time and  
+another thread be resumed, except when you change that, by explicitly  
+adding synchronization operations to your code. So the answer to your  
+question
+
+&gt 2)
+&gt If a task is always in the mailbox queue of the process, does it  
+&gt means that
+&gt it is non executed (and so that it can be aborted) ? Does the  
+&gt process do :
+&gt
+&gt pop the queue
+&gt execute the task
+&gt
+&gt OR
+&gt
+&gt execute the task (always in the queue)
+&gt pop the queue
+&gt
+&gt ?
+
+is "It depends!" ... on how you synchronize your threads, using locks,  
+mailboxs and critical sections (that's what mp:without-... give you).   
+There is no magic, just synchronization code to make sure everything  
+happens just right.
+
+In current versions of Lispworks, only one Lisp thread/process  
+actually execute at a time, even if you have a multi-core og multi- 
+processor machine.
+
+A few comments to the code just posted (your code, for reference)
+
+    (defun make-background-process (process-name &amp;optional (priority 0))
+      (let* ((wait-string (format nil "Waiting for tasks" process-name))
+             (return-string (format nil "Return from ~d" process-name))
+             (process (mp:process-run-function
+                       process-name (list :priority priority)
+                       #'(lambda ()
+                           (with-simple-restart (abort return-string)
+                             (loop do
+                                   (with-simple-restart (abort return- 
+string)
+                                     (let ((self mp:*current-process*))
+                                       (mp:process-wait wait-string
+                                                        #'mp:mailbox- 
+peek (mp:process-mailbox self))
+                                       (let ((task (mp:mailbox-read
+                                                    (mp:process- 
+mailbox self))))
+                                         (apply (car task) (cdr  
+task)))))))))))
+        (setf (mp:process-mailbox process) (mp:make-mailbox))
+        process))
+
+    (defun apply-in-background-process (process priority function  
+&amp;rest args)
+      (push function args)
+      (mp:process-send process args :change-priority priority))
+
+Although using PROCESS-WAIT permits you to set the thread status, I  
+find using both PROCESS-WAIT in combination with MAILBOX-PEEK _and_  
+MAILBOX-READ to be overly complicated - I'd certainly prefer to just  
+do a straight MAILBOX-READ.  Also, I'd probably prefer to close over  
+mailbox (instead using PROCESS-MAILBOX) and return a closure to post  
+things to it, as in
+
+    (defun make-background-process (process-name &amp;optional (priority 0))
+      (let ((mailbox (mp:make-mailbox)))
+        (flet ((worker (mbox name)
+                 (with-simple-restart (abort (format nil "Abort job  
+known as ~a." name))
+                   (loop with proceed = (format nil "Allow ~a to  
+proceed to next job." name)
+                         for task = (mailbox-read mbox)
+                         do (with-simple-restart (proceed proceed)
+                              (apply (car task) (cdr task))))))
+               (submit-job (function &amp;rest args)
+                 (mp:mailbox-sed mailbox (push function args)
+                 'ok)))
+          (mp:process-run-function process-name (list :priority  
+priority)
+                                   #'worker mailbox process-name)
+          #'submit-job)))
+
+Using FLET instead of LAMBDA makes the code easier to read and also  
+helps because the printer will actually tell you the lexical context  
+of the closure (effectively telling you what kind it is).  The above  
+code yields this
+
+   MP-EXAMPLE 1 &gt (defparameter *mylist* nil)
+   *MYLIST*
+
+   MP-EXAMPLE 2 &gt (let ((submit (make-background-process "WORKER-1")))
+                   (funcall submit (lambda (x) (push x *mylist*)) 42))
+   OK
+
+   MP-EXAMPLE 3 &gt *mylist*
+   (42)
+
+   MP-EXAMPLE 4 &gt
+
+Much of this is a matter of taste, of course.  The above code does not  
+set the process status while waiting for a task, so that's a weakness  
+compared to yours.
+
+HTH.
+
+best regards,
+
+-Klaus.
+
+
+</pre>
+                  </article>
+                  <section class=tree>
+                   <article class=email>
+                    <h1>Re: Multiprocessing</h1>
+                    <pre>
+&gt Hi Denis --
+&gt 
+&gt Your code seems to work, and having seen your code, I think I
+&gt understand your questions a little better.
+&gt 
+&gt Basically, when you write multiprocessing code, you should assume that
+&gt all the processes run concurrently and that your code is responsible
+&gt for making them behave correctly, considered all together.  In
+&gt principle, code executing in one thread may be stopped at any time and
+&gt another thread be resumed, except when you change that, by explicitly
+&gt adding synchronization operations to your code. So the answer to your
+&gt question
+&gt 
+&gt&gt 2)
+&gt&gt If a task is always in the mailbox queue of the process, does it
+&gt&gt means that
+&gt&gt it is non executed (and so that it can be aborted) ? Does the
+&gt&gt process do :
+&gt&gt 
+&gt&gt pop the queue
+&gt&gt execute the task
+&gt&gt 
+&gt&gt OR
+&gt&gt 
+&gt&gt execute the task (always in the queue)
+&gt&gt pop the queue
+&gt&gt 
+&gt&gt ?
+&gt 
+&gt is "It depends!" ... on how you synchronize your threads, using locks,
+&gt mailboxs and critical sections (that's what mp:without-... give you).
+&gt There is no magic, just synchronization code to make sure everything
+&gt happens just right.
+&gt 
+&gt In current versions of Lispworks, only one Lisp thread/process
+&gt actually execute at a time, even if you have a multi-core og multi-
+&gt processor machine.
+
+
+&gt 
+&gt A few comments to the code just posted (your code, for reference)
+&gt 
+&gt     (defun make-background-process (process-name &amp;optional (priority 0))
+&gt       (let* ((wait-string (format nil "Waiting for tasks" process-name))
+&gt              (return-string (format nil "Return from ~d" process-name))
+&gt              (process (mp:process-run-function
+&gt                        process-name (list :priority priority)
+&gt                        #'(lambda ()
+&gt                            (with-simple-restart (abort return-string)
+&gt                              (loop do
+&gt                                    (with-simple-restart (abort return-
+&gt string)
+&gt                                      (let ((self mp:*current-process*))
+&gt                                        (mp:process-wait wait-string
+&gt                                                         #'mp:mailbox-
+&gt peek (mp:process-mailbox self))
+&gt                                        (let ((task (mp:mailbox-read
+&gt                                                     (mp:process-
+&gt mailbox self))))
+&gt                                          (apply (car task) (cdr
+&gt task)))))))))))
+&gt         (setf (mp:process-mailbox process) (mp:make-mailbox))
+&gt         process))
+&gt 
+&gt     (defun apply-in-background-process (process priority function
+&gt &amp;rest args)
+&gt       (push function args)
+&gt       (mp:process-send process args :change-priority priority))
+&gt 
+&gt Although using PROCESS-WAIT permits you to set the thread status, I
+&gt find using both PROCESS-WAIT in combination with MAILBOX-PEEK _and_
+&gt MAILBOX-READ to be overly complicated - I'd certainly prefer to just
+&gt do a straight MAILBOX-READ.  Also, I'd probably prefer to close over
+&gt mailbox (instead using PROCESS-MAILBOX) and return a closure to post
+&gt things to it, as in
+&gt 
+&gt     (defun make-background-process (process-name &amp;optional (priority 0))
+&gt       (let ((mailbox (mp:make-mailbox)))
+&gt         (flet ((worker (mbox name)
+&gt                  (with-simple-restart (abort (format nil "Abort job
+&gt known as ~a." name))
+&gt                    (loop with proceed = (format nil "Allow ~a to
+&gt proceed to next job." name)
+&gt                          for task = (mailbox-read mbox)
+&gt                          do (with-simple-restart (proceed proceed)
+&gt                               (apply (car task) (cdr task))))))
+&gt                (submit-job (function &amp;rest args)
+&gt                  (mp:mailbox-sed mailbox (push function args)
+&gt                  'ok)))
+&gt           (mp:process-run-function process-name (list :priority
+&gt priority)
+&gt                                    #'worker mailbox process-name)
+&gt           #'submit-job)))
+
+Hi Klaus,
+
+About the process status, I am a little bit afraid : does not this loop,
+with any wait-process call, completely overflow the system ?
+
+For the other modifications you propose, I agree : I made this mix between
+my codes and your proposals and, effectively, the codes are clearer (and
+avoid the call to mp:*current-process* witch was not very convincing).
+Thanks for your help !
+
+(defun make-background-process (process-name &amp;optional (priority 0))
+  (let ((mailbox (mp:make-mailbox)) process)
+    (flet ((worker (mbox name)
+             (with-simple-restart (abort (format nil "Abort job known as
+~a." name))
+               (loop do (with-simple-restart (abort (format nil "Allow ~a to
+proceed to next job." name))
+                          (mp:process-wait (format nil "Waiting for tasks"
+name) #'mp:mailbox-peek mbox)
+                          (let ((task (mp:mailbox-read mbox)))
+                            (apply (car task) (cdr task))))))))
+      (setf process (mp:process-run-function process-name (list :priority
+priority) #'worker mailbox process-name)
+            (mp:process-mailbox process) mailbox)
+      process)))
+
+Best Regards
+
+Denis
+
+
+&gt 
+&gt Using FLET instead of LAMBDA makes the code easier to read and also
+&gt helps because the printer will actually tell you the lexical context
+&gt of the closure (effectively telling you what kind it is).  The above
+&gt code yields this
+&gt 
+&gt    MP-EXAMPLE 1 &gt (defparameter *mylist* nil)
+&gt    *MYLIST*
+&gt 
+&gt    MP-EXAMPLE 2 &gt (let ((submit (make-background-process "WORKER-1")))
+&gt                    (funcall submit (lambda (x) (push x *mylist*)) 42))
+&gt    OK
+&gt 
+&gt    MP-EXAMPLE 3 &gt *mylist*
+&gt    (42)
+&gt 
+&gt    MP-EXAMPLE 4 &gt
+&gt 
+&gt Much of this is a matter of taste, of course.  The above code does not
+&gt set the process status while waiting for a task, so that's a weakness
+&gt compared to yours.
+&gt 
+&gt HTH.
+&gt 
+&gt best regards,
+&gt 
+&gt -Klaus.
+
+-------------------------------------------------------
+Denis Pousseur
+70 rue de Wansijn
+1180 Bruxelles, Belgique
+
+Tel : 32 (0)2 219 31 09
+Mail :  denis.pousseur@gmail.com
+-------------------------------------------------------
+
+
+
+</pre>
+                   </article>
+                   <section class=tree>
+                    <article class=email>
+                     <h1>Re: Multiprocessing</h1>
+                     <pre>
+&gt About the process status, I am a little bit afraid : does not this  
+&gt loop,
+&gt with any wait-process call, completely overflow the system ?
+
+Ah! - we're getting somewhere (this explains, at least to me, your use  
+of MP:PROCESS-WAIT): No, MP:MAILBOX-READ blocks until a message can be  
+read.  Check the reference manual for MAILBOX-READ - http://www.lispworks.com/documentation/lw50/LWRM/html/lwref-382.htm#pgfId-938979 
+, second paragraph in Description.  (Side effect: I learned that you  
+can specify a wait-reason in calls to MAILBOX-READ - forgot about that.)
+
+best regards,
+
+-Klaus.
+
+
+</pre>
+                    </article>
+                    <section class=tree>
+                     <article class=email>
+                      <h1>Re: Multiprocessing</h1>
+                      <pre>
+
+
+
+Le 20/02/08 10:27, «&nbsp;[NOM]&nbsp;» &lt;[ADRESSE]&gt a écrit&nbsp;:
+
+&gt&gt About the process status, I am a little bit afraid : does not this
+&gt&gt loop,
+&gt&gt with any wait-process call, completely overflow the system ?
+&gt 
+&gt Ah! - we're getting somewhere (this explains, at least to me, your use
+&gt of MP:PROCESS-WAIT): No, MP:MAILBOX-READ blocks until a message can be
+&gt read.  Check the reference manual for MAILBOX-READ -
+&gt http://www.lispworks.com/documentation/lw50/LWRM/html/lwref-382.htm#pgfId-9389
+&gt 79 
+&gt , second paragraph in Description.  (Side effect: I learned that you
+&gt can specify a wait-reason in calls to MAILBOX-READ - forgot about that.)
+&gt 
+&gt best regards,
+&gt 
+&gt -Klaus.
+
+Ah well ! I understand my mistake. So this is better (removing the useless
+process-wait and mailbox-peek calls) :
+
+(defun make-background-process (process-name &amp;optional (priority 0))
+  (let ((mailbox (mp:make-mailbox)) process)
+    (flet ((worker (mbox name)
+             (with-simple-restart (abort (format nil "Abort job known as
+~a." name))
+               (loop for task = (mp:mailbox-read mbox)
+                     do (with-simple-restart (abort (format nil "Allow ~a to
+proceed to next job." name))
+                          (apply (car task) (cdr task)))))))
+      (setf process (mp:process-run-function process-name (list :priority
+priority) #'worker mailbox process-name)
+            (mp:process-mailbox process) mailbox)
+      process)))
+
+Thanks !
+
+Denis
+
+
+-------------------------------------------------------
+Denis Pousseur
+70 rue de Wansijn
+1180 Bruxelles, Belgique
+
+Tel : 32 (0)2 219 31 09
+Mail :  denis.pousseur@gmail.com
+-------------------------------------------------------
+
+
+
+</pre>
+                     </article>
+                    </section>
+                   </section>
+                  </section>
+                 </section>
+                </section>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:40 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

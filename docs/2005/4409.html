@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>"Modal" interfaces (DISPLAY vs. DISPLAY-DIALOG)</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>"Modal" interfaces (DISPLAY vs. DISPLAY-DIALOG)</h1>
+                <pre>Hi!
+
+In an application I'm working on I have several interfaces that can be
+stacked upon each other and are supposed to be "modal" in the sense
+that if interface B is displayed as an effect of something that's done
+in interface A then one should not be able to do something in A (or
+any other displayed interface) until B is closed.
+
+At the moment this is achieved by using CAPI:DISPLAY-DIALOG instead of
+CAPI:DISPLAY.  The downside of this approach is that the interfaces
+can't be resized by the user if they are displayed as dialogs but I'd
+like to enable the user to do this.
+
+Is there a way to have my cake and eat it, too?  Like somehow making
+the interfaces "modal" without using CAPI:DISPLAY-DIALOG?
+
+Thanks,
+Edi.
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: "Modal" interfaces (DISPLAY vs. DISPLAY-DIALOG)</h1>
+                 <pre>Hi Edi,
+
+&gt In an application I'm working on I have several interfaces that can be
+&gt stacked upon each other and are supposed to be "modal" in the sense
+&gt that if interface B is displayed as an effect of something that's done
+&gt in interface A then one should not be able to do something in A (or
+&gt any other displayed interface) until B is closed.
+&gt
+&gt At the moment this is achieved by using CAPI:DISPLAY-DIALOG instead of
+&gt CAPI:DISPLAY.  The downside of this approach is that the interfaces
+&gt can't be resized by the user if they are displayed as dialogs but I'd
+&gt like to enable the user to do this.
+&gt
+&gt Is there a way to have my cake and eat it, too? Like somehow making
+&gt the interfaces "modal" without using CAPI:DISPLAY-DIALOG?
+
+I don't know if there's an 'official' way of doing this.  If there isn't,
+you could try out something like the following hack:
+
+- before putting a new 'pseudo-modal' dialog on top of your stack, disable
+  the current dialog (on Windows, you can do this with EnableWindow).
+
+- after popping a 'pseudo-modal' dialog from your stack, re-enable
+  the parent (again, you can do this with EnableWindow on Windows).
+
+This way, you don't need to use DISPLAY-DIALOG but you'll still get
+the effect of a modal dialog (because none of the other interfaces
+of your application is enabled).
+
+Hope this helps,
+
+Arthur
+
+(By the way, I don't think that this model of having a stack of modal
+dialogs is very pretty.  But I understand that it may be hard to come
+up with a better interface for your application.)
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: "Modal" interfaces (DISPLAY vs. DISPLAY-DIALOG)</h1>
+                 <pre>Edi Weitz wrote:
+
+&gtIs there a way to have my cake and eat it, too?  Like somehow making
+&gtthe interfaces "modal" without using CAPI:DISPLAY-DIALOG?
+&gt  
+&gt
+
+Edi,
+
+An alternative may be to only supply "one" interface in this case.  If 
+you use
+a capi:switchable-layout you can change the contents of the interface and
+then when done return the contents to the original.  So instead
+of using capi:display-dialog to popup a new modal window you change which
+child is visible.  (Note: that a capi:interface can be a child of a layout).
+
+Wade
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: "Modal" interfaces (DISPLAY vs. DISPLAY-DIALOG)</h1>
+                 <pre>At 17:18 25/08/2005, Arthur Lemmens wrote:
+&gtEdi Weitz wrote:
+&gt
+&gt&gt&gt- before putting a new 'pseudo-modal' dialog on top of your stack,
+&gt&gt&gtdisable the current dialog (on Windows, you can do this with
+&gt&gt&gtEnableWindow).
+&gt&gt
+&gt&gtYou mean getting the handle with CAPI:SIMPLE-PANE-HANDLE and applying
+&gt&gtthe Win32 function EnableWindow?
+&gt
+&gtYes, exactly.
+&gt
+&gtIf you try this, I'd be interested to know if it works well.
+&gt
+&gtArthur
+
+fwiw
+I think you could use capi:simple-pane-enabled rather than having to use 
+the Win32 function.
+
+cheers
+
+paulm
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: "Modal" interfaces (DISPLAY vs. DISPLAY-DIALOG)</h1>
+                 <pre>
+&gtEdi Weitz wrote:
+&gt
+&gt&gtHowever, no matter if I use the Win32 or the CAPI way I
+&gt&gtsometimes end up with the re-enabled interface minimized.
+
+I noticed that your modal-display example did not make the from-interface 
+the owner of the new interface.
+Does changing this help at all ? i.e. change the call to capi:display
+
+       (capi:display interface :owner from-interface)))
+
+Does the simple example below exhibit the same problems for you ?
+It uses activate-pane as you suggested.
+It seems OK for me in LWW 4.3.7
+
+Note I had to call activate-pane on a pane that accepts focus.
+It should just work on the interface but it not seem to when I tried it.
+
+cheers
+
+paulm
+
+(in-package "CL-USER")
+
+(capi:define-interface dialog-test ()
+   ()
+   (:panes
+    (input-pane
+     capi:text-input-pane
+     :accessor dialog-text-input-pane
+     :callback-type :interface)
+    (buttons
+     capi:push-button-panel
+     :items '("New" "Close")
+     :layout-args '(:x-uniform-size-p t)
+     :callback-type :interface
+     :callbacks '(new-dialog-test close-dialog-test)))
+   (:layouts
+    (default
+     capi:column-layout
+     '(input-pane buttons)
+     :x-adjust :centre))
+   (:default-initargs
+    :title "Enter some text:"))
+
+(defun modal-display (interface from-interface)
+     (let ((old-destroy-callback (capi:interface-destroy-callback interface)))
+       (setf (capi:interface-destroy-callback interface)
+             (lambda (interface)
+               (when old-destroy-callback
+                 (funcall old-destroy-callback interface))
+               (setf (capi:simple-pane-enabled from-interface) t)
+               (capi:activate-pane (dialog-text-input-pane from-interface))))
+       (setf (capi:simple-pane-enabled from-interface) nil)
+       (capi:display interface :owner from-interface)))
+
+(defun new-dialog-test (interface)
+   (let ((dialog (make-instance 'dialog-test)))
+     (modal-display dialog interface)))
+
+(defun close-dialog-test (interface)
+   (capi:quit-interface interface))
+
+(defun test-dialog ()
+   (capi:display (make-instance 'dialog-test)))
+
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:47 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

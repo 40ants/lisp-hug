@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Best way to deploy to a cluster of servers?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Best way to deploy to a cluster of servers?</h1>
+                <pre>
+
+What's the best way to deploy an app to a cluster of servers?
+
+I have a LispWorks application that I deliver to a cluster of Linux
+boxes.  Right now we run about a dozen copies of the same program
+(with slightly different configuration files) on a dozen different
+machines.  We expect the number of machines to increase drastically
+over the next year or two. We/I have complete control over these
+machines and they don't do anything else except run our application.
+
+On one of the development boxes we have a delivery script to make a
+single executable and we copy that executable out to the different
+machines.  The final executable parses its command line and starts
+up -- not much different from a C program.
+
+What's the best way to deploy this app?  For example, it would be nice
+to have a repl to connect to so that we could diagnose misbehaving
+apps.   Here's what we've thought of:
+
+- Leave as is, no repl.
+- Embed a swank server.
+- Embed a simple repl listening on a TCP port.
+- Use detachtty.
+- Don't use deliver, just save an image (not sure if that is within
+  our LispWorks license) and deploy using detachtty.
+
+Also, we can deploy the source code if that is useful for some reason.
+
+Maybe "best way" is a misnomer, I'm really looking for how you would
+solve a similar problem.  Thanks!
+
+Regards,
+Chris Dean
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Best way to deploy to a cluster of servers?</h1>
+                 <pre>
+
+On 17 Apr 2006, at 04:43, Chris Dean wrote:
+
+&gt What's the best way to deploy an app to a cluster of servers?
+&gt
+&gt I have a LispWorks application that I deliver to a cluster of Linux
+&gt boxes.  Right now we run about a dozen copies of the same program
+&gt (with slightly different configuration files) on a dozen different
+&gt machines.  We expect the number of machines to increase drastically
+&gt over the next year or two. We/I have complete control over these
+&gt machines and they don't do anything else except run our application.
+
+Sounds like an interesting project: maybe you should write something  
+about it someday!
+
+&gt On one of the development boxes we have a delivery script to make a
+&gt single executable and we copy that executable out to the different
+&gt machines.  The final executable parses its command line and starts
+&gt up -- not much different from a C program.
+&gt
+&gt What's the best way to deploy this app?  For example, it would be nice
+&gt to have a repl to connect to so that we could diagnose misbehaving
+&gt apps.   Here's what we've thought of:
+&gt
+&gt - Leave as is, no repl.
+&gt - Embed a swank server.
+&gt - Embed a simple repl listening on a TCP port.
+&gt - Use detachtty.
+&gt - Don't use deliver, just save an image (not sure if that is within
+&gt   our LispWorks license) and deploy using detachtty.
+&gt
+&gt Also, we can deploy the source code if that is useful for some reason.
+
+In terms of licensing you cannot work with source code distribution:  
+that would require a file compiler and thus a full license on each  
+machine. 'Cannot' is too strong of course, 1100 per server is still  
+quite cheap compared to other server technologies.
+
+I would add another requirement to your list:
+- the ability to update running images with new code (patches,  
+extensions, ...) without taking them down.
+
+My current system (which I would like to improve because it takes  
+some time to set up) is as follows:
+
+I have a skeleton server image called lw-base: this is an almost  
+empty level-0 delivered tty mp image.
+It contains some directory/location management code and the standard  
+asdf code.
+
+When this image boots, it loads a config file from its own etc dir,  
+that in most case starts loading precompiled fasl files from asdf.  
+The asdf is set up to load from its own sys and dist directories - to  
+make everything self contained.
+
+The image itself is managed by an lw-ctl script: this makes it easier  
+to start/stop/restart/kill/... the process.
+
+The image is not started directly, but using screen (detaching  
+automatically). Reconnecting to the startup repl is done by  
+reattaching to the startup listener.
+
+Updating server code is done from a special mirror setup on a  
+development machine: a single deploy script checks code out from  
+different repositories, compiles it using asdf in the local tree and  
+rsyncs the fasl files to the server.
+
+On the server, a single asdf command is often all it takes to load  
+the (new) code; since everything is precompiled, the file compiler is  
+not needed. I ofter do small patches by copying and pasting functions  
+in the repl on the server; the evaluator is available in delivered  
+images.
+
+On some projects I also load swank and use slime to connect to the  
+server image: it is a higher level, more functional interface.
+
+
+Sven
+
+PS: In the past I used to work with custom repl code but found that  
+unreliable when debugging certain mp conditions, a common situation  
+with server code.
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Best way to deploy to a cluster of servers?</h1>
+                 <pre>
+
+Sven Van Caekenberghe &lt;sven@beta9.be&gt writes:
+&gt My current system (which I would like to improve because it takes
+&gt some time to set up) is as follows:
+
+Great advice!  Thanks so much.
+
+I think I'll try out a variant of your setup.
+
+Regards,
+Chris Dean
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:45 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

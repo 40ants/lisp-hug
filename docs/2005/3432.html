@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Desperate plea for help: access to raw image data</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Desperate plea for help: access to raw image data</h1>
+                <pre>Folks,
+
+I need to convert images stores as JPEG, BMP, etc. files to OpenGL
+textures. I spent a few days trying to load my images using various
+methods. According to the docs LispWorks uses image decoding libraries
+internally and I would like to use this capability. I would be
+duplicating code and introducing /perhaps/ unneeded dependencies if I
+were to go with a C library and write my texture loading code in C.
+
+To load a texture OpenGL expects an array of RGB, RGBA, etc. raw data.
+The only way to create this data now is by using the gp:image-access
+api, extract the individual pixels, unconvert the color and extract
+the float color values. You will then need to either multiply the
+color values by 255 when storing into a byte array or store them into
+a float array.
+
+I wrote code that uses CL-JPEG (CLJL, external JPEG decompressor
+written in Lisp) to load my textures as well as code that uses the the
+gp:image-access apis. I'm storing raw data into a float array. The
+results in both cases are killing me. And I some of my images are BMP
+so I'll need yet another decoder if I am to go with the faster
+solution.
+
+Take a look at these results but don't pay attention to the speed too
+much. I was running iTunes to simulate normal machine load and had
+lots of memory taken by a PDF viewer, web browser, etc. #1 takes 14x
+more memory and runs almost 4 times slower than #2!
+
+1. This is the version that uses gp:image-access apis
+
+Timing the evaluation of (LOAD1 V)
+
+user time    =      5.200
+system time  =      0.050
+Elapsed time =   0:00:07
+Allocation   = 146926864 bytes
+3976 Page faults
+
+2. This is the version that uses CL-JPEG
+
+Timing the evaluation of (LOAD2 V)
+
+user time    =      2.100
+system time  =      0.080
+Elapsed time =   0:00:03
+Allocation   = 10384964 bytes
+4966 Page faults
+
+The GP code that loads images from disk is very fast and all the time
+is spent extracting pixels. How can I get hold of the raw image bytes
+after loading the image? I assume that the GP apis need to store this
+data someplace. Is there some kind of an undocumented function? I
+would be in haven if there was and would, it's all I need and I that
+I'm asking for!
+
+    Thanks, Joel
+
+
+-- 
+http://wagerlabs.com/ 
+New generation of poker room software
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Desperate plea for help: access to raw image data</h1>
+                 <pre>This is probably a question for Dave Fox but I thought others might be
+interested in this as well...
+
+Running 
+
+(setf access (gp:make-image-access port image))
+(class-direct-methods (class-of access))
+
+Reveals
+
+IMAGE-ACCESS-GET-ALL-PIXELS 
+IMAGE-ACCESS-IMAGE
+
+Running
+
+(gp::image-access-image access)
+
+I get on Mac OSX:
+
+#&lt;Pointer: OBJC:OBJC-OBJECT-POINTER = #x0039E590&gt
+
+And on Windows XP:
+
+#S(GRAPHICS-PORTS::DIB-SECTION :HBITMAP 100992228 :BITMAP-INFO
+#S(GRAPHICS-PORTS::DIB-INFO :-OFF-BITS NIL :INFO-SIZE NIL :WIDTH 794
+:HEIGHT 538 :PLANES 1 :BIT-COUNT 32 :COMPRESSION NIL :SIZE-IMAGE
+1708688 X-PELS-PER-METER NIL :Y-PELS-PER-METER NIL :CLR-USED NIL
+:CLR-IMPORTANT NIL :TYPE NIL) :BITS #&lt;Pointer to type :BYTE =
+#x01800000&gt :COLOR-DATA NIL)
+
+OSX: 
+
+(gp::image-access-get-all-pixels access)
+#&lt;Function 5 subfunction of (METHOD
+GRAPHICS-PORTS::%MAKE-IMAGE-ACCESS-REPRESENTATION (T
+GRAPHICS-PORTS::COCOA-IMAGE-REPRESENTATION T T T))&gt
+
+Windows XP:
+
+#&lt;closure (SUBFUNCTION 2 (METHOD
+GRAPHICS-PORTS::%MAKE-IMAGE-ACCESS-REPRESENTATION (T T T T T)))
+214904B2&gt
+
+I'm willing to sacrifice some cross-platform portability for the sake
+of not having to write extra C image loading code. It seems to me that
+one should be able to either get hold of the raw data through
+image-access-image or by calling the get-all-pixels closure.
+
+Dave, any suggestions here?
+
+    Thanks in advance, Joel
+
+-- 
+http://wagerlabs.com/ 
+New generation of poker room software
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Desperate plea for help: access to raw image data</h1>
+                 <pre>
+On Jan 17, 2005, at 9:45 AM, joel reymont wrote:
+
+&gt The GP code that loads images from disk is very fast and all the time
+&gt is spent extracting pixels. How can I get hold of the raw image bytes
+&gt after loading the image? I assume that the GP apis need to store this
+&gt data someplace. Is there some kind of an undocumented function? I
+&gt would be in haven if there was and would, it's all I need and I that
+&gt I'm asking for!
+
+If you want to hunt for undocumented functions, you can use the apropos 
+function:
+
+(apropos "image" :gp)
+
+Of course, this is not the best approach since the functions may change 
+or be completely gone in future releases.
+
+You might want to investigate to see if there are functions in the 
+standard Mac and Windows API to do what you want via the FLI. I'm sure 
+you'll find something in quicktime for the Mac, but I'm not certain 
+about Windows.
+
+John DeSoi, Ph.D.
+http://pgedit.com/
+Power Tools for PostgreSQL
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Desperate plea for help: access to raw image data</h1>
+                 <pre>Dave,
+
+I just emailed you all the code as well as the JPEGs. It's taking me 5
+seconds to load a 367K image, 60K image and a 72K image. I really want
+to get that down to a second.
+
+Overall, it seems particularly inefficient to have to copy from a
+foreign array (or similar as I'm sure your image data is represented)
+into another foreign array for OpenGL which will then copy it into yet
+another foreign array internally. I really thought better of Lisp
+compilers.
+
+This is my code, in case someone on the list has any tips:
+
+(defun load-sprite (port image mask)
+  (let ((image-access (gp:make-image-access port image))
+	(mask-access (gp:make-image-access port mask)))
+    (unwind-protect
+	 (let* ((width (gp:image-access-width image-access))
+		(height (gp:image-access-height image-access))
+		(tw (* width 4)))
+	   (gp:image-access-transfer-from-image image-access)
+	   (gp:image-access-transfer-from-image mask-access)
+	   (opengl:with-gl-vectors ((data :type :single-float 
+					  :length (* tw height)))
+	     (declare #.*optimize*
+		      (type fixnum tw width height)
+		      (type gp:image image mask)
+		      (type gp::image-access image-access mask-access))
+	     ;; copy color channels and insert alpha
+	     (loop for y fixnum from 0 below height
+		for ty fixnum from 0 by tw do
+		  (loop for x fixnum from 0 below width
+		     for tx fixnum from ty by 4 
+		     for tr fixnum = tx 
+		     for tg fixnum = (1+ tr)
+		     for tb fixnum = (1+ tg)
+		     for ta fixnum = (1+ tb) do
+		       (let* ((pixel (gp:image-access-pixel image-access x y))
+			      (color (color:unconvert-color port pixel))
+			      (mask-pixel (gp:image-access-pixel mask-access x y))
+			      (mask-color (color:unconvert-color port mask-pixel))
+			      )
+			 (setf (opengl:gl-vector-aref data tr) 
+			       (color:color-red color))
+			 (setf (opengl:gl-vector-aref data tg) 
+			       (color:color-green color))
+			 (setf (opengl:gl-vector-aref data tb) 
+			       (color:color-blue color))
+			 (setf (opengl:gl-vector-aref data ta) 
+			       (color:color-red mask-color))
+			 )))
+	     ;; build our texture mipmaps
+	     (opengl:glu-build2-dmipmaps opengl:*gl-texture-2d* 
+					 4 width height
+					 opengl:*gl-rgba* 
+					 opengl:*gl-float*
+					 data))
+	   (opengl:gl-enable opengl:*gl-texture-2d*))
+      (progn
+	(gp:free-image-access image-access)
+	(gp:free-image-access mask-access)))))
+
+
+On Mon, 17 Jan 2005 17:53:50 GMT, davef@lispworks.com
+&lt;davef@lispworks.com&gt wrote:
+&gt 
+&gt LispWorks does not support image access beyond the documented API. If
+&gt you need something faster then please move this to
+&gt lisp-support@lispworks.com and show us a self-contained example of the
+&gt code you want to optimize.
+
+-- 
+http://wagerlabs.com/ 
+New generation of poker room software
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Desperate plea for help: access to raw image data</h1>
+                 <pre>I forgot to add that I have this before the function definition:
+
+(in-package "CL-USER")
+
+(eval-when (compile load eval)
+  (defvar *optimize*  '(optimize (safety 0) (space 0) (debug 0) (speed 3))))
+
+On Mon, 17 Jan 2005 18:17:23 +0000, joel reymont &lt;joelr1@gmail.com&gt wrote:
+&gt [...]
+&gt This is my code, in case someone on the list has any tips:
+&gt 
+&gt (defun load-sprite (port image mask)
+&gt   (let ((image-access (gp:make-image-access port image))
+&gt         (mask-access (gp:make-image-access port mask)))
+&gt     (unwind-protect
+&gt          (let* ((width (gp:image-access-width image-access))
+&gt                 (height (gp:image-access-height image-access))
+&gt                 (tw (* width 4)))
+&gt            (gp:image-access-transfer-from-image image-access)
+&gt            (gp:image-access-transfer-from-image mask-access)
+&gt            (opengl:with-gl-vectors ((data :type :single-float
+&gt                                           :length (* tw height)))
+&gt              (declare #.*optimize*
+&gt                       (type fixnum tw width height)
+&gt                       (type gp:image image mask)
+&gt                       (type gp::image-access image-access mask-access))
+&gt              ;; copy color channels and insert alpha
+&gt              (loop for y fixnum from 0 below height
+&gt                 for ty fixnum from 0 by tw do
+&gt                   (loop for x fixnum from 0 below width
+&gt                      for tx fixnum from ty by 4
+&gt                      for tr fixnum = tx
+&gt                      for tg fixnum = (1+ tr)
+&gt                      for tb fixnum = (1+ tg)
+&gt                      for ta fixnum = (1+ tb) do
+
+-- 
+http://wagerlabs.com/ 
+New generation of poker room software
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Desperate plea for help: access to raw image data</h1>
+                 <pre>Folks,
+
+Here's the answer: 
+
+http://wagerlabs.com/tech/2005/01/i-feel-need-need-for-speed.html
+
+I was willing to sacrifice some cross-platform portability and I got a
+fast solution. I can now load and process 3 JPEGs (367K, 72K and 60K)
+in 1 second and using only 530K of memory:
+
+user time    =      0.860
+system time  =      0.120
+Elapsed time =   0:00:01
+Allocation   = 534208 bytes
+8091 Page faults
+
+The CAPI/Image access result was 7-12 seconds and 146Mb of memory.
+The JPEG decoder (CL-JL) results were 5-7 seconds and 10Mb of memory.
+
+Another advantage is that I'll get the same speed regardless of the
+type of image that I'm processing and I can process any image that
+CAPI supports. The disadvantage is that I'll have to write a custom
+bit of code for Windows and X.
+
+I'm not bothered a lot since the LispWorks OpenGL API already has
+custome code for OSX, Windows and X. Plus, there's not a lot of code
+to write.
+
+Here's a Mac OSX/Cocoa solution to retrieving raw image data after
+using CAPI to decode the image:
+
+(setf temp (gp:read-external-image filename))
+(setf image (gp:load-image port temp :force-plain t))
+(setf access (gp:make-image-access port image))
+
+;; don't try this at home!
+
+(setf cocoa-image (gp::image-access-image access)) ;; undocumented
+
+(defun cocoa-get-image-bytes (image)
+  (let ((bitmap (objc:invoke 
+		 (objc:invoke "NSBitmapImageRep" "alloc") 
+		 "initWithData:" 
+		 (objc:invoke image "TIFFRepresentation"))))
+    (if bitmap
+	(let ((bytes (objc:invoke-into 
+		     '(:pointer (:unsigned :char))
+		     bitmap "bitmapData")))
+	  (values bitmap bytes))
+	nil)))
+
+I'm returning the bitmap as well since I need to deallocate it after I'm done:
+
+(defun cocoa-free-image-bytes (bitmap)
+  (objc:invoke bitmap "release"))
+
+Kudos to the LispWorks folks for having the Objective-C API and
+helping me cast the return from [bitmap bitmapData] with that
+invoke-into bit.
+
+    Joel
+
+-- 
+http://wagerlabs.com/ 
+New generation of poker room software
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:49 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

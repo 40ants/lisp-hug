@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Optimizing image manipulation: Help!</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Optimizing image manipulation: Help!</h1>
+                <pre>Folks,
+
+I'm new to LispWorks so any I would appreciate any pointers on how to
+optimize my routine below. The purpose of the function is to return an
+RGB array given an image. I work on a PowerBook G4 1.25 with OSX
+10.3.7. I ran the tests while running on battery with automatic power
+management so processor speed was probably reduced. I also had
+BitTorrent, a browser, etc. running at the same time.
+
+It's clear to me that the way to go is to accumulate a list of bytes
+and then create a vector out of it. Referencing individual array
+elements is waaaaay slower. How can I make the faster version really
+fast, though?
+
+You can grab the image from http://wagerlabs.com/lobby.jpeg . I run
+this code to set things up:
+
+(in-package "USER")
+(load "~/work/opengl/host")
+(load "opengl:examples;load")
+(setf pane (make-instance 'capi:opengl-pane 
+			  :width 300 
+			  :height 400))
+(capi:contain pane)
+(setf external-image (gp:read-external-image "~/temp/lobby.jpg")
+      image (gp:load-image pane external-image :force-plain t))
+
+Here are the results...
+
+(defun image-&gtrgb (port image)
+  (let ((access (gp:make-image-access port image)))
+    (unwind-protect
+	 (progn
+	   (gp:image-access-transfer-from-image access)
+	   (let ((width (gp:image-access-width access))
+		 (height (gp:image-access-height access))
+		 (bytes '())
+		 (vector))
+	     (dotimes (y height)
+	       (dotimes (x width)
+		 (let* ((pixel (gp:image-access-pixel access x y))
+			(color (color:unconvert-color port pixel)))
+		   (push (* (color:color-red color) 255) bytes)
+		   (push (* (color:color-green color) 255) bytes)
+		   (push (* (color:color-blue color) 255) bytes))))
+	     (setq vector
+		   (opengl:make-gl-vector :unsigned-8 (* width height 3)
+					  :contents (nreverse bytes))
+		   bytes nil)
+	     vector))
+      (gp:free-image-access access))))
+
+CL-USER&gt (time (image-&gtrgb pane image))
+Timing the evaluation of (IMAGE-&gtRGB PANE IMAGE)
+
+user time    =     79.730
+system time  =      4.770
+Elapsed time =   0:03:16
+Allocation   = 8250534424 bytes
+12968 Page faults
+Calls to %EVAL    23514454
+#&lt;Pointer to type (:UNSIGNED :CHAR) = #x043F7000&gt
+
+(defun image-&gtrgb1 (port image)
+  (let ((access (gp:make-image-access port image)))
+    (unwind-protect
+	 (progn
+	   (gp:image-access-transfer-from-image access)
+	   (let* ((width (gp:image-access-width access))
+		  (height (gp:image-access-height access))
+		  (index 0)
+		  (vector
+		   (opengl:make-gl-vector :unsigned-8 (* width height 3))))
+	     (dotimes (y height)
+	       (dotimes (x width)
+		 (let* ((pixel (gp:image-access-pixel access x y))
+			(color (color:unconvert-color port pixel))
+			(red (* (color:color-red color) 255))
+			(green (* (color:color-green color) 255))
+			(blue (* (color:color-blue color) 255)))
+		   (setf (opengl:gl-vector-aref vector index) red)
+		   (incf index)
+		   (setf (opengl:gl-vector-aref vector index) green)
+		   (incf index)
+		   (setf (opengl:gl-vector-aref vector index) blue)
+		   (incf index))))
+	     vector))
+      (gp:free-image-access access))))
+
+CL-USER&gt (time (image-&gtrgb1 pane image))
+Timing the evaluation of (IMAGE-&gtRGB1 PANE IMAGE)
+
+user time    =    186.280
+system time  =     16.800
+Elapsed time =   0:07:16
+Allocation   = 18412701548 bytes
+462 Page faults
+Calls to %EVAL    40174156
+#&lt;Pointer to type (:UNSIGNED :CHAR) = #x04530000&gt
+
+-- 
+Tenerife &gt Canary Islands &gt Spain
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Optimizing image manipulation: Help!</h1>
+                 <pre>I gave up on image-access because it was so slow. Instead, I used 
+ImageMagick to read files and decompress them, then I convert the 
+pixels into a BMP gp:external-image and hand it to CAPI to display. 
+This is not real fast, but it was better than image-access.
+
+Here's some of the code:
+
+(defun push-bytes (val output &amp;optional (num-bytes 1))
+   (declare (type fixnum val num-bytes)
+            (type (array (unsigned-byte 8) (*)) output)
+            (optimize (fixnum-safety 0) (safety 0) (speed 3) (space 0)))
+   (iter (repeat num-bytes)
+     (vector-push (logand val 255) output)
+     (setf val (the fixnum (ash val -8)))))
+
+(defmethod convert-to-external-image ((self pixmap))
+   "Creates and returns an external image in 4-channel .bmp format.
+CAPI won't create an image access for 3-channel files"
+   (let* ((width  (width self))
+          (height (height self))
+          (data-size (+ 54 (* width height 4)))
+          (output (make-array data-size :element-type '(unsigned-byte 8) 
+:fill-pointer 0)))
+     (declare (type fixnum width height data-size)
+              (optimize (fixnum-safety 0) (safety 0) (speed 3) (space 
+0)))
+     ;; bmp format is from 
+&lt;http://www.fortunecity.com/skyscraper/windows/364/bmpffrmt.html&gt
+     ;; bfType = 'BM'
+     (push-bytes (char-code #\B) output)
+     (push-bytes (char-code #\M) output)
+     ;; bfSize = overall size in bytes
+     (push-bytes data-size output 4)
+     ;; bfReserved (1 &amp; 2) = 0
+     (push-bytes 0 output 4)
+     ;; bfOffBits = 54
+     (push-bytes 54 output 4)
+     ;; biSize = 40
+     (push-bytes 40 output 4)
+     ;; biWidth = width
+     (push-bytes width output 4)
+     ;; biHeight = height
+     (push-bytes height output 4)
+     ;; biPlanes = 1
+     (push-bytes 1 output 2)
+     ;; biBitCount = 32
+     (push-bytes 32 output 2)
+     ;; biCompression = 0
+     (push-bytes 0 output 4)
+     ;; biSizeImage = 0 (image size in bytes + 2?) may be 0
+     (push-bytes 0 output 4)
+     ;; biXPelsPerMeter = 0
+     (push-bytes 0 output 4)
+     ;; biYPelsPerMeter = 0
+     (push-bytes 0 output 4)
+     ;; biClrUsed = 0
+     (push-bytes 0 output 4)
+     ;; biClrImportant = 0
+     (push-bytes 0 output 4)
+     ;; here starts the color channels in BGRA order
+     ;; note that all rows must be padded with 0 to a multiple of four 
+bytes
+     ;; The rows are upside-down, so output the bottom row first
+     (iter (for y below height)
+       (iter (for x below width)
+         (declare (type fixnum x y))
+         (multiple-value-bind (r g b a)
+             (get-pixel-chans self x (the fixnum (- height y 1)))
+           (vector-push b output)
+           (vector-push g output)
+           (vector-push r output)
+           (vector-push a output))))
+     (make-instance 'gp:external-image :data output)))
+
+  - Stoney
+
+On Jan 12, 2005, at 7:17 AM, joel reymont wrote:
+
+&gt Folks,
+&gt
+&gt I'm new to LispWorks so any I would appreciate any pointers on how to
+&gt optimize my routine below. The purpose of the function is to return an
+&gt RGB array given an image. I work on a PowerBook G4 1.25 with OSX
+&gt 10.3.7. I ran the tests while running on battery with automatic power
+&gt management so processor speed was probably reduced. I also had
+&gt BitTorrent, a browser, etc. running at the same time.
+&gt
+&gt It's clear to me that the way to go is to accumulate a list of bytes
+&gt and then create a vector out of it. Referencing individual array
+&gt elements is waaaaay slower. How can I make the faster version really
+&gt fast, though?
+&gt
+&gt ...
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Optimizing image manipulation: Help!</h1>
+                 <pre>Hi Chris!
+
+This won't work for me. I'm using the images in a poker client and
+they make part of the installation package that people download. The
+size of the package has to be as small as possible. Regardless, I
+think I've found a solution in cl-jpeg. It's a pure lisp
+implementation of JPEG encoding and decoding (about 70k source and
+200k compiled). Take a look at these results:
+
+(proclaim '(optimize (speed 3) 
+    (safety 0) 
+    (fixnum-safety 0) 
+    (float 0)
+    (debug 0)))
+
+(load (compile-file "~/temp/cljl/jpeg"))
+(time (jpeg:decode-image "~/temp/lobby.jpg"))
+
+user time    =      0.570
+system time  =      0.020
+Elapsed time =   0:00:01
+Allocation   = 5192260 bytes
+4 Page faults
+
+I particularly like the allocation (5mb as it should be) and the 4
+page faults. Contrast that with the results from functions using CAPI.
+The version above took about 5 seconds without the proclaim, i.e. with
+default safety: 3, speed:1, etc.
+
+I would still like to know if it's possible to optimize my original
+CAPI version. Or is it that multiplying floats 430K times is just
+supposed to be slow under LispWorks?
+ 
+    Thanks, Joel
+
+On Wed, 12 Jan 2005 11:00:31 -0500, Chris R. Sims &lt;simsc@rpi.edu&gt wrote:
+&gt Hi,
+&gt 
+&gt I may be missing some important details as I've only been skimming this
+&gt thread, but would it be possible to just convert your image files to
+&gt byte arrays offline? Then at runtime, just load in the files from disk
+&gt as uncompressed byte vectors. At least, this would seem to work fine if
+&gt your images are relatively few and non-changing.
+&gt 
+&gt It may or may not work, though I thought I'd suggest it.
+&gt 
+&gt Best,
+&gt 
+&gt -Chris Sims
+&gt 
+&gt On Jan 12, 2005, at 7:17 AM, joel reymont wrote:
+&gt 
+&gt &gt Folks,
+&gt &gt
+&gt &gt I'm new to LispWorks so any I would appreciate any pointers on how to
+&gt &gt optimize my routine below. The purpose of the function is to return an
+&gt &gt RGB array given an image. I work on a PowerBook G4 1.25 with OSX
+&gt &gt 10.3.7. I ran the tests while running on battery with automatic power
+&gt &gt management so processor speed was probably reduced. I also had
+&gt &gt BitTorrent, a browser, etc. running at the same time.
+&gt &gt
+&gt &gt It's clear to me that the way to go is to accumulate a list of bytes
+&gt &gt and then create a vector out of it. Referencing individual array
+&gt &gt elements is waaaaay slower. How can I make the faster version really
+&gt &gt fast, though?
+&gt &gt
+&gt &gt You can grab the image from http://wagerlabs.com/lobby.jpeg . I run
+&gt &gt this code to set things up:
+&gt &gt
+&gt &gt (in-package "USER")
+&gt &gt (load "~/work/opengl/host")
+&gt &gt (load "opengl:examples;load")
+&gt &gt (setf pane (make-instance 'capi:opengl-pane
+&gt &gt                         :width 300
+&gt &gt                         :height 400))
+&gt &gt (capi:contain pane)
+&gt &gt (setf external-image (gp:read-external-image "~/temp/lobby.jpg")
+&gt &gt       image (gp:load-image pane external-image :force-plain t))
+&gt &gt
+&gt &gt Here are the results...
+&gt &gt
+&gt &gt (defun image-&gtrgb (port image)
+&gt &gt   (let ((access (gp:make-image-access port image)))
+&gt &gt     (unwind-protect
+&gt &gt        (progn
+&gt &gt          (gp:image-access-transfer-from-image access)
+&gt &gt          (let ((width (gp:image-access-width access))
+&gt &gt                (height (gp:image-access-height access))
+&gt &gt                (bytes '())
+&gt &gt                (vector))
+&gt &gt            (dotimes (y height)
+&gt &gt              (dotimes (x width)
+&gt &gt                (let* ((pixel (gp:image-access-pixel access x y))
+&gt &gt                       (color (color:unconvert-color port pixel)))
+&gt &gt                  (push (* (color:color-red color) 255) bytes)
+&gt &gt                  (push (* (color:color-green color) 255) bytes)
+&gt &gt                  (push (* (color:color-blue color) 255) bytes))))
+&gt &gt            (setq vector
+&gt &gt                  (opengl:make-gl-vector :unsigned-8 (* width height 3)
+&gt &gt                                         :contents (nreverse bytes))
+&gt &gt                  bytes nil)
+&gt &gt            vector))
+&gt &gt       (gp:free-image-access access))))
+&gt &gt
+&gt &gt CL-USER&gt (time (image-&gtrgb pane image))
+&gt &gt Timing the evaluation of (IMAGE-&gtRGB PANE IMAGE)
+&gt &gt
+&gt &gt user time    =     79.730
+&gt &gt system time  =      4.770
+&gt &gt Elapsed time =   0:03:16
+&gt &gt Allocation   = 8250534424 bytes
+&gt &gt 12968 Page faults
+&gt &gt Calls to %EVAL    23514454
+&gt &gt #&lt;Pointer to type (:UNSIGNED :CHAR) = #x043F7000&gt
+&gt &gt
+&gt &gt (defun image-&gtrgb1 (port image)
+&gt &gt   (let ((access (gp:make-image-access port image)))
+&gt &gt     (unwind-protect
+&gt &gt        (progn
+&gt &gt          (gp:image-access-transfer-from-image access)
+&gt &gt          (let* ((width (gp:image-access-width access))
+&gt &gt                 (height (gp:image-access-height access))
+&gt &gt                 (index 0)
+&gt &gt                 (vector
+&gt &gt                  (opengl:make-gl-vector :unsigned-8 (* width height 3))))
+&gt &gt            (dotimes (y height)
+&gt &gt              (dotimes (x width)
+&gt &gt                (let* ((pixel (gp:image-access-pixel access x y))
+&gt &gt                       (color (color:unconvert-color port pixel))
+&gt &gt                       (red (* (color:color-red color) 255))
+&gt &gt                       (green (* (color:color-green color) 255))
+&gt &gt                       (blue (* (color:color-blue color) 255)))
+&gt &gt                  (setf (opengl:gl-vector-aref vector index) red)
+&gt &gt                  (incf index)
+&gt &gt                  (setf (opengl:gl-vector-aref vector index) green)
+&gt &gt                  (incf index)
+&gt &gt                  (setf (opengl:gl-vector-aref vector index) blue)
+&gt &gt                  (incf index))))
+&gt &gt            vector))
+&gt &gt       (gp:free-image-access access))))
+&gt &gt
+&gt &gt CL-USER&gt (time (image-&gtrgb1 pane image))
+&gt &gt Timing the evaluation of (IMAGE-&gtRGB1 PANE IMAGE)
+&gt &gt
+&gt &gt user time    =    186.280
+&gt &gt system time  =     16.800
+&gt &gt Elapsed time =   0:07:16
+&gt &gt Allocation   = 18412701548 bytes
+&gt &gt 462 Page faults
+&gt &gt Calls to %EVAL    40174156
+&gt &gt #&lt;Pointer to type (:UNSIGNED :CHAR) = #x04530000&gt
+&gt &gt
+&gt &gt --
+&gt &gt Tenerife &gt Canary Islands &gt Spain
+&gt &gt
+&gt 
+&gt 
+
+
+-- 
+Tenerife &gt Canary Islands &gt Spain
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Optimizing image manipulation: Help!</h1>
+                 <pre>On Wed, 12 Jan 2005 12:17:18 +0000, joel reymont &lt;joelr1@gmail.com&gt wrote:
+
+&gt I'm new to LispWorks so any I would appreciate any pointers on how
+&gt to optimize my routine below. The purpose of the function is to
+&gt return an RGB array given an image. I work on a PowerBook G4 1.25
+&gt with OSX 10.3.7. I ran the tests while running on battery with
+&gt automatic power management so processor speed was probably
+&gt reduced. I also had BitTorrent, a browser, etc. running at the same
+&gt time.
+
+Are you sure you've compiled the functions?  This is what I get on my
+machine (IBM Thinkpad with Pentium M 2.0 MHz, 1.5 GB RAM, LWW 4.4):
+
+  CL-USER 19 &gt (time (image-&gtrgb pane image))
+  Timing the evaluation of (IMAGE-&gtRGB PANE IMAGE)
+
+  user time    =      9.263
+  system time  =      0.050
+  Elapsed time =   0:00:09
+  Allocation   = 85528704 bytes standard / 14105476 bytes conses
+  0 Page faults
+  #&lt;Pointer to type (:UNSIGNED :CHAR) = #x0A4D0020&gt
+
+  CL-USER 22 &gt (time (image-&gtrgb1 pane image))
+  Timing the evaluation of (IMAGE-&gtRGB1 PANE IMAGE)
+
+  user time    =      1.442
+  system time  =      0.000
+  Elapsed time =   0:00:01
+  Allocation   = 85527432 bytes standard / 8481 bytes conses
+  0 Page faults
+  #&lt;Pointer to type (:UNSIGNED :CHAR) = #x0A610020&gt
+
+That's a LOT faster, isn't it?  If you've really compiled the
+functions then maybe you should get a real computer... :)
+
+(Sorry, couldn't resist.)
+
+Anyway, as another option you also might want to look into CL-GD and
+do something like this (untested):
+
+  (defun foo ()
+    (let ((result))
+      (with-image-from-file* (#p"c:/path/to/lobby.jpg")
+        (do-pixels ()
+          (let ((raw-pixel (raw-pixel)))
+            ;; add declarations or use the new int32-xxx functions
+            ;; in LW 4.4 to speed things up
+            (push (ash (logand #xff0000 raw-pixel) -16) result)
+            (push (ash (logand #xff00 raw-pixel) -8) result)
+            (push (logand #xff raw-pixel) result))))
+      (nreverse result)))
+
+CL-GD is at &lt;http://weitz.de/cl-gd/&gt.
+
+Cheers,
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Optimizing image manipulation: Help!</h1>
+                 <pre>On Wed, 12 Jan 2005 20:03:03 +0100, Edi Weitz &lt;edi@agharta.de&gt wrote:
+&gt 
+&gt Are you sure you've compiled the functions?  This is what I get on my
+&gt machine (IBM Thinkpad with Pentium M 2.0 MHz, 1.5 GB RAM, LWW 4.4):
+
+Right, I did not have them compiled when running those first tests. I
+also did not have optimizations on, I only have 512Mb of memory and
+those gl-vectors get stuck in memory until you free them which is
+something that I was not doing. I ended up killing LW when it took
+3.49Gb of swap space.
+ 
+&gt   CL-USER 22 &gt (time (image-&gtrgb1 pane image))
+&gt   Timing the evaluation of (IMAGE-&gtRGB1 PANE IMAGE)
+&gt 
+&gt   user time    =      1.442
+&gt   system time  =      0.000
+&gt   Elapsed time =   0:00:01
+&gt   Allocation   = 85527432 bytes standard / 8481 bytes conses
+&gt   0 Page faults
+&gt   #&lt;Pointer to type (:UNSIGNED :CHAR) = #x0A610020&gt
+
+I'm extremely surprised that the version with array references did an
+order of magnitude better for you than the version that just pushes
+into a list. What do you think is the reason?
+ 
+&gt Anyway, as another option you also might want to look into CL-GD and
+&gt do something like this (untested):
+
+Thanks for the tip. I got very good results (same 1s as above) using
+CL-JPEG and discovered a few interesting bits that might be of help to
+someone....
+
+CL-JPEG returns the bytes in BGR order and the GL_BGR option is only
+supported with OpenGL 1.2. You get OpenGL 1.1. on Windows and need to
+install latest drivers for your graphics card to get 1.2. As I can't
+expect people to have OpenGL 1.2. I would need to make a pass over
+that array and swap the bytes to RGB which would be a performance hit
+and a minus. A plus would be that I won't have to read a separate mask
+file to get the alpha values as CL-JPEG can extract the alpha channel
+from a JPEG. I have yet to time that but expect performance to be
+decent.
+
+About those pesky gl-vectors... They are not needed, really. In fact
+there's an option in defsys.lisp that enables them and you can disable
+it with
+
+;; (pushnew :use-fli-gl-vector sys::*features*)
+
+If you do then simple arrays are used and you don't have to free them
+as the GC will do that for you. gl-vectors get mapped to the static
+area so that they are not garbage collected but are simple arrays
+otherwise. The list that I was collecting and then reversing in the
+first example is only needed for initialize array elements and so is
+an extra unnecessary operation.
+
+Here's the kick, though... OpenGL can take arrays of bytes or integers
+for each color channel, arrays of pixel values, etc. Ultimately the
+channel values /that I was so meticulously converting to byte by
+multiplying by 255/ get converted into... floats and so there's no
+need to multiply them.
+
+To summarize, you can use CAPI and the image access API to prepare
+byte arrays for OpenGL textures. If you don't need the alpha channel
+then you are set. If you do then you need to read in the mask image
+and set each the alpha byte in your array.
+
+Unfortunately for me that huge 794x538 lobby image is not unique as my
+poker room images (carpet, table) are the same size and I don't want
+to read and scan them twice. So I'll just keep in mind that CAPI float
+color values are perfectly acceptable by OpenGL and stick to reading
+4-channel JPEGs with CL-JPEG for the time being.
+
+This has been a very educational day-long experience for me, although
+I still don't understand how to properly optimize my code :-).
+
+    Thanks, Joel
+
+
+-- 
+Tenerife &gt Canary Islands &gt Spain
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Optimizing image manipulation: Help!</h1>
+                 <p>
+                  Unable to parse email body. Email id is 3409
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Optimizing image manipulation: Help!</h1>
+                 <pre>On Thu, 13 Jan 2005 23:56:28 +0100, Edi Weitz &lt;edi@agharta.de&gt wrote:
+&gt [...]
+&gt &gt About those pesky gl-vectors... They are not needed, really. In fact
+&gt &gt there's an option in defsys.lisp that enables them and you can
+&gt &gt disable it with
+&gt &gt
+&gt &gt ;; (pushnew :use-fli-gl-vector sys::*features*)
+&gt 
+&gt But aren't they enabled by default for performance reasons?
+
+They actually _are_ needed and I'm getting good performance. I just
+have to figure out this OpenGL thing and then I'll be done :).
+
+    Joel
+
+-- 
+Tenerife &gt Canary Islands &gt Spain
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Optimizing image manipulation: Help!</h1>
+                 <pre>On Wed, 12 Jan 2005 23:59:23 +0000, joel reymont &lt;joelr1@gmail.com&gt wrote:
+
+&gt I'm extremely surprised that the version with array references did
+&gt an order of magnitude better for you than the version that just
+&gt pushes into a list. What do you think is the reason?
+
+The first version conses up a list, then reverses it, then throws it
+away.  My gut feeling is that this /must/ be slower than the second
+version unless single calls to GL-VECTOR-AREF are much more expensive
+than filling the whole vector at once.
+
+&gt About those pesky gl-vectors... They are not needed, really. In fact
+&gt there's an option in defsys.lisp that enables them and you can
+&gt disable it with
+&gt
+&gt ;; (pushnew :use-fli-gl-vector sys::*features*)
+
+But aren't they enabled by default for performance reasons?
+
+Cheers,
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:49 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

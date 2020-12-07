@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>namespace for class</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>namespace for class</h1><html><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space; "><font class="Apple-style-span" face="Courier">I am translating some MCL code to LispWorks and I found the following:</font><div><font class="Apple-style-span" face="Courier"><br></font></div><div><font class="Apple-style-span" face="Courier">In MCL 5.1</font></div><div><font class="Apple-style-span" face="Courier">----------</font></div><div><font class="Apple-style-span" face="Courier"><div>Welcome to Macintosh Common Lisp Version 5.1!</div> <div>? (make-package :a)</div> <div>#&lt;Package "A"></div> <div>? (in-package a)</div> <div>#&lt;Package "A"></div> <div>? (defclass rest () ())</div> <div>#&lt;STANDARD-CLASS REST></div> <div>?</div><div><br></div><div>In LispWorks 5.1.1</div><div>------------------</div><div><div>CL-USER 1 > (make-package :a)</div> <div>#&lt;The A package, 0/16 internal, 0/16 external></div> <div><br></div> <div>CL-USER 2 > (in-package :a)</div> <div>#&lt;The A package, 0/16 internal, 0/16 external></div> <div><br></div> <div>A 3 > (defclass rest () ())</div> <div><br></div> <div>Error: Defining class REST visible from package COMMON-LISP.</div> <div>  1 (continue) Define it anyway.</div> <div>  2 (abort) Return to level 0.</div> <div>  3 Return to top loop level 0.</div> <div><br></div> <div>Type :b for backtrace, :c &lt;option number> to proceed,  or :? for other options</div> <div><br></div> <div>A 4 : 1 > *package*</div> <div>#&lt;The A package, 1/16 internal, 0/16 external></div> <div><br></div> <div>A 5 : 1 > </div><div><br></div><div>So, in MCL I get a class called REST in the package A, while LispWorks won't let me have that. I thought that this should work since class names are put in the type namespace as opposed to in the function and variable namespaces?</div><div>Why is there a difference between the environments?</div><div>Which environment is doing the right thing?</div><div>What shall I do?</div><div>Please enlighten me!</div><div><br></div><div>/Sven</div><div><br></div></div></font></div><div><font class="Apple-style-span" face="Courier"><br></font></div></body></html>
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: namespace for class</h1>
+                 <pre>
+On Sat, 16 Aug 2008 17:37:08 +0200, Sven Emtell &lt;sven@emtell.com&gt wrote:
+
+&gt I am translating some MCL code to LispWorks and I found the following:
+&gt
+&gt In MCL 5.1
+&gt ----------
+&gt Welcome to Macintosh Common Lisp Version 5.1!
+&gt ? (make-package :a)
+&gt #&lt;Package "A"&gt
+&gt ? (in-package a)
+&gt #&lt;Package "A"&gt
+&gt ? (defclass rest () ())
+&gt #&lt;STANDARD-CLASS REST&gt
+&gt ?
+&gt
+&gt In LispWorks 5.1.1
+&gt ------------------
+&gt CL-USER 1 &gt (make-package :a)
+&gt #&lt;The A package, 0/16 internal, 0/16 external&gt
+&gt
+&gt CL-USER 2 &gt (in-package :a)
+&gt #&lt;The A package, 0/16 internal, 0/16 external&gt
+&gt
+&gt A 3 &gt (defclass rest () ())
+&gt
+&gt Error: Defining class REST visible from package COMMON-LISP.
+&gt    1 (continue) Define it anyway.
+&gt    2 (abort) Return to level 0.
+&gt    3 Return to top loop level 0.
+&gt
+&gt Type :b for backtrace, :c &lt;option number&gt to proceed,  or :? for
+&gt other options
+&gt
+&gt A 4 : 1 &gt *package*
+&gt #&lt;The A package, 1/16 internal, 0/16 external&gt
+&gt
+&gt A 5 : 1 &gt
+&gt
+&gt So, in MCL I get a class called REST in the package A, while
+&gt LispWorks won't let me have that. I thought that this should work
+&gt since class names are put in the type namespace as opposed to in the
+&gt function and variable namespaces?
+&gt Why is there a difference between the environments?
+&gt Which environment is doing the right thing?
+&gt What shall I do?
+&gt Please enlighten me!
+
+By 11.1.2.1.2 of the ANSI standard it seems that LispWorks is right.
+FWIW, SBCL also complains if you try something like this.  If you
+insist on naming the class REST, you should shadow the CL symbol in
+your package.
+
+Besides, although not directly related to your problem, you should
+note that it is usually better to explicitly specify the packages your
+new package should use as the default is implementation-defined and
+can thus lead to unportable behaviour.
+
+Also, consider using DEFPACKAGE instead of MAKE-PACKAGE - see the
+remark at the end of the MAKE-PACKAGE dictionary entry.
+
+Cheers,
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: namespace for class</h1>
+                 <pre>
+This is just some check that LispWorks does to protect some packages 
+against redefinition. You can change the value of 
+*handle-warn-on-redefinition* to :warn or nil, or you can remove the 
+packages you don't want to be warned about from the value of 
+*packages-for-warn-on-redefinition*. Or you can just continue with :c 1 
+from the error below. See the documentation pages below:
+
+http://www.lispworks.com/documentation/lw51/LWRM/html/lwref-339.htm#11346
+http://www.lispworks.com/documentation/lw51/LWRM/html/lwref-227.htm#pgfId-889361
+
+Octav
+
+Sven Emtell wrote:
+&gt I am translating some MCL code to LispWorks and I found the following:
+&gt
+&gt In MCL 5.1
+&gt ----------
+&gt Welcome to Macintosh Common Lisp Version 5.1!
+&gt ? (make-package :a)
+&gt #&lt;Package "A"&gt
+&gt ? (in-package a)
+&gt #&lt;Package "A"&gt
+&gt ? (defclass rest () ())
+&gt #&lt;STANDARD-CLASS REST&gt
+&gt ?
+&gt
+&gt In LispWorks 5.1.1
+&gt ------------------
+&gt CL-USER 1 &gt (make-package :a)
+&gt #&lt;The A package, 0/16 internal, 0/16 external&gt
+&gt
+&gt CL-USER 2 &gt (in-package :a)
+&gt #&lt;The A package, 0/16 internal, 0/16 external&gt
+&gt
+&gt A 3 &gt (defclass rest () ())
+&gt
+&gt Error: Defining class REST visible from package COMMON-LISP.
+&gt   1 (continue) Define it anyway.
+&gt   2 (abort) Return to level 0.
+&gt   3 Return to top loop level 0.
+&gt
+&gt Type :b for backtrace, :c &lt;option number&gt to proceed,  or :? for other 
+&gt options
+&gt
+&gt A 4 : 1 &gt *package*
+&gt #&lt;The A package, 1/16 internal, 0/16 external&gt
+&gt
+&gt A 5 : 1 &gt 
+&gt
+&gt So, in MCL I get a class called REST in the package A, while LispWorks 
+&gt won't let me have that. I thought that this should work since class 
+&gt names are put in the type namespace as opposed to in the function and 
+&gt variable namespaces?
+&gt Why is there a difference between the environments?
+&gt Which environment is doing the right thing?
+&gt What shall I do?
+&gt Please enlighten me!
+&gt
+&gt /Sven
+&gt
+&gt
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: namespace for class</h1>
+                 <pre>
+On Sat, Aug 16, 2008 at 11:37 AM, Sven Emtell &lt;sven@emtell.com&gt wrote:
+&gt I am translating some MCL code to LispWorks and I found the following:
+&gt In MCL 5.1
+&gt ----------
+&gt Welcome to Macintosh Common Lisp Version 5.1!
+&gt ? (make-package :a)
+&gt #&lt;Package "A"&gt
+&gt ? (in-package a)
+&gt #&lt;Package "A"&gt
+&gt ? (defclass rest () ())
+&gt #&lt;STANDARD-CLASS REST&gt
+&gt ?
+&gt In LispWorks 5.1.1
+&gt ------------------
+&gt CL-USER 1 &gt (make-package :a)
+&gt #&lt;The A package, 0/16 internal, 0/16 external&gt
+&gt CL-USER 2 &gt (in-package :a)
+&gt #&lt;The A package, 0/16 internal, 0/16 external&gt
+&gt A 3 &gt (defclass rest () ())
+&gt Error: Defining class REST visible from package COMMON-LISP.
+&gt   1 (continue) Define it anyway.
+&gt   2 (abort) Return to level 0.
+&gt   3 Return to top loop level 0.
+&gt Type :b for backtrace, :c &lt;option number&gt to proceed,  or :? for other
+&gt options
+&gt A 4 : 1 &gt *package*
+&gt #&lt;The A package, 1/16 internal, 0/16 external&gt
+&gt A 5 : 1 &gt
+&gt So, in MCL I get a class called REST in the package A, while LispWorks won't
+&gt let me have that. I thought that this should work since class names are put
+&gt in the type namespace as opposed to in the function and variable namespaces?
+&gt Why is there a difference between the environments?
+&gt Which environment is doing the right thing?
+&gt What shall I do?
+&gt Please enlighten me!
+&gt /Sven
+
+At first I misunderstood what was going on; I thought that you were
+getting the error about a class /re/-definition (and I didn't know of,
+and couldn't find, a class called rest.) The error comes about because
+the default use list for packages (under Lispworks) includes
+COMMON-LISP. That is,
+
+CL-USER 14 &gt (defpackage "B")
+#&lt;The B package, 0/16 internal, 0/16 external&gt
+
+CL-USER 15 &gt (package-use-list (find-package "B"))
+(#&lt;The COMMON-LISP package, 3/4 internal, 978/1024 external&gt #&lt;The
+HARLEQUIN-COMMON-LISP package, 0/4 internal, 232/256 external&gt #&lt;The
+LISPWORKS package, 58/64 internal, 205/256 external&gt)
+
+and so, after (in-package "B"), typing (defclass rest () ()) is the
+same as (defclass cl:rest () ()), not (defclass b:rest () ()). I'm
+only responding because I didn't understand what was going wrong at
+first. Others have replied as to why (defclass cl:rest () ()) signals
+an error, and what other options you have (shadowing rest, not using
+the COMMON-LISP package in your package, doing it anyway, and so on).
+
+Also, it's not a matter of namespaces; that is, it's not that cl:rest
+is already defined as a function, otherwise the following would signal
+an error, too:
+
+CL-USER 20 &gt (defclass foobar () ())
+#&lt;STANDARD-CLASS FOOBAR 200B9FFF&gt
+
+CL-USER 21 &gt (defun foobar ())
+FOOBAR
+
+And I think that in MCL, you're not actually getting a class named by
+a:rest. I think that if, after you evaluate (in-package :a) and you
+try (symbol-package (class-name (find-class 'rest))), you'll see
+something like #&lt;The COMMON-LISP package, 3/4 internal, 978/1024
+external&gt.
+
+-- 
+=====================
+Joshua Taylor
+tayloj@cs.rpi.edu, jtaylor@alum.rpi.edu
+
+"A lot of good things went down one time,
+ back in the goodle days."
+ John Hartford
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: namespace for class</h1>
+                 <pre>
+On Sat, Aug 16, 2008 at 05:37:08PM +0200, Sven Emtell wrote:
+&gt I am translating some MCL code to LispWorks and I found the following:
+&gt 
+&gt In MCL 5.1
+&gt ----------
+&gt Welcome to Macintosh Common Lisp Version 5.1!
+&gt ? (make-package :a)
+&gt #&lt;Package "A"&gt
+&gt ? (in-package a)
+&gt #&lt;Package "A"&gt
+&gt ? (defclass rest () ())
+&gt #&lt;STANDARD-CLASS REST&gt
+&gt ?
+&gt 
+&gt In LispWorks 5.1.1
+&gt ------------------
+&gt CL-USER 1 &gt (make-package :a)
+&gt #&lt;The A package, 0/16 internal, 0/16 external&gt
+&gt 
+&gt CL-USER 2 &gt (in-package :a)
+&gt #&lt;The A package, 0/16 internal, 0/16 external&gt
+&gt 
+&gt A 3 &gt (defclass rest () ())
+&gt 
+&gt Error: Defining class REST visible from package COMMON-LISP.
+&gt   1 (continue) Define it anyway.
+&gt   2 (abort) Return to level 0.
+&gt   3 Return to top loop level 0.
+&gt 
+&gt Type :b for backtrace, :c &lt;option number&gt to proceed,  or :? for  
+&gt other options
+&gt 
+&gt A 4 : 1 &gt *package*
+&gt #&lt;The A package, 1/16 internal, 0/16 external&gt
+&gt 
+&gt A 5 : 1 &gt
+&gt 
+&gt So, in MCL I get a class called REST in the package A, while  
+&gt LispWorks won't let me have that. I thought that this should work  
+&gt since class names are put in the type namespace as opposed to in the  
+&gt function and variable namespaces?
+&gt Why is there a difference between the environments?
+&gt Which environment is doing the right thing?
+
+To add to the other respondents, perhaps this will also help:
+
+Lispworks:
+
+  CL-USER 3 &gt (make-package :a :use nil)
+  ;                            ^^^^^^^^
+  #&lt;The A package, 0/16 internal, 0/16 external&gt
+
+  CL-USER 4 &gt (in-package :a)
+  #&lt;The A package, 0/16 internal, 0/16 external&gt
+
+  A 5 &gt (defclass rest () ())
+
+  Error: Undefined operator DEFCLASS in form (DEFCLASS REST COMMON-LISP:NIL COMMON-LISP:NIL).
+    1 (continue) Try invoking DEFCLASS again.
+    2 Return some values from the form (DEFCLASS REST COMMON-LISP:NIL COMMON-LISP:NIL).
+    3 Try invoking COMMON-LISP:DEFCLASS with the same arguments.
+    4 Set the macro-function of DEFCLASS to the macro-function of COMMON-LISP:DEFCLASS.
+    5 Try invoking something other than DEFCLASS with the same arguments.
+    6 Set the symbol-function of DEFCLASS to another function.
+    7 Set the macro-function of DEFCLASS to another function.
+    8 (abort) Return to level 0.
+    9 Return to top loop level 0.
+
+  Type :b for backtrace, :c &lt;option number&gt to proceed,  or :? for other options
+
+  A 6 : 1 &gt :top
+
+  A 7 &gt (cl:defclass rest () ())
+  #&lt;COMMON-LISP:STANDARD-CLASS REST 225CA7A7&gt
+
+Figuring out why the first "defclass" gave an error may help deepen
+your understanding of CL's package system and the CL reader.  Reading
+the possible restarts pretty much gives it away, though.  :)
+
+-- L
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:38 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

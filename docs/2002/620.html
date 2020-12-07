@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>multiple CORBA servers on one machine</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>multiple CORBA servers on one machine</h1>
+                <pre>This isn't really a LispWorks question, but it is about something
+implemented in LW...
+
+I have a little server I wrote which allows a lisp application to
+handle requests from a client via CORBA.  All it really does is passes
+arrays of strings around with a single call, which it then treats as
+command lines - it should really have been written on top of plain
+sockets, not CORBA.  The server writes its IOR into a secret file in
+the user's home directory, which the client then uses for getting in
+touch with it.
+
+I never intended this thing to actually get used, but in the nature of
+things it's become central to our existence because it allows shell
+scripts and makefiles to get Lisp to do things completely trivially.
+
+The problem is that there doesn't seem to be a way for multiple
+servers to coexist on one machine - so on our Linux `build server'
+machine you can't have two people doing things at once.  This seems to
+be because the servers try and open the same port at some sub-CORBA
+level.  I presume (or hope, anyway) that CORBA has some answer to this
+kind of issue, but my knowledge of CORBA is tiny: does anyone know
+what how to do this so I can be lazy and not read huge manuals
+(pointers to the manual section would be OK - we have the CORBA
+specs...)?
+
+Thanks
+
+--tim
+
+PS the way we start the server now is this:
+
+
+(defun start-clc-server (&amp;key (threads 1)
+                              (wrapper nil))
+  ;; See above for WRAPPER
+  (unless (= threads 1)
+    (error "No multithreaded support yet"))
+  (let* ((ior-file (ior-file-name))
+         (orb (ensure-orb)) ;calls op:orb_init if need be
+         (poa (op:resolve_initial_references orb "RootPOA"))
+         (manager (op:the_poamanager poa))
+         (ob (op:narrow
+              'org.tfeb.corba-modules/clc:server
+              (op:servant_to_reference
+               poa
+               (make-instance 'clc-servant
+                              :wrapper wrapper))))
+         (ior (op:object_to_string orb ob)))
+    (op:activate manager)
+    (with-open-file (out ior-file
+                         :direction :output
+                         :if-exists :supersede)
+      (format out "~A~%" ior))
+    (values ob manager)))
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: multiple CORBA servers on one machine</h1>
+                 <pre>Tim Bradshaw wrote:
+&gt machine you can't have two people doing things at once.  This seems to
+&gt be because the servers try and open the same port at some sub-CORBA
+&gt level.  I presume (or hope, anyway) that CORBA has some answer to this
+
+If you really want to instantiate different SERVERS,
+i.e. different (heavy weight) processes,
+try to change *CORBA:POA-SERVICE-PORT*
+BEFORE you load any CORBA related LW packages.
+
+I was able to use this hack on Win98
+spawning two instances of LWW4.2
+(and of course performing some communication).
+
+To Xanalys:
+Please,
+tell us if this is the PREFERRED way
+to change the port number ...
+
+
+
+If you need to support different SERVICES within the same server,
+you will have to dive into the OMG documentation
+on POAs and its activation schemes.
+LW claims 2.2 POA support:
+http://www.omg.org/cgi-bin/doc?formal/98-07-01.pdf.gz
+
+========================================================================
+
+               Universitaet Hamburg
+               Fachbereich Informatik
+
+Ralf Bachmann  Angewandte und sozialorientierte Informatik (ASI)
+               Vogt-Koelln-Strasse 30
+               D-22527 Hamburg
+
+         Raum  D 227
+      Telefon  +49 40 42883 2316
+      Telefax  +49 40 42883 2311
+        Email  bachmann@informatik.uni-hamburg.de
+          WWW 
+http://asi-www.informatik.uni-hamburg.de/personen/bachmann
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: multiple CORBA servers on one machine</h1>
+                  <p>
+                   Unable to parse email body. Email id is 637
+                 </article>
+                </section>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: multiple CORBA servers on one machine</h1>
+                 <pre>* Ralf Bachmann wrote:
+
+&gt If you really want to instantiate different SERVERS,
+&gt i.e. different (heavy weight) processes,
+&gt try to change *CORBA:POA-SERVICE-PORT*
+&gt BEFORE you load any CORBA related LW packages.
+
+Yes, that is what I want to do. This seems to work (on linux, anyway),
+though it terrifies me...  What I do is, when Lisp starts (this is a
+dumped image with corba loaded as well as my clc thing), I do this:
+
+(define-action "Initialize LispWorks Tools" 
+               "Start CLC server"
+               #'(lambda (&amp;rest junk)
+                   (declare (ignore junk))
+                   (mp:process-run-function 
+                    "Starting CLC" ()
+                    #'(lambda ()
+                        ;; try to select an unused port, so more than
+                        ;; one person can run a server on a machine.
+                        ;; It is not at all clear to me if this is
+                        ;; right or safe!
+                        (loop with stream 
+                              for port from corba:*poa-service-port*
+                              repeat 100 ;?
+                              while
+                              (unwind-protect
+                                  (not (null (setf stream
+                                                   (comm:open-tcp-stream
+                                                    "localhost" port))))
+                                (when stream (close stream)))
+                              finally
+                              (setf corba:*poa-service-port* port))
+                        (unless (org.tfeb.clc.server:probe-clc-server)
+                          (org.tfeb.clc.server:start-clc-server
+                           :wrapper #'org.tfeb.clc.hax:wrapper))))))
+
+This is mildly terrifying, but it works (it's not clear if it should
+be safe to blindly open connections to possible other servers...).  Of
+course, now I have the whole mechanism to select a port by repeated
+probing I could just as well write the whole thing in far less code by
+simply having a little process which listens for command lines on a
+TCP port...
+
+--tim
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: multiple CORBA servers on one machine</h1>
+                 <pre>&gt&gt&gt&gt&gt "Tim" == Tim Bradshaw &lt;tfb@cley.com&gt writes:
+
+....
+
+    Tim&gt This is mildly terrifying, but it works (it's not clear if it
+    Tim&gt should be safe to blindly open connections to possible other
+    Tim&gt servers...).  Of course, now I have the whole mechanism to
+    Tim&gt select a port by repeated probing I could just as well write
+    Tim&gt the whole thing in far less code by simply having a little
+    Tim&gt process which listens for command lines on a TCP port...
+
+Hi,
+
+Actually OS's will give you unused port numbers for sockets if you ask
+them nicely so you don't need this probing loop. I gather than the
+only way of getting at this functionality via the LW ORB at the moment
+is to bind that unsupported special to NIL, but I expect that there
+will be a way of getting at this functionality via the command line
+arg in due course.
+
+__Jason
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: multiple CORBA servers on one machine</h1>
+                 <pre>* Jason Trenouth wrote:
+&gt&gt&gt&gt&gt&gt "Tim" == Tim Bradshaw &lt;tfb@cley.com&gt writes:
+&gt ...
+&gt Actually OS's will give you unused port numbers for sockets if you ask
+&gt them nicely so you don't need this probing loop. I gather than the
+&gt only way of getting at this functionality via the LW ORB at the moment
+&gt is to bind that unsupported special to NIL, but I expect that there
+&gt will be a way of getting at this functionality via the command line
+&gt arg in due course.
+
+I don't think this works, on Linux anyway (not the
+giving-of-free-ports-by-the-OS, which obviously does, but the binding
+of CORBA:*POA-SERVICE-PORT* to NIL).
+
+I do something which is essentially:
+
+  set CORBA:*POA-SERVICE-PORT* to NIL
+  initialize the ORB with op:orb_init with null argv
+  call op:resolve_initial_references on it.
+
+This last call hangs for a very long time (many seconds) and then
+signals some corba exception.
+
+If I do my repeated-probe thing (which is infinitely more hacky) all
+this code works.
+
+--tim
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: multiple CORBA servers on one machine</h1>
+                  <p>
+                   Unable to parse email body. Email id is 647
+                 </article>
+                </section>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:57 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

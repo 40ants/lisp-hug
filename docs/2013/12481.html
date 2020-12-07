@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Keyword argument ordering</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Keyword argument ordering</h1><html><head>
+<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1"></head><body
+ bgcolor="#FFFFFF" text="#000000">
+I haven't found this in the spec, so I'm hoping I'm just blind and this 
+isn't implementation dependent. I'm implementing a kind of 
+"copy-with-overrides" function, I'll get to that in a second.<br>
+  <br>
+  <span style="font-family: monospace;">(defclass foo ()<br>
+&nbsp; ((a :initarg :a :accessor foo-a)))</span><br>
+  <br>
+  <span style="font-family: monospace;">(foo-a (make-instance 'foo :a 10
+ :a 20 :a 30))&nbsp; ;=&gt; 10</span><br>
+  <br>
+As you can see, the first keyword to match the initarg is used. The same
+ holds true if I use a defstruct to define foo instead of a class. Will 
+this always be the case across implementations?<br>
+  <br>
+Next, because perhaps someone has a better solution, my 
+copy-with-overrides function generally works something like this:<br>
+  <br style="font-family: monospace;">
+  <span style="font-family: monospace;">(defun clone-foo (foo &amp;key 
+a)</span><br style="font-family: monospace;">
+  <span style="font-family: monospace;">&nbsp; (make-instance 'foo :a (or a 
+(foo-a foo))))</span><br>
+  <br>
+Except that it has a lot more keys to override. I have another instance 
+where the initargs are built up and I'm going to use #'apply to make the
+ instance using a spec that was built from somewhere else, but I'd like 
+to override aspects of it. If the above keyword ordering holds true then
+ I should be able to do this:<br>
+  <br>
+  <span style="font-family: monospace;">(defun clone-foo (foo spec 
+&amp;rest initargs &amp;key a)</span><br style="font-family: monospace;">
+  <span style="font-family: monospace;">&nbsp; (apply #'make-instance 'foo 
+(nconc initargs spec)))</span><br>
+  <br>
+Are these valid assumptions?<br>
+  <br>
+Anyone have other suggestions for how to go about doing this in a better
+ way?<br>
+  <br>
+Thanks!<br>
+  <br>
+Jeff M.<br>
+</body>
+</html>
+
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Keyword argument ordering</h1>
+                 <pre>
+On Wed, Sep 18, 2013 at 10:47 AM, Jeffrey Massung &lt;massung@gmail.com&gt wrote:
+&gt I haven't found this in the spec, so I'm hoping I'm just blind and this
+&gt isn't implementation dependent. I'm implementing a kind of
+&gt "copy-with-overrides" function, I'll get to that in a second.
+&gt
+&gt (defclass foo ()
+&gt   ((a :initarg :a :accessor foo-a)))
+&gt
+&gt (foo-a (make-instance 'foo :a 10 :a 20 :a 30))  ;=&gt 10
+&gt
+&gt As you can see, the first keyword to match the initarg is used. The same
+&gt holds true if I use a defstruct to define foo instead of a class. Will this
+&gt always be the case across implementations?
+
+The leftmost gets used [1]:
+
+3.4.1.4 Specifiers for keyword parameters
+The keyword parameter specifiers are, like all parameter specifiers,
+effectively processed from left to right. For each keyword parameter
+specifier, if there is an argument pair whose name matches that
+specifier's name (that is, the names are eq), then the parameter
+variable for that specifier is bound to the second item (the value) of
+that argument pair. If more than one such argument pair matches, the
+leftmost argument pair is used.
+
+[1] http://www.lispworks.com/documentation/lw50/CLHS/Body/03_dad.htm
+
+&gt Next, because perhaps someone has a better solution, my copy-with-overrides
+&gt function generally works something like this:
+&gt
+&gt (defun clone-foo (foo &amp;key a)
+&gt   (make-instance 'foo :a (or a (foo-a foo))))
+&gt
+&gt Except that it has a lot more keys to override. I have another instance
+&gt where the initargs are built up and I'm going to use #'apply to make the
+&gt instance using a spec that was built from somewhere else, but I'd like to
+&gt override aspects of it. If the above keyword ordering holds true then I
+&gt should be able to do this:
+&gt
+&gt (defun clone-foo (foo spec &amp;rest initargs &amp;key a)
+&gt   (apply #'make-instance 'foo (nconc initargs spec)))
+&gt
+&gt Are these valid assumptions?
+
+This should work, and I don't think it's all that uncommon to do.
+
+//JT
+-- 
+Joshua Taylor, http://www.cs.rpi.edu/~tayloj/
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:31 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

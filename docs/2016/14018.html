@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Problem with rendering scrolled output-panes in row-layouts</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Problem with rendering scrolled output-panes in row-layouts</h1>
+                <pre>
+When I run the following code (Mac, current OS) in LW Pro and use the scrollbars to scroll, I get white striping in my colored TEST-PANEs, the more so if I scroll slowly. On the other hand, the text seems to render perfectly. Presumably all the drawing takes place in callbacks. So why is this happening?
+
+A second problem is that the BIG-PANE’s vertical scrollbar isn’t displayed unless I’ve scrolled to its right-most edge.
+
+(This is a side issue that may come up, but ultimately I want a layout that has a header that does not scroll vertically but does scroll horizontally. Think of a calendar with a list of employees. The employee names should scroll vertically with the days but not horizontally. I understand that ultimately I may have to create my own scrollbars to get the desired behavior. Today I’ll settle for fixing the rendering problem.)
+
+Thanks for your help.
+
+Laughing Water
+
+
+(defclass test-pane (capi:output-pane)
+  ((value :accessor value :initform (random 1000)))
+  (:default-initargs
+   :display-callback 'draw-test-pane
+   :visible-min-width 100
+   :visible-max-width 100
+   :visible-min-height 50))
+
+(defun draw-test-pane (pane x y width height)
+  (gp:with-graphics-state (pane :foreground :light-blue)
+    (gp:draw-rectangle pane 0 0 width height :filled t))
+    (gp:with-graphics-state (pane :foreground :black)
+        (gp:draw-string pane (format nil "~A" (value pane)) 5 20)))
+
+(defun make-test-rows ()
+  (loop for i below 50
+        collect
+        (make-instance
+         'capi:row-layout
+         :uniform-size-p nil
+         :min-column-width 100
+         :visible-min-height 50
+         :visible-max-height 50
+         :description
+         (loop for d below 7
+                collect
+                (make-instance 'test-pane)))))
+
+(capi:define-interface scroll-test-interface ()
+  ()
+  (:panes
+   (header capi:title-pane
+           :accessor header
+           :text "I don't want this header to scroll vertically.")
+   (big-pane capi:column-layout
+             :accessor big-pane
+             :description (make-test-rows)
+             :y-gap 3
+             :uniform-size-p nil
+             :visible-max-height nil
+             :visible-max-width nil
+             :vertical-scroll t))
+  (:layouts
+   (main-layout capi:column-layout '(header big-pane )  :horizontal-scroll t))
+  (:default-initargs :title "Scroll Test"
+   :best-width 400
+   :best-height 240))
+
+(capi:display (make-instance 'scroll-test-interface))
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Problem with rendering scrolled output-panes in row-layouts</h1>
+                 <pre>
+Dear LispWorks Friends,
+
+I know you’re there. I can hear you breathing. But I’ve gotten no replies to my question from a week ago. Have I stumped the stars? Is Friday a bad day to ask questions?
+
+Can anyone at least confirm that the problem appears on their systems?
+
+With thanks and best wishes,
+LW
+
+&gt On Jul 29, 2016, at 3:58 PM, Laughing Water &lt;lw@mt.net&gt wrote:
+&gt 
+&gt 
+&gt When I run the following code (Mac, current OS) in LW Pro and use the scrollbars to scroll, I get white striping in my colored TEST-PANEs, the more so if I scroll slowly. On the other hand, the text seems to render perfectly. Presumably all the drawing takes place in callbacks. So why is this happening?
+&gt 
+&gt A second problem is that the BIG-PANE’s vertical scrollbar isn’t displayed unless I’ve scrolled to its right-most edge.
+&gt 
+&gt (This is a side issue that may come up, but ultimately I want a layout that has a header that does not scroll vertically but does scroll horizontally. Think of a calendar with a list of employees. The employee names should scroll vertically with the days but not horizontally. I understand that ultimately I may have to create my own scrollbars to get the desired behavior. Today I’ll settle for fixing the rendering problem.)
+&gt 
+&gt Thanks for your help.
+&gt 
+&gt Laughing Water
+&gt 
+&gt 
+&gt (defclass test-pane (capi:output-pane)
+&gt  ((value :accessor value :initform (random 1000)))
+&gt  (:default-initargs
+&gt   :display-callback 'draw-test-pane
+&gt   :visible-min-width 100
+&gt   :visible-max-width 100
+&gt   :visible-min-height 50))
+&gt 
+&gt (defun draw-test-pane (pane x y width height)
+&gt  (gp:with-graphics-state (pane :foreground :light-blue)
+&gt    (gp:draw-rectangle pane 0 0 width height :filled t))
+&gt    (gp:with-graphics-state (pane :foreground :black)
+&gt        (gp:draw-string pane (format nil "~A" (value pane)) 5 20)))
+&gt 
+&gt (defun make-test-rows ()
+&gt  (loop for i below 50
+&gt        collect
+&gt        (make-instance
+&gt         'capi:row-layout
+&gt         :uniform-size-p nil
+&gt         :min-column-width 100
+&gt         :visible-min-height 50
+&gt         :visible-max-height 50
+&gt         :description
+&gt         (loop for d below 7
+&gt                collect
+&gt                (make-instance 'test-pane)))))
+&gt 
+&gt (capi:define-interface scroll-test-interface ()
+&gt  ()
+&gt  (:panes
+&gt   (header capi:title-pane
+&gt           :accessor header
+&gt           :text "I don't want this header to scroll vertically.")
+&gt   (big-pane capi:column-layout
+&gt             :accessor big-pane
+&gt             :description (make-test-rows)
+&gt             :y-gap 3
+&gt             :uniform-size-p nil
+&gt             :visible-max-height nil
+&gt             :visible-max-width nil
+&gt             :vertical-scroll t))
+&gt  (:layouts
+&gt   (main-layout capi:column-layout '(header big-pane )  :horizontal-scroll t))
+&gt  (:default-initargs :title "Scroll Test"
+&gt   :best-width 400
+&gt   :best-height 240))
+&gt 
+&gt (capi:display (make-instance 'scroll-test-interface))
+&gt 
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+&gt 
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>
+                  Unable to render article 14027 because of ":DEFAULT stream decoding error on 
+                  #&lt;SB-SYS:FD-STREAM for \"socket 192.168.43.216:52772, peer: 
+                  116.202.254.214:119\" {10043FBAE3}&gt: the octet sequence #(162) cannot be 
+                  decoded." error</h1>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>
+                  Unable to render article 14028 because of ":DEFAULT stream decoding error on 
+                  #&lt;SB-SYS:FD-STREAM for \"socket 192.168.43.216:52773, peer: 
+                  116.202.254.214:119\" {1004C58563}&gt: the octet sequence #(162) cannot be 
+                  decoded." error</h1>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:27 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Special vars and threads.</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Special vars and threads.</h1>
+                <pre>
+Hi all,
+ I'm hoping that someone can clear up my confusion regarding
+ special variables and threads.
+
+  My understanding is that running the following should print
+  '*my-var* is T' to standard out. I seem to think the binding
+  of *my-var* at this point will be the binding for the
+  process being created. 
+ 
+ (defvar *my-var* nil)
+
+ (defun test-it () 
+  (mp:process-run-function
+    "Test" nil
+    #'(lambda () 
+        (format #.*standard-output* "*my-var* is ~A.~%" *my-var*))))
+ 
+ (let ((*my-var* t))
+   (test-it))
+
+ The only reason I can think of is that mp:process-run-function
+ doesn't invoke the lambda form itself but puts it onto some
+ sort of stack which then schedules it to run, at which point 
+ my binding of *my-var* is not in effect.
+
+ Is this correct, and if it is then is there a way to achieve 
+ the same effect?
+  
+Thanks,
+ Sean.
+
+-- 
+"My doctor says that I have a malformed public-duty gland and a
+ natural  deficiency in moral fibre," he muttered to himself, "and
+ that I am therefore excused from saving Universes."
+ - Life, the Universe, and Everything     Douglas Adams.
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Special vars and threads.</h1>
+                 <pre>On 25 May 2005 10:58:29 +0200, Sean Ross &lt;sdr@jhb.ucs.co.za&gt wrote:
+
+&gt   My understanding is that running the following should print
+&gt   '*my-var* is T' to standard out. I seem to think the binding of
+&gt   *my-var* at this point will be the binding for the process being
+&gt   created.
+&gt  
+&gt  (defvar *my-var* nil)
+&gt
+&gt  (defun test-it () 
+&gt   (mp:process-run-function
+&gt     "Test" nil
+&gt     #'(lambda () 
+&gt         (format #.*standard-output* "*my-var* is ~A.~%" *my-var*))))
+&gt  
+&gt  (let ((*my-var* t))
+&gt    (test-it))
+
+For this to work you have to bind MP:*PROCESS-INITIAL-BINDINGS* to
+
+  (cons '(*my-var* . *my-var*) mp:*process-initial-bindings*).
+
+See Nick Levine's explanation here:
+
+  &lt;http://cl-cookbook.sourceforge.net/process.html&gt
+
+Cheers,
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Special vars and threads.</h1>
+                 <pre>At 25/05/2005 10:58, Sean Ross wrote:
+
+&gtHi all,
+&gt  I'm hoping that someone can clear up my confusion regarding
+&gt  special variables and threads.
+&gt
+&gt   My understanding is that running the following should print
+&gt   '*my-var* is T' to standard out. I seem to think the binding
+&gt   of *my-var* at this point will be the binding for the
+&gt   process being created.
+&gt
+&gt  (defvar *my-var* nil)
+&gt
+&gt  (defun test-it ()
+&gt   (mp:process-run-function
+&gt     "Test" nil
+&gt     #'(lambda ()
+&gt         (format #.*standard-output* "*my-var* is ~A.~%" *my-var*))))
+&gt
+&gt  (let ((*my-var* t))
+&gt    (test-it))
+
+
+Hello Sean,
+
+Try the following instead.
+
+First of all, eval (read-line *terminal-io*) to show the console to see the output
+
+(defun test-it ()
+   (mp:process-run-function
+     "Test" nil
+     (lambda ()
+       ;; t or *standard-output*
+       (format t "~&amp; #.*standard-output*: ~s" #.*standard-output*)
+       (format t "~&amp;*my-var* is ~A." *my-var*))))
+
+
+To output in the Output tab:
+
+(defun test-it ()
+   (let ((mp:*process-initial-bindings*
+          (append '((*standard-output* . mp:*background-standard-output*)
+                  ;(*trace-output* . mp:*background-standard-output*)
+                  ;(*error-output* . mp:*background-standard-output*)
+                    )
+                  mp:*process-initial-bindings*)))
+     (mp:process-run-function
+      "Test" nil
+      (lambda ()
+        ;; t or *standard-output*:
+        (format t "~&amp; #.*standard-output*: ~s" #.*standard-output*)
+        (format t "~&amp;*my-var* is ~A." *my-var*)))))
+
+look at the output and at mp:*process-initial-bindings* in the documentation.
+
+Francis
+
+
+
+&gt  The only reason I can think of is that mp:process-run-function
+&gt  doesn't invoke the lambda form itself but puts it onto some
+&gt  sort of stack which then schedules it to run, at which point
+&gt  my binding of *my-var* is not in effect.
+&gt
+&gt  Is this correct, and if it is then is there a way to achieve
+&gt  the same effect?
+&gt
+&gtThanks,
+&gt  Sean.
+&gt
+&gt--
+&gt"My doctor says that I have a malformed public-duty gland and a
+&gt  natural  deficiency in moral fibre," he muttered to himself, "and
+&gt  that I am therefore excused from saving Universes."
+&gt  - Life, the Universe, and Everything     Douglas Adams.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Special vars and threads.</h1>
+                 <pre>On Wed, May 25, 2005, 04:58, Sean Ross &lt;sdr@jhb.ucs.co.za&gt wrote
+&gt
+&gtHi all,
+&gt I'm hoping that someone can clear up my confusion regarding
+&gt special variables and threads.
+&gt
+&gt  My understanding is that running the following should print
+&gt  '*my-var* is T' to standard out. I seem to think the binding
+&gt  of *my-var* at this point will be the binding for the
+&gt  process being created. 
+
+I didn;t see anyone address the fundamental question so I'll give it a try.
+
+
+&gt (defvar *my-var* nil)
+&gt
+&gt (defun test-it () 
+&gt  (mp:process-run-function
+&gt    "Test" nil
+&gt    #'(lambda () 
+&gt        (format #.*standard-output* "*my-var* is ~A.~%" *my-var*))))
+&gt 
+&gt (let ((*my-var* t))
+&gt   (test-it))
+&gt
+&gt The only reason I can think of is that mp:process-run-function
+&gt doesn't invoke the lambda form itself but puts it onto some
+&gt sort of stack which then schedules it to run, at which point 
+&gt my binding of *my-var* is not in effect.
+
+That's right.  The LET etablishes a dynamic binding for *MY-VAR* in the 
+thread that executes it, presumably in this case the thread of the lisp listener.
+
+PROCESS-RUN-FUNCTION starts a new thread.  It is this new thread that executes your anonymous lambda.  The only binding of *MY-VAR* visible
+to that thread is the global one.
+
+&gt The only reason I can think of is that mp:process-run-function
+&gt doesn't invoke the lambda form itself but puts it onto some
+&gt sort of stack which then schedules it to run, at which point 
+&gt my binding of *my-var* is not in effect.
+
+Correct.  What else could you have imagined it doing?
+
+Typically if one has local or dynamic state which one wants to pass 
+to code which will run in a separate thread, one uses the process arguments
+mecanism provided by PROCESS-RUN-FUNCTION, e.g.
+
+(defun test-it () 
+ (mp:process-run-function
+   "Test" nil
+   #'(lambda (*my-var*) 
+       (format #.*standard-output* "*my-var* is ~A.~%" *my-var*))
+    *my-var*))
+
+Note that because the anonymous lambda sets up its own dynamic binding
+for *MY-VAR*, any changes to its value made within that dynamic context will not be visible outside it, e.g. in other threads.
+
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:48 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

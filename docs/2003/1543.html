@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>[Unable to parse email subject]</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>
+                 Unable to render article 1543 because of ":DEFAULT stream decoding error on 
+                 #&lt;SB-SYS:FD-STREAM for \"socket 192.168.43.216:53440, peer: 
+                 116.202.254.214:119\" {1003966823}&gt: the octet sequence #(128) cannot be 
+                 decoded." error</h1>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LW (OS X) questions</h1>
+                 <pre>
+
+   Our research team here at Sibelius Academy, Finland, has been 
+   developing a visual programming language called PWGL (based on Lisp and 
+   OpenGL) for a few years now. We have also developed a music notation 
+   program called ENP (also with LISP and OpenGL), a musical constraint 
+   satisfaction programs, a software synthesis package, etc. All having a 
+   Lisp based GUI and high level control. We have been MCL users for over 
+   a decade now and only recently switched from MCL to LispWorks in OS X. 
+   So far we have been concentrating on learning the new Lisp-system and 
+   porting our existing code to LispWorks. Things are shaping up quite 
+   nicely at the moment. We already have pretty much all the code ported. 
+   There are, however, some questions that come to mind.
+
+   1) About key gestures. Here's some example code to I have tried to run:
+
+	   defclass type-in-pane(capi:output-pane)
+	     ())
+
+	   (capi:define-interface interface-event-handler-mixin ()
+	     ()
+	     (:panes (type-in-pane type-in-pane
+			    :min-width 200
+			    :min-height 100
+			    :input-model '((:character 
+   capi-interface-key-event-handler))  ; or (:key :press)
+			    :reader type-in-pane)))
+
+	   (defmethod capi-interface-key-event-handler((self type-in-pane) x y 
+   char)
+	     (capi:display-tooltip self :x x :y y :text (format () "You 
+   typed:~%~s" char))
+	     (print char))
+
+	   (capi:display (make-instance 'interface-event-handler-mixin))
+
+
+   Should the code above print (and give tooltip) for every character 
+   typed? 
+
+Yes. 
+
+         Only ones I keep getting are some special keys (e.g., Return, 
+   Escape, ETX etc.). I have not seen any, for example, alphabetic 
+   characters yet, unless I hold down the &lt;Control&gt key.
+   If this is the correct behaviour what would be the method to get an 
+   individual key press (say pressing just 'a') to get through?
+
+It's a bug and will be patched.
+
+However we want to move away from :CHARACTER in the input-model (since
+the character bit attributes used to reprsent modifers are not
+portable) and the new approach will be the currently undocumented
+:GESTURE-SPEC which portable supports modifiers.
+
+This works for me in LispWorks for Macintosh 4.3.6:
+
+(capi:define-interface interface-event-handler-mixin2 ()
+  ()
+  (:panes (type-in-pane type-in-pane
+                        :min-width 200
+                        :min-height 100
+                        :input-model 
+                        '((:gesture-spec
+                           capi-interface-key-event-handler2))  ; or (:key :press)
+                        :reader type-in-pane)))
+
+(defmethod capi-interface-key-event-handler2((self type-in-pane) x y 
+                                            gspec)
+  (let ((charstring (with-output-to-string (ss) 
+                      (sys::print-pretty-gesture-spec gspec ss))))
+    (capi:display-tooltip self :x x :y y 
+                          :text (format () "You typed:~%~a" charstring))
+    (print charstring)))
+
+(capi:display (make-instance 'interface-event-handler-mixin2))
+
+
+   2) There are some cases in our software that we need to know about the 
+   size and position of some windows that are by default hidden. For 
+   example:
+
+	   (defparameter *test-interface* (make-instance 'capi:interface :width 
+   100 :height 200))
+
+	   (multiple-value-bind (x y w h)
+	       (capi:top-level-interface-geometry *test-interface*))
+
+   ---------- ERROR -----------
+   No applicable methods for #&lt;STANDARD-GENERIC-FUNCTION
+   CAPI-LIBRARY:REPRESENTATION-INTERFACE-GEOMETRY
+   10330822&gt with args (NIL)
+   ----------------------------
+
+   What would be the proper way to get the position and size of a window 
+   that is not 'displayed'?
+
+The terms 'hidden' and 'not displayed' are not really equivalent.
+Here's how I'd do it:
+
+(defparameter *test-interface* 
+  (capi:display (make-instance 'capi:interface 
+                               :width 100 :height 200 
+                               :display-state :hidden)))
+
+(capi:execute-with-interface 
+     *test-interface*
+     #'(lambda (interface)
+         (multiple-value-bind (x y w h)
+            (capi:top-level-interface-geometry interface)
+           (print (list x y w h ))))
+     *test-interface*)
+
+(capi:execute-with-interface *test-interface*
+       #'(setf capi:top-level-interface-display-state) 
+       :normal *test-interface*)
+
+
+   3) (capi:prompt-for-directory "Choose Directory:") returns the pathname 
+   correctly when called from a Listener window. When I evaluate this in 
+   an Editor, however, it returns NIL?
+
+It looks like this is problem in Cocoa (or the way the we are using
+it) when the dialog is standalone rather than dropping down from a
+window. It should work provided that there is a window for the dialog
+to drop down from.
+
+   4) Also (using Finnish keyboard layout) it is impossible to save a file 
+   with a euro sign in it! ERROR: #\ is not of type BASE-CHAR.
+
+This is caused by the default external format of the buffer being
+:LATIN-1.  You can switch to another encoding e.g. :MACOS-ROMAN,
+:UNICODE, or :UTF-8, by configuring LispWorks as follows:
+
+;; This makes the editor choose UTF-8 when reading files
+(setf (editor:variable-value "Input Format Default")
+      ':utf-8)
+
+;; This makes the editor write UTF-8 LF-terminated files
+(setf (editor:variable-value "Output Format Default")
+      '(:utf-8 :eol-style :lf))
+
+You can also use Meta+X Set External Format in the editor to change
+the setting for the current buffer.
+
+
+   5) And finally... if you type a colon (:) in an editor as the first 
+   character the LW seems to freeze?
+
+That's a known bug, will be patched.
+
+   Sorry about the lengthy message ;-)
+
+
+   Kind regards,
+
+   Mika Kuuskankare
+
+   BTW. Dave Fox, I recently did seem to have trouble sending a bug report 
+   (I keep getting Mail undeliverable messages) so there are some things 
+   here that I tried to make a bug report of but failed.
+
+We are not aware of any problem receiving mail at
+lisp-support@xanalys.com (and we get plenty of it). Do show me the
+bounce message if it looks like something went wrong at our end.
+
+
+--
+Dave Fox			
+
+Xanalys                 http://www.lispworks.com
+Compass House
+Vision Park, Chivers Way
+Histon
+Cambridge, CB4 9AD
+England
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:54 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

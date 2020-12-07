@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>LW bytecode</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>LW bytecode</h1>
+                <pre>Folks,
+
+Please correct my understanding of the following points:
+
+1. When I compile from the REPL then LW produces bytecode that is
+saved somewhere in memory.
+
+2. When I compile-file then LW produces a file of bytecode (NFASL).
+
+3. Upon delivery LW converts my bytecode into processor instructions.
+
+4. If my compiled code runs fast in the REPL then it should run even
+faster after it's delivered.
+
+Is my understanding correct?
+
+    Thanks, Joel
+
+-- 
+Tenerife &gt Canary Islands &gt Spain
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LW bytecode</h1>
+                 <p>
+                  Unable to parse email body. Email id is 3422
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LW bytecode</h1>
+                 <pre>On Fri, 14 Jan 2005 19:26:55 +0000, joel reymont &lt;joelr1@gmail.com&gt wrote:
+
+&gt Please correct my understanding of the following points:
+&gt
+&gt 1. When I compile from the REPL then LW produces bytecode that is
+&gt saved somewhere in memory.
+&gt
+&gt 2. When I compile-file then LW produces a file of bytecode (NFASL).
+&gt
+&gt 3. Upon delivery LW converts my bytecode into processor
+&gt instructions.
+&gt
+&gt 4. If my compiled code runs fast in the REPL then it should run even
+&gt faster after it's delivered.
+&gt
+&gt Is my understanding correct?
+
+No, there is no bytecode involved, compilation always results in
+machine code.  Delivery just means that the resulting Lisp image is
+massaged into something that the operating systems views as a
+"stand-alone" executable.  A delivered application will generally not
+run any faster than a compiled application executed from the IDE.
+
+  CL-USER 1 &gt (defun plus (x y)
+                (declare (optimize speed)
+                         (fixnum x y))
+                (+ x y))
+  PLUS
+
+  CL-USER 2 &gt (compile 'plus)
+  PLUS
+  NIL
+  NIL
+
+  CL-USER 3 &gt (disassemble 'plus)
+  ; Loading fasl file C:\Program Files\Xanalys\LispWorks\lib\4-4-0-0\load-on-demand\pcl\util\disass.fsl
+  ; Loading fasl file C:\Program Files\Xanalys\LispWorks\lib\4-4-0-0\load-on-demand\pcl\memory\findptr.fsl
+  206ADFEA:
+         0:      3B25BC150020     cmp   esp, [200015BC]  ; T
+         6:      7614             jbe   L1
+         8:      80FD02           cmpb  ch, 2
+        11:      750F             jne   L1
+        13:      55               push  ebp
+        14:      89E5             move  ebp, esp
+        16:      8B7D08           move  edi, [ebp+8]
+        19:      897D08           move  [ebp+8], edi
+        22:      C9               leave 
+        23:      E9F4CA3200       jmp   209DAAFA         ; #&lt;function SYSTEM:+$FIXNUM 209DAAFA&gt
+  L1:   28:      E877A899FF       call  20048882         ; #&lt;function 20048882&gt
+        33:      90               nop   
+  NIL
+
+HTH,
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LW bytecode</h1>
+                 <pre>[...]
+    JR&gt 1. When I compile from the REPL then LW produces bytecode that
+    JR&gt is saved somewhere in memory.
+
+No, it produces native code.
+
+    JR&gt 2. When I compile-file then LW produces a file of bytecode
+    JR&gt (NFASL).
+
+It saves native code + possibly some housekeeping stuff.
+
+    JR&gt 3. Upon delivery LW converts my bytecode into processor
+    JR&gt instructions.
+
+No, compiled code doesn't change, but now it is together with the runtime 
+and the library in one file.
+
+    JR&gt 4. If my compiled code runs fast in the REPL then it should
+    JR&gt run even faster after it's delivered.
+
+No, not in the sense you indicate.  One could, perhaps, come up with
+rare cases where speed is measuably improved because of the way things
+end up getting laid out in memory (think caches and TLBs and such).
+
+    JR&gt Is my understanding correct?
+
+It wasn't, but it was consistent.  Why did you think bytecodes were 
+involved?
+
+cheers,
+
+BM
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LW bytecode</h1>
+                 <pre>On Fri, 14 Jan 2005 22:45:00 +0200, Bulent Murtezaoglu &lt;bm@acm.org&gt wrote:
+&gt     JR&gt Is my understanding correct?
+&gt 
+&gt It wasn't, but it was consistent.  Why did you think bytecodes were
+&gt involved?
+
+I just thought it would be easier for LW to keep bytecodes around as
+opposed to native code. In any case, thank you guys for your in-depth
+explanations!
+
+    Joel
+
+-- 
+Tenerife &gt Canary Islands &gt Spain
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:49 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

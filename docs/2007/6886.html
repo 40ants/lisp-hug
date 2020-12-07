@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>RE: FLI and delivery</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>RE: FLI and delivery</h1>
+                <pre>
+&gt ...
+&gt I encounter the following error when delivering at level 2
+&gt 
+&gt Error: Failed to find address for external symbol "ServiceMain".
+&gt 
+&gt I guess it is caused by the definition
+&gt 
+&gt (fli:define-foreign-callable ("ServiceMain" :encode :source
+&gt :result-type :void)
+&gt     ((argc dword)
+&gt      (argv (:pointer :pointer)))
+&gt ...
+&gt 
+&gt (deliver 'ntservice::standard-main "mysrv.exe" 2
+&gt          :keep-symbols '(|%FOREIGN-CALLABLE/ServiceMain|
+&gt service-control-handler servicemain |ServiceMain| "ServiceMain")
+&gt          :interface :capi)
+&gt 
+&gt but none of the :keep-symbols helps.
+&gt 
+&gt ...
+
+I'm sorry - the solution is quiet simple:
+
+(deliver 'ntservice::standard-main "mysrv.exe" 5
+         :multiprocessing t
+         :keep-symbols '(ntservice::|%FOREIGN-CALLABLE/ServiceMain|))
+
+makes the app working and utterly small (3MB) (I just forgot to mention the package).
+
+Rem: This is the most compact working delivery command for my version of ntservice.lisp
+
+
+Andreas
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: FLI and delivery</h1>
+                 <p>
+                  Unable to parse email body. Email id is 6887
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>AW: FLI and delivery</h1>
+                  <pre>
+&gt &gt &gt ...
+&gt &gt &gt I encounter the following error when delivering at level 2
+&gt &gt &gt 
+&gt &gt &gt Error: Failed to find address for external symbol "ServiceMain".
+&gt &gt &gt 
+&gt &gt &gt I guess it is caused by the definition
+&gt &gt &gt 
+&gt &gt &gt (fli:define-foreign-callable ("ServiceMain" :encode :source 
+&gt &gt &gt :result-type :void)
+&gt &gt &gt     ((argc dword)
+&gt &gt &gt      (argv (:pointer :pointer)))
+&gt &gt &gt ...
+&gt &gt &gt 
+&gt &gt &gt (deliver 'ntservice::standard-main "mysrv.exe" 2
+&gt &gt &gt          :keep-symbols '(|%FOREIGN-CALLABLE/ServiceMain| 
+&gt &gt &gt service-control-handler servicemain |ServiceMain| "ServiceMain")
+&gt &gt &gt          :interface :capi)
+&gt &gt &gt 
+&gt &gt &gt but none of the :keep-symbols helps.
+&gt &gt &gt 
+&gt &gt &gt ...
+&gt &gt 
+&gt &gt I'm sorry - the solution is quiet simple:
+&gt &gt 
+&gt &gt (deliver 'ntservice::standard-main "mysrv.exe" 5
+&gt &gt          :multiprocessing t
+&gt &gt          :keep-symbols 
+&gt '(ntservice::|%FOREIGN-CALLABLE/ServiceMain|))
+&gt &gt 
+&gt &gt makes the app working and utterly small (3MB) (I just forgot to 
+&gt &gt mention the package).
+&gt 
+&gt I suggest using a symbol for the name in cases where the 
+&gt foreign callable is not passed in the :dll-exports option to deliver:
+&gt 
+&gt (fli:define-foreign-callable (service-main :result-type :void)
+&gt     ((argc dword)
+&gt      (argv (:pointer :pointer)))
+&gt ...
+&gt 
+&gt The call to make-pointer will keep the symbol automatically:
+&gt 
+&gt (fli:make-pointer :symbol-name 'service-main :functionp t)
+&gt 
+&gt -- 
+&gt Martin Simmons
+&gt LispWorks Ltd
+&gt http://www.lispworks.com/
+&gt 
+
+Thanks for the hint.
+
+I have to use the symbol |ServiceMain|. I guess because the foreign name accessed by the Service Control Manager is case sensitive.
+However |ServiceMain| works w/o any :keep-symbols during delivery.
+
+Andreas
+
+
+</pre>
+                 </article>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>Re: AW: FLI and delivery</h1>
+                   <p>
+                    Unable to parse email body. Email id is 6889
+                  </article>
+                  <section class=tree>
+                   <article class=email>
+                    <h1>AW: AW: FLI and delivery</h1>
+                    <pre>
+&gt &gt &gt &gt &gt ...
+&gt &gt &gt &gt &gt I encounter the following error when delivering at level 2
+&gt &gt &gt &gt &gt 
+&gt &gt &gt &gt &gt Error: Failed to find address for external symbol 
+&gt "ServiceMain".
+&gt &gt &gt &gt &gt 
+&gt &gt &gt &gt &gt I guess it is caused by the definition
+&gt &gt &gt &gt &gt 
+&gt &gt &gt &gt &gt (fli:define-foreign-callable ("ServiceMain" :encode :source
+&gt &gt &gt &gt &gt :result-type :void)
+&gt &gt &gt &gt &gt     ((argc dword)
+&gt &gt &gt &gt &gt      (argv (:pointer :pointer)))
+&gt &gt &gt &gt &gt ...
+&gt &gt &gt &gt &gt 
+&gt &gt &gt &gt &gt (deliver 'ntservice::standard-main "mysrv.exe" 2
+&gt &gt &gt &gt &gt          :keep-symbols '(|%FOREIGN-CALLABLE/ServiceMain|
+&gt &gt &gt &gt &gt service-control-handler servicemain |ServiceMain| 
+&gt "ServiceMain")
+&gt &gt &gt &gt &gt          :interface :capi)
+&gt &gt &gt &gt &gt 
+&gt &gt &gt &gt &gt but none of the :keep-symbols helps.
+&gt &gt &gt &gt &gt 
+&gt &gt &gt &gt &gt ...
+&gt &gt &gt &gt 
+&gt &gt &gt &gt I'm sorry - the solution is quiet simple:
+&gt &gt &gt &gt 
+&gt &gt &gt &gt (deliver 'ntservice::standard-main "mysrv.exe" 5
+&gt &gt &gt &gt          :multiprocessing t
+&gt &gt &gt &gt          :keep-symbols
+&gt &gt &gt '(ntservice::|%FOREIGN-CALLABLE/ServiceMain|))
+&gt &gt &gt &gt 
+&gt &gt &gt &gt makes the app working and utterly small (3MB) (I just forgot to
+&gt &gt &gt &gt mention the package).
+&gt &gt &gt 
+&gt &gt &gt I suggest using a symbol for the name in cases where the
+&gt &gt &gt foreign callable is not passed in the :dll-exports option 
+&gt to deliver:
+&gt &gt &gt 
+&gt &gt &gt (fli:define-foreign-callable (service-main :result-type :void)
+&gt &gt &gt     ((argc dword)
+&gt &gt &gt      (argv (:pointer :pointer)))
+&gt &gt &gt ...
+&gt &gt &gt 
+&gt &gt &gt The call to make-pointer will keep the symbol automatically:
+&gt &gt &gt 
+&gt &gt &gt (fli:make-pointer :symbol-name 'service-main :functionp t)
+&gt &gt &gt 
+&gt &gt &gt --
+&gt &gt &gt Martin Simmons
+&gt &gt &gt LispWorks Ltd
+&gt &gt &gt http://www.lispworks.com/
+&gt &gt &gt 
+&gt &gt 
+&gt &gt Thanks for the hint.
+&gt &gt 
+&gt &gt I have to use the symbol |ServiceMain|. I guess because the foreign 
+&gt &gt name accessed by the Service Control Manager is case sensitive. 
+&gt &gt However |ServiceMain| works w/o any :keep-symbols during delivery.
+&gt 
+&gt That is odd, because the Windows SCM doesn't know about the 
+&gt name of the ServiceMain function AFAIK.  For example, in 
+&gt http://msdn2.microsoft.com/en-us/library/ms687414.aspx it is 
+&gt called SvcMain. The only requirement is to call 
+&gt StartServiceCtrlDispatcher with the correct function pointer 
+&gt in the table.
+&gt 
+&gt Did you change all of the calls to fli:make-pointer to use 
+&gt 'service-main and also remove the :encode :source from 
+&gt fli:define-foreign-callable?
+&gt 
+&gt ...
+
+Sorry, my fault, of course,
+I didn't understand the meaning of :encode :source and was mislead by the existing source code.
+Now after removal of :encode :source, service-main is just fine.
+
+Thanks.
+
+Andreas
+
+
+</pre>
+                   </article>
+                  </section>
+                 </section>
+                </section>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:42 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

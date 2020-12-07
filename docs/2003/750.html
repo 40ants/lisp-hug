@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>capi bounding rects question</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>capi bounding rects question</h1>
+                <pre>I'm building a simple 2D graphics editor using CAPI, using pinboard objects.  
+I noticed that many of my objects would not redraw correctly.  For example, 
+when I slide (using the mouse) another window over the pinboard and slide it 
+off, the damaged objects sometimes do not redraw at all.  It looks like I'm 
+not causing the bounding rect of capi objects to be set correctly, or that I 
+have a basic misunderstanding somewhere.
+
+Here's a lump of code that appears to demonstrate my problem (a slightly 
+modified version of example code in the manual).  Test1 and test2 cause two 
+3x3 grids of rectangles to be drawn.  The test2 rectangles are the size of 
+the "bounding box" (to my current understanding) and the test1 rectangles are 
+slightly smaller.  If you grab, say, the Listener window and slide it slowly 
+over these two windows, the test1 rectangles redraw, whereas the test2 
+rectangles lose parts of their sides (sometimes).  I get the same results in 
+LWW and LWL (4.2.7).  I expected the test2 rectangles to redraw fully (since 
+their edges are coincident with the "bounding box" and the damage 
+rectangles).
+
+Can anyone spot the bug in my understanding or my code?
+
+thanx
+pt
+
+
+(defclass small-rectangle (capi:drawn-pinboard-object)
+  ((id :accessor id :initarg :id :initform nil))
+  (:default-initargs
+   :display-callback 'draw-small-rectangle
+   :visible-min-width 30
+   :visible-min-height 30))
+   
+
+(defun draw-small-rectangle (gp pane x y w h)
+  (capi:with-geometry pane
+    (gp:draw-rectangle gp
+                       (+ 1 capi:%x%)
+                       (+ 1 capi:%y%)
+                       (- capi:%width% 2)
+                       (- capi:%height% 2))))
+
+(defclass big-rectangle (capi:drawn-pinboard-object)
+  ((id :accessor id :initarg :id :initform nil))
+  (:default-initargs
+   :display-callback 'draw-big-rectangle
+   :visible-min-width 30
+   :visible-min-height 30))
+   
+
+(defun draw-big-rectangle (gp pane x y w h)
+  (capi:with-geometry pane
+    (gp:draw-rectangle gp capi:%x% capi:%y%
+                       capi:%width% capi:%height%)))
+
+(defun test1 ()
+  (capi:contain
+   (make-instance 'capi:grid-layout
+                  :description (loop for i below 9
+                                     collect
+                                     (make-instance 'small-rectangle))
+                  :columns 3)))
+
+(defun test2 ()
+  (capi:contain
+   (make-instance 'capi:grid-layout
+                  :description (loop for i below 9
+                                     collect
+                                     (make-instance 'big-rectangle))
+                  :columns 3)))
+  
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: capi bounding rects question</h1>
+                 <pre>
+I had the same problem then discovered I had to explicitly provide :x, :y,
+:width
+and :height initargs when constructing drawn-pinboard-objects. I suspect my
+original
+expectation was from having used CLIM previously.
+
+Greg
+
+----- Original Message -----
+From: "Paul Tarvydas" &lt;tarvydas@attcanada.ca&gt
+To: &lt;lisp-hug@xanalys.com&gt
+Sent: Sunday, January 05, 2003 2:32 PM
+Subject: capi bounding rects question
+
+
+&gt I'm building a simple 2D graphics editor using CAPI, using pinboard
+objects.
+&gt I noticed that many of my objects would not redraw correctly.  For
+example,
+&gt when I slide (using the mouse) another window over the pinboard and slide
+it
+&gt off, the damaged objects sometimes do not redraw at all.  It looks like
+I'm
+&gt not causing the bounding rect of capi objects to be set correctly, or that
+I
+&gt have a basic misunderstanding somewhere.
+&gt
+&gt Here's a lump of code that appears to demonstrate my problem (a slightly
+&gt modified version of example code in the manual).  Test1 and test2 cause
+two
+&gt 3x3 grids of rectangles to be drawn.  The test2 rectangles are the size of
+&gt the "bounding box" (to my current understanding) and the test1 rectangles
+are
+&gt slightly smaller.  If you grab, say, the Listener window and slide it
+slowly
+&gt over these two windows, the test1 rectangles redraw, whereas the test2
+&gt rectangles lose parts of their sides (sometimes).  I get the same results
+in
+&gt LWW and LWL (4.2.7).  I expected the test2 rectangles to redraw fully
+(since
+&gt their edges are coincident with the "bounding box" and the damage
+&gt rectangles).
+&gt
+&gt Can anyone spot the bug in my understanding or my code?
+&gt
+&gt thanx
+&gt pt
+&gt
+&gt
+&gt (defclass small-rectangle (capi:drawn-pinboard-object)
+&gt   ((id :accessor id :initarg :id :initform nil))
+&gt   (:default-initargs
+&gt    :display-callback 'draw-small-rectangle
+&gt    :visible-min-width 30
+&gt    :visible-min-height 30))
+&gt
+&gt
+&gt (defun draw-small-rectangle (gp pane x y w h)
+&gt   (capi:with-geometry pane
+&gt     (gp:draw-rectangle gp
+&gt                        (+ 1 capi:%x%)
+&gt                        (+ 1 capi:%y%)
+&gt                        (- capi:%width% 2)
+&gt                        (- capi:%height% 2))))
+&gt
+&gt (defclass big-rectangle (capi:drawn-pinboard-object)
+&gt   ((id :accessor id :initarg :id :initform nil))
+&gt   (:default-initargs
+&gt    :display-callback 'draw-big-rectangle
+&gt    :visible-min-width 30
+&gt    :visible-min-height 30))
+&gt
+&gt
+&gt (defun draw-big-rectangle (gp pane x y w h)
+&gt   (capi:with-geometry pane
+&gt     (gp:draw-rectangle gp capi:%x% capi:%y%
+&gt                        capi:%width% capi:%height%)))
+&gt
+&gt (defun test1 ()
+&gt   (capi:contain
+&gt    (make-instance 'capi:grid-layout
+&gt                   :description (loop for i below 9
+&gt                                      collect
+&gt                                      (make-instance 'small-rectangle))
+&gt                   :columns 3)))
+&gt
+&gt (defun test2 ()
+&gt   (capi:contain
+&gt    (make-instance 'capi:grid-layout
+&gt                   :description (loop for i below 9
+&gt                                      collect
+&gt                                      (make-instance 'big-rectangle))
+&gt                   :columns 3)))
+&gt
+&gt
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: capi bounding rects question</h1>
+                 <pre>On Sun, 2003-01-05 at 19:32, Paul Tarvydas wrote:
+&gt I'm building a simple 2D graphics editor using CAPI, using pinboard objects.  
+&gt I noticed that many of my objects would not redraw correctly.  For example, 
+&gt when I slide (using the mouse) another window over the pinboard and slide it 
+&gt off, the damaged objects sometimes do not redraw at all.  It looks like I'm 
+&gt not causing the bounding rect of capi objects to be set correctly, or that I 
+&gt have a basic misunderstanding somewhere.
+&gt 
+&gt Here's a lump of code that appears to demonstrate my problem (a slightly 
+&gt modified version of example code in the manual).  Test1 and test2 cause two 
+&gt 3x3 grids of rectangles to be drawn.  The test2 rectangles are the size of 
+&gt the "bounding box" (to my current understanding) and the test1 rectangles are 
+&gt slightly smaller.  If you grab, say, the Listener window and slide it slowly 
+&gt over these two windows, the test1 rectangles redraw, whereas the test2 
+&gt rectangles lose parts of their sides (sometimes).  I get the same results in 
+
+I think it happens because you cannot use every pixel on the border of
+the pane. When the mouse goes over a pane it is highlighted by drawing a
+frame inside the pane and not outside. In order to user a smaller part
+of the pane you may use a macro like this one:
+
+(defmacro my-with-geometry (pane &amp;body body)
+  `(capi:with-geometry ,pane 
+     (progn 
+       (let ((capi:%x% (+ 1 capi:%x%))
+             (capi:%y% (+ 1 capi:%y%))
+             (capi:%width% (- capi:%width% 2))
+             (capi:%height% (- capi:%height% 2)))
+         ,@body))))
+
+but I am not sure this is what you want to do. 
+The right way would be to prevent the highlighting of the pane but I
+don't know how to do that.
+
+Thibault
+
+&gt LWW and LWL (4.2.7).  I expected the test2 rectangles to redraw fully (since 
+&gt their edges are coincident with the "bounding box" and the damage 
+&gt rectangles).
+&gt 
+&gt Can anyone spot the bug in my understanding or my code?
+&gt 
+&gt thanx
+&gt pt
+&gt 
+
+
+-- 
+Thibault Langlois &lt;tl@inesc-id.pt&gt
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: capi bounding rects question</h1>
+                 <pre>Hello Paul,
+
+| I'm building a simple 2D graphics editor using CAPI, using pinboard
+| objects.  I noticed that many of my objects would not redraw correctly.
+| For example, when I slide (using the mouse) another window over the
+| pinboard and slide it off, the damaged objects sometimes do not redraw
+| at all.  It looks like I'm not causing the bounding rect of capi
+| objects to be set correctly, or that I have a basic misunderstanding
+| somewhere.
+|
+| Here's a lump of code that appears to demonstrate my problem (a
+| slightly modified version of example code in the manual).  Test1 and
+| test2 cause two 3x3 grids of rectangles to be drawn.  The test2
+| rectangles are the size of the "bounding box" (to my current
+| understanding) and the test1 rectangles are slightly smaller.  If you
+| grab, say, the Listener window and slide it slowly over these two
+| windows, the test1 rectangles redraw, whereas the test2 rectangles lose
+| parts of their sides (sometimes).  I get the same results in LWW and
+| LWL (4.2.7).  I expected the test2 rectangles to redraw fully (since
+| their edges are coincident with the "bounding box" and the damage
+| rectangles).
+|
+| Can anyone spot the bug in my understanding or my code?
+|...snip...|
+
+In my LWW 4.2.5, both of them sometimes get redrawn correctly, but sometimes
+look damaged on depressing the mouse button. Later, on moving the mouse
+pointer they are completely restored.
+
+I consider this a CAPI feature of redrawing in a background process.
+---
+Sincerely,
+Dmitri Ivanov
+www.aha.ru/~divanov
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:57 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

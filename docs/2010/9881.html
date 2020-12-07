@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>CAPI: tab-layout / switchable-layout switching speed</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>CAPI: tab-layout / switchable-layout switching speed</h1>
+                <pre>
+I'm working on a data-entry application which has a layout of moderate 
+complexity.  I've been trying to track down an issue with 
+slower-than-expected switching speeds in tab- and switchable- layouts 
+which occurs on LWF6 (motif) and LWW6 (and LWF51).
+
+The current scheme involves a tab-layout (switchable mode) with each 
+visible child being an interface containing a switchable-layout.  The 
+switchable layouts have scrolling disabled; the children they display 
+are simple-layouts with scrolling enabled.
+
+Switching between switchable-layout children can be slow (1-4s).  With 
+:combine-child-constraints t, switching between any two tabs can also be 
+slow (1-10s).
+
+I profiled the case of switching between the same two switchable-layout 
+children within a particular tab (increasing the total number of 
+elements each time).  The call counts for capi:map-pane-children and 
+capi::set-element-parent were very high (results for LWW shown; 
+:combine-child-constraints t passed to tab-layout and all 
+switchable-layouts):
+
+1539 TOTAL ELEMENTS (0 grids added):
+
+Cumulative profile summary
+Symbol                            called  profile   (%)      top   (%)
+(METHOD
+  CAPI:MAP-PANE-CHILDREN
+  (CAPI:LAYOUT T))                  54489      263 ( 26)        3 (  0)
+CAPI:EXECUTE-WITH-INTERFACE            8      138 ( 14)        0 (  0)
+(METHOD
+  CAPI::SET-ELEMENT-PARENT
+  (CAPI::BASIC-ELEMENT T))         171306      134 ( 13)        0 (  0)
+
+1569 TOTAL ELEMENTS (1 grid added):
+
+Cumulative profile summary
+Symbol                            called  profile   (%)      top   (%)
+(METHOD
+  CAPI:MAP-PANE-CHILDREN
+  (CAPI:LAYOUT T))                 168225      735 ( 74)       12 (  1)
+(METHOD
+  CAPI::SET-ELEMENT-PARENT
+  (CAPI::BASIC-ELEMENT T))         769834      356 ( 36)        5 (  0)
+CAPI:EXECUTE-WITH-INTERFACE            7      225 ( 22)        0 (  0)
+
+1839 TOTAL ELEMENTS (10 grids added):
+
+Cumulative profile summary
+Symbol                            called  profile   (%)      top   (%)
+(METHOD
+  CAPI:MAP-PANE-CHILDREN
+  (CAPI:LAYOUT T))                1191849     6074 (607)      109 ( 11)
+(METHOD
+  CAPI::SET-ELEMENT-PARENT
+  (CAPI::BASIC-ELEMENT T))        6156586     3013 (301)       28 (  3)
+CAPI:EXECUTE-WITH-INTERFACE            7     1398 (140)        0 (  0)
+
+
+"Total elements" means the result of the following form:
+
+  (let ((count 0))
+    (capi:map-pane-descendant-children
+     *the-toplevel-interface*
+     (lambda (c) (incf count)))
+    count)
+
+"Adding grids" consisted of clicking a button inside one of the 
+displayed switchable-layout children (same one each time).  The 
+selection-callback of the button adds an instance of a grid-layout 
+subclass containing 29 built-in CAPI items and invalidates the pane 
+constraints of each parent above it (up to the switchable-layout child 
+which is the ancestor of the button).
+
+The profiled activity consisted of switching once (back and forth a 
+single time) between two switchable children of a switchable layout (via 
+mouse-click).
+
+Profiling was configured as follows:
+
+  (progn
+      (hcl:set-up-profiler :packages :all
+                           :style :list
+                           :call-counter t)
+      (hcl:do-profiling :processes (slot-value *the-toplevel-interface*
+                                               'capi::process)
+                        :sleep 10))
+
+
+Has anyone experienced similar slow switching behavior and/or similar 
+exponential blowup behavior?
+
+I assume I've overlooked a pitfall which would be obvious to someone 
+better versed in CAPI.  I would appreciate any and all advice anyone 
+might have on this matter.
+
+
+Thanks in advance,
+
+
+Mike Watters
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: CAPI: tab-layout / switchable-layout switching speed</h1>
+                 <p>
+                  Unable to parse email body. Email id is 9882
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:36 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

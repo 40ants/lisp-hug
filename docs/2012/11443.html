@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>CAPI dialogs and multiprocessing</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>CAPI dialogs and multiprocessing</h1>
+                <pre>
+Hi!
+
+I have a CAPI dialog which performs some network operations when a button is clicked. Since this can take a while to finish, I want to show some visual feedback to the user, for example disable the button just clicked.
+
+(defun send-callback (interface)
+  (setf (capi:simple-pane-enabled (send-button interface)) nil)
+  … do network stuff ...
+  (setf (capi:simple-pane-enabled (send-button interface)) t))
+
+The problem is that the CAPI thread is busy during the network request, and the updates to the interface never become visible.
+
+I've tried to run the network request in a thread:
+
+(mp:process-run-function "Sending data…" nil
+     #'(lambda ()
+    … do network stuff …
+          (capi:execute-with-interface interface #'(lambda ()  (setf (capi:simple-pane-enabled (send-button interface)) t)))
+
+But this makes the program lock, probably a thread deadlock.
+
+Any suggestions?
+
+Regards
+Erik
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: CAPI dialogs and multiprocessing</h1>
+                 <pre>
+Hi Erik!
+
+Are you using a function like mp:process-wait just after launching the thread?
+I am trying to understand why the CAPI process would block while the other process is running.
+
+On a different subject, I thought you might want to give the possibility to cancel the network operation and account for possible errors, or your button would never become enabled again.  For this, you might want to call (setf capi:simple-pane-enabled) in a function called by a cleanup handler (setup with mp:ensure-process-cleanup).  Maybe you already thought about this, but I believed it was worth letting you know.
+
+
+Best Regards,
+Camille
+
+
+On Jan 30, 2012, at 2:17 PM, Erik Ronström wrote:
+
+&gt 
+&gt Hi!
+&gt 
+&gt I have a CAPI dialog which performs some network operations when a button is clicked. Since this can take a while to finish, I want to show some visual feedback to the user, for example disable the button just clicked.
+&gt 
+&gt (defun send-callback (interface)
+&gt  (setf (capi:simple-pane-enabled (send-button interface)) nil)
+&gt  … do network stuff ...
+&gt  (setf (capi:simple-pane-enabled (send-button interface)) t))
+&gt 
+&gt The problem is that the CAPI thread is busy during the network request, and the updates to the interface never become visible.
+&gt 
+&gt I've tried to run the network request in a thread:
+&gt 
+&gt (mp:process-run-function "Sending data…" nil
+&gt     #'(lambda ()
+&gt    … do network stuff …
+&gt          (capi:execute-with-interface interface #'(lambda ()  (setf (capi:simple-pane-enabled (send-button interface)) t)))
+&gt 
+&gt But this makes the program lock, probably a thread deadlock.
+&gt 
+&gt Any suggestions?
+&gt 
+&gt Regards
+&gt Erik
+&gt 
+&gt 
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: CAPI dialogs and multiprocessing</h1>
+                 <p>
+                  Unable to parse email body. Email id is 11447
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:33 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

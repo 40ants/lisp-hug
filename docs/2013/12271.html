@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Non-blocking read of serial device</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Non-blocking read of serial device</h1>
+                <pre>
+Hello,
+
+Using OPEN, I can read the bytes from a serial line synchronously.
+
+I am now attempting to encapsulate this process in a separate process.
+
+I can't seem to find any solution to make my process wait as long as there is nothing to read on my opened stream.  I tried PROCESS-WAIT with a wait-function that would check if there is something to read with LISTEN or READ-CHAR-NO-HANG, unfortunately both of them are blocking within the wait function (which happens I believe because the stream opened with OPEN is not set to non-blocking).
+
+Can someone help me find a solution?
+Thanks in advance!
+
+
+Best,
+Cam
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Non-blocking read of serial device</h1>
+                 <pre>
+I found a solution, thanks to this discussion about Clozure CL:
+
+    http://clozure.com/pipermail/openmcl-devel/2012-November/013904.html
+
+The important fact seems to be:
+
+&gt A FILE-STREAM is assumed to never block (e.g, reading from it will always return some data or EOF immediately.)
+
+Assuming it also applies for LispWorks and OS X.
+Based on this, instead of using OPEN, I used: (SYS:OPEN-PIPE "cat /dev/cu.usbmodem8931" :buffered nil)
+And I can now safely use LISTEN within the process wait function.
+
+Best,
+Cam
+
+
+(defvar *device-path* "/dev/cu.usbmodem8931")
+
+(defun serial-loop (stream)
+  (mp:ensure-process-cleanup `(serial-cleanup ,stream))
+  (loop :do
+        (when (mp:wait-processing-events 100
+                                         :wait-function #'listen
+                                         :wait-args (list stream))
+          (with-simple-restart (abort "Return to event loop.")
+            (let ((byte (read-byte stream)))
+               (packet (funcall decoder byte)))))))
+
+
+(defvar *process* nil)
+
+(defun serial-cleanup (process stream)
+  (close stream)
+  (setf *process* nil))
+
+(defun serial-start (&amp;optional (device-path *device-path*))
+  (assert (null *process*))
+  (let ((stream (sys:open-pipe (format nil "cat ~A" device-path)
+                               :buffered nil
+                               :element-type 'unsigned-byte)))
+    (setf *process* (mp:process-run-function
+                     "Serial Reader"
+                     '(:mailbox t)
+                     #'serial-loop
+                     stream))))
+
+(defun serial-stop ()
+  (mp:process-send *process* `(mp:process-kill ,*process*))
+  (mp:process-join *process*))
+
+
+
+
+
+On 13 juin 2013, at 22:06, Camille Troillard &lt;camille@osculator.net&gt wrote:
+
+&gt 
+&gt Hello,
+&gt 
+&gt Using OPEN, I can read the bytes from a serial line synchronously.
+&gt 
+&gt I am now attempting to encapsulate this process in a separate process.
+&gt 
+&gt I can't seem to find any solution to make my process wait as long as there is nothing to read on my opened stream.  I tried PROCESS-WAIT with a wait-function that would check if there is something to read with LISTEN or READ-CHAR-NO-HANG, unfortunately both of them are blocking within the wait function (which happens I believe because the stream opened with OPEN is not set to non-blocking).
+&gt 
+&gt Can someone help me find a solution?
+&gt Thanks in advance!
+&gt 
+&gt 
+&gt Best,
+&gt Cam
+&gt 
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+&gt 
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:31 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

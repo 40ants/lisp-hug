@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Performance improvements to this code...</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Performance improvements to this code...</h1>
+                <pre>Hi. We've done a fair bit of profiling to our system and have eliminated all
+known major hotspots. We're now looking at other possibilities, and this
+section of code might be a candidate:
+
+(defmethod stream:stream-read-byte ((strm binary-input-stream))
+  (declare (optimize speed))
+  (with-slots ((buf buffer)
+               (i index)
+               (size bufsiz)) strm
+    (declare (type fixnum i size)
+             (type (array (unsigned-byte 8)) buf))
+    (if (= i size)
+        :eof
+      (aref buf (the fixnum (1- (the fixnum (incf i))))))))
+
+This code reflects the optimizations we've done that addressed a hotspot
+identified by the profiler. I'm wondering if there's anything more to be
+done here. In our test suite, this method is called more than any other in
+the system (over 7million times), although it's found on the stack top just
+2% of the time. I've looked at using svref instead of aref, but doing so
+causes a runtime failure:
+
+Error: In a call to SVREF: #(76 105 115 80 14 10 5 1 6 78 84 85 80 76 69 5 1
+6 84 85 80 76 69 83 24 0 1 2 10 5 1 3 75 69 89 1 1 3 5 1 ...) is not of type
+SIMPLE-VECTOR.
+  1 (abort) Return to level 0.
+  2 Return to top loop level 0.
+
+Type :b for backtrace, :c &lt;option number&gt to proceed,  or :? for other
+options
+
+DT 5 : 1 &gt 
+
+The array is of type '(unsigned-byte 8)). Recommendations are appreciated.
+
+
+David E. Young
+Bloodhound Software, Inc.
+
+For wisdom is more precious than rubies,
+and nothing you desire can compare with her.
+  -- Prov. 8:11
+
+"But all the world understands my language."
+  -- Franz Josef Haydn (1732 - 1809)
+
+
+This email message is for the sole use of the intended recipients(s) and may contain confidential and privileged information of Bloodhound Software, Inc.. Any unauthorized review, use, disclosure is prohibited. If you are not the intended recipient, please contact the sender by reply email and destroy all copies of the original message.
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Performance improvements to this code...</h1>
+                 <pre>&gt&gt&gt&gt&gt "DY" == David Young &lt;Young&gt writes:
+
+    DY&gt ... I've looked at using svref instead of aref, but doing so
+    DY&gt causes a runtime failure:
+
+That's because svref requires simple-vectors, and simple-vecors are 
+not what we might think they are.  
+
+http://clhs.lisp.se/Body/26_glo_s.htm#simple_vector
+
+You have a specialized element type so your array cannot be a simple-vector.
+KMP posted recently on the history of this confusing terminology:
+
+http://groups.google.com/group/comp.lang.lisp/browse_frm/thread/48a6101ce0d70493/cd3f42887f4e4b6c
+
+I don't see any obvious improvements other than perhaps declaring 
+your array as a simple-array of one dimension containging (unsigned-byre 
+8).  I don't know if this additional info helps the compiler though.
+
+cheers,
+
+BM
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Performance improvements to this code...</h1>
+                 <pre>Young, David wrote:
+
+&gtHi. We've done a fair bit of profiling to our system and have eliminated all
+&gtknown major hotspots. We're now looking at other possibilities, and this
+&gtsection of code might be a candidate:
+&gt
+&gt(defmethod stream:stream-read-byte ((strm binary-input-stream))
+&gt  (declare (optimize speed))
+&gt  (with-slots ((buf buffer)
+&gt               (i index)
+&gt               (size bufsiz)) strm
+&gt    (declare (type fixnum i size)
+&gt             (type (array (unsigned-byte 8)) buf))
+&gt    (if (= i size)
+&gt        :eof
+&gt      (aref buf (the fixnum (1- (the fixnum (incf i))))))))
+&gt
+&gt  
+&gt
+
+Try this, the disaasembly is much smaller,
+
+(defmethod stream:stream-read-byte ((strm binary-input-stream))
+  (declare (optimize (speed 3) (safety 0) (debug 0) (hcl:fixnum-safety 0)))
+
+  (with-slots ((buf buffer)
+               (i index)
+               (size bufsiz)) strm
+    (declare (type fixnum i size)
+             (type (simple-array (unsigned-byte 8) (*)) buf))
+    (if (= i size)
+        :eof
+      (aref buf (1- (incf i))))))
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:47 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

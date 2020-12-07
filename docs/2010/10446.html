@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>FLI problem, maybe because of nested structs</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>FLI problem, maybe because of nested structs</h1>
+                <pre>
+Hi everybody,
+
+I'm trying to interface to some C code and I'm having problems with
+one particular function call.  I usually get "Exception C0000005"
+which I seem to remember means that some pointer or address is
+mis-interpreted.  One argument to the function is a struct within a
+struct and I /think/ that this must be the culprit, but I can't figure
+out where exactly the problem is.  Here's what I've done (on Windows
+XP with LWW 5.1):
+
+The relevant simple C type definitions are these
+
+  typedef unsigned short TW_UINT16;
+  typedef unsigned long  TW_UINT32;
+  typedef LPVOID  TW_MEMREF;
+  typedef char    TW_STR32[34];
+
+which I've translated like this:
+
+  (define-c-typedef dword :unsigned-long)
+  (define-c-typedef handle dword)
+  (define-c-typedef tw-str32 (:ef-mb-string :limit 34 :null-terminated-p t))
+
+(The TW_MEMREF argument is, in this particular case, used to hand over
+a window handle, so in my code below I don't user :POINTER but rather
+HANDLE.)
+
+Now the two structs:
+
+  typedef struct {
+     TW_UINT16  MajorNum;
+     TW_UINT16  MinorNum;
+     TW_UINT16  Language;
+     TW_UINT16  Country;
+     TW_STR32   Info;
+  } TW_VERSION;
+
+  typedef struct {
+     TW_UINT32  Id;
+     TW_VERSION Version;
+     TW_UINT16  ProtocolMajor;
+     TW_UINT16  ProtocolMinor;
+     TW_UINT32  SupportedGroups;
+     TW_STR32   Manufacturer;
+     TW_STR32   ProductFamily;
+     TW_STR32   ProductName;
+  } TW_IDENTITY, FAR * pTW_IDENTITY;
+
+And here's my Lisp version of them:
+
+  (define-c-struct tw-version
+    (major-num :unsigned-short)
+    (minor-num :unsigned-short)
+    (language :unsigned-short)
+    (country :unsigned-short)
+    (info tw-str32))
+
+  (define-c-struct tw-identity
+    (id :unsigned-long)
+    (version tw-version)
+    (protocol-major :unsigned-short)
+    (protocol-minor :unsigned-short)
+    (supported-groups :unsigned-long)
+    (manufacturer tw-str32)
+    (product-family tw-str32)
+    (product-name tw-str32))
+
+Does this look right?  Could there be a problem with alignment that
+I'm missing?  FWIW, the header file is supposed to be understood by
+various compilers including Microsoft's.
+
+Here, finally is the function:
+
+  TW_UINT16 FAR PASCAL DSM_Entry( pTW_IDENTITY pOrigin,
+                                  pTW_IDENTITY pDest,
+                                  TW_UINT32    DG,
+                                  TW_UINT16    DAT,
+                                  TW_UINT16    MSG,
+                                  TW_MEMREF    pData);
+
+I've searched a bit and my understanding is that both FAR and PASCAL
+are compatibility decorations which are needed for 16-bit Windows but
+are ignored on 32-bit platforms.
+
+Here's the Lisp definition:
+
+  (define-foreign-function (dsm-entry "DSM_Entry")
+      ((p-origin :pointer)
+       (p-dest :pointer)
+       (dg :unsigned-long)
+       (dat :unsigned-short)
+       (msg :unsigned-short)
+       (p-data handle))
+    :calling-convention :cdecl
+    :result-type :unsigned-short)
+
+Does anyone spot anything that I could have done wrong?
+
+Thanks,
+Edi.
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: FLI problem, maybe because of nested structs</h1>
+                 <p>
+                  Unable to parse email body. Email id is 10448
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: FLI problem, maybe because of nested structs</h1>
+                 <pre>
+Hi Martin,
+
+Thanks a lot for your quick replies.  That gives me something to think
+about and try and I'll report back to the list.
+
+About the alignment problem, I thought I had looked for a "pack"
+pragma in the header file, but I now checked again and it turns out I
+hadn't or I overlooked it.  D'oh!!!
+
+And, yes, I first had :stdcall in there but changed it because I
+thought that might have been the problem.  I rarely look at C code and
+usually only if I need to interface to it from Lisp.  I'm sure someone
+more familiar with it and with the standard compilers would have seen
+the problem immediately.
+
+Thanks again,
+Edi.
+
+
+On Wed, Aug 11, 2010 at 2:16 PM, Martin Simmons &lt;martin@lispworks.com&gt wrote:
+&gt&gt&gt&gt&gt&gt On Wed, 11 Aug 2010 13:08:11 +0200, Edi Weitz said:
+&gt&gt
+&gt&gt Hi everybody,
+&gt&gt
+&gt&gt I'm trying to interface to some C code and I'm having problems with
+&gt&gt one particular function call. &nbsp;I usually get "Exception C0000005"
+&gt&gt which I seem to remember means that some pointer or address is
+&gt&gt mis-interpreted. &nbsp;One argument to the function is a struct within a
+&gt&gt struct and I /think/ that this must be the culprit, but I can't figure
+&gt&gt out where exactly the problem is. &nbsp;Here's what I've done (on Windows
+&gt&gt XP with LWW 5.1):
+&gt&gt
+&gt&gt The relevant simple C type definitions are these
+&gt&gt
+&gt&gt &nbsp; typedef unsigned short TW_UINT16;
+&gt&gt &nbsp; typedef unsigned long &nbsp;TW_UINT32;
+&gt&gt &nbsp; typedef LPVOID &nbsp;TW_MEMREF;
+&gt&gt &nbsp; typedef char &nbsp; &nbsp;TW_STR32[34];
+&gt&gt
+&gt&gt which I've translated like this:
+&gt&gt
+&gt&gt &nbsp; (define-c-typedef dword :unsigned-long)
+&gt&gt &nbsp; (define-c-typedef handle dword)
+&gt&gt &nbsp; (define-c-typedef tw-str32 (:ef-mb-string :limit 34 :null-terminated-p t))
+&gt&gt
+&gt&gt (The TW_MEMREF argument is, in this particular case, used to hand over
+&gt&gt a window handle, so in my code below I don't user :POINTER but rather
+&gt&gt HANDLE.)
+&gt&gt
+&gt&gt Now the two structs:
+&gt&gt
+&gt&gt &nbsp; typedef struct {
+&gt&gt &nbsp; &nbsp; &nbsp;TW_UINT16 &nbsp;MajorNum;
+&gt&gt &nbsp; &nbsp; &nbsp;TW_UINT16 &nbsp;MinorNum;
+&gt&gt &nbsp; &nbsp; &nbsp;TW_UINT16 &nbsp;Language;
+&gt&gt &nbsp; &nbsp; &nbsp;TW_UINT16 &nbsp;Country;
+&gt&gt &nbsp; &nbsp; &nbsp;TW_STR32 &nbsp; Info;
+&gt&gt &nbsp; } TW_VERSION;
+&gt&gt
+&gt&gt &nbsp; typedef struct {
+&gt&gt &nbsp; &nbsp; &nbsp;TW_UINT32 &nbsp;Id;
+&gt&gt &nbsp; &nbsp; &nbsp;TW_VERSION Version;
+&gt&gt &nbsp; &nbsp; &nbsp;TW_UINT16 &nbsp;ProtocolMajor;
+&gt&gt &nbsp; &nbsp; &nbsp;TW_UINT16 &nbsp;ProtocolMinor;
+&gt&gt &nbsp; &nbsp; &nbsp;TW_UINT32 &nbsp;SupportedGroups;
+&gt&gt &nbsp; &nbsp; &nbsp;TW_STR32 &nbsp; Manufacturer;
+&gt&gt &nbsp; &nbsp; &nbsp;TW_STR32 &nbsp; ProductFamily;
+&gt&gt &nbsp; &nbsp; &nbsp;TW_STR32 &nbsp; ProductName;
+&gt&gt &nbsp; } TW_IDENTITY, FAR * pTW_IDENTITY;
+&gt&gt
+&gt&gt And here's my Lisp version of them:
+&gt&gt
+&gt&gt &nbsp; (define-c-struct tw-version
+&gt&gt &nbsp; &nbsp; (major-num :unsigned-short)
+&gt&gt &nbsp; &nbsp; (minor-num :unsigned-short)
+&gt&gt &nbsp; &nbsp; (language :unsigned-short)
+&gt&gt &nbsp; &nbsp; (country :unsigned-short)
+&gt&gt &nbsp; &nbsp; (info tw-str32))
+&gt&gt
+&gt&gt &nbsp; (define-c-struct tw-identity
+&gt&gt &nbsp; &nbsp; (id :unsigned-long)
+&gt&gt &nbsp; &nbsp; (version tw-version)
+&gt&gt &nbsp; &nbsp; (protocol-major :unsigned-short)
+&gt&gt &nbsp; &nbsp; (protocol-minor :unsigned-short)
+&gt&gt &nbsp; &nbsp; (supported-groups :unsigned-long)
+&gt&gt &nbsp; &nbsp; (manufacturer tw-str32)
+&gt&gt &nbsp; &nbsp; (product-family tw-str32)
+&gt&gt &nbsp; &nbsp; (product-name tw-str32))
+&gt&gt
+&gt&gt Does this look right?
+&gt
+&gt Yes, but it would be easier to check if you use define-c-typedef to define
+&gt TW_UINT16 and TW_UINT32 and then use those wherever C does.
+&gt
+&gt
+&gt&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;Could there be a problem with alignment that
+&gt&gt I'm missing? &nbsp;FWIW, the header file is supposed to be understood by
+&gt&gt various compilers including Microsoft's.
+&gt
+&gt Yes, that could be the problem. &nbsp;I found
+&gt http://twainmodule.sourceforge.net/docs/lowlevel.html which says:
+&gt
+&gt "Note: The TWAIN standard pack values to two byte boundaries. In normal C
+&gt structures there is a padding of two bytes before SupportedGroups. However, in
+&gt the TWAIN interface there is none."
+&gt
+&gt Does the header file mention "pack" anywhere (e.g. #pragma pack)?
+&gt
+&gt If the whole file uses 2 byte packing then you need to add (:byte-packing 2)
+&gt before the slots in all of the structs.
+&gt
+&gt
+&gt&gt Here, finally is the function:
+&gt&gt
+&gt&gt &nbsp; TW_UINT16 FAR PASCAL DSM_Entry( pTW_IDENTITY pOrigin,
+&gt&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; pTW_IDENTITY pDest,
+&gt&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; TW_UINT32 &nbsp; &nbsp;DG,
+&gt&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; TW_UINT16 &nbsp; &nbsp;DAT,
+&gt&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; TW_UINT16 &nbsp; &nbsp;MSG,
+&gt&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; TW_MEMREF &nbsp; &nbsp;pData);
+&gt&gt
+&gt&gt I've searched a bit and my understanding is that both FAR and PASCAL
+&gt&gt are compatibility decorations which are needed for 16-bit Windows but
+&gt&gt are ignored on 32-bit platforms.
+&gt&gt
+&gt&gt Here's the Lisp definition:
+&gt&gt
+&gt&gt &nbsp; (define-foreign-function (dsm-entry "DSM_Entry")
+&gt&gt &nbsp; &nbsp; &nbsp; ((p-origin :pointer)
+&gt&gt &nbsp; &nbsp; &nbsp; &nbsp;(p-dest :pointer)
+&gt&gt &nbsp; &nbsp; &nbsp; &nbsp;(dg :unsigned-long)
+&gt&gt &nbsp; &nbsp; &nbsp; &nbsp;(dat :unsigned-short)
+&gt&gt &nbsp; &nbsp; &nbsp; &nbsp;(msg :unsigned-short)
+&gt&gt &nbsp; &nbsp; &nbsp; &nbsp;(p-data handle))
+&gt&gt &nbsp; &nbsp; :calling-convention :cdecl
+&gt&gt &nbsp; &nbsp; :result-type :unsigned-short)
+&gt&gt
+&gt&gt Does anyone spot anything that I could have done wrong?
+&gt
+&gt PASCAL expands to __stdcall in VC++, so I think it should be
+&gt :calling-convention :stdcall.
+&gt
+&gt --
+&gt Martin Simmons
+&gt LispWorks Ltd
+&gt http://www.lispworks.com/
+&gt
+&gt
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: FLI problem, maybe because of nested structs</h1>
+                 <pre>
+On Wed, Aug 11, 2010 at 4:33 PM, Edi Weitz &lt;edi@agharta.de&gt wrote:
+
+&gt That gives me something to think
+&gt about and try and I'll report back to the list.
+
+OK, as promised: So far it seems to work fine.  The explicit packing
+was necessary as was the stdcall calling convention about which Martin
+was right, i.e. Visual Studio indeed translates PASCAL to stdcall.  I
+also made another dumb mistake which cost me some additional time, but
+I'd rather not mention this here... :)
+
+Thanks,
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:35 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

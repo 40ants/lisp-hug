@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Transparency and bmp</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Transparency and bmp</h1><HTML>
+<HEAD>
+<TITLE>Transparency and bmp</TITLE>
+</HEAD>
+<BODY>
+<FONT FACE="Verdana">I&#8217;m looking for codes to deal with transparent areas on BMP images. Any suggestion ?<BR>
+<BR>
+Thanks !<BR>
+<BR>
+----------------------------------------------------<BR>
+Denis Pousseur<BR>
+6 clos du Drossart<BR>
+1180 Bruxelles, Belgique<BR>
+<BR>
+Mail : &nbsp;denis.pousseur@compositeurs.be<BR>
+Website : http://compositeurs.be<BR>
+----------------------------------------------------<BR>
+<BR>
+</FONT>
+</BODY>
+</HTML>
+
+
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Transparency and bmp</h1>
+                 <pre>Denis Pousseur wrote:
+
+&gt I’m looking for codes to deal with transparent areas on BMP images. 
+&gt Any suggestion ?
+&gt
+&gt Thanks !
+&gt
+&gt ----------------------------------------------------
+&gt Denis Pousseur
+&gt 6 clos du Drossart
+&gt 1180 Bruxelles, Belgique
+&gt
+&gt Mail : denis.pousseur@compositeurs.be
+&gt Website : http://compositeurs.be
+&gt ----------------------------------------------------
+&gt
+On LWW I use the Windows GDI Directly, in particular the GDI function
+TransparentBlt. If you are looking for info for other LW platforms, the 
+simple
+answer is I do not know.
+
+I ended up creating WINAPI and GDI packages (interface to the WIN32
+library through the FFI). You can get the Window DC from a GP:GRAPHICS-PORT
+so you can do normal WIN32 graphics operations.
+
+There is (or was) the function 
+gp:external-image-transparent-color-index, but
+does not appear in the manual. I had trouble figuring out what it did
+so I gave up. It took me a lot of time to do all this and other things,
+but it has paid off in understanding the WIN32 API. The MSDN Library
+goes into gory detail about dealing with transparency, but I just gave 
+up trying
+those methods and used the enhanced GDI functions.
+
+Here is some example code, (I did not add enough for
+everything to work ). The starting pace below is pixblt-image
+
+With hundreds (if not thousands of lines deleted)....
+
+There is screenshot of what all this code does, see
+
+http://www3.telus.net/public/whumeniu/screenshot.bmp
+
+Wade
+
+---------------------------------------------------------------
+(eval-when (:compile-toplevel :load-toplevel :execute)
+(defstruct image
+identifier
+external-image
+(memory-dc nil)
+x
+y
+width
+height
+(transparent-color (gdi::rgb 0 0 0))))
+
+(defconstant rgb-black (gdi::rgb 0 0 0))
+(defconstant rgb-white (gdi::rgb 255 255 255))
+
+(defparameter *next-badge-image*
+(make-image :identifier :next-badge
+:external-image (gdi::load-bitmap #p"RUNNING:Images;Next-Badge.bmp")
+:transparent-color rgb-black
+:x (- 72 24) :y (- 84 24) :width 24 :height 24))
+
+(defmethod pixblt-image (badge (image image))
+(if (image-memory-dc image)
+(winapi::|TransparentBlt| (gdi::hdc badge)
+(image-x image)
+(image-y image)
+(image-width image) (image-height image)
+(image-memory-dc image) 0 0 (image-width image) (image-height image)
+(image-transparent-color image))
+(progn
+(setf (image-memory-dc image)
+(gdi::create-memory-dc-with-bitmap (gdi::hdc badge) 
+(image-external-image image)))
+(pixblt-image badge image))))
+
+(defclass badge (capi:output-pane)
+((entries :initform nil :initarg :entries :accessor entries :type list)
+(current-entry-position :initform 0 :initarg :current-entry :accessor 
+current-entry-position)
+(date :initform (calendar:current-date) :initarg :date :accessor badge-date)
+(milestone :initform nil :initarg :milestone :accessor milestone))
+(:default-initargs
+:visible-border nil
+:background 'win32:color_3dface
+:foreground :black
+:input-model '(((:button-1 :press) simple-badge-select)
+((:button-1 :second-press) details-badge-select)
+(:post-menu popup-badge-menu))
+:visible-min-width 72 :visible-max-width 72
+:visible-min-height 84 :visible-max-height 84
+:display-callback #'draw-badge))
+
+----------------------------------------------------------
+(in-package :winapi)
+
+(eval-when (:compile-toplevel :load-toplevel :execute)
+(fli:register-module :msimg32 :real-name "msimg32"))
+
+(fli:define-c-typedef handle (:unsigned :long))
+(fli:define-c-typedef colorref (:unsigned :long))
+(fli:define-c-typedef dword (:unsigned :long))
+(fli:define-c-typedef word (:unsigned :short))
+
+(defmacro winapi-function (name args result-type &amp;key (module "gdi32") 
+(export t))
+`(progn
+(fli:define-foreign-function (,name ,(symbol-name name))
+,args
+:result-type ,result-type
+:calling-convention :stdcall
+:module ,module)
+(when ,export (export ',name))))
+
+(winapi-function |TransparentBlt|
+((hdcDest handle)
+(nXOriginDest :int)
+(nYOriginDest :int)
+(nWidthDest :int)
+(hHeightDest :int)
+(hdcSrc handle)
+(nXOriginSrc :int)
+(nYOriginSrc :int)
+(nWidthSrc :int)
+(nHeightSrc :int)
+(crTransparent colorref))
+:boolean
+:module :msimg32)
+-----------------------------------------------------
+(in-package :gdi)
+
+(defmacro hwnd (gp)
+`(slot-value (slot-value ,gp 'gp::representation) 'win32:hwnd))
+(defmacro hdc (gp)
+`(slot-value (slot-value (slot-value ,gp 'gp::representation) 
+'capi-win32-lib::dc) 'win32:hdc))
+
+------------------------------------------------------
+(in-package :gdi)
+
+(eval-when (:compile-toplevel :load-toplevel :execute)
+(defun rgb (red green blue)
+(let ((rgb #x00000000))
+(setf (ldb (byte 8 0) rgb) red)
+(setf (ldb (byte 8 8) rgb) green)
+(setf (ldb (byte 8 16) rgb) blue)
+rgb)))
+
+(defun convert-color-ref-to-rgb (color-ref)
+(rgb
+(round (* (color:color-red color-ref) 255))
+(round (* (color:color-green color-ref) 255))
+(round (* (color:color-blue color-ref) 255))))
+
+(defun colorref (color)
+(typecase color
+(symbol
+(let ((rgb (gethash color *color-database*)))
+(if rgb
+rgb
+;; Also search LispWorks Color Database
+(let ((color-spec (color:get-color-spec color)))
+(if color-spec
+(convert-color-ref-to-rgb color-spec)
+(error "GDI: Could Not Find Color ~S" color))))))
+(integer color)
+(vector
+;; Assume LispWorks color spec
+(convert-color-ref-to-rgb color))))
+
+(defun load-bitmap (path)
+(with-open-file (file path :direction :input :element-type 
+'(unsigned-byte 8))
+(let* ((length (file-length file))
+(bitmap-array (make-array length :element-type '(unsigned-byte 8))))
+(read-sequence bitmap-array file)
+bitmap-array)))
+
+(defun read-long (byte-array offset)
+(let ((long 0))
+(setf (ldb (byte 8 0) long) (aref byte-array offset)
+(ldb (byte 8 8) long) (aref byte-array (+ offset 1))
+(ldb (byte 8 16) long) (aref byte-array (+ offset 2))
+(ldb (byte 8 24) long) (aref byte-array (+ offset 3)))
+long))
+
+(defun byte-swapped-word (word)
+(let ((swapped 0))
+(setf (ldb (byte 8 0) swapped) (ldb (byte 8 8) word)
+(ldb (byte 8 8) swapped) (ldb (byte 8 0) word))
+swapped))
+
+(defun write-long-to-byte-array (array integer &amp;optional (offset 0))
+(setf (aref array offset) (ldb (byte 8 0) integer)
+(aref array (+ offset 1))(ldb (byte 8 8) integer)
+(aref array (+ offset 2))(ldb (byte 8 16) integer)
+(aref array (+ offset 3))(ldb (byte 8 24) integer)))
+
+(defconstant +offset-file-size+ 2)
+(defconstant +offset-offset-bits+ 10)
+(defconstant +offset-info-header+ 14)
+(defconstant +offset-to-bitmap-width+ 18)
+(defconstant +offset-to-bitmap-height+ 22)
+
+(defun bitmap-file-size (raw-bitmap)
+(read-long raw-bitmap +offset-file-size+))
+(defun bitmap-width (raw-bitmap)
+(read-long raw-bitmap +offset-to-bitmap-width+))
+(defun bitmap-height (raw-bitmap)
+(read-long raw-bitmap +offset-to-bitmap-height+))
+(defun bitmap-offset-bits (raw-bitmap)
+(read-long raw-bitmap +offset-offset-bits+))
+
+(defun create-memory-dc-with-bitmap (hdc raw-bitmap)
+(let* ((width (bitmap-width raw-bitmap))
+(height (bitmap-height raw-bitmap))
+(size (bitmap-file-size raw-bitmap))
+(offset-bits (bitmap-offset-bits raw-bitmap))
+(hcdc (winapi:|CreateCompatibleDC| hdc))
+(hbitmap (winapi:|CreateCompatibleBitmap| hdc width height)))
+(winapi:|SelectObject| hcdc hbitmap)
+(fli:with-dynamic-foreign-objects ()
+(let* ((c-raw-bitmap (fli:allocate-dynamic-foreign-object :type :byte 
+:nelems size))
+(bitmap-bits (fli:copy-pointer c-raw-bitmap))
+(info (fli:copy-pointer c-raw-bitmap)))
+(loop for byte from 0 below size
+do
+(setf (fli:dereference c-raw-bitmap :index byte) (aref raw-bitmap byte)))
+(fli:incf-pointer bitmap-bits offset-bits)
+(fli:incf-pointer info +offset-info-header+)
+(winapi:|SetDIBits| hcdc hbitmap 0 height bitmap-bits info 
+winapi::DIB_RGB_COLORS))
+hcdc)))
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: Transparency and bmp</h1>
+                  <pre>Unfortunately I'm on Mac...
+But finally I found that the image functions of Lispworks now accept GIF and
+PNG formats (I was on 4.3 and recently upgrade), so the transparency is
+simply and perfectly supported.
+
+Anyway, thank's for your answer
+
+Denis 
+
+Le 24/09/05 23:12, «&nbsp;Wade Humeniuk&nbsp;» &lt;whumeniu@telus.net&gt a écrit&nbsp;:
+
+&gt Denis Pousseur wrote:
+&gt 
+&gt&gt I¹m looking for codes to deal with transparent areas on BMP images.
+&gt&gt Any suggestion ?
+&gt&gt 
+&gt&gt Thanks !
+&gt&gt 
+&gt&gt ----------------------------------------------------
+&gt&gt Denis Pousseur
+&gt&gt 6 clos du Drossart
+&gt&gt 1180 Bruxelles, Belgique
+&gt&gt 
+&gt&gt Mail : denis.pousseur@compositeurs.be
+&gt&gt Website : http://compositeurs.be
+&gt&gt ----------------------------------------------------
+&gt&gt 
+&gt On LWW I use the Windows GDI Directly, in particular the GDI function
+&gt TransparentBlt. If you are looking for info for other LW platforms, the
+&gt simple
+&gt answer is I do not know.
+&gt 
+&gt I ended up creating WINAPI and GDI packages (interface to the WIN32
+&gt library through the FFI). You can get the Window DC from a GP:GRAPHICS-PORT
+&gt so you can do normal WIN32 graphics operations.
+&gt 
+&gt There is (or was) the function
+&gt gp:external-image-transparent-color-index, but
+&gt does not appear in the manual. I had trouble figuring out what it did
+&gt so I gave up. It took me a lot of time to do all this and other things,
+&gt but it has paid off in understanding the WIN32 API. The MSDN Library
+&gt goes into gory detail about dealing with transparency, but I just gave
+&gt up trying
+&gt those methods and used the enhanced GDI functions.
+&gt 
+&gt Here is some example code, (I did not add enough for
+&gt everything to work ). The starting pace below is pixblt-image
+&gt 
+&gt With hundreds (if not thousands of lines deleted)....
+&gt 
+&gt There is screenshot of what all this code does, see
+&gt 
+&gt http://www3.telus.net/public/whumeniu/screenshot.bmp
+&gt 
+&gt Wade
+&gt 
+&gt ---------------------------------------------------------------
+&gt (eval-when (:compile-toplevel :load-toplevel :execute)
+&gt (defstruct image
+&gt identifier
+&gt external-image
+&gt (memory-dc nil)
+&gt x
+&gt y
+&gt width
+&gt height
+&gt (transparent-color (gdi::rgb 0 0 0))))
+&gt 
+&gt (defconstant rgb-black (gdi::rgb 0 0 0))
+&gt (defconstant rgb-white (gdi::rgb 255 255 255))
+&gt 
+&gt (defparameter *next-badge-image*
+&gt (make-image :identifier :next-badge
+&gt :external-image (gdi::load-bitmap #p"RUNNING:Images;Next-Badge.bmp")
+&gt :transparent-color rgb-black
+&gt :x (- 72 24) :y (- 84 24) :width 24 :height 24))
+&gt 
+&gt (defmethod pixblt-image (badge (image image))
+&gt (if (image-memory-dc image)
+&gt (winapi::|TransparentBlt| (gdi::hdc badge)
+&gt (image-x image)
+&gt (image-y image)
+&gt (image-width image) (image-height image)
+&gt (image-memory-dc image) 0 0 (image-width image) (image-height image)
+&gt (image-transparent-color image))
+&gt (progn
+&gt (setf (image-memory-dc image)
+&gt (gdi::create-memory-dc-with-bitmap (gdi::hdc badge)
+&gt (image-external-image image)))
+&gt (pixblt-image badge image))))
+&gt 
+&gt (defclass badge (capi:output-pane)
+&gt ((entries :initform nil :initarg :entries :accessor entries :type list)
+&gt (current-entry-position :initform 0 :initarg :current-entry :accessor
+&gt current-entry-position)
+&gt (date :initform (calendar:current-date) :initarg :date :accessor badge-date)
+&gt (milestone :initform nil :initarg :milestone :accessor milestone))
+&gt (:default-initargs
+&gt :visible-border nil
+&gt :background 'win32:color_3dface
+&gt :foreground :black
+&gt :input-model '(((:button-1 :press) simple-badge-select)
+&gt ((:button-1 :second-press) details-badge-select)
+&gt (:post-menu popup-badge-menu))
+&gt :visible-min-width 72 :visible-max-width 72
+&gt :visible-min-height 84 :visible-max-height 84
+&gt :display-callback #'draw-badge))
+&gt 
+&gt ----------------------------------------------------------
+&gt (in-package :winapi)
+&gt 
+&gt (eval-when (:compile-toplevel :load-toplevel :execute)
+&gt (fli:register-module :msimg32 :real-name "msimg32"))
+&gt 
+&gt (fli:define-c-typedef handle (:unsigned :long))
+&gt (fli:define-c-typedef colorref (:unsigned :long))
+&gt (fli:define-c-typedef dword (:unsigned :long))
+&gt (fli:define-c-typedef word (:unsigned :short))
+&gt 
+&gt (defmacro winapi-function (name args result-type &amp;key (module "gdi32")
+&gt (export t))
+&gt `(progn
+&gt (fli:define-foreign-function (,name ,(symbol-name name))
+&gt ,args
+&gt :result-type ,result-type
+&gt :calling-convention :stdcall
+&gt :module ,module)
+&gt (when ,export (export ',name))))
+&gt 
+&gt (winapi-function |TransparentBlt|
+&gt ((hdcDest handle)
+&gt (nXOriginDest :int)
+&gt (nYOriginDest :int)
+&gt (nWidthDest :int)
+&gt (hHeightDest :int)
+&gt (hdcSrc handle)
+&gt (nXOriginSrc :int)
+&gt (nYOriginSrc :int)
+&gt (nWidthSrc :int)
+&gt (nHeightSrc :int)
+&gt (crTransparent colorref))
+&gt :boolean
+&gt :module :msimg32)
+&gt -----------------------------------------------------
+&gt (in-package :gdi)
+&gt 
+&gt (defmacro hwnd (gp)
+&gt `(slot-value (slot-value ,gp 'gp::representation) 'win32:hwnd))
+&gt (defmacro hdc (gp)
+&gt `(slot-value (slot-value (slot-value ,gp 'gp::representation)
+&gt 'capi-win32-lib::dc) 'win32:hdc))
+&gt 
+&gt ------------------------------------------------------
+&gt (in-package :gdi)
+&gt 
+&gt (eval-when (:compile-toplevel :load-toplevel :execute)
+&gt (defun rgb (red green blue)
+&gt (let ((rgb #x00000000))
+&gt (setf (ldb (byte 8 0) rgb) red)
+&gt (setf (ldb (byte 8 8) rgb) green)
+&gt (setf (ldb (byte 8 16) rgb) blue)
+&gt rgb)))
+&gt 
+&gt (defun convert-color-ref-to-rgb (color-ref)
+&gt (rgb
+&gt (round (* (color:color-red color-ref) 255))
+&gt (round (* (color:color-green color-ref) 255))
+&gt (round (* (color:color-blue color-ref) 255))))
+&gt 
+&gt (defun colorref (color)
+&gt (typecase color
+&gt (symbol
+&gt (let ((rgb (gethash color *color-database*)))
+&gt (if rgb
+&gt rgb
+&gt ;; Also search LispWorks Color Database
+&gt (let ((color-spec (color:get-color-spec color)))
+&gt (if color-spec
+&gt (convert-color-ref-to-rgb color-spec)
+&gt (error "GDI: Could Not Find Color ~S" color))))))
+&gt (integer color)
+&gt (vector
+&gt ;; Assume LispWorks color spec
+&gt (convert-color-ref-to-rgb color))))
+&gt 
+&gt (defun load-bitmap (path)
+&gt (with-open-file (file path :direction :input :element-type
+&gt '(unsigned-byte 8))
+&gt (let* ((length (file-length file))
+&gt (bitmap-array (make-array length :element-type '(unsigned-byte 8))))
+&gt (read-sequence bitmap-array file)
+&gt bitmap-array)))
+&gt 
+&gt (defun read-long (byte-array offset)
+&gt (let ((long 0))
+&gt (setf (ldb (byte 8 0) long) (aref byte-array offset)
+&gt (ldb (byte 8 8) long) (aref byte-array (+ offset 1))
+&gt (ldb (byte 8 16) long) (aref byte-array (+ offset 2))
+&gt (ldb (byte 8 24) long) (aref byte-array (+ offset 3)))
+&gt long))
+&gt 
+&gt (defun byte-swapped-word (word)
+&gt (let ((swapped 0))
+&gt (setf (ldb (byte 8 0) swapped) (ldb (byte 8 8) word)
+&gt (ldb (byte 8 8) swapped) (ldb (byte 8 0) word))
+&gt swapped))
+&gt 
+&gt (defun write-long-to-byte-array (array integer &amp;optional (offset 0))
+&gt (setf (aref array offset) (ldb (byte 8 0) integer)
+&gt (aref array (+ offset 1))(ldb (byte 8 8) integer)
+&gt (aref array (+ offset 2))(ldb (byte 8 16) integer)
+&gt (aref array (+ offset 3))(ldb (byte 8 24) integer)))
+&gt 
+&gt (defconstant +offset-file-size+ 2)
+&gt (defconstant +offset-offset-bits+ 10)
+&gt (defconstant +offset-info-header+ 14)
+&gt (defconstant +offset-to-bitmap-width+ 18)
+&gt (defconstant +offset-to-bitmap-height+ 22)
+&gt 
+&gt (defun bitmap-file-size (raw-bitmap)
+&gt (read-long raw-bitmap +offset-file-size+))
+&gt (defun bitmap-width (raw-bitmap)
+&gt (read-long raw-bitmap +offset-to-bitmap-width+))
+&gt (defun bitmap-height (raw-bitmap)
+&gt (read-long raw-bitmap +offset-to-bitmap-height+))
+&gt (defun bitmap-offset-bits (raw-bitmap)
+&gt (read-long raw-bitmap +offset-offset-bits+))
+&gt 
+&gt (defun create-memory-dc-with-bitmap (hdc raw-bitmap)
+&gt (let* ((width (bitmap-width raw-bitmap))
+&gt (height (bitmap-height raw-bitmap))
+&gt (size (bitmap-file-size raw-bitmap))
+&gt (offset-bits (bitmap-offset-bits raw-bitmap))
+&gt (hcdc (winapi:|CreateCompatibleDC| hdc))
+&gt (hbitmap (winapi:|CreateCompatibleBitmap| hdc width height)))
+&gt (winapi:|SelectObject| hcdc hbitmap)
+&gt (fli:with-dynamic-foreign-objects ()
+&gt (let* ((c-raw-bitmap (fli:allocate-dynamic-foreign-object :type :byte
+&gt :nelems size))
+&gt (bitmap-bits (fli:copy-pointer c-raw-bitmap))
+&gt (info (fli:copy-pointer c-raw-bitmap)))
+&gt (loop for byte from 0 below size
+&gt do
+&gt (setf (fli:dereference c-raw-bitmap :index byte) (aref raw-bitmap byte)))
+&gt (fli:incf-pointer bitmap-bits offset-bits)
+&gt (fli:incf-pointer info +offset-info-header+)
+&gt (winapi:|SetDIBits| hcdc hbitmap 0 height bitmap-bits info
+&gt winapi::DIB_RGB_COLORS))
+&gt hcdc)))
+&gt 
+
+
+
+----------------------------------------------------
+Denis Pousseur
+6 clos du Drossart
+1180 Bruxelles, Belgique
+
+Mail :  denis.pousseur@compositeurs.be
+Website : http://compositeurs.be
+----------------------------------------------------
+
+
+
+
+</pre>
+                 </article>
+                </section>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:47 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

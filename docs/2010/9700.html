@@ -1,0 +1,2290 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>STM...</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>STM...</h1>
+                <pre>
+Now a greatly simplified and cleaned up STM... No more UM: macros,  
+portable CL only... (except for my test functions)
+
+I realized that an object's "version" identity is as equally tied to  
+the last transaction to bang on the binding as it is to a physical  
+cell binding to some specific object. There is no need to do the  
+indirection that Herlihy was using. We can CAS on the transaction  
+field of the object as easily as on an indirect pointer to a freshly  
+made trio. And so no point constantly making new trios.
+
+I also simplified by demanding that all reads and writes occur within  
+a transaction. The previous code allowed transaction to be NIL which  
+indicated an access occurring outside of an (ATOMIC ...) clause. If we  
+detect that we are being run naked, then just call do-atomic with a  
+closure indicating what the user wants to do, thereby generating a  
+valid transaction object. That simplifies the read and write COND  
+clauses quite a bit.
+
+Also, the initial state of fresh vars is marked with a permanently  
+committed transaction, so the trans slot will never be NIL.
+
+ORELSE vastly simplified. [These are intended to be functionally  
+composable transactions - (ATOMIC (ORELSE ...) (ATOMIC .. ) ... )]
+
+Now playing with conflict management. When we attempt to write an  
+object already in the process of being mutated by another transaction  
+we can do one of several things:
+
+1. Spin wait until the other transaction finishes... STM is expected  
+to be used in situations where there will never be long waits. Er,  
+perhaps not...??
+
+2. Blow off the newcomer and tell him to rollback by aborting his  
+transaction, to try again -- just a longer execution trace of a  
+spin... so same as 1.
+
+3. Blow off the transaction currently in control of the object to give  
+the newcomer preference.
+
+Numbers 1 &amp; 2 test well. Never give an invariant violations.
+
+Number 3 gives occasional invariant violations, and this I don't yet  
+understand. The moment we CAS his state to :ABORTED, all other threads  
+should be free to take control. And there should not be any  
+uncertainty about what value (new or old) to use as a starting point.  
+So why the invariant violations?
+
+The test has been upgraded by having separate threads doing the up and  
+down counting, and yet a third attempting to evaluate the invariant  
+for as long as either counter thread is alive.
+
+-----------------------------------------------------------------------------------------
+;; dstm.lisp -- Software Transactional Memory after Herlihy, et. al.
+;;
+;; See paper: http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.59.8787&amp;rep=rep1&amp;type=pdf
+;;
+;; DM/RAL  01/10
+;;  
+-------------------------------------------------------------------------
+
+(defpackage :dstm
+   (:use #:common-lisp)
+   (:export
+    ))
+
+;; ---------------------------------------------------------------------
+(in-package :dstm)
+;; ---------------------------------------------------------------------
+
+(defclass transaction ()
+   ((state  :reader   transaction- 
+state :initform :active  :initarg :state)
+    (reads  :accessor transaction-reads :initform nil)
+    ))
+
+(defvar *init-transaction*
+   (make-instance 'transaction
+                  :state :committed))
+
+(defclass dstm-var ()
+   ((new   :accessor dstm-var-new   :initform nil   :initarg :val)
+    (old   :accessor dstm-var-old   :initform nil)
+    (trans :reader   dstm-var-trans :initform *init-transaction*)
+    ))
+
+(defun create-var (&amp;optional val)
+   (make-instance 'dstm-var
+                  :val val))
+
+;; ----------------------------------------------------
+
+(defun current-transaction ()
+   (unless mp:*current-process*
+     (error "Multiprocessing not running") )
+   (mp:process-private-property 'transaction))
+
+(defun set-current-transaction (trans)
+   (setf (mp:process-private-property 'transaction) trans))
+
+;; ----------------------------------------------------
+
+(define-condition rollback-exn ()
+   ())
+
+(defun set-state (trans new-state)
+   (loop for old-state = (transaction-state trans)
+         until (sys:compare-and-swap (slot-value trans 'state)
+                                     old-state new-state) ))
+
+(defun abort-transaction (trans)
+   (set-state trans :ABORTED))
+
+(defvar *nrolls* 0)
+
+(defun rollback ()
+   (sys:atomic-incf *nrolls*)
+   (abort-transaction (current-transaction))
+   (error (make-condition 'rollback-exn)))
+
+(defun check-reads (trans)
+   (dolist (pair (shiftf (transaction-reads trans) nil))
+     (destructuring-bind (var . vtrans) pair
+       (sys:ensure-memory-after-store)
+       (let ((vnow (dstm-var-trans var)))
+         (unless (or (eq vtrans vnow)
+                     (eq trans  vnow))
+           (rollback)) ))))
+
+(defun commit ()
+   (let ((trans (current-transaction)))
+     (unless (eq :ACTIVE (transaction-state trans))
+       (rollback))
+     (check-reads trans)
+     (set-state trans :COMMITTED)))
+
+;; ----------------------------------------------------
+
+(defun conflict-manager-for-read (trans1 trans2)
+   (declare (ignore trans1 trans2))
+   ;; either rollback trans1 - the reader and don't return
+   ;; or else rollback trans2 - the writer and do return
+   ;; or... just wait and return
+   ;; (sleep 0.01) ;; comment out to allow spinning
+   )
+
+(defun conflict-manager-for-write (trans1 trans2)
+   ;; trans1 is attempting to take control while trans2 has it.
+   (declare (ignorable trans1 trans2))
+   ;; either abort-transaction  trans1 - the new writer and don't return
+   ;; or else abort-transaction trans2 - the old writer and do return
+   ;; or... just wait and return
+   ;; (abort-transaction trans1)    ;; this works very well, or...
+   (abort-transaction trans2) ;; ... this generates occasional  
+invariant violation
+   )
+
+;; ----------------------------------------------------
+
+(defun read-var (var)
+   (let ((trans (current-transaction)))
+     (if trans
+         (read-var-with-transaction trans var)
+       ;; else
+       (do-atomic (lambda ()
+                    (read-var var))) )))
+
+(defun read-var-with-transaction (trans var)
+   ;; trans is the current transaction for a thread
+   (loop
+    (sys:ensure-memory-after-store)
+    (let* ((vtrans (dstm-var-trans var))
+           (vstate (transaction-state vtrans)))
+      (cond
+       ((eq :ABORTED (transaction-state trans))
+        (rollback)) ;; force a rollback exception
+
+       ((or (eq trans vtrans)
+            (eq :COMMITTED vstate))
+        (push (cons var vtrans) (transaction-reads trans))
+        (return (dstm-var-new var)))
+
+       ((eq :ABORTED vstate)
+        (push (cons var vtrans) (transaction-reads trans))
+        (return (dstm-var-old var)))
+
+       ((eq :ACTIVE vstate)
+        (conflict-manager-for-read trans vtrans)) ;; spin-wait for  
+writer to finish
+       ))))
+
+(defun write-var (var val)
+   (let ((trans (current-transaction)))
+     (if trans
+         (write-var-with-transaction trans var val)
+       ;; else
+       (do-atomic (lambda ()
+                    (write-var var val))) )))
+
+(defun write-var-with-transaction (trans var val)
+   ;; trans is the current transaction for a thread
+   (loop
+    (sys:ensure-memory-after-store)
+    (let ((vtrans (dstm-var-trans var)))
+      (cond
+       ((eq :ABORTED (transaction-state trans))
+        ;; need this inside the loop in case another thread aborts my
+        ;; transaction
+        (rollback)) ;; force rollback exception
+
+       ((eq trans vtrans)
+        (return (setf (dstm-var-new var) val)))
+
+       ((eq :ACTIVE (transaction-state vtrans))
+        (conflict-manager-for-write trans vtrans)) ;; default spin- 
+wait for other owner to finish
+
+       (t
+        ;; try to take control of var
+        (when (sys:compare-and-swap (slot-value var 'trans) vtrans  
+trans)
+          ;; keep a backup of last valid value
+          (when (eq :COMMITTED (transaction-state vtrans))
+            (setf (dstm-var-old var) (dstm-var-new var)))
+          (return (setf (dstm-var-new var) val))))
+       ))))
+
+;; --------------------------------------------------
+
+(defvar *ntrans* 0)
+
+(defun do-atomic (fn)
+   ;; Perform the function fn under a transaction, allowing restart
+   ;; when needed
+   (if (current-transaction) ;; nested transaction?
+       (funcall fn)
+
+     ;; else - fresh transaction
+     (loop
+      (set-current-transaction (progn
+                                 (sys:atomic-incf *ntrans*)
+                                 (make-instance 'transaction)))
+      (handler-case
+          (return-from do-atomic
+            (prog1
+                (funcall fn)
+              (commit)
+              (set-current-transaction nil)))
+
+          (rollback-exn (exn)
+            (declare (ignore exn)))
+
+          (error (exn)
+            (abort-transaction (current-transaction))
+            (set-current-transaction nil)
+            (error exn))
+          ))))
+
+(defmacro atomic (&amp;body body)
+   `(do-atomic (lambda () ,@body)))
+
+(defun show-rolls ()
+   (list *nrolls* *ntrans* (/ *nrolls* *ntrans* 0.01)))
+
+;; ---------------------------------------------------------------
+
+(defun do-orelse (&amp;rest fns)
+   ;; Perform one of the functions in the list fns.  The list is
+   ;; examined in order, front to back.  The first one to succeed is
+   ;; the sub-transaction accepted.  If none succeed, or the overall
+   ;; transaction fails, the the whole thing is restarted.
+   (do-atomic (lambda ()
+                (block alt
+                  (dolist (fn fns)
+                    (handler-case
+                        (return-from alt (funcall fn))
+
+                      (rollback-exn (exn)
+                        (declare (ignore exn))) ))
+                  ;; list of fns exhausted, report overall failure
+                  (rollback)))
+              ))
+
+(defmacro orelse (&amp;rest clauses)
+   `(apply #'do-orelse
+     ,(mapcar (lambda (clause)
+                `(lambda ()
+                   ,clause))
+              clauses)))
+
+;; ---------------------------------------------------
+;; Test it out... hopefully lots of contention... yep!
+#|
+
+(defvar *a* (create-var 0))
+(defvar *b* (create-var 0))
+
+(defun check-invariant (&amp;aux a b)
+   (atomic
+     (setf a (read-var *a*)
+           b (read-var *b*)
+           ))
+     (unless (= b (* 2 a))
+       (bfly:log-info :SYSTEM-LOG "Invariant broken: A = ~A, B = ~A" a  
+b)))
+
+(defun common-code (delta)
+   (atomic
+     (let ((a (+ delta (read-var *a*))))
+       (write-var *a* a)
+       (write-var *b* (* 2 a))
+       )))
+
+(defun count-up ()
+   (loop repeat 5000000 do (common-code 1)))
+
+(defun count-down ()
+   (loop repeat 5000000 do (common-code -1)))
+
+(defun checker (&amp;rest procs)
+   (loop while (some #'mp:process-alive-p procs)
+         do (check-invariant)))
+
+(progn
+   (bfly:log-info :SYSTEM-LOG "Start HDSTM Test...")
+   (setf *a* (create-var 0)
+         *b* (create-var 0))
+   (setf *nrolls* 0)
+   (setf *ntrans* 0)
+   (set-current-transaction nil)
+   (bfly:spawn #'checker
+               :name :checker
+               :args (mapcar #'bfly:pid-proc
+                             (list (bfly:spawn #'count-down
+                                               :name :up-counter)
+                                   (bfly:spawn #'count-up
+                                               :name :down-counter))))
+   )
+
+|#
+
+Dr. David McClain
+dbm@refined-audiometrics.com
+
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: STM...</h1>
+                 <pre>
+OKAY!! I got it all running just fine. You really do need the ref-cell  
+indirection. And you need to take care when switching the state of  
+some arbitrary transaction. You can only use CAS and it has to assume  
+a starting position of :ACTIVE.
+
+Tried 3 different conflict management schemes:
+
+1. Just spin a writer until the data is available for grabbing (a  
+polite, optimistic scheme)
+
+2. Abort the writer transaction attempting to write an already grabbed  
+item (a pessimistic, but polite scheme)
+
+3. Abort the current holder transaction and allow the new guy in  (the  
+nastiest scheme)
+
+Why are the two polite schemes labeled optimistic and pessimistic? The  
+optimistic one just spins in the hope that it can continue and succeed  
+to commit on the first try. The pessimistic scheme gives up, thinking  
+it has no chance at reaching commit to it rolls back and starts all  
+over again from the beginning.
+
+Interesting variations. Also interesting is that the speed is  
+fabulous. 5 Million test cycles for a total median number of  
+transactions (3 concurrent threads) of around 18.5 millon. Elapsed  
+time of 18-20 sec. @ 200% CPU. The fraction of transactions needing to  
+be rolled back amounts in all three cases to around 0.22% +/- 0.03%.
+
+That works out to an average of 925,000 transactions per second with  
+these little test functions. Close to 1 Million transactions per second.
+
+Amazing!
+
+
+Dr. David McClain
+dbm@refined-audiometrics.com
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: STM...</h1>
+                 <pre>
+
+On Jan 17, 2010, at 9:19 PM, David McClain wrote:
+
+&gt Interesting variations. Also interesting is that the speed is fabulous. 5 Million test cycles for a total median number of transactions (3 concurrent threads) of around 18.5 millon. Elapsed time of 18-20 sec. @ 200% CPU. The fraction of transactions needing to be rolled back amounts in all three cases to around 0.22% +/- 0.03%.
+
+Sorry, not completely clear what you're saying here. Which conflict manager are you using to get these results? IOW, what should this code look like to show the kind of performance you're getting:
+
+;; ----------------------------------------------------
+
+(defun conflict-manager-for-read (trans1 trans2)
+ (declare (ignore trans1 trans2))
+ ;; either rollback trans1 - the reader and don't return
+ ;; or else rollback trans2 - the writer and do return
+ ;; or... just wait and return
+ ;; (sleep 0.01) ;; comment out to allow spinning
+ )
+
+(defun conflict-manager-for-write (trans1 trans2)
+ ;; trans1 is attempting to take control while trans2 has it.
+ (declare (ignorable trans1 trans2))
+ ;; either abort-transaction  trans1 - the new writer and don't return
+ ;; or else abort-transaction trans2 - the old writer and do return
+ ;; or... just wait and return
+ ;; (abort-transaction trans1)    ;; this works very well, or...
+ (abort-transaction trans2) ;; ... this generates occasional invariant violation
+ )
+
+;; ----------------------------------------------------
+
+Thanks again for sharing this - a most entertaining weekend for me here - my wife can't imagine what I've been so engrossed in that could be more interesting than watching TV!
+
+warmest regards
+
+Ralph
+
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: STM...</h1>
+                 <pre>
+
+On Jan 17, 2010, at 11:18 PM, David McClain wrote:
+
+&gt I saw no statistically significant different between the three different resolution policies.
+
+OK, now I see. Yes, I'm getting similar results here - no significant difference among the various resolution policies - apart from the invariant violations that come with aborting transaction 2 - though I'm only seeing about 700,000 transactions per second - probably just a slightly slower machine than yours.
+
+How do these transaction rates compare with ordered locks for you? With 3 threads contending for 3 ordered locks I'm seeing about 1.5 million data-read-write cycles per second.
+
+warmest regards,
+
+Ralph
+
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: STM...</h1>
+                 <pre>
+David McClain writes:
+ &gt 
+ &gt I saw no statistically significant different between the three  
+ &gt different resolution policies. All of them had median measurements  
+ &gt within the stated accuracy of 0.22% +/- 0.03% (percent of transactions  
+ &gt rolled back).
+ &gt 
+ &gt On rare occasions, I see much better figures than these, going well  
+ &gt over 1 M transactions/sec. And at other rare times I see about double  
+ &gt the number of rollbacks, but basically the same elapsed time.
+ &gt 
+ &gt It is completely unclear to me how the system scheduler interacts with  
+ &gt the three concurrent threads. It clearly does, but I have no  
+ &gt instrumentation to measure this. However, the up-counter and down- 
+ &gt counter were both told to run for 5 million iterations, and all three  
+ &gt threads finished at the same time (to within one second of resolution).
+ &gt 
+ &gt I am *not* involving the Lisp scheduler in any way at all. So threads  
+ &gt are somehow, magically being handed off to the two processors in the  
+ &gt Intel Core Duo, and somehow, magically there is thread switching  
+ &gt because I have 3 concurrent processes but only two processors.
+ &gt 
+
+If you're running the Lisp threads using the default scheduling
+algorithm, then timeslicing will certainly affect the tasks each thread
+gets.  If your application is amenable, you might try moving to priority
+scheduling, which permits a task to run until it sleeps or is preempted
+by higher priority task.  A "sleep" meaning a call into the OS
+scheduler, yielding execution.  If you do any measurements of execution
+time within a thread, then the latter scheduling class is essential
+since timeslicing adds an unpredictable amount of runtime to a task so
+scheduled.
+
+Greg
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: STM...</h1>
+                 <pre>
+
+David McClain writes:
+ &gt 
+ &gt &gt
+ &gt &gt If you're running the Lisp threads using the default scheduling
+ &gt &gt algorithm, then timeslicing will certainly affect the tasks each  
+ &gt &gt thread
+ &gt &gt gets.  If your application is amenable, you might try moving to  
+ &gt &gt priority
+ &gt &gt scheduling, which permits a task to run until it sleeps or is  
+ &gt &gt preempted
+ &gt &gt by higher priority task.  A "sleep" meaning a call into the OS
+ &gt &gt scheduler, yielding execution.  If you do any measurements of  
+ &gt &gt execution
+ &gt &gt time within a thread, then the latter scheduling class is essential
+ &gt &gt since timeslicing adds an unpredictable amount of runtime to a task so
+ &gt &gt scheduled.
+ &gt 
+ &gt 
+ &gt Hi Greg,
+ &gt 
+ &gt Any hints about how to control these issues in LW? Or are you  
+ &gt suggesting using an external library that can pull this stuff off?
+ &gt 
+
+You don't need an external library, the scheduling class &amp; priorities
+are set via sched_setparam &amp; friends, so if you're using OS threads then
+its probably going to be a call to them- or maybe that stuff can be
+specified in Lisp at task create time.  Thats assuming you're doing this
+in Linux or OSX (not sure about OSX but I imagine it'll act more or less
+like Linux does, being posix-y).  On Windows the scheduling classes
+exist but the scheduler is so poorly implemented that you won't get
+anything like realtime sorts of behavior no matter what classes and
+priorities you use.
+
+I'm still on Lispworks 4.3, probably will upgrade this year.
+
+Regards,
+
+Greg
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: STM...</h1>
+                 <pre>
+
+
+David McClain writes:
+ &gt 
+ &gt 
+ &gt On Jan 18, 2010, at 13:18 PM, gregm32768@comcast.net wrote:
+ &gt 
+ &gt &gt You don't need an external library, the scheduling class &amp; priorities
+ &gt &gt are set via sched_setparam &amp; friends, so if you're using OS threads  
+ &gt &gt then
+ &gt 
+ &gt 
+ &gt Wow! I never heard of these routines. And they don't appear in any of  
+ &gt my documentation sets.
+ &gt 
+ &gt Looking in the apropos browser, the only SCHEDxxx I find are for MP  
+ &gt timers, and process-allow-scheduling and process-run-scheduler.
+
+the sched_* family is part of the suite of Linux kernel syscalls, maybe
+called via FFI, if you can get the pid of the lispworks tasks.  Be
+careful though, if you elevate a task's priority and switch it to FIFO
+(priority scheduled) or REALTIME and it doesn't sleep, everything else
+in the system running at lower priority (desktop, shells, daemons, etc)
+will seem to be locked- they can't get cpu time.  A dual core can
+mislead you (and maybe save you)- such a task could consume all of one
+cpu, but the system remains operable via the 2nd.  But if you have a
+bunch of such tasks...
+
+
+
+ &gt However, thinking back a number of years, I wonder if you are running  
+ &gt a Lisp image on Linux that used the old stack groups protocols. I  
+ &gt never used those, but I remember seeing documentation that indicated  
+ &gt this protocol was for Unix systems. On Windows, at the time, they were  
+ &gt already migrated to native threads.
+ &gt 
+ &gt AFAIK there are no documented interfaces in LWM 6 or LWW 6 that  
+ &gt pertain to interacting with the Lisp scheduler. The only control (they  
+ &gt indicate) that you have is to avoid interacting with it by means of  
+ &gt selected private- and local- process functions, which are new for LW 6.
+
+
+I'm afraid I haven't spoken clearly- I only coincidentally mentioned
+LIspworks (as a satisfied user)- the sched_* functions would possibly be
+appropriate to a Lispworks task running as a native OSX or Linux task.
+My old Lispworks is plain old single threaded and schedules itself.
+
+
+ &gt But in my STM code, I am not interacting at all with the LW scheduler.  
+ &gt I suspect that we are controlled by Apple's underlying mechanisms, and  
+ &gt I suspect those are based on pthreads -- a hint is that :PTHREADS is  
+ &gt in the *FEATURES* list. But I'm only guessing here...
+ &gt 
+
+Thats why I was thinking sched_* might be applicable.  Create the
+Lispworks task, have it obtain its own PID, then use sched* and friends
+via FFI to change its priority &amp;/or scheduling class.  You'll probably
+have to run setuid root, or as root- depends on how OSX manages its
+scheduler permissions.
+
+You can request priority and scheduling classes via pthread_create,
+which is most likely what Lispworks does internally- if its possible to
+include pthread_attributes in the Lispworks task create call then you
+can do it all in one place.
+
+If Lispworks includes any internal synchronization magic between the
+Lispworks "kernel", if such exists, and your Lispworks tasks, then such
+stuff can be deadlocked by messing around with this stuff.  OTOH thats
+sort of a subset of the "deadlock the entire system" problem.
+Multiprocessing is tricky at best, no matter what the language.
+
+Doing everything timesliced is much easier to debug but if you need that
+last bit of determinism then priority scheduled is pretty much where
+you'll have to go.  If you're trying to (accurately) measure throughput
+in a multiprocessor architecture so as to trade off various contention
+algorithms then I think you probably have to do it because you can't
+predict or even (easily) measure the wall-clock time impact of the task
+scheduling in and out so as to get an accurate cycle count of time spent
+in your algorithm.
+
+Be careful though, switching scheduling classes changes the contention
+dynamics between your tasks which can prompt deadlocks (or occasionally
+apparently fix them).  Its sort of like writing interrupt routines, it
+has to be exactly right or sooner or later the app will fail
+ungracefully.
+
+Regards,
+
+Greg
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: STM...</h1>
+                 <pre>
+
+On Jan 20, 2010, at 4:25 AM, David McClain wrote:
+
+&gt Now, I had thought earlier that using locks would stand in the way of the composable transactions. Not true. We are micro-locking here, with one lock to each var, and never cascading by locking several vars -- just one var at a time -- in and out. So it remains clean and our composable transactions continue to benefit.
+
+I, and I'm sure others on this list, would be very interested to see this version along with any simple test code that shows how you're using it.
+
+warmest regards,
+
+Ralph
+
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: STM...</h1>
+                 <pre>
+
+On Jan 20, 2010, at 12:26 PM, David McClain wrote:
+
+&gt 2. The code that follows uses the shared / exclusive locking, and it is correct as it stands. However, the use of locks precludes the aggressive contention policy and allows only the more polite versions. We chose the optimistic polite version where, if a var is being mutated by a transaction of another equivalence class then we spin on that operation until it completes. We don't rollback, which would be considered a pessimistic approach.
+&gt 
+&gt That being the case, while this code is correct with the use of locks, it turns out that you really don't need them at all. As long as a polite contention policy is in effect, you can discard the locks in favor of one CAS operation in the write function to allow a transaction to take control of a var whose controlling transaction has committed or aborted. And in so doing, and avoiding gratuitous locks, you reap magnificent speedup rewards.
+
+So you remove all of the locks, both shared and exclusive, and just use a sys:compare-and-swap in write-var-with-transaction, is that right? You wouldn't happen to have a version lying around that does this, would you? I'd like to see the increase in transaction throughput  :^)
+
+&gt Furthermore, you really don't need to wrap every naked read-var or write-var in a full transaction. There is nothing wrong with doing a simple non-transacted read-var. You get the value in the instant. With write-var, you can provide a default "dummy" transaction object, and then immediately mark it as :COMMITTED on return from the writing. But the code shown here always wraps naked reads / writes in a full ATOMIC transaction.
+
+I get the first part about not wrapping every read-var in a transaction, but I'm a little unclear on the dummy transaction part with write var. Any explanation, or better still, code would be much appreciated.
+
+warmest regards,
+
+Ralph
+
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: STM...</h1>
+                 <pre>
+
+On Jan 21, 2010, at 3:58 AM, David McClain wrote:
+
+&gt 1. Uses Time-Order (TO) protocol, so that each var has both read &amp; write timestamps.
+
+This is what clojure does. Clojure's stm also uses no locks except for when committing transactions, iirc.
+
+warmest regards,
+
+Ralph
+
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: STM...</h1>
+                 <pre>
+
+On Jan 21, 2010, at 10:15 AM, David McClain wrote:
+
+&gt 1. you need to work with immutable data structures as much as possible. Use RB-Trees for queues and maps (a-lists), to maximize structure sharing. The only mutations occur on the outermost bindings.
+
+[snip]
+
+&gt 3. Realize that it is better to burn CPU cycles in parallel than to serialize program flow
+
+Couldn't we have our cake (mutable data structures) and eat it too (burn lots of CPU cycles rather than serialize) by using our copious spare cores to do copying of mutable data and have transactions only operate on those copies, finally swapping them for the originals if the transaction commits?
+
+warmest regards,
+
+Ralph
+
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: STM...</h1>
+                 <pre>
+
+On Jan 21, 2010, at 10:49 AM, David McClain wrote:
+
+&gt Sounds like a wonderful idea, but it also sounds a bit like "herding cats". How do you keep them all from performing the same copying operation in parallel?
+
+You don't - this comes under the heading of 3. It's better to burn CPU cycles than to serialize program flow. Or am I not understanding your question?
+
+warmest regards,
+
+Ralph
+
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: STM...</h1>
+                 <pre>
+On Thu, Jan 21, 2010 at 3:19 PM, Nick Levine &lt;ndl@ravenbrook.com&gt wrote:
+&gt
+&gt &nbsp; This has been a tour-de-force, discovering these things along the
+&gt &nbsp; way... I thank the audience for enduring, and for prodding me
+&gt &nbsp; along.
+&gt
+&gt We're look forward to the paper you're writing. ;)
+&gt
+&gt - n
+
+And the chapter in your book? ;)
+
+I love that the entire STM implementation is short enough to include
+in an email message. It has been a very interesting thread to (try to)
+follow.
+
+Cheers,
+
+John :^P
+--
+John Pallister
+john@johnp.net
+john@synchromesh.com
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: STM...</h1>
+                 <pre>
+
+On Jan 21, 2010, at 11:02 AM, David McClain wrote:
+
+&gt The mutators have to await the production of copies. And the copying factories have to wait for requests from mutators to know what to copy. What happens to parallelism then?
+
+You can have more than one mutator running at the same time. The optimism comes from the expectation that in most cases you won't have mutators running on the same object, so when a mutator checks that its copy is valid (by reading the timestamp again after the copy) it probably will be. Then the transaction runs, the copy is mutated, the timestamp(s) are re-checked and the transaction is committed by swapping the copy for the original.
+
+Or am I still not understanding you?
+
+warmest regards,
+
+Ralph
+
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: STM...</h1>
+                 <pre>
+
+Paul Tarvydas writes:
+ &gt 
+ &gt &gt 
+ &gt &gt ... Lisp Scheduler vs Spinning...
+ &gt 
+ &gt Don't blame it all on the lisp scheduler (esp. since you claim that
+ &gt you are avoiding the lisp scheduler :-).
+ &gt 
+ &gt There's also a *nix scheduler underneath.  
+ &gt 
+ &gt I'm guessing that the *nix scheduler is doing the actual context
+ &gt switches (and time slices), it's pushing and popping machine
+ &gt registers (after, maybe, doing a (how expensive?) trap from
+ &gt user-space to system-space ; I'm not sure how pthreads are
+ &gt implemented in *nix ; hmm, no, what am I saying?, if the *nix
+ &gt scheduler is spraying threads across the various cores, then this
+ &gt must be happening in system space).
+ &gt 
+
+It is the OS scheduler that allocates a given schedulable task to a
+processor.  Scheduling class, priority, affinity, interrupt mask
+(sometimes) are all parameters used by the scheduler to establish the
+task's execution environment until its schedule out and the next task
+comes in.  Generally pthreads are first class processes that share an
+address space, and within that space, an executable as mapped into ram.
+In other words, they do not have their memory protected from each other,
+ie- within a task, pthreads are free to interfere with each other as in
+a flat memory model.  Each pthread has its own stack, and per-thread
+"metadata".  However, with respect to the scheduler you generally
+consider them as separately schedulable tasks like any other userspace
+task.  Because they share .text, .bss, .data sections pthreads are ideal
+candidates for using lockfree algorithms.
+
+Context switches occur in kernel space, performed by the OS scheduler.
+Assuming all these "STM" experiments are being done with default task
+scheduling class and priority then the tasks are scheduled out when a
+timeslice is exhausted, the task sleeps (by calling a function that ends
+up prompting the scheduler, which de-schedules the task until some
+event- sleep() timeout, fd ready, etc), or a higher priority task
+becomes runnable.  Since there are several potential causes of a task
+being scheduled out, its hard to measure whats actually going on with
+respect to wallclock time actually consumed by the task's execution.
+Typically you have to switch to priority scheduling &amp; elevated
+priorities to measure whats happening, and very importantly, to make
+sure your contention model is actually working the way you think it is.
+
+Context swap time is inexpensive relative to spinning when there is a
+lot of contention on the spinlock- each spin doesn't just cost cpu
+cycles, its also memory bus bandwidth for the cas operations- both
+multiplied by the # of contending tasks.  For just a few contentions
+(for various values of 'few') then spinning is cheaper.  Consider the
+benefit of shrinking the pool of contending tasks by 1/2 if the
+application were to know they could sleep instead.
+
+If Lispworks is using OS threads then it is no different than any C/C++
+task as far as the scheduler is concerned- so if the Lisp task can get
+its pid, then it can change its scheduling parameters.  If not using
+native threads, then you're stuck with whatever the internal scheduler
+offers- for better and for worse.
+
+Sometimes timeslicing can avoid lurking deadlocks since a task spinning
+on a lock that never arrives can be scheduled out when its timeslice
+expires (permitting the task holding that spinlock to be scheduled in
+and finish, freeing the resource so the original task can obtain its
+lock).
+
+I most strongly urge David to try his experiments with priority
+scheduling to see if the algorithms continue to work properly (and
+similarly).
+
+Regards,
+
+Greg
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: STM...</h1>
+                 <pre>
+
+On Jan 21, 2010, at 12:32 PM, David McClain wrote:
+
+&gt OTOH, where would you see this being beneficial, over having to recast the problem with immutable data structures? Remember too, that STM is really only applicable to bookkeeping chores, not for things with irreversible consequences partway through a transaction.
+
+Thats what the copying is for. IOW, rather than using red-black-trees or something else with lots of shared structure, use a mutable vector, but copy it inside the transaction. If the transaction rolls back, you haven't touched the "real" data, just a copy.
+
+warmest regards,
+
+Ralph
+
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: STM...</h1>
+                 <pre>
+
+On Jan 21, 2010, at 1:49 PM, David McClain wrote:
+
+&gt Well, that didn't answer the question.
+
+Sorry about that, I'll try to be clearer here.
+
+&gt But I do see that since we are all so accustomed to using lists, vectors, strings, hash tables, and so forth, that it would be most convenient to continue doing so.
+
+This is certainly one very good reason. For specific use cases, I really think we have to look at each application on an individual basis since it depends not only on the cost of copying, but on the amount of contention. Even with large mutable data, if contention is low, then this could be win on many core systems. Even with smaller mutable data, if contention is high, the cost of repeatedly copying could be a loss. I think it really depends on the patterns of mutation and contention with the individual application. This is why the best stm may be one where the strategy is dynamically tuned as the application runs.
+
+
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: STM...</h1>
+                 <pre>
+
+On Jan 21, 2010, at 3:33 PM, David McClain wrote:
+
+&gt So, apart from composable transactions, where does STM fit the needs? (maybe that's a stupid question? so... apart from breathing, why do you need air?)
+
+One does often get the impression that stm is a solution in search of a problem. Maybe this changes when one has 63 cores sitting idle. I don't :) so I haven't had to find a way to use them yet. As Pascal says in the paper you mention, we may do well to remember that stm is more about correctness (e.g., the composable transactions you mention) than necessarily about performance. Again, this may change when truly large numbers of cores are available.
+
+&gt And what other techniques ought to be considered?
+
+I think you've hit on the big ones - locks and erlang style (i.e., actor model) pure message passing concurrency.
+
+warmest regards,
+
+Ralph
+
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: STM...</h1>
+                 <pre>
+
+David McClain writes:
+ &gt 
+ &gt 
+ &gt ... and the bad news is...
+ &gt 
+ &gt I just timed the cost of 5 million iterations of my little test  
+ &gt routine, using DSTM (TO STM not much different), versus not using STM  
+ &gt at all -- for only one thread running, for no contention. I'm trying  
+ &gt to find out how costly it is to use STM.
+ &gt 
+ &gt My tests show that the average transactional access time is around 670  
+ &gt ns,  while for direct symbol access it is around 3.7 ns. That makes  
+ &gt STM access about 180 times more expensive.
+ &gt 
+ &gt One more reason to avoid mutable data structures. Imagine if you had a  
+ &gt binary tree that needs Log(N) accesses to fetch a value, and another  
+ &gt roughly similar amount to rebalance that tree after removing the item  
+ &gt of interest -- versus an immutable tree where the only STM access is  
+ &gt to the root node binding. Yikes!
+ &gt 
+
+Have you factored out context switches from your access time?
+
+Greg
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: STM...</h1>
+                 <pre>
+
+David McClain writes:
+ &gt 
+ &gt &gt
+ &gt &gt Have you factored out context switches from your access time?
+ &gt &gt
+ &gt 
+ &gt 
+ &gt No, not at all... But that begs the question... If STM access is  
+ &gt taking long enough for context switches to interfere, all while  
+ &gt running a lone thread and no contention, then it is an expensive  
+ &gt operation. I'm not trying to discourage its use. I think STM is very  
+ &gt useful. But it's always good to understand the consequences. And in  
+ &gt this case, its costly nature impels one to use purely functional data  
+ &gt structures along with it... well, er, uh...
+
+I'm asking only to obtain some assurance that your time measurement is
+actually measuring what you think it is.  If you don't know how much of
+your elapsed time measurements are due to cpu cycles expended in
+contention vs time spent scheduled out then you don't know the impact of
+the algorithm.
+
+I agree its unlikely context switches are a dominant factor but thats
+just a guess.  If you ran your tests with timesliced scheduling and are
+subtracting system time before and after to get a transaction time then
+your results are easily skewed by scheduling which potentially adds a
+variety of artifacts to the kernel time that I suppose you're using to
+measure the elapsed time of a transaction.
+
+For instance, what about interrupt service calls (and daemons running at
+higher priority) that may be happening while your contention tests are
+running?  They impact (potentially) all the cores, and they are pretty
+expensive compared to the transaction times you report
+
+
+ &gt 
+ &gt See, I'm sitting here listening to Raffael who is pro-mutable, and he  
+ &gt is right. But I'm also listening to the original Herlihy paper where  
+ &gt they bragged that they had constructed an STM RB-Tree, which at that  
+ &gt time was some kind of huge achievement. Raffael wants us to just go  
+ &gt ahead and make a copy. The cost of that is probably buried by the STM  
+ &gt costs. So for reasonable sized mutable structures, Raffael will  
+ &gt probably see no impact on timing.
+ &gt 
+ &gt But the Herlihy RB-Tree is likely to see huge amounts of overhead  
+ &gt added by STM accesses. You don't want to do that sort of thing.  
+ &gt Raffael's approach is probably reasonable. As is using immutable data  
+ &gt structure with maximum structure sharing among copies.
+
+Perhaps thats all true, but it doesn't change the need to be sure of
+your instrumentation.
+
+Greg
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: STM...</h1>
+                 <pre>
+
+David McClain writes:
+ &gt Heh, Well, yes to be precise you raise some very good points. But I'm  
+ &gt talking about a single thread dispatched on a machine doing nothing  
+ &gt else overtly. The test duration was around 11 seconds -- so plenty of  
+ &gt "process switches" in there. No mouse or kb activity, so no reason to  
+ &gt see Lisp thread switching. But no doubt many other things are going on  
+ &gt in the background. However, they must pale in comparison to 11 seconds.
+
+from 100 to 1000 interrupts/sec of the system timer depending on how
+your configured is happening regardless.  Lots of bus activity to the
+video card (DMA xfers), vm activity, all that stuff is relevant if
+you're measuring things down sub microsecond.
+
+If I was going to measure that sort of thing I'd get onto a quad core
+box, turn off interrupts for two cores, set affinity in two priority
+schedule tasks to force them onto the "quiet" cores (and force other
+tasks off) and then measure.
+
+
+ &gt OTOH, the non-STM version ran in 0.074 seconds ! So it's like apples  
+ &gt and oranges here. That was so fast that it likely finished all in one  
+ &gt time slice.
+
+But you still don't know if the task was scheduled out or not.
+
+
+ &gt 
+ &gt I just added a ton of declares and flipped the optimization settings  
+ &gt to max, and still see the test giving about 450 KTrans / sec un- 
+ &gt contended, or about 2.22 microsec per iteration of the 5 million  
+ &gt iters. There are 3 accesses during that test - one read and two  
+ &gt writes. No contention. So this is a minimum overhead for STM. Looks to  
+ &gt be about 740 ns per access. And pretty darn close to 150 times slower  
+ &gt that simply using direct special symbol-value access.
+
+Your optimization demonstrating that the difference in runtime is not
+directly proportional to the composition of the user code, but instead
+(presumably) in the contention algorithm.  The transaction throughput,
+contention count and total cpu metrics are a good indicator that the
+right sort of stuff is going on.  OTOH what would be interesting is how
+the overhead scales with the # of contenders, it might end up being
+comparatively inexpensive.
+
+
+ &gt 
+ &gt Now the other articles I read about STM are attempting something  
+ &gt serious. We are just playing around in high-level Lisp, and getting  
+ &gt some pretty useful stuff for our fun. But the other articles mention  
+ &gt an overhead as small as 2:1 versus straight access. That has to be in  
+ &gt hand-crafted Assembly. An in a pinch, I might be tempted to go that  
+ &gt route too. But I'm sitting here thinking about where to do that jump  
+ &gt across the FLI without overly impacting things. FLI is expensive too.
+
+Sounds to me like a determined effort to keep the overhead scaling curve
+as flat as possible, a suggestion of where the costs of contention start
+to appear.
+
+Greg
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: STM...</h1>
+                 <p>
+                  Unable to parse email body. Email id is 9765
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: STM...</h1>
+                 <pre>
+
+On Jan 22, 2010, at 7:03 AM, Pascal Costanza wrote:
+
+&gt However, I did some experiments a while ago with a somewhat simplistic parallel mapcar on an alpha version of LispWorks 6.0, and already got pretty good results. If anybody is interested, I can post the code here.
+
+&lt;Raises hand&gt I'm interested :)
+
+&gt 
+&gt What I would really like to see is some of the ideas in Fortress translated into a Common Lisp library.
+
+Yes, I watched Steele's talk on conc-lists and other ideas for using trees as a basis for parallel execution; the example code is largely in scheme:
+video: &lt;http://www.vimeo.com/6624203&gt
+pdf of slides: &lt;http://research.sun.com/projects/plrg/Publications/ICFPAugust2009Steele.pdf&gt
+
+It would be very cool to have a version of these ideas for LW 6.
+
+warmest regards,
+
+Ralph
+
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: STM...</h1>
+                 <pre>
+
+David McClain writes:
+ &gt 
+ &gt ... on second thought, we can't control the order in which two threads  
+ &gt do the pre-reading. They could both blast through their pre-reads and  
+ &gt then wind up in the same situation they were in before.
+ &gt 
+ &gt So, what about never allowing a transaction to spin, but rather move  
+ &gt on, or rollback and try again. Would that work?
+ &gt 
+
+I don't think there is a general solution to this sort of problem.  It
+seems like dealing with concurrency always turns into part of the
+software engineering task.  Lockfree algorithms, mutexes, semaphores,
+deterministing scheduling seem be the usual tools.
+
+Greg
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: STM...</h1>
+                 <pre>
+
+On Jan 24, 2010, at 8:37 AM, Pascal Costanza wrote:
+
+&gt + The performance overhead of STM is just extremely high. Read and write accesses should normally be simple operations, but with STM, each and every one of them becomes extremely complex. (I have been told at last year's OOPSLA that the fastest STM implementation is 2.5 slower than the equivalent non-STM version.)
+&gt 
+&gt + Therefore, it is considered better to avoid mutable data structures as much as possible. But we could have concluded that already without STM. If you have considerably fewer places to protect against data races, locks don't look that bad anymore.
+&gt 
+&gt + STM leads to potential livelocks. Figuring that they occur and why they occur is very hard, especially in large systems. Deadlocks can be annoying, but at least you immediately know that they occur and why they occur, so you have a good starting point to fix them. In other words, deadlocks are easier to debug and fix than livelocks.
+
+Just to play devil's advocate:
+
+1. The performance overhead goes away once you have 64 cores - i.e., 2.5x speed is easily overcome by lots of cores. Now compare the complexity of the lock based solution running 200+ simultaneous transactions on 64 cores with the stm running the same transactions on the same number of cores.
+
+2. If you have each transaction keep count of how many times it's been rolled back you can trigger a different (i.e., serial, pessimistic) srtategy that is guaranteed to make progress - contending transactions become effectively serial - a running transaction that has already been rolled back x times can no longer be aborted/rolled back by another thread.
+
+It seems like there is no *single* optimal stm strategy - an stm needs to meter its own performance and progress and change strategy accordingly to both prevent livelock and produce better throughput.
+
+warmest regards,
+
+Ralph
+
+P.S. I watched Steele's talk about conc-lists again. At the end a questioner asks (paraphrasing here) "I understand why you want to get rid of cons, but why use conc-lists. Why not just go the whole hog and use arrays, like NESL does, because then you're just saying what you mean, that you've got an aggregate that you're doing an associative operation on. The trouble with conc-lists is you're going to have to do balance, and you don't have a handle on locality - for big machines you're going to need locality." To which Steele replies, in conclusion: "use big operators on aggregate data structures (i.e., arrays) and do the binary splitting (i.e., conc-lists) only when the algorithm requires it."
+
+So it seems like we might want a set of operators that:
+
+1. operate on arrays and remain serial until a certain size or per/entry work time threshold is reached.
+2. once parallel, operate on sub arrays and combine the results.
+3. map the array to a conc-list for algorithms which require the structural recursion, and combine results as in 2.
+
+Seems like common lisp macros would be a natural for setting this up fairly invisibly/seamlessly for user libraries.
+
+
+
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: STM...</h1>
+                 <pre>
+
+David McClain writes:
+ &gt 
+ &gt &gt
+ &gt &gt There is always a potential for livelocks. Even if transactions  
+ &gt &gt always only roll back themselves, the reason why they roll back  
+ &gt &gt comes from other transactions. Therefore, there is always the  
+ &gt &gt possibility that two or more transactions roll each other  
+ &gt &gt permanently back, without making any progress.
+ &gt 
+ &gt 
+ &gt OUCH! Oh, that's depressing...  (I clearly do see the potential for  
+ &gt permanent starvation though -- likelihood? indeterminate.)
+ &gt 
+ &gt So that takes us back to Herlihy's original paper, and our HDSTM.lisp  
+ &gt implementation where we have contention managers and the ability to  
+ &gt abort other threads. We need a monitor to watch for too many rollbacks  
+ &gt or spin-cycles, and have some means to say "ok, let's break it up  
+ &gt guys..."
+
+Welcome to the wonderful world of concurrency.  Happens with interrupts,
+network protocols, multiprocessing- anywhere you have interaction of
+independent actors.  Figures of merit for "load" (possibly
+multidimensional, or perhaps as coefficients in load equations) are
+helpful, but you still have to design &amp; apply them.
+
+ 
+ &gt The whole reason for my being interested in STM in the first place was  
+ &gt the "promise" of deadlock-free composable transactions. If it sounds  
+ &gt too good to be true...
+
+Its not a general solution but its a nice tool where applicable.  Its
+great to have an alternative to mutexes that drop a task into the sleep
+queue to await a wakeup condition.  The latter are useful and sometimes
+what you want, but expensive for quick critical sections.
+
+Greg
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: STM...</h1>
+                 <pre>
+
+On Jan 24, 2010, at 5:54 PM, Pascal Costanza wrote:
+
+&gt Here is the code.
+
+Thanks!
+
+I have something similar but Mac OS X specific which uses Grand Central Dispatch via LispWorks' cocoa interface. This way I can just let the OS take care of how many threads to spawn depending on system load, etc. I'll clean it up and post it here in the next couple of days.
+
+warmest regards,
+
+Ralph
+
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: STM...</h1>
+                 <pre>
+
+On Jan 26, 2010, at 4:56 PM, David McClain wrote:
+
+&gt Don't you need to know how many cores there are in order to decide how to split up the job?
+
+Grand Central Dispatch does this for you. You just push the individual tasks onto a concurrent queue, and GCD decides how many threads to spawn based number of cores, system load, etc. Here's the code:
+#|
+Copyright (c) 2010 Raffael Cavallaro
+
+All rights reserved.
+
+Permission is hereby granted, free of charge, to any person
+obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without limitation
+the rights to use, copy, modify, merge, publish, distribute,
+sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so,
+subject to the following conditions:
+
+The above copyright notice and this permission notice shall
+be included in all copies or substantial portions of the
+Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY
+KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS
+OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+(N.B. this is the MIT license)
+
+|#
+
+;; Raffael Cavallaro can be reached at raffaelcavallaro@me.com
+;; Using Grand Central Dispatch from LispWorks for Macintosh v. 6.0
+;; by means of the existing Objective-C interface.
+;; NSInvocationOperation and NSOperationQueue use libdispatch, a.k.a. Grand
+;; Central Dispatch for their task queues. We take advantage of that and
+;; provide a simple interface queue-run-function which allows the user
+;; to add arbitrary lisp code to GCD serial and concurrent queues.
+;; We build on this to provide a gcd-pmap which operates similarly to
+;; common-lisp:map, but operates in parallel, using Grand Central Dispatch
+;; to manage the overhead of thread creation, load monitoring, etc.
+;; Only lightly tested.
+
+(eval-when (:compile-toplevel :load-toplevel :execute)
+
+  #-(and macosx lispworks6)
+  (error "this code only works under LispWorks for Macintosh version 6")
+
+  (defmacro @ (&amp;body body) `(objc:invoke ,@body))
+  (defmacro @pool (&amp;body body) `(objc:with-autorelease-pool () ,@body))
+  (defmacro @selector (&amp;body body) `(objc:coerce-to-selector ,@body))
+
+  (objc:ensure-objc-initialized
+   :modules
+   '("/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation"
+     "/System/Library/Frameworks/Cocoa.framework/Versions/A/Cocoa")))
+
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (unless
+      (plusp
+       (@ "NSOperationQueue" "respondsToSelector:" (@selector "mainQueue")))
+    (warn "This code will only use Grand Central Dispatch under Mac OS X 10.6 or later.")))
+
+
+
+
+
+
+;; althoug one can use GCD serial queues via LispWorks objc interface
+;; it is not recommended. LispWorks' mp:locks are much faster than
+;; using a GCD serial queue to control access to a shared resource.
+
+(defun make-serial-queue ()
+  (let* ((the-queue
+          (@ (@ "NSOperationQueue" "alloc") "init")))
+    (@ the-queue "setMaxConcurrentOperationCount:" 1)
+    the-queue))
+
+(defparameter *ns-operation-queue-default-max-concurrent-operation-count*
+  -1) ;; NSOperationQueueDefaultMaxConcurrentOperationCount
+
+
+;; 10.6 only
+(defparameter *main-queue*
+  (if (plusp
+       (@ "NSOperationQueue" "respondsToSelector:" (@selector "mainQueue")))
+    (@ "NSOperationQueue" "mainQueue")
+    nil))
+
+
+
+(defun make-concurrent-queue ()
+  (let* ((the-queue
+          (@ (@ "NSOperationQueue" "alloc") "init")))
+    (@ the-queue "setMaxConcurrentOperationCount:"
+      *ns-operation-queue-default-max-concurrent-operation-count*)
+    the-queue))
+
+(defun make-invocation-operation (&amp;key target selector object)
+  (@ (@ "NSInvocationOperation" "alloc")
+    "initWithTarget:selector:object:"
+    target selector object))
+
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  
+  (objc:define-objc-class
+   lisp-object ()
+   ((lisp-value :initarg :lisp-value :accessor lisp-value :initform nil))
+   (:objc-class-name "LispObject")
+   (:objc-superclass-name "NSObject")))
+
+
+
+(objc:define-objc-method
+    ("applyLispLambdaToArgs:" objc:objc-object-pointer)
+    ((self lisp-object)
+     (args objc:objc-object-pointer))
+  (objc:objc-object-pointer
+   (make-instance
+    'lisp-object
+    :lisp-value (multiple-value-list
+                 ;; GCD tasks must handle all errors within their own scope
+                 ;; so we have to catch any condition and return it
+                 ;; as a value so that the thread receiving the return value
+                 ;; can invoke any condition handlers outside of the
+                 ;; scope of the GCD queue
+                 (handler-case
+                     (apply (lisp-value self)
+                            (lisp-value (objc:objc-object-from-pointer args)))
+                   ((or warning condition serious-condition error)
+                           (condition) condition))))))
+
+(defun queue-run-function (&amp;key (queue (make-concurrent-queue))
+                                (function (lambda () nil))
+                                (wait t)
+                                (args (list)) ;; args must be a list!
+                                (priority 0)) ;; -8, -4, 0, 4, 8 from low to high
+  
+  "Applies function to args on a Grand Central Dispatch queue.
+Queue may be either concurrent or serial, defaulting to a newly
+created concurrent queue, but use of serial queues is discouraged;
+they serve the same purpose as locks, serializing access to a
+resource, but are much slower than mp:locks when used through q-r-f.
+If wait is nil, caller is responsible for calling release on the
+NSOperation which is returned, presumably after calling
+waitUntilAllOperationsAreFinished on the queue, and then result
+or op-values, defined below, in order to determine the result of the
+operation. The LispWorks objective-c interface takes care of copying
+return values so it is safe to use lisp values returned from
+queue-run-function even after the NSOperation that returned them
+is deallocated."
+  
+  (@pool
+    (let* ((op (make-invocation-operation
+                :target (objc:objc-object-pointer
+                         (make-instance
+                          'lisp-object
+                          :lisp-value function))
+                :selector (@selector "applyLispLambdaToArgs:")
+                :object (objc:objc-object-pointer
+                         (make-instance
+                          'lisp-object
+                          :lisp-value
+                          args)))))
+      ;; (@ op "setQueuePriority:" priority) ;; uncomment this to set
+                                             ;; the relative priority
+                                             ;; of a task within its queue
+      (@ op "setThreadPriority:"
+            (case priority
+              (-8 0.0d0)
+              (-4 0.25d0)
+              (0 0.5d0)
+              (4 0.75d0)
+              (8 1.0d0)))
+      (@ queue "addOperation:" op)
+      (if wait
+        (prog2
+            (@ queue "waitUntilAllOperationsAreFinished")
+            (let* ((retvals (lisp-value (objc:objc-object-from-pointer
+                                         (@ op "result"))))
+                   (carval (car retvals)))
+              (typecase carval
+                (error (error carval))
+                (warning (warn carval))
+                (condition (signal carval))
+                (serious-condition (signal carval))
+                (t (values-list retvals))))
+          (@ op "release"))
+        op))))
+
+(defun op-values (op)
+  (values-list (lisp-value (objc:objc-object-from-pointer
+                                    (@ op "result")))))
+
+(defun gcd-pmap (&amp;key fn fun func function ;; the same
+                      seq sequence seqs sequences;; seq and seqs different meanings
+                      res to result result-type ;; :list, :vector, or :string
+                      (priority :normal) ;; :lowest, :low, :normal, :high, :highest
+                      (wait t)
+                      (queue (make-concurrent-queue))
+                      (release-queue t))
+  "gcd-pmap maps fn across the single sequence denoted by seq/sequence,
+or to the multiple sequences denoted by seqs/sequences in the manner of cl:map.
+
+   to/res/result specifies the result type, :list or :vector, defaulting
+to :vector.
+
+   priority specifies the Grand Central Dispatch concurrent queue priority
+for the parallel tasks, one of :lowest :low :normal :high or :highest
+defaulting to :normal.
+
+   wait, if t, the default, causes the caller to wait until all GCD
+operations on the queue are done and then return a sequence of type
+to/res/result. If wait is nil, gcd-pmap returns immediately with a
+seq of type to/res/result containing a sequence of NSInvocationOperations
+which the caller is responsible for dealing with and ultimately
+deallocating as documented in queue-run-function above.
+
+queue may be specified by the caller if desired, but it should be
+a concurrent queue or the operations will not be executed in parallel."
+
+  ;; first cannonicalize the keyword args and do some error checking
+  (let* ((fn (or fn fun func function))
+         (seq (or seq sequence))
+         (seqs (or seqs sequences))
+         (result-type (or res to result result-type))
+         (result-type-valid
+          (find-symbol (string-upcase (symbol-name result-type))))
+         (queue-priority 0))
+    (when (not fn) (error "must specify a function to call"))
+    (when (not (or seq seqs)) (error "must specify arg seq or seqs"))
+    (when (and seq seqs) (error "must specify either seq or seqs, not both"))
+    (when (and result-type (not result-type-valid))
+      (error "invalid result type specified"))
+    (setf result-type result-type-valid)
+    (when (and priority (not (member priority '(:lowest :low :normal :high :highest))))
+      (warn "invalid priority, setting priority to :normal")
+      (setf priority :normal))
+    (setf queue-priority (case priority
+                     (:lowest -8)
+                     (:low -4)
+                     (:normal 0)
+                     (:high 4)
+                     (:highest 8)))
+    (let* ((nseqs (if seqs (length seqs) 1))
+           (argvec (if seq  ;; single sequence
+                     (coerce seq 'simple-vector)
+                     (loop with tempvec = (coerce seqs 'simple-vector)
+                           for i below nseqs do
+                           (setf (svref tempvec i) 
+                                 (coerce (svref tempvec i) 'simple-vector))
+                           finally (return tempvec))))
+           (return-length (if seq (length argvec) ;; single sequence
+                            (loop for arg across argvec
+                                  minimizing (length arg)))))
+      (let* ((opvec (make-array return-length :element-type t)))
+        (loop for i below return-length
+              do (setf (svref opvec i)
+                       (queue-run-function
+                        :queue queue
+                        :function fn
+                        :priority queue-priority
+                        :wait nil
+                        :args (if seq (list (svref argvec i)) ;; single seq
+                                (loop for j below nseqs
+                                      collect (svref (svref argvec j) i))))))
+        (when (not wait) (return-from gcd-pmap opvec))
+        (when wait
+          (@ queue "waitUntilAllOperationsAreFinished")
+          (return-from gcd-pmap
+            (prog1
+                (loop named result-loop with result-vec = (make-array return-length :element-type t) 
+                      for k below return-length
+                      for op across opvec
+                      do
+                      (setf (svref result-vec k)
+                            (let* ((retvals
+                                    (lisp-value (objc:objc-object-from-pointer
+                                                 (@ op "result"))))
+                                   (carval (car retvals)))
+                              (typecase carval
+                                (error (error carval))
+                                (warning (warn carval))
+                                (condition (signal carval))
+                                (serious-condition (signal carval))
+                                (t (values-list retvals)))))
+                      finally
+                      (return-from result-loop
+                        (if result-type (coerce result-vec result-type)
+                          result-vec)))
+              (loop for op across opvec
+                    do (@ op "release"))
+              (when release-queue (@ queue "release")))))))))
+              
+      
+;; some simple tests
+
+
+;; macro for timing
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defmacro with-elapsed-time (&amp;body body)
+  (let* ((startsym (gensym "STARTSYM")))
+    `(let* ((,startsym (get-internal-real-time)))
+       (flet ((elapsed-time-function ()
+                (float (/ (- (get-internal-real-time) ,startsym)
+                          internal-time-units-per-second) 0.0d0)))
+         (symbol-macrolet ((elapsed-time (elapsed-time-function)))
+                          (progn ,@body)))))))
+
+;; naive prime sieve to provide a cpu consuming function
+
+(defun prime-p (n)
+  (declare (optimize (speed 3) (safety 0)
+                     #+lispworks(fixnum-safety 0))
+           (fixnum n))
+  (cond
+   ((and (&lt;= n 11) (member n '(2 3 5 7 11))) t)
+   ((= (rem n 2) 0) nil)
+   ((= (rem n 3) 0) nil)
+   ((= (rem n 5) 0) nil)
+   ((= (rem n 7) 0) nil)
+   (t
+    (loop for i fixnum from 11 to (isqrt n) by 2
+      when (= (rem n i) 0) do (return-from prime-p nil)
+      finally (return-from prime-p t)))))
+
+;; sums primes between start and end inclusive
+
+(defun numprimes (start end)
+  (loop for i from start to end
+        summing (if (prime-p i) 1 0)))
+
+;; the test - compares finding the number of primes
+;; between 1 and 1 million, 1-million-1 and 2 million, etc.
+;; when computed serially with cl:map vs. in parallel by
+;; gcd-pmap.
+
+(defun simple-gcd-pmap-test (&amp;optional (n 6) (increment 1000000))
+  (let* ((first-arglist (loop for i from 1 by increment
+                              repeat n
+                              collect i))
+         (second-arglist (loop for j from increment by increment
+                               repeat n
+                               collect j))
+         (cl-map-time 0.0d0)
+         (gcd-pmap-time 0.0d0))
+    (with-elapsed-time
+      (format t "~%Beginning Common Lisp map timing:~%")
+      (let* ((cl-map-result
+              (map 'list #'numprimes first-arglist second-arglist)))
+        (setf cl-map-time elapsed-time)
+        (format t "~%Common Lisp Map time is: ~5f seconds.
+Common Lisp map result is: ~a~%" cl-map-time cl-map-result)))
+    (with-elapsed-time
+      (format t "~%Beginning Grand Central Dispatch pmap timing:~%")
+      (let* ((gcd-pmap-result
+              (gcd-pmap :to :list
+                        :fn #'numprimes
+                        :seqs (list first-arglist second-arglist)
+                        :priority :highest)))
+        (setf gcd-pmap-time elapsed-time)
+        (format t "~%Grand Central Dispatch pmap time is: ~5f seconds.
+Grand Central Dispatch result is: ~a
+
+Ratio of Common Lisp Map time to Grand Central Dispatch time is: ~5f to 1.~%"
+                gcd-pmap-time gcd-pmap-result
+                (/ cl-map-time gcd-pmap-time))))))
+
+#|
+
+sample output:
+
+CL-USER 126 &gt (simple-gcd-pmap-test)
+
+Beginning Common Lisp map timing:
+
+Common Lisp Map time is: 8.337 seconds.
+Common Lisp map result is: (78499 70435 67883 66330 65367 64336)
+
+Beginning Grand Central Dispatch pmap timing:
+
+Grand Central Dispatch pmap time is:  4.58 seconds.
+Grand Central Dispatch result is: (78499 70435 67883 66330 65367 64336)
+
+Ratio of Common Lisp Map time to Grand Central Dispatch time is: 1.820 to 1.
+NIL
+
+|#
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: STM...</h1>
+                 <pre>
+
+On Jan 26, 2010, at 7:03 PM, David McClain wrote:
+
+&gt So you aren't apportioning the work directly in batches to each core, but rather allowing OS X to decide who gets each queue entry. Wouldn't it be faster (although 1.8:1 is impressive speedup!), to divide the sequences into longer subsequences, thereby amortizing the cost of calling on Cocoa across more than one element?
+
+
+Most likelly, yes. But the point of GCD is not to have to worry about these sorts of things. Presumably you'd just push everything that can possibly run concurrently onto one of a number of concurrent queues and let libdispatch worry about how to spread it across multiple cores as work load from multiple processes (read, multiple applications) varies. This is something that a single application cannot do - get multiple apps written by different developers to coordinate their use of multiple cores. The OS can, via libdispatch.
+
+
+On Jan 26, 2010, at 7:10 PM, David McClain wrote:
+
+&gt In both Pascal's and Raffael's code, I'm wondering how the system recovers if it hits an error in one of the spawned threads? Suppose, for example that I'm normalizing one vector by the contents of another, point for point. If the divisor vector contains a zero, a DSP would just chug ahead and ignore that one bad point. But something as "smart" as a Pentium will throw a divide by zero exception. What happens then?
+
+I'll let Pascal reply wrt his code, but with gcd-pmap and queue-run-function I'm careful to capture errors and other conditions as a return value and pass them on to the caller where they then either error, warn or signal. We're required to do this because a gcd task cannot throw an error outside of its scope. Here's an example:
+
+
+CL-USER 154 &gt (gcd-pmap :fn #'/ :to 'list :seqs #(#(1 2 3) (1 2 0)))
+
+Error: Division-by-zero caused by / of (3 0).
+  1 (abort) Return to level 0.
+  2 Return to top loop level 0.
+
+Type :b for backtrace or :c &lt;option number&gt to proceed.
+Type :bug-form "&lt;subject&gt" for a bug report template or :? for other options.
+
+CL-USER 155 : 1 &gt 
+
+However, the underlying queue-run-function, and the even lower level applyLispLambdaToArgs:, allow you to create your own policy for how to deal with errors. If you specify :wait nil, and don't wait for the queue to finish all operations, you get a list of those NSInvocationOperations which you can query for their result at your leisure, and repeatedly, (until you deallocate the NSInvocationOperation). You're free to deal with individual return values and/or conditions/errors/warnings as you wish:
+
+
+
+warmest regards,
+
+Ralph
+
+
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: STM...</h1>
+                 <pre>
+
+On Jan 26, 2010, at 11:37 PM, David McClain wrote:
+
+&gt Is it the case the GCD expects you to stop producing multi-threaded applications, and just rely on the micro-threading queues?
+
+Apple does, Yes - GCD works on the assumption that most/all processes will be using it. You're even expected to stop using locks and just use serial queues instead, but, as I noted in the comments of the code for gcd-pmap etc., the overhead of pushing a task to a serial queue, at least via NSInvocationOperation, makes it much slower than using a lispworks mp:lock.
+
+Just to be 100% clear, and because you haven't run the example code yet, if you open a lispworks process browser and run the example test, you'll see a sometimes variable number of additional "process for unknown thread" created each time you run the  code. These processes are created by libdispatch, not lispworks.
+
+&gtFrom Apple's perspective, ideally all developers would use nothing but libdispatch queues for both concurrent execution and to serialize access to shared resources. This way the OS could ensure fair apportioning of cpu resources to each process/app while keeping all cores as busy as possible, and developers could write lock-free code. For this to work entirely lock-free you'd have to push tasks onto serial queues always in the same order or you'd get deadlocks.
+
+warmest regards,
+
+Ralph
+
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: STM...</h1>
+                 <pre>
+
+On Jan 27, 2010, at 12:46 AM, Raffael Cavallaro wrote:
+
+&gt ust to be 100% clear, and because you haven't run the example code yet, if you open a lispworks process browser and run the example test, you'll see a sometimes variable number of additional "process for unknown thread" created each time you run the  code. These processes are created by libdispatch, not lispworks.
+&gt 
+&gt&gt From Apple's perspective, ideally all developers would use nothing but libdispatch queues for both concurrent execution and to serialize access to shared resources. This way the OS could ensure fair apportioning of cpu resources to each process/app while keeping all cores as busy as possible, and developers could write lock-free code. For this to work entirely lock-free you'd have to push tasks onto serial queues always in the same order or you'd get deadlocks.
+&gt 
+
+
+hmm, don't know if others are seeing this, but just to clarify, the last paragraph here looks like I'm quoting David McClain, but it is in fact not a quote, but something I wrote in response to David. It doesn't appear as a quote in the message I sent, nor in the bcc I sent to myself, but only in the version I received from the lisp-hug list. If no one else is seeing this it's maybe just a bug in my mail reader...
+
+warmest regards,
+
+Ralph
+
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: STM...</h1>
+                 <pre>
+On Wed, Jan 27, 2010 at 7:25 AM, Raffael Cavallaro
+&lt;raffaelcavallaro@mac.com&gt wrote:
+&gt
+&gt
+&gt On Jan 27, 2010, at 12:46 AM, Raffael Cavallaro wrote:
+&gt
+&gt&gt ust to be 100% clear, and because you haven't run the example code yet, if you open a lispworks process browser and run the example test, you'll see a sometimes variable number of additional "process for unknown thread" created each time you run the &nbsp;code. These processes are created by libdispatch, not lispworks.
+&gt&gt
+&gt&gt&gt From Apple's perspective, ideally all developers would use nothing but libdispatch queues for both concurrent execution and to serialize access to shared resources. This way the OS could ensure fair apportioning of cpu resources to each process/app while keeping all cores as busy as possible, and developers could write lock-free code. For this to work entirely lock-free you'd have to push tasks onto serial queues always in the same order or you'd get deadlocks.
+&gt&gt
+&gt
+&gt
+&gt hmm, don't know if others are seeing this, but just to clarify, the last paragraph here looks like I'm quoting David McClain, but it is in fact not a quote, but something I wrote in response to David. It doesn't appear as a quote in the message I sent, nor in the bcc I sent to myself, but only in the version I received from the lisp-hug list. If no one else is seeing this it's maybe just a bug in my mail reader...
+
+Not a bug in your mail reader, but something done by various mail
+clients (or possibly the mail server): if a line starts with "From", a
+"&gt" is inserted to avoid confusing mail cleints that use the mbox
+format (where messages are kept in a single file, and the message
+separator is something like "^From ...".
+
+It's a bit sad that the only thing I have to contribute to this
+discussion is off-topic :-)
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: STM...</h1>
+                 <pre>
+
+On Jan 27, 2010, at 2:14 AM, Raymond Wiker wrote:
+
+&gt Not a bug in your mail reader, but something done by various mail
+&gt clients (or possibly the mail server): if a line starts with "From", a
+&gt "&gt" is inserted to avoid confusing mail cleints that use the mbox
+&gt format (where messages are kept in a single file, and the message
+&gt separator is something like "^From ...".
+
+Thanks for the explanation - I didn't know this.
+
+&gt 
+&gt It's a bit sad that the only thing I have to contribute to this
+&gt discussion is off-topic :-)
+
+I'm an information omnivore, so off-topic is a rarely used word in my vocabulary :^)
+
+warmest regards,
+
+Ralph
+
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: STM...</h1>
+                 <pre>
+
+On Jan 27, 2010, at 11:58 PM, David McClain wrote:
+
+&gt But still... the point remains.. why should timings improve so much when overloading the two cores with even more threads?
+
+Question: What are the priorities of your threads - by "the foreground thread," do you mean the listener thread which has a priority of 20000000? Your second stable thread has what priority?
+
+warmest regards,
+
+Ralph
+
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: STM...</h1>
+                 <pre>
+
+On Jan 28, 2010, at 1:30 AM, David McClain wrote:
+
+&gt But suffice it to say, you really don't need all the complexity of bouncing down into Cocoa for GCD to gain a lot of performance.
+
+Absolutely - LispWorks makes it very easy to use all the cores at your disposal. I mostly wrote the GCD thing just to see if it was doable - someone on c.l.l or one of the lisp mailing lists asked if there was any interface to GCD from any of the Mac OS X lisps.
+
+I will say that GCD is able to manage thread allocation based on load across all applications, which a pure LispWorks solution can't. So if I run the simple-gcd-pmap-test when other apps already have both processors pegged  (i.e., 200% total cpu usage), I often see speedups of  more than 2x (sometimes almost 3x) vs. single threaded cl:map:
+
+CL-USER 15 &gt (simple-gcd-pmap-test 13)
+
+Beginning Common Lisp map timing:
+
+Common Lisp Map time is: 51.55 seconds.
+Common Lisp map result is: (78499 70435 67883 66330 65367 64336 63799 63129 62712 62090 61938 61543 61192)
+
+Beginning Grand Central Dispatch pmap timing:
+
+Grand Central Dispatch pmap time is: 23.15 seconds.
+Grand Central Dispatch result is: (78499 70435 67883 66330 65367 64336 63799 63129 62712 62090 61938 61543 61192)
+
+Ratio of Common Lisp Map time to Grand Central Dispatch time is: 2.227 to 1.
+NIL
+
+&gt Also, I don't see any particular need to hold back the number of threads to correspond to the limited number of cores, as per Pascal's code. It even seems that more threads do better than fewer threads. But given the variability in timings due to all the factors mentioned above, this is probably a dubious conclusion and needs more testing. However, it does not appear to hurt having more threads than cores.
+
+True as long as these extra threads are not contending for some shared resource accessed via a lock. If they are, then some tests I've run show that, as you might expect, you do see diminishing returns when the number of threads exceeds the number of available cores.
+
+
+warmest regards,
+
+Ralph
+
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: STM...</h1>
+                 <pre>
+
+On Jan 28, 2010, at 10:56 AM, Raffael Cavallaro wrote:
+
+&gt  I often see speedups of  more than 2x (sometimes almost 3x) vs. single threaded cl:map:
+
+heh, new record - 3.3x speedup:
+
+CL-USER 19 &gt (simple-gcd-pmap-test 35)
+
+Beginning Common Lisp map timing:
+
+Common Lisp Map time is: 188.0 seconds.
+Common Lisp map result is: (78499 70435 67883 66330 65367 64336 63799 63129 62712 62090 61938 61543 61192 60825 60627 60426 60184 60053 59683 59557 59336 59318 58960 58901 58805 58600 58538 58365 58246 58183 58120 57836 57852 57712 57396)
+
+Beginning Grand Central Dispatch pmap timing:
+
+Grand Central Dispatch pmap time is: 56.69 seconds.
+Grand Central Dispatch result is: (78499 70435 67883 66330 65367 64336 63799 63129 62712 62090 61938 61543 61192 60825 60627 60426 60184 60053 59683 59557 59336 59318 58960 58901 58805 58600 58538 58365 58246 58183 58120 57836 57852 57712 57396)
+
+Ratio of Common Lisp Map time to Grand Central Dispatch time is: 3.315 to 1.
+NIL
+
+If anyone is wondering how this is possible, the grand central threads are os threads, not application threads, so, in effect, if you use grand central your app gets two bites at the scheduler apple - or is that the apple scheduler? ;^) -  one for your app's threads, and one for the work you farm out to grand central.
+
+warmest regards,
+
+Ralph
+
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: STM...</h1>
+                 <pre>
+
+On Jan 29, 2010, at 6:41 PM, David McClain wrote:
+
+&gt Is that for a Core-Duo machine? or a 4-core machine?
+
+Core 2 Duo, a dual core machine. So the reason I'm seeing a more than 2x speedup is because the GCD threads are OS threads, not application threads, so I'm getting work done both when the OS schedules lispworks (e.g., processor intensive screen redrawing calculations on the app's main thread), and when the OS schedules the GCD threads. In effect, by pushing a lot of tasks onto concurrent threads (which are managed by the OS), I'm getting the OS scheduler to give me a bigger overall time slice.
+
+warmest regards,
+
+Ralph
+
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>(Lisp-HUG) Re: STM...</h1><html>
+<body>
+<font face="Times New Roman, Times" size=4>Pascal said,<br><br>
+</font><blockquote type=cite class=cite cite="">Yes, this is in line with
+comments I hear elsewhere. The recommendation is to use as little shared
+memory as possible, even if you use STM - but if you indeed use very
+little shared memory, then the occasional use of locks also doesn't look
+that bad anymore.</blockquote><br><br>
+I did quite a bit of engineering work on parallelism (in Lisp) back in
+1987+ and reached the same conclusion.&nbsp; However, there is a lot more
+to successful multi-core parallelism than just minimizing shared memory -
+or, especially, just adding thousands of more cores and hoping, like
+Intel/MicroSoft, that things will somehow work out.<br><br>
+We built a message-passing based Common Lisp (extensions on CMU's Spice
+Lisp for which we had the commercially licensed source) on a
+variable-topology hypercube machine that we built from scratch (called
+&quot;Spocks Brain&quot; -
+<a href="http://www.frobenius.com/spock.gif" eudora="autourl">
+http://www.frobenius.com/spock.gif</a>) that consisted of up to 128
+transputer processors
+(<a href="http://en.wikipedia.org/wiki/Transputer" eudora="autourl">
+http://en.wikipedia.org/wiki/Transputer</a>) all madly crunching away
+(well, at least sometimes crunching away).<br><br>
+My view then and now is that there were/are two primary problems to get
+over to make general parallelism work:<br><br>
+(a) Programming semantics to make the thing understandable so that
+&quot;normal&quot; programmers can deal with it (I barely qualified for
+that then and now - maybe :)<br><br>
+(b) The &quot;I/O problem&quot; in one form or the other as mentioned in
+the interesting microsoft blog mentioned in recent traffic. <br><br>
+Neither issue has been solved.<br><br>
+<br>
+The I/O problem inevitably arises in general parallelism in one form or
+the other. We had 128-processors each running its own parallel-extended
+Lisp with its own local memory (4MB! :) etc and communicating to its
+&quot;nearest&quot; (however that metric is defined) four neighbors via
+dedicated high-speed hardware communication links for message-passing -
+and that, of course, was the bottleneck (an interesting aside - we could
+configure the interconnections on-the-fly with software - thus, the
+variable-topology machine - e.g., setup with a mouse a simple 3-d lattice
+for heat-flow work or a 2 ** n hypercube for general connectivity that
+minimized interprocessor-hop &quot;distance&quot;).<br><br>
+We used a variation of Gelernter's Linda
+(<a href="http://en.wikipedia.org/wiki/Linda_(coordination_language" eudora="autourl">
+http://en.wikipedia.org/wiki/Linda_(coordination_language</a>)) paradigm,
+which was, and is, a beautiful thing (yes, that Gelernter - the one
+partially blown up in 1993 by the Unabomber
+(<a href="http://en.wikipedia.org/wiki/Unabomber" eudora="autourl">
+http://en.wikipedia.org/wiki/Unabomber</a>)).<br><br>
+However, the I/O Problem was, we discovered, the primary key to the beast
+- and we did not successfully solve the issue (at least to my
+satisfaction).<br><br>
+Spock's Brain would, with real problems, easily develop &quot;hot
+spots&quot; somewhere in the topology of the moment where thousands of
+Linda messages would be clogged up trying to get to some destination -
+clearly a function of the algorithm - there is almost always something,
+in general parallelism, that will attract &quot;traffic&quot; (in both
+shared-memory and message-passing architectures) and create that hot spot
+(actually, this is clear fallout from Amdahl's Law -
+<a href="http://en.wikipedia.org/wiki/Amdahls_law" eudora="autourl">
+http://en.wikipedia.org/wiki/Amdahls_law</a> - and I recommend that
+anyone first working on parallelism had best become very familiar with
+that &quot;law&quot; and understanding exactly why it comes about -
+figuring out how to overcome Amdah's Law is *the* key, I believe - and
+simply adding cores will not do it at all).<br><br>
+An interesting thing is that to try to understand the hot spot phenomenon
+a bit better, we developed a visual approach where, for example, a 2 ** 7
+processor hypercube would be displayed real-time on a screen (again, in
+1988 in Lisp) complete with the drawn communication links and in color
+where cold spots were gray and warmer spots in increasing color toward
+red, which meant hot (we actually patented that idea). That was fun - and
+enlightening -&nbsp; to watch.<br><br>
+Anyway, it was an extraordinarily fascinating beast to work on and it is
+interesting for me to see the Next Generation grapple with those very
+same parallelism issues.<br><br>
+The one thing that gives me hope for present-day parallelism is the fact
+that I am an old guy now and I see no realistic way to soon generally
+handle the thousand/million-fold core machines perhaps heading our way (I
+couldn't get even 128 &quot;cores&quot; to work, in general, at anywhere
+near 100% efficiency) - Arthur C Clarke pointed out, to the effect, that
+if an old tech guy says something can't be done, he is almost certainly
+wrong!&nbsp; That gives me hope for general parallelism :)<br><br>
+Regards to the List,<br><br>
+Jack Harper<br>
+Secure Outcomes Inc.<br>
+Evergreen, Colorado USA<br><br>
+ps - Even after all of the above, I believe that general parallelism is
+*clearly* the answer and that it will eventually work extremely well (for
+AGI - http://en.wikipedia.org/wiki/Artificial_general_intelligence)
+sometime in the 21st century - however, as massively distributed systems
+of billions/trillions of message-passing elements with each processing
+element doing a very simple and dedicated thing and mostly hanging around
+waiting for some interesting traffic to arrive. There is precedent for
+such massively parallel systems - organic animal brains - and they work
+better than anything that we presently know.<br><br>
+</body>
+</html>
+
+
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:36 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

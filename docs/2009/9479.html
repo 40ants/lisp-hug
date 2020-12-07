@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>(Lisp-HUG) Silly CAPI Newbie Question :)</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>(Lisp-HUG) Silly CAPI Newbie Question :)</h1>
+                <pre>
+Happy Saturday to the List --
+
+This is my first post.
+
+I have been programming in Lisp since 1972 (started on a UNIVAC 1108 
+with Lisp 1.5 on punched cards  :)   but I am quite new to CAPI.
+
+Question: I clearly do not understand the basic use of threads with 
+CAPI objects - i.e., exactly when and how to use/coordinate 
+capi:execute-with-interface, capi:apply-in-pane-process &amp; friends...
+
+For example:
+-------------------------------------------------------------------
+  (defun test( sleep )
+
+    (let* ((example-interface (capi:display
+                                           (make-instance 'capi:interface
+                                                                   :best-width 
+100
+                                                                   :best-height 
+100)))
+
+            (example-pane (make-instance 'capi:output-pane
+                                                         :background :blue))
+
+            (example-layout (make-instance 'capi:simple-layout
+                                                           :description
+                                                             (list 
+example-pane))))
+
+        (capi:execute-with-interface example-interface
+                                                #'(setf capi:pane-layout)
+                                                example-layout
+                                                example-interface)
+
+        (if (not (null sleep))
+            (sleep 1))
+
+        (capi:apply-in-pane-process example-pane
+                                               'gp:draw-line
+                                               example-pane
+                                               0 0 100 100
+                                               :foreground :white)))
+-------------------------------------------------------------------
+
+(test nil)    does not write a white line on the blue pane but,
+
+(test t)  does.
+
+I understand that CAPI objects are (probably) implemented with each 
+being a separate thread -- as the CAPI documentation mumbles a bit about.
+
+The capi:execute-with-interface clearly does nothing but schedule the 
+(setf capi:pane-layout) - it does not actually do the setf.
+
+Without the (sleep 1), apparently the capi:apply-in-pane-process 
+request for the draw runs in the pane's thread BEFORE the pane is 
+attached to the interface - thus, nothing happens.
+
+All that makes sense (kinda, sorta) to me.
+
+What I do not understand is a good -- and very clear -- way to make 
+sure that there are no such CAPI timing issues.
+
+If I understands things, there are three (and maybe four) threads 
+going on with the above code: the function test; the interface; the 
+pane; and maybe even the layout (though probably not).
+
+To really keep things simple, an ideal way would be some method to 
+hang until a specific object's actual thread ran and completed but I 
+understand that there might be performance issues with that - but, it 
+sure would simplify the code.
+
+How do you CAPI grey-beards deal with this sort of timing thing???????
+
+I am of course *very* leery of depending on such hacks as (sleep 1) 
+which will obviously fail at some point.
+
+Thoughts?
+
+
+Regards to the List --
+
+Jack Harper
+Secure Outcomes Inc.
+Evergreen, Colorado USA
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: (Lisp-HUG) Silly CAPI Newbie Question :)</h1>
+                 <p>
+                  Unable to parse email body. Email id is 9480
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: (Lisp-HUG) Silly CAPI Newbie Question :)</h1>
+                 <pre>
+
+On 2009-10-24, at 5:30 PM, Jack Harper wrote:
+
+&gt
+&gt Happy Saturday to the List --
+&gt
+&gt This is my first post.
+&gt
+&gt I have been programming in Lisp since 1972 (started on a UNIVAC 1108  
+&gt with Lisp 1.5 on punched cards  :)   but I am quite new to CAPI.
+&gt
+&gt Question: I clearly do not understand the basic use of threads with  
+&gt CAPI objects - i.e., exactly when and how to use/coordinate  
+&gt capi:execute-with-interface, capi:apply-in-pane-process &amp; friends...
+&gt
+&gt For example:
+&gt -------------------------------------------------------------------
+&gt (defun test( sleep )
+&gt
+&gt   (let* ((example-interface (capi:display
+&gt                                          (make-instance  
+&gt 'capi:interface
+&gt                                                                  :best 
+&gt -width 100
+&gt                                                                  :best 
+&gt -height 100)))
+&gt
+&gt           (example-pane (make-instance 'capi:output-pane
+&gt                                                        :background 
+&gt  :blue))
+&gt
+&gt           (example-layout (make-instance 'capi:simple-layout
+&gt                                                          :description
+&gt                                                            (list  
+&gt example-pane))))
+&gt
+&gt       (capi:execute-with-interface example-interface
+&gt                                               #'(setf capi:pane- 
+&gt layout)
+&gt                                               example-layout
+&gt                                               example-interface)
+&gt
+&gt       (if (not (null sleep))
+&gt           (sleep 1))
+&gt
+&gt       (capi:apply-in-pane-process example-pane
+&gt                                              'gp:draw-line
+&gt                                              example-pane
+&gt                                              0 0 100 100
+&gt                                              :foreground :white)))
+&gt -------------------------------------------------------------------
+&gt
+&gt (test nil)    does not write a white line on the blue pane but,
+&gt
+&gt (test t)  does.
+
+I really think that should have worked.  The message to add the layout  
+should have got there first.
+Maybe LW can provide an explanation.  However to synch the two  
+processes I would use a
+mp:mailbox to synch.
+
+(defun test2 (sleep)
+   (let* ((example-interface (capi:display
+                              (make-instance 'capi:interface
+                                             :best-width 100
+                                             :best-height 100)))
+          (example-pane (make-instance 'capi:output-pane
+                                       :background :blue))
+
+          (example-layout (make-instance 'capi:simple-layout
+                                         :description
+                                         (list example-pane)))
+          (mailbox (mp:make-mailbox)))
+
+     (capi:execute-with-interface example-interface
+                                  (lambda ()
+                                    (setf (capi:pane-layout example- 
+interface) example-layout)
+                                    (mp:mailbox-send mailbox t)))
+     (mp:mailbox-read mailbox)
+
+     (when sleep (sleep 1))
+
+     (capi:apply-in-pane-process example-pane
+                                 'gp:draw-line
+                                 example-pane
+                                 0 0 100 100
+                                 :foreground :white)))
+
+(test2 nil) and (test2 t) both work.
+
+
+In general do not create interfaces that way (though I can see a use  
+for it.  Instead I
+do something like
+
+
+(capi:define-interface test ()
+   ()
+   (:panes
+    (example-pane capi:output-pane
+                  :background :blue))
+   (:layouts
+    (main capi:simple-layout '(example-pane))))
+
+(defun test3 (sleep)
+   (let ((interface (make-instance 'test :best-width 100 :best-height  
+100)))
+     (capi:display interface)
+     (when sleep (sleep 1))
+     (capi:apply-in-pane-process (slot-value interface 'example-pane)
+                                 'gp:draw-line (slot-value interface  
+'example-pane) 0 0 100 100 :foreground :white)))
+
+Wade
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: (Lisp-HUG) Silly CAPI Newbie Question :)</h1>
+                 <pre>
+
+On 2009-10-24, at 5:30 PM, Jack Harper wrote:
+
+&gt
+&gt Happy Saturday to the List --
+&gt
+&gt This is my first post.
+&gt
+&gt I have been programming in Lisp since 1972 (started on a UNIVAC 1108  
+&gt with Lisp 1.5 on punched cards  :)   but I am quite new to CAPI.
+&gt
+&gt Question: I clearly do not understand the basic use of threads with  
+&gt CAPI objects - i.e., exactly when and how to use/coordinate  
+&gt capi:execute-with-interface, capi:apply-in-pane-process &amp; friends...
+&gt
+&gt For example:
+&gt -------------------------------------------------------------------
+&gt (defun test( sleep )
+&gt
+&gt   (let* ((example-interface (capi:display
+&gt                                          (make-instance  
+&gt 'capi:interface
+&gt                                                                  :best 
+&gt -width 100
+&gt                                                                  :best 
+&gt -height 100)))
+&gt
+&gt           (example-pane (make-instance 'capi:output-pane
+&gt                                                        :background 
+&gt  :blue))
+&gt
+&gt           (example-layout (make-instance 'capi:simple-layout
+&gt                                                          :description
+&gt                                                            (list  
+&gt example-pane))))
+&gt
+&gt       (capi:execute-with-interface example-interface
+&gt                                               #'(setf capi:pane- 
+&gt layout)
+&gt                                               example-layout
+&gt                                               example-interface)
+&gt
+&gt       (if (not (null sleep))
+&gt           (sleep 1))
+&gt
+&gt       (capi:apply-in-pane-process example-pane
+&gt                                              'gp:draw-line
+&gt                                              example-pane
+&gt                                              0 0 100 100
+&gt                                              :foreground :white)))
+&gt -------------------------------------------------------------------
+&gt
+&gt (test nil)    does not write a white line on the blue pane but,
+&gt
+&gt (test t)  does.
+
+Ahh..  I think I know why (test  nil) does not work.  Its because when  
+apply-in-pane-process is
+called example-pane has no pane-process.  The first message has not  
+been procesed yet,
+hence the call does nothing.
+
+Wade
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: (Lisp-HUG) Silly CAPI Newbie Question :)</h1>
+                 <pre>
+Happy Sunday to the List...
+
+It is snowing like crazy here at 8,000-feet (2400-meters) in the 
+Rocky Mountains - a good day to be working inside here on software :)
+
+I appreciate the replies to my post, "Silly CAPI Newbie Question".
+
+I am glad to know that I am not the only hideously tortured soul 
+wandering aimlessly through the orthogonal-to-CAPI night. There are 
+apparently a few others :)
+
+I am building a commercial system in Lisp - an embedded (soft) 
+real-time mobile/portable device with a touchscreen etc - and it is 
+of some importance to me to try to minimize GC stops and the like 
+and, thus, I try to minimize the destruction of things there in 
+Lisp-Space. This system will run for days, weeks, years at a time.
+
+I appreciate what Paul Tarvydas said about the tortured snippet that 
+I posted. The following, as a replacement, seems to work reliably:
+---------------------------------------------------------------------------------------------------------------------------------------------
+(defun test()
+
+   (let* ((example-pane1 (make-instance 'capi:output-pane   ; Blue Pane...
+                                        :background :blue
+                                        :display-callback
+                                          #'(lambda( self x y width height )
+                                              (gp:draw-line self 0 0 100 100
+                                                            :foreground 
+:white))))
+
+          (example-layout1 (make-instance 'capi:simple-layout
+                                          :description (list example-pane1)))
+
+          (example-interface (capi:display
+                              (make-instance 'capi:interface
+                                             :best-width 100
+                                             :best-height 100
+                                             :layout example-layout1)))
+
+          (example-pane2 (make-instance 'capi:output-pane       ; Red Pane...
+                                        :background :red
+                                        :display-callback
+                                          #'(lambda( self x y width height )
+                                              (gp:draw-line self 0 0 100 100
+                                                            :foreground 
+:white))))
+
+          (example-layout2 (make-instance 'capi:simple-layout
+                                          :description (list example-pane2))))
+
+
+     (sleep 1)   ; Delay so that you can see the Blue Pane with White Line...
+
+     (capi:execute-with-interface example-interface     ; Put up the 
+Red Pane and White Line...
+                                  #'(setf capi:pane-layout)
+                                  example-layout2
+                                  example-interface)
+
+;;  Should Now See the other Red Pane with White Line.
+
+))
+-----------------------------------------------------------------------------------------------------------------------
+
+I now, above, define the interface, pane, and layout in reverse order 
+to what I did before - and, most important I think, is that I now 
+first (in the Let*) define the interface with the layout whereas, 
+before, I did not do that. I manually/remotely shot that in on-the-fly.
+
+In the above new snippet, I display the blue pane and wait a second 
+(so you can see the thing) and then change the layout for the same 
+interface to the red pane/layout.
+
+This works every time with no delay etc.
+
+I believe that it works because the interface has a defined pane (and 
+thread) before I do anything - unlike before.
+
+Paul asked the question, "Is your real question 'how do I set up a 
+capi interface containing an output pane and draw a line (and other 
+stuff) on it?'"
+
+I think (after staring at the endlessly falling snow for a bit), that 
+my question really is:   "Am I correct to use a single interface that 
+overlays my touchscreen and to change the layouts/panes as I flip 
+among things (as I do above with the capi:execure-with-interface 
+#'(setf capi:pane-layout)? Or, should I destroy the old interface 
+every time and put up a new interface/display/pane when I do 
+something different and, therefore, never use the 
+capi:execute-with-interface?"
+
+This is, I think, what that other tortured and wandering soul, 
+"Laughing Water", was asking as well --
+
+Do I remain orthogonal to the CAPI idiom by creating a single defined 
+interface that lives forever and that I remotely (setf 
+capi:pane-layout) to new layout/pane sets as things change? That is 
+the question.
+
+Again, this commercial system that I am building needs to run 
+continuously with minimal GC stops and the like. Thus, my 
+orthogonalness to the Constantly Destroy The Interface model if I can.
+
+I greatly appreciate the input.
+
+Regards to the List -
+
+Jack Harper
+Secure Outcomes Inc.
+Evergreen, Colorado
+
+
+
+
+&gtI wrote my first article on lisp for DDJ about 1978/9.
+
+Good Stuff!
+
+Regards,
+
+Jack
+
+
+
+
+&gt &gt
+&gt &gt Question: I clearly do not understand the basic use of threads with
+&gt &gt CAPI objects - i.e., exactly when and how to use/coordinate
+&gt &gt capi:execute-with-interface, capi:apply-in-pane-process &amp; friends...
+&gt
+&gtYour example is tortured.  You are in the weeds.  I don't mean that 
+&gtpejoratively, I'd be glad to steer you in the right direction, I've 
+&gtbeen dealing with CAPI for a number of years.   There is a learning curve.
+&gt
+&gtIs your real question "how do I set up a capi interface containing 
+&gtan output pane and draw a line (and other stuff) on it?"  Or are you 
+&gttrying to do something insanely tricky where you really need to know 
+&gtthe scheduling policies underlying capi?
+&gt
+&gtIf you are trying to do something simple, like making a GUI, then 
+&gtuse CAPI:DEFINE-INTERFACE.  And, use the tools&gt&gtinterface builder wizard.
+&gt
+&gtTop level interfaces run in native processes.  Any callbacks within 
+&gtsuch processes - menus, buttons, mousing, input-models, whatever - 
+&gtare handled inside the process and do not require the tortuous 
+&gtcapi:execute-with-interface and capi:apply-in-pane-process calls.
+&gt
+&gtYou only need to use capi:execute-with-interface and 
+&gtcapi:apply-in-pane-process if you are trying to affect a GUI that 
+&gtyou spawned, say, from the listener, and are trying to shoot remote 
+&gtinvocations to it.
+&gt
+&gtIn the CAPI idiom, you build the entire interface (a tree of capi 
+&gtstuff), then capi:display it.  In your example code, you seem to do 
+&gtthe opposite - the code you posted calls capi:display on the 
+&gtinterface before it has any panes and layouts.  I agree with you 
+&gtthat your code does what you claim, but I haven't bothered to figure 
+&gtout why - the code you posted is orthogonal to the CAPI idiom. Like 
+&gtI said earlier, you are in the weeds and doing things you shouldn't 
+&gtbe doing if what you want to accomplish is a simple GUI (your 
+&gtquestions would be valid if you want to be doing something amazingly 
+&gtcomplicated, but I suspect that that is not what you are asking about).
+&gt
+&gtIf all you want to do is to build a simple GUI, start by using 
+&gttools&gt&gtinterface builder.  Grab a simple layout (e.g. column layout) 
+&gtand add a text-input-pane to it.  Then click on the "code" tab and 
+&gtsee what the generated code looks like.  Save it.  Run it.  Ta-da.
+&gt
+&gtHave a look at the examples.  E.G. 
+&gtexamples/capi/output-panes/drawing.lisp (which is more complicated 
+&gtthan the example that you posted).
+&gt
+&gtFeel free to ask here again - even if you don't know what question 
+&gtto ask.  The learning curve is mysteriously quantized.  It seems 
+&gtutterly mysterious until at some discrete moment it all snaps into 
+&gtview and looks insanely trivial.
+&gt
+&gtpt
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: (Lisp-HUG) Silly CAPI Newbie Question :)</h1>
+                 <pre>
+
+Jack Harper writes:
+ &gt 
+ &gt Happy Sunday to the List...
+ &gt 
+ &gt It is snowing like crazy here at 8,000-feet (2400-meters) in the 
+ &gt Rocky Mountains - a good day to be working inside here on software :)
+ &gt 
+ &gt I appreciate the replies to my post, "Silly CAPI Newbie Question".
+ &gt 
+ &gt I am glad to know that I am not the only hideously tortured soul 
+ &gt wandering aimlessly through the orthogonal-to-CAPI night. There are 
+ &gt apparently a few others :)
+ &gt 
+ &gt I am building a commercial system in Lisp - an embedded (soft) 
+ &gt real-time mobile/portable device with a touchscreen etc - and it is 
+ &gt of some importance to me to try to minimize GC stops and the like 
+ &gt and, thus, I try to minimize the destruction of things there in 
+ &gt Lisp-Space. This system will run for days, weeks, years at a time.
+ &gt 
+
+I've had good luck with Lispworks in a soft-realtime situation
+("real-time" display of flight software telemetry- breaking down the
+various telemetry packets and populating their respective grids).  From
+a moment-to-moment perspective, simple navigation of the interface did
+not interfere with packet processing, however changing layout contents
+entailed considerable processing in the interface thread (other LW
+threads seemed to continue running fine, delta-t based measurements
+acted properly, etc).  I didn't notice any pausing behavior even over
+24-hr/day operation up to about a week- though I'd surely miss
+occasional transient events.
+
+I believe the layout modifications precipitated a lot of cpu use because
+the grids I was modifying consisted of several hundred rows each and
+when the interface changed around, 5 of these grids would be modified at
+one go.
+
+The upshot being if your interface design is static- meaning, you don't
+dynamically create/destroy/add/remove layouts in the interface, then you
+probably won't have much trouble from CAPI.
+
+Regards,
+
+Greg
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:36 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

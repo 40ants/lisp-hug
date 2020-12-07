@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Exception using browser-pane on Windows</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Exception using browser-pane on Windows</h1><html><head>
+<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1"></head><body
+ text="#000000" bgcolor="#FFFFFF">
+Just to get it out of the way, this is Windows 7, personal edition of LW
+ (6.1.1). I have an OS X application (using LW Pro 6.1.1) that's going 
+pretty well at this point and I'm testing on Windows to consider 
+compiling for both platforms. I've distilled the code down to the 
+following quick example from loading a fresh image:<br>
+  <br>
+  <span style="font-family: monospace;">CL-USER &gt; 
+(hcl:create-temp-file :file-type "html")</span><br style="font-family: 
+monospace;">
+  <span style="font-family: monospace;">#P"C:/Users/JEFF~1.MAS/AppData/Local/Temp/lwtemp_VOLI31236_1020442Yc9Bxx.html"</span><br
+ style="font-family: monospace;">
+  <br style="font-family: monospace;">
+  <span style="font-family: monospace;">CL-USER &gt; (capi:contain 
+(make-instance 'capi:browser-pane :url (namestring *)))</span><br 
+style="font-family: monospace;">
+  <span style="font-family: monospace;">#&lt;CAPI:BROWSER-PANE&nbsp; 
+22169EA3&gt;</span><br style="font-family: monospace;">
+  <br style="font-family: monospace;">
+  <span style="font-family: monospace;">CL-USER &gt; 
+(capi:browser-pane-refresh *)</span><br style="font-family: monospace;">
+  <span style="font-family: monospace;">Error: Exception C0000005 [flags
+ 0] at 77C422B2 </span><br style="font-family: monospace;">
+  <span style="font-family: monospace;">eax&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 38 ebx&nbsp;&nbsp; 7226B8 
+ecx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 27 edx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 12</span><br style="font-family: monospace;">
+  <span style="font-family: monospace;">esp&nbsp; 6C222E8 ebp&nbsp; 6C222FC 
+esi&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 38 edi&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 34</span><br style="font-family: monospace;">
+  <span style="font-family: monospace;">&nbsp; 1 (abort) Return to level 0.</span><br
+ style="font-family: monospace;">
+  <span style="font-family: monospace;">&nbsp; 2 Return to top loop level 0.</span><br>
+  <br>
+The above works on Mac just fine. In my actual application I'm getting 
+loads of issues with the browser-pane (again, only on Windows) dealing 
+with :browser-navigate-callback when I want to return nil and 
+refreshing. <br>
+  <br>
+I'm just curious if this is a known issue. I can't believe I'm doing 
+something wrong since it works on Mac. Is this a problem with the 
+personal edition, but it works with the professional version? Anyone 
+mind testing it?<br>
+  <br>
+Thanks!<br>
+  <br>
+Jeff M.<br>
+</body>
+</html>
+
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Exception using browser-pane on Windows</h1>
+                 <p>
+                  Unable to parse email body. Email id is 12418
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Exception using browser-pane on Windows</h1>
+                 <pre>
+&gt 2013/08/28 Jeffrey Massung &lt;massung@...&gt
+&gt
+&gt Just to get it out of the way, this is Windows 7, personal edition of LW
+&gt (6.1.1). I have an OS X application (using LW Pro 6.1.1) that's going pretty
+&gt well at this point and I'm testing on Windows to consider compiling for both
+&gt platforms. I've distilled the code down to the following quick example from
+&gt loading a fresh image:
+&gt
+&gt CL-USER &gt (hcl:create-temp-file :file-type "html")
+&gt #P"C:/Users/JEFF~1.MAS/AppData/Local/Temp/lwtemp_VOLI31236_1020442Yc9Bxx.html"
+
+An Internet Explorer control is an STA (single-thread apartment) COM object,
+meaning that it should be handled in the same thread it was created.
+
+By default, capi:contain creates a new Lisp process (OS thread). When the
+browser-pane is first displayed, its interface is created and is bound to
+this process (OS thread).
+
+&gt CL-USER &gt (capi:contain (make-instance 'capi:browser-pane :url (namestring *)))
+&gt #&lt;CAPI:BROWSER-PANE  22169EA3&gt
+&gt
+&gt CL-USER &gt (capi:browser-pane-refresh *)
+&gt Error: Exception C0000005 [flags 0] at 77C422B2
+&gt eax       38 ebx   7226B8 ecx       27 edx       12
+&gt esp  6C222E8 ebp  6C222FC esi       38 edi       34
+&gt   1 (abort) Return to level 0.
+&gt   2 Return to top loop level 0.
+&gt
+&gt The above works on Mac just fine. In my actual application I'm getting loads
+&gt of issues with the browser-pane (again, only on Windows) dealing with
+&gt :browser-navigate-callback when I want to return nil and refreshing.
+
+I don't know the specifics of capi:browser-pane-refresh (&amp; co.), but I'm
+almost sure they must be called within the process (OS thread) of the
+capi:browser-pane's interface:
+
+    (capi:apply-in-pane-process-if-alive * 'capi:browser-pane-refresh *)
+
+&gt I'm just curious if this is a known issue. I can't believe I'm doing
+&gt something wrong since it works on Mac. Is this a problem with the personal
+&gt edition, but it works with the professional version? Anyone mind testing it?
+
+In Cocoa, the whole GUI must run in the main thread. In Windows, this
+doesn't have to be the case.
+
+LispWorks for Mac OS X follows the Cocoa design, but in other platforms it
+allows and defaults to contain interfaces/panes running in multiple threads.
+
+You can, however, make the contained browser-pane run in the current process
+in Windows, by specifying :process nil to capi:contain. In this case, you
+can call capi:browser-refresh directly, but since that's what
+capi:apply-in-pane-process-if-alive would do, I suggest you use it in your
+final code.
+
+Best regards,
+
+Paulo Madeira
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:31 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

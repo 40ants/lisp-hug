@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Should capi:graph-pane-object-at-position work with capi:simple-panes 
+             nodes?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Should capi:graph-pane-object-at-position work with capi:simple-panes nodes?</h1>
+                <pre>I have a capi:graph-pane with node representations derived from
+capi:simple-pane rather than capi:pinboard-object.
+
+I am trying to use capi:graph-pane-object-at-position to obtain the node
+under the cursor in order to be able to select it, but it seems that
+this always returns nil (it does work as advertised if I stick with
+pinboard-objects).
+
+Is this correct behaviour?
+Is there an alternative way of finding out which pane is visible at a
+given point?
+
+- Dominic
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Should capi:graph-pane-object-at-position work with capi:simple-panes 
+                  nodes?</h1>
+                 <pre>The sample code below illustrates the problem.
+
+The even nodes can be selected with the mouse, and double clicking will
+print their identity.
+The odd nodes can be selected by moving the selection with the cursor
+keys (having started from an even node), but mouse clicks do not select
+or identify them.
+
+- Dominic
+
+(defclass my-wrapper (capi:row-layout) ())
+
+(defmethod draw-outline (pinboard (self my-wrapper) colour)
+  (capi:with-geometry self
+    (let ((width (+ capi:%width% 2))
+          (height (+ capi:%height% 2))
+          (x (- capi:%x% 1))
+          (y (- capi:%y% 1)))
+      (gp:draw-rectangle pinboard x y width height :foreground colour
+      :thickness 1))))
+
+(defmethod capi:draw-pinboard-object (pinboard (self my-wrapper) &amp;key
+&amp;allow-other-keys)
+  (draw-outline pinboard self (capi:simple-pane-foreground pinboard)))
+
+(defmethod capi:draw-pinboard-object-highlighted (pinboard (self
+my-wrapper) &amp;key &amp;allow-other-keys)
+  (draw-outline pinboard self (capi:simple-pane-foreground pinboard)))
+
+(defmethod capi:draw-pinboard-object-unhighlighted (pinboard (self
+my-wrapper) &amp;key &amp;allow-other-keys)
+  (draw-outline pinboard self (capi:simple-pane-background pinboard)))
+
+(defmethod capi:highlight-pinboard-object (pinboard (self my-wrapper)
+&amp;key &amp;allow-other-keys)
+  (capi:draw-pinboard-object-highlighted pinboard self))
+
+(defmethod capi:unhighlight-pinboard-object (pinboard (self my-wrapper)
+&amp;key &amp;allow-other-keys)
+  (capi:draw-pinboard-object-unhighlighted pinboard self))
+
+(defun make-graph-node (graph-pane self)
+  (if (oddp self)
+      (make-instance 'my-wrapper :adjust :centre
+                     :description (list (make-instance 'capi:rectangle
+                                                       :filled t
+                                                       :max-width 12
+                                                       :max-height 12
+                                                       :graphics-args
+                                                       (list :foreground
+                                                       (color:make-rgb
+                                                       1.0 0.0 0.0)))
+                                        (make-instance
+                                        'capi:item-pinboard-object
+                                                       :text
+                                                       (capi:print-collection-item
+                                                       self
+                                                       graph-pane))))
+    (make-instance 'capi:item-pinboard-object
+                   :text (capi:print-collection-item self graph-pane))))
+
+(defun node-select (graph x y &amp;optional gspec)
+  (declare (ignore gspec))
+  (let ((object (capi:graph-pane-object-at-position graph x y)))
+    (if object
+        (format t "object: ~A node: ~A~%" object
+        (capi:graph-object-object object))
+      (format t "object not found~%"))))
+
+(defun node-children (node)
+  (when (&lt; node 4)
+    (list (* node 2)
+          (1+ (* node 2)))))
+
+(defun run ()
+  (let ((graph (make-instance 'capi:graph-pane
+                  :roots '(1)
+                  :children-function 'node-children
+                  :node-pane-function #'make-graph-node
+                  :input-model '(((:button-1 :second-press)
+                  node-select)))))
+    (capi:contain graph
+                  :best-width 300
+                  :best-height 400
+                  :process nil)))
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Should capi:graph-pane-object-at-position work with capi:simple-panes 
+                  nodes?</h1>
+                 <pre>I can find the node at a given [x y] by searching the list of graph-node
+objects returned by capi:graph-pane-nodes and checking the point against
+their extents.  Curious then that graph-pane-object-at-position does
+not.
+
+- Dominic 
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Should capi:graph-pane-object-at-position work with capi:simple-panes 
+                  nodes?</h1>
+                 <pre>
+&gt Perhaps instead you can get the behaviour you want by defining your
+&gt own subclass of CAPI:ITEM-PINBOARD-OBJECT which draws the red
+&gt rectangle and outline, and use instances of that for the node objects.
+&gt This would also be more efficient than using layouts as the node
+&gt objects.
+
+Oh well - that was how I started out - the red rectangles were for proof
+of concept.  With more complex examples it seemed that I was reinventing
+the wheel so I thought it was worth a try using the existing layout
+machinery to do the work.
+
+Thanks
+
+- Dominic
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:50 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

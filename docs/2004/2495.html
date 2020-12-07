@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>execute-with-interface</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>execute-with-interface</h1>
+                <pre>I need to execute several capi interface operations from a test 
+function. execute-with-interface appears to return immediately so I 
+can't be sure the previous operation completed before starting the next 
+one. Is there some way to determine if the function called using 
+execute-with-interface (or apply-in-pane-process) has completed?
+
+Thanks,
+
+John DeSoi, Ph.D.
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: execute-with-interface</h1>
+                 <p>
+                  Unable to parse email body. Email id is 2496
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: execute-with-interface</h1>
+                 <pre>John DeSoi wrote:
+&gt I need to execute several capi interface operations from a test 
+&gt function. execute-with-interface appears to return immediately so I 
+&gt can't be sure the previous operation completed before starting the next 
+&gt one. Is there some way to determine if the function called using 
+&gt execute-with-interface (or apply-in-pane-process) has completed?
+&gt 
+&gt Thanks,
+&gt 
+&gt John DeSoi, Ph.D.
+&gt 
+&gt 
+  You could try this,
+
+(defun wait-on-execute-with-interface (interface function &amp;rest args)
+   (let ((process mp:*current-process*))
+     (capi:execute-with-interface
+      interface
+      (lambda (args)
+        (let ((result (apply function args)))
+          (mp:process-interrupt process
+                                (lambda ()
+                                  (return-from wait-on-execute-with-interface result)))
+          result))
+      args)
+     (mp:process-wait "Wait For EXECUTE-WITH-INTERFACE Completion"
+                      (lambda () nil))))
+
+I have not tested it but I pretty sure it will work.
+
+Wade
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:52 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

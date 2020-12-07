@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Old tricks now formalized?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Old tricks now formalized?</h1><html><head><meta http-equiv="Content-Type" content="text/html charset=us-ascii"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space; ">Hi All,<div><br></div><div>I just ran across this on Lambda the Ultimate, from Simon Peyton Jones, and others... If you wade through the OCaml example showing how to do Map and Fold using these Generators, it looks very much like the "trick" I had to resort to years ago when I wrote my own Prolog in Lisp, given the absence of Continuations in Lisp. Essentially, it relies on throwing exceptions and intercepting them, changing out the exception handlers along the way. So what was once deemed a "hack" has now been blessed?</div><div><br></div><div><div class="node" style="font-family: 'trebuchet ms', tahoma, verdana, arial, helvetica; font-size: 14px; line-height: 18px; "><h2 class="title" style="margin: 0px 0px 0.25em; font-size: 1.2em; "><a href="http://lambda-the-ultimate.org/node/4690" style="font-weight: normal; text-decoration: none; color: rgb(136, 0, 136); ">Simple Generators v. Lazy Evaluation</a></h2><div class="content" style="margin: 0px 0px 0.5em; "><div style="margin: 0px 0px 0.5em; ">Oleg Kiselyov, Simon Peyton-Jones and Amr Sabry:&nbsp;<a href="http://okmij.org/ftp/continuations/PPYield/index.html" style="font-weight: bold; text-decoration: none; color: rgb(136, 0, 136); ">Simple Generators</a>:</div><blockquote style="width: 499px; margin-left: 2.5em; color: blue; font-style: italic; "><div style="margin: 0px 0px 0.5em; ">Incremental stream processing, pervasive in practice, makes the best case for lazy evaluation. Lazy evaluation promotes modularity, letting us glue together separately developed stream producers, consumers and transformers. Lazy list processing has become a cardinal feature of Haskell. It also brings the worst in lazy evaluation: its incompatibility with effects and unpredictable and often extraordinary use of memory. Much of the Haskell programming lore are the ways to get around lazy evaluation.</div><div style="margin: 0px 0px 0.5em; ">We propose a programming style for incremental stream processing based on typed simple generators. It promotes modularity and decoupling of producers and consumers just like lazy evaluation. Simple generators, however, expose the implicit suspension and resumption inherent in lazy evaluation as computational effects, and hence are robust in the presence of other effects. Simple generators let us accurately reason about memory consumption and latency. The remarkable implementation simplicity and efficiency of simple generators strongly motivates investigating and pushing the limits of their expressiveness.</div><div style="margin: 0px 0px 0.5em; ">To substantiate our claims we give a new solution to the notorious pretty-printing problem. Like earlier solutions, it is linear, backtracking-free and with bounded latency. It is also modular, structured as a cascade of separately developed stream transducers, which makes it simpler to write, test and to precisely analyze latency, time and space consumption. It is compatible with effects including IO, letting us read the source document from a file, and format it as we read.</div></blockquote><div style="margin: 0px 0px 0.5em; ">This is fascinating work that shows how to gain the benefits of lazy evaluation - decoupling of producers, transformers, and consumers of data, and producing only as much data as needed - in a strict, effectful setting that works well with resources that need to be disposed of once computation is done, e.g. file handles.</div><div style="margin: 0px 0px 0.5em; ">The basic idea is that of Common Lisp signal handling: use a hierarchical, dynamically-scoped chain of handler procedures, which get called - on the stack, without unwinding it - to parameterize code. In this case, the producer code (which e.g. reads a file character by character) is the parameterized code: every time data (a character) is produced, it calls the dynamically innermost handler procedure with the data (it&nbsp;<em>yields</em>&nbsp;the data to the handler). This handler is the data consumer (it could e.g. print the received character to the console). Through dynamic scoping, each handler may also have a super-handler, to which it may yield data. In this way, data flows containing multiple transformers can be composed.</div><div style="margin: 0px 0px 0.5em; ">I especially like&nbsp;<a href="https://github.iu.edu/sabry/PPYield/blob/master/simple_gen.ml" style="font-weight: bold; text-decoration: none; color: rgb(136, 0, 136); ">the OCaml version of the code</a>, which is just a page of code, implementing a dynamically-scoped chain of handlers. After that we can already write&nbsp;<a href="https://github.iu.edu/sabry/PPYield/blob/master/simple_gen.ml#L39" style="font-weight: bold; text-decoration: none; color: rgb(136, 0, 136); ">map and fold</a>&nbsp;in this framework (fold using a loop and a state cell, notably.) There's&nbsp;<a href="https://github.iu.edu/sabry/PPYield/blob/master/yany.ml" style="font-weight: bold; text-decoration: none; color: rgb(136, 0, 136); ">more sample code</a>.</div><div style="margin: 0px 0px 0.5em; ">This also ties in with&nbsp;<a href="http://lambda-the-ultimate.org/node/4349" style="font-weight: bold; text-decoration: none; color: rgb(136, 0, 136); ">mainstream yield</a>.</div></div><div class="links" style="font-size: 0.8em; line-height: 1.25em; margin: 1em 0px 3em; text-align: right; ">By&nbsp;<a href="http://lambda-the-ultimate.org/user/2103" title="View user profile." style="font-weight: bold; text-decoration: none; color: rgb(136, 0, 136); ">Manuel J. Simoni</a>&nbsp;at 2013-02-21 13:30 |&nbsp;<a href="http://lambda-the-ultimate.org/taxonomy/term/5" style="font-weight: bold; text-decoration: none; color: rgb(136, 0, 136); ">Fun</a>&nbsp;|&nbsp;<a href="http://lambda-the-ultimate.org/taxonomy/term/10" style="font-weight: bold; text-decoration: none; color: rgb(136, 0, 136); ">Paradigms</a>&nbsp;|&nbsp;<a href="http://lambda-the-ultimate.org/taxonomy/term/17" style="font-weight: bold; text-decoration: none; color: rgb(136, 0, 136); ">Software Engineering</a>&nbsp;|&nbsp;<a href="http://lambda-the-ultimate.org/node/4690#comment" title="Jump to the first comment of this posting." style="font-weight: bold; text-decoration: none; color: rgb(136, 0, 136); ">5 comments</a>&nbsp;|&nbsp;<a href="http://www.technorati.com/search/lambda-the-ultimate.org/node/4690" title="Technorati search of other blogs commenting on this post." style="font-weight: bold; text-decoration: none; color: rgb(136, 0, 136); ">other blogs</a>| 3768 reads</div></div><div class="node" style="font-family: 'trebuchet ms', tahoma, verdana, arial, helvetica; font-size: 14px; line-height: 18px; "></div><div><br class="webkit-block-placeholder"></div><div apple-content-edited="true">
+<span class="Apple-style-span" style="border-collapse: separate; font-family: Helvetica; border-spacing: 0px; "><div>Dr. David McClain</div><div><a href="mailto:dbm@refined-audiometrics.com">dbm@refined-audiometrics.com</a></div><div><br></div></span><br class="Apple-interchange-newline">
+
+</div>
+<br></div></body></html>
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Old tricks now formalized?</h1>
+                 <pre>
+Hello:
+
+Just a note on generators. I implemented my own generators in Lisp,
+but did not resort to fancy tricks. The only negative is that we don't
+get to use YIELD because, as you said, we don't have built-in
+continuations (and I'd rather not haul in a library for doing CPS
+transformation).
+
+My technique was simple: just use closures, and signal a particular
+condition if/when the generator is exhausted.
+
+For example:
+
+;; Take 5 elements from the FIBS generator.
+CL-USER&gt (take 5 (fibs))
+(0 1 1 2 3)
+
+;; Square each natural number (MAP)
+CL-USER&gt (map-generator (lambda (x) (* x x))
+                        (up-from 0))
+#&lt;GENERATOR {1006B6BB63}&gt
+
+;; And then accumulate them (FOLD)
+CL-USER&gt (accumulator (lambda (x y) (+ x y))
+                      0
+                      *)
+#&lt;GENERATOR {1006CE1853}&gt
+
+;; What are the first three accumulations of the list of squares?
+;; They should be 0, 0+0^2, 0+0^2+1^2
+CL-USER&gt (list (next *) (next *) (next *))
+(0 0 1)
+
+;; Compute the next even accumulation.
+CL-USER&gt (next-if #'evenp **)
+14
+
+;; Collect the next 50.
+CL-USER&gt (take 50 ***)
+(30 55 91 140 204 285 385 506 650 819 1015 1240 1496 1785 2109 2470 2870 3311
+ 3795 4324 4900 5525 6201 6930 7714 8555 9455 10416 11440 12529 13685 14910
+ 16206 17575 19019 20540 22140 23821 25585 27434 29370 31395 33511 35720 38024
+ 40425 42925 45526 48230 51039)
+
+So that is how they are used, but how are they implemented? Well, we
+resort to a rather low-level closure where we record state. For
+example, for FIBS:
+
+(defun fibs ()
+  "Create a new generator for Fibonacci numbers."
+  (generator
+   (let ((x 0)
+         (y 1))
+     (lambda ()
+       (prog1 x
+         (psetq x y
+                y (+ x y)))))))
+
+I particularly don't mind this style, and I think the compositional
+benefits of generators is worth creating these kinds of closures, but
+I do admit that it is somewhat difficult to encapsulate the "current
+state" of a generator easily.
+
+You can find all of the code for these here:
+http://tinyurl.com/bzeluja (points to
+https://bitbucket.org/tarballs_are_good/lisp-random/src/3db634111d35e788c6ea2f4a1b3ab38334e24cde/generators.lisp?at=default
+). Other examples from there include finite generators, generators for
+the lines of a file (useful if you don't want to read in a file all at
+once, and don't want to have an explicit READ-LINE loop), and some
+functional "transducers" (map, reduce, filter).
+
+Cheers,
+
+Robert Smith
+
+
+On Sat, Feb 23, 2013 at 9:37 AM, David McClain
+&lt;dbm@refined-audiometrics.com&gt wrote:
+&gt Hi All,
+&gt
+&gt I just ran across this on Lambda the Ultimate, from Simon Peyton Jones, and
+&gt others... If you wade through the OCaml example showing how to do Map and
+&gt Fold using these Generators, it looks very much like the "trick" I had to
+&gt resort to years ago when I wrote my own Prolog in Lisp, given the absence of
+&gt Continuations in Lisp. Essentially, it relies on throwing exceptions and
+&gt intercepting them, changing out the exception handlers along the way. So
+&gt what was once deemed a "hack" has now been blessed?
+&gt
+&gt Simple Generators v. Lazy Evaluation
+&gt
+&gt Oleg Kiselyov, Simon Peyton-Jones and Amr Sabry: Simple Generators:
+&gt
+&gt Incremental stream processing, pervasive in practice, makes the best case
+&gt for lazy evaluation. Lazy evaluation promotes modularity, letting us glue
+&gt together separately developed stream producers, consumers and transformers.
+&gt Lazy list processing has become a cardinal feature of Haskell. It also
+&gt brings the worst in lazy evaluation: its incompatibility with effects and
+&gt unpredictable and often extraordinary use of memory. Much of the Haskell
+&gt programming lore are the ways to get around lazy evaluation.
+&gt We propose a programming style for incremental stream processing based on
+&gt typed simple generators. It promotes modularity and decoupling of producers
+&gt and consumers just like lazy evaluation. Simple generators, however, expose
+&gt the implicit suspension and resumption inherent in lazy evaluation as
+&gt computational effects, and hence are robust in the presence of other
+&gt effects. Simple generators let us accurately reason about memory consumption
+&gt and latency. The remarkable implementation simplicity and efficiency of
+&gt simple generators strongly motivates investigating and pushing the limits of
+&gt their expressiveness.
+&gt To substantiate our claims we give a new solution to the notorious
+&gt pretty-printing problem. Like earlier solutions, it is linear,
+&gt backtracking-free and with bounded latency. It is also modular, structured
+&gt as a cascade of separately developed stream transducers, which makes it
+&gt simpler to write, test and to precisely analyze latency, time and space
+&gt consumption. It is compatible with effects including IO, letting us read the
+&gt source document from a file, and format it as we read.
+&gt
+&gt This is fascinating work that shows how to gain the benefits of lazy
+&gt evaluation - decoupling of producers, transformers, and consumers of data,
+&gt and producing only as much data as needed - in a strict, effectful setting
+&gt that works well with resources that need to be disposed of once computation
+&gt is done, e.g. file handles.
+&gt The basic idea is that of Common Lisp signal handling: use a hierarchical,
+&gt dynamically-scoped chain of handler procedures, which get called - on the
+&gt stack, without unwinding it - to parameterize code. In this case, the
+&gt producer code (which e.g. reads a file character by character) is the
+&gt parameterized code: every time data (a character) is produced, it calls the
+&gt dynamically innermost handler procedure with the data (it yields the data to
+&gt the handler). This handler is the data consumer (it could e.g. print the
+&gt received character to the console). Through dynamic scoping, each handler
+&gt may also have a super-handler, to which it may yield data. In this way, data
+&gt flows containing multiple transformers can be composed.
+&gt I especially like the OCaml version of the code, which is just a page of
+&gt code, implementing a dynamically-scoped chain of handlers. After that we can
+&gt already write map and fold in this framework (fold using a loop and a state
+&gt cell, notably.) There's more sample code.
+&gt This also ties in with mainstream yield.
+&gt By Manuel J. Simoni at 2013-02-21 13:30 | Fun | Paradigms | Software
+&gt Engineering | 5 comments | other blogs| 3768 reads
+&gt
+&gt Dr. David McClain
+&gt dbm@refined-audiometrics.com
+&gt
+&gt
+&gt
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:31 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

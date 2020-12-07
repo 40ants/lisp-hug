@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>compile-file bug?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>compile-file bug?</h1>
+                <p>
+                 Unable to parse email body. Email id is 2420
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: compile-file bug?</h1>
+                 <pre>On Jun 4, 2004, at 6:27 AM, Nick Levine wrote:
+
+&gt Consider the following two source files. The first one compiles
+&gt fine. The second produces the error: #&lt;function EQUAL 2019C2DA&gt is of
+&gt type LOW:COMPILED-CODE which is not externalizable... But if I walk
+&gt the (setf bar) form and compile that instead, no problems.
+&gt
+&gt Any thoughts? Sure looks like a bug to me.
+
+Hi Nick,
+
+The problem is that the macro definition actually ends up expanding 
+into something with a literal function object in it, because the :test 
+key defaults to the function #'equal. Try defaulting the :test 
+parameter to 'equal instead of #'equal, or perhaps the s-expression 
+'#'equal. Either of these would work. (and when in doubt, use 
+macroexpand-1! :-)
+
+Brian
+
+&gt
+&gt - nick
+&gt
+&gt
+&gt
+&gt
+&gt ;;;;;;;;;;;   foo.lisp
+&gt
+&gt (in-package "CL-USER")
+&gt
+&gt (defvar *foo* nil)
+&gt
+&gt (defun foo (key value)
+&gt   (let ((ent (assoc key *foo* :test #'equal)))
+&gt     (if ent
+&gt         (setf (cdr ent) value)
+&gt       (push (cons key value) *foo*))
+&gt     value))
+&gt
+&gt ;;;;;;;;;;;   bar.lisp
+&gt
+&gt (in-package "CL-USER")
+&gt
+&gt ;; Reduction of problems invoking portable webactions' (setf 
+&gt request-query-value)
+&gt
+&gt (defvar *bar* nil)
+&gt
+&gt (defsetf bar (key &amp;key (test #'equal)) (newvalue)
+&gt   `(let ((ent (assoc ,key *bar* :test ,test)))
+&gt     (if ent
+&gt         (setf (cdr ent) ,newvalue)
+&gt       (push (cons ,key ,newvalue) *bar*))
+&gt     ,newvalue))
+&gt
+&gt (defun bar (key value)
+&gt   (setf (bar key) value))
+&gt
+&gt
+&gt
+--
+Brian Mastenbrook
+bmastenb@cs.indiana.edu
+http://cs.indiana.edu/~bmastenb/
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:52 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

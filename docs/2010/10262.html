@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Anomalous drawing whilst scrolling :without-bar (XP, Vista)</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Anomalous drawing whilst scrolling :without-bar (XP, Vista)</h1>
+                <pre>
+Hi again, fellow LispWorkers,
+
+The test code below demonstrates a problem I am having with my application,
+relating to :without-bar scrolling (I am only
+working on WinXP currently). Notice that the top pane, when scrolled, seems to
+'bleed' the just-exposed region. With
+clipped drawing the problem does go away, but even though my actual application
+draws only to the just-exposed region
+the problem still occurs. I am just wondering what type of problem this might
+be, as I've been fighting with it for a few
+weeks, to no avail. Is it simply an issue relating to the amount of data being
+drawn? I have known (and would expect)
+unoptimized drawing to produce slow scrolling, but not an effect like this. Any
+thoughts? 
+
+I have tested this on two XP boxes, and a Vista laptop, with the same results.
+My app draws waveforms, and the code
+below is a very, *VERY* crude approximation to my actual drawing code, which
+does quite a bit of pre-drawing calculation. I get
+the problem when combining scrolling my waveform data pane simultaneously with a
+ruler, which measures time, placed above it
+within a larger grid-layout. The waveform exhibits the identical effect
+demonstrated here, but interestingly - and oddly - if
+the ruler is placed below the waveform the waveform scrolls perfectly, but the
+ruler is then affected.
+
+(defpackage :test
+  (:add-use-defaults t)
+  (:use :capi))
+  
+(in-package :test)
+
+(progn
+  (defparameter *max* (make-array 2048
+                                  :initial-contents
+                                    (loop repeat 2048
+                                          collect (+ (random 150) 150))))
+  (defparameter *min* (make-array 2048
+                                  :initial-contents
+                                    (loop repeat 2048
+                                          collect (random 150))))
+  nil)
+
+(define-interface test  ()
+  ()
+  (:panes
+    (pane-1 output-pane
+	    :scroll-width 2048
+	    :horizontal-scroll :without-bar
+	    :visible-max-height 300
+	    :display-callback 'draw-data)
+    (pane-2 output-pane
+	    :scroll-width 2048
+	    :horizontal-scroll t
+	    :scroll-callback 'on-scroll
+	    :visible-max-height 300
+	    :display-callback 'draw-data)) ; Clipping here removes the problem.
+  (:layouts
+    (main-layout column-layout
+	         '(pane-1 pane-2)
+	         :default t))
+  (:default-initargs
+    :best-width 800
+    :best-height 630))
+	
+(defun draw-data (pane x y width height)
+  (declare (optimize (speed 3) (safety 0) (fixnum-safety 0))
+           (ignore x y width height))
+    (loop for i fixnum from 0 below 2048
+          for min fixnum across *min*
+          for max fixnum across *max*
+	  append (list i min i max) into coords
+	  finally (gp:draw-lines pane coords)))
+
+; This does clipped drawing.
+(defun %draw-data (pane x y width height)
+  (declare (optimize (speed 3) (safety 0) (fixnum-safety 0))
+           (ignore y height))
+    (loop for i fixnum from x below (+ x (1- width))
+          for min fixnum = (aref *min* i)
+          for max fixnum = (aref *max* i)
+	  append (list i min i max) into coords
+	  finally (gp:draw-lines pane coords)))
+		  
+(defun on-scroll (pane dimension operation value
+		  &amp;key &amp;allow-other-keys)
+  (declare (ignore dimension operation value))
+  (with-slots (pane-1) (top-level-interface pane)
+    (set-horizontal-scroll-parameters pane-1
+      :slug-position (get-horizontal-scroll-parameters pane :slug-position))))
+	  
+(defun test ()
+  (contain (make-instance 'test)))
+  
+(compile 'draw-data)
+(compile 'on-scroll)
+(compile 'test)
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Anomalous drawing whilst scrolling :without-bar (XP, Vista)</h1>
+                 <pre>
+Hi there Chris,
+
+I wonder if there is a bit more to the story.  Running your example on a
+machine running WinXP Home, I can clearly see the sort of
+"bleeding/stretching" effect you allude to.
+
+However on another machine running WinXP Pro the effect, if evident at
+all, is barely discernable.
+
+Alas, I know not what to suggest is different about these two machines
+and/or the version of WinXP to explain the varying outcomes.  Unless you
+can think of something I might look into further.
+
+Brian C.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>RE: Anomalous drawing whilst scrolling :without-bar (XP, Vista)</h1><html>
+<head>
+<style><!--
+..hmmessage P
+{
+margin:0px;
+padding:0px
+}
+body.hmmessage
+{
+font-size: 10pt;
+font-family:Verdana
+}
+--></style>
+</head>
+<body class='hmmessage'>
+It seems as if the display-callback of the offending pane is somehow not firing. For example, the top pane in the following uses a different display-callback:<br><br>(define-interface test&nbsp; ()<br>&nbsp; ()<br>&nbsp; (:panes<br>&nbsp;&nbsp;&nbsp; (pane-1 output-pane<br>&nbsp;&nbsp;&nbsp; &nbsp; :scroll-width 2048<br>&nbsp;&nbsp;&nbsp; &nbsp; :horizontal-scroll :without-bar<br>&nbsp;&nbsp;&nbsp; &nbsp; :visible-max-height 300<br>&nbsp;&nbsp;&nbsp; &nbsp; :display-callback 'draw-data1)<br>&nbsp;&nbsp;&nbsp; (pane-2 output-pane<br>&nbsp;&nbsp;&nbsp; &nbsp; :scroll-width 2048<br>&nbsp;&nbsp;&nbsp; &nbsp; :horizontal-scroll t<br>&nbsp;&nbsp;&nbsp; &nbsp; :scroll-callback 'on-scroll<br>&nbsp;&nbsp;&nbsp; &nbsp; :visible-max-height 300<br>&nbsp;&nbsp;&nbsp; &nbsp; :display-callback 'draw-data))<br>&nbsp; (:layouts<br>&nbsp;&nbsp;&nbsp; (main-layout column-layout<br>&nbsp;&nbsp;&nbsp; &nbsp; '(pane-1 pane-2)<br>&nbsp;&nbsp;&nbsp; &nbsp; :default t))<br>&nbsp; (:default-initargs<br>&nbsp;&nbsp;&nbsp; :best-width 800<br>&nbsp;&nbsp;&nbsp; :best-height 630))<br><br>(defun draw-data1 (pane x y width height)<br>&nbsp; (declare (optimize (speed 3) (safety 0) (fixnum-safety 0))<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (ignore x y width height))<br>&nbsp;&nbsp;&nbsp; (loop for i fixnum from 0 below 2048<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; for min fixnum across *min*<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; for max fixnum across *max*<br>&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; append (list i min i max) into coords<br>&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; finally (gp:draw-lines pane coords)))<br><br>Profiling while performing a scroll action then yields the following:<br><br>profile-stacks called 1468 times<br>interpreted function called 1 time<br><br>Cumulative profile summary<br>Symbol&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; called&nbsp;&nbsp; profile&nbsp; (%)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; top&nbsp;&nbsp; (%)<br>DRAW-DATA&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 42&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 40 (&nbsp; 3)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 2&nbsp; (&nbsp; 0)<br>DRAW-DATA1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 2&nbsp; (&nbsp; 0)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 0&nbsp; (&nbsp; 0)<br>ON-SCROLL&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 43&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 0&nbsp; (&nbsp; 0)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 0&nbsp; (&nbsp; 0)<br><br>I have now had the opportunity to test for this issue on both a Linux box and a Mac, and haven't encountered it. So it's obviously Windows-specific. But I have no clue as to what could be causing it. If anyone does (Dave? Martin?) I'm all ears!<br><br>Cheers,<br>Chris<br><br>&gt; To: lisp-hug@lispworks.com<br>&gt; From: relativeflux@hotmail.co.uk<br>&gt; Subject: Anomalous drawing whilst scrolling :without-bar (XP, Vista)<br>&gt; Date: Tue, 27 Apr 2010 19:15:02 +0000<br>&gt; <br>&gt; <br>&gt; Hi again, fellow LispWorkers,<br>&gt; <br>&gt; The test code below demonstrates a problem I am having with my application,<br>&gt; relating to :without-bar scrolling (I am only<br>&gt; working on WinXP currently). Notice that the top pane, when scrolled, seems to<br>&gt; 'bleed' the just-exposed region. With<br>&gt; clipped drawing the problem does go away, but even though my actual application<br>&gt; draws only to the just-exposed region<br>&gt; the problem still occurs. I am just wondering what type of problem this might<br>&gt; be, as I've been fighting with it for a few<br>&gt; weeks, to no avail. Is it simply an issue relating to the amount of data being<br>&gt; drawn? I have known (and would expect)<br>&gt; unoptimized drawing to produce slow scrolling, but not an effect like this. Any<br>&gt; thoughts? <br>&gt; <br>&gt; I have tested this on two XP boxes, and a Vista laptop, with the same results.<br>&gt; My app draws waveforms, and the code<br>&gt; below is a very, *VERY* crude approximation to my actual drawing code, which<br>&gt; does quite a bit of pre-drawing calculation. I get<br>&gt; the problem when combining scrolling my waveform data pane simultaneously with a<br>&gt; ruler, which measures time, placed above it<br>&gt; within a larger grid-layout. The waveform exhibits the identical effect<br>&gt; demonstrated here, but interestingly - and oddly - if<br>&gt; the ruler is placed below the waveform the waveform scrolls perfectly, but the<br>&gt; ruler is then affected.<br>&gt; <br>&gt; (defpackage :test<br>&gt;   (:add-use-defaults t)<br>&gt;   (:use :capi))<br>&gt;   <br>&gt; (in-package :test)<br>&gt; <br>&gt; (progn<br>&gt;   (defparameter *max* (make-array 2048<br>&gt;                                   :initial-contents<br>&gt;                                     (loop repeat 2048<br>&gt;                                           collect (+ (random 150) 150))))<br>&gt;   (defparameter *min* (make-array 2048<br>&gt;                                   :initial-contents<br>&gt;                                     (loop repeat 2048<br>&gt;                                           collect (random 150))))<br>&gt;   nil)<br>&gt; <br>&gt; (define-interface test  ()<br>&gt;   ()<br>&gt;   (:panes<br>&gt;     (pane-1 output-pane<br>&gt; 	    :scroll-width 2048<br>&gt; 	    :horizontal-scroll :without-bar<br>&gt; 	    :visible-max-height 300<br>&gt; 	    :display-callback 'draw-data)<br>&gt;     (pane-2 output-pane<br>&gt; 	    :scroll-width 2048<br>&gt; 	    :horizontal-scroll t<br>&gt; 	    :scroll-callback 'on-scroll<br>&gt; 	    :visible-max-height 300<br>&gt; 	    :display-callback 'draw-data)) ; Clipping here removes the problem.<br>&gt;   (:layouts<br>&gt;     (main-layout column-layout<br>&gt; 	         '(pane-1 pane-2)<br>&gt; 	         :default t))<br>&gt;   (:default-initargs<br>&gt;     :best-width 800<br>&gt;     :best-height 630))<br>&gt; 	<br>&gt; (defun draw-data (pane x y width height)<br>&gt;   (declare (optimize (speed 3) (safety 0) (fixnum-safety 0))<br>&gt;            (ignore x y width height))<br>&gt;     (loop for i fixnum from 0 below 2048<br>&gt;           for min fixnum across *min*<br>&gt;           for max fixnum across *max*<br>&gt; 	  append (list i min i max) into coords<br>&gt; 	  finally (gp:draw-lines pane coords)))<br>&gt; <br>&gt; ; This does clipped drawing.<br>&gt; (defun %draw-data (pane x y width height)<br>&gt;   (declare (optimize (speed 3) (safety 0) (fixnum-safety 0))<br>&gt;            (ignore y height))<br>&gt;     (loop for i fixnum from x below (+ x (1- width))<br>&gt;           for min fixnum = (aref *min* i)<br>&gt;           for max fixnum = (aref *max* i)<br>&gt; 	  append (list i min i max) into coords<br>&gt; 	  finally (gp:draw-lines pane coords)))<br>&gt; 		  <br>&gt; (defun on-scroll (pane dimension operation value<br>&gt; 		  &amp;key &amp;allow-other-keys)<br>&gt;   (declare (ignore dimension operation value))<br>&gt;   (with-slots (pane-1) (top-level-interface pane)<br>&gt;     (set-horizontal-scroll-parameters pane-1<br>&gt;       :slug-position (get-horizontal-scroll-parameters pane :slug-position))))<br>&gt; 	  <br>&gt; (defun test ()<br>&gt;   (contain (make-instance 'test)))<br>&gt;   <br>&gt; (compile 'draw-data)<br>&gt; (compile 'on-scroll)<br>&gt; (compile 'test)<br>&gt; <br> 		 	   		  <br /><hr />Get a free e-mail account with Hotmail. Sign-up now. <a href='' target='_new'></a></body>
+</html>
+
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:35 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Fastest way to turn 4 bytes into a 32 bit number?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Fastest way to turn 4 bytes into a 32 bit number?</h1>
+                <pre>
+
+I have 4 bytes, each 8 bits long.  I wish to turn these into a single
+32 bit number.  What's the fastest way to do that in LispWorks on
+Linux?
+
+I tried a number of different approaches and looked at the disassemble
+output and ran some micro benchmarks and the best I could come up with
+is the PACK-4-BYTES-V0¨function below.  Is there a better way?
+
+There are some other versions below for your entertainment.
+
+Thanks for any tips you might have,
+Chris Dean
+
+
+(defun pack-4-bytes-v0 (b0 b1 b2 b3)
+  (declare (optimize (speed 3) (debug 0) (space 0) (safety 0)
+                     (hcl:fixnum-safety 0)
+                     (compilation-speed 0))
+           (type (unsigned-byte 8) b0 b1 b2 b3))
+  (the (unsigned-byte 32) 
+    (logior (ash b0 24)
+            (ash b1 16)
+            (ash b2 8)
+            b3)))
+
+(defun pack-4-bytes-v1 (b0 b1 b2 b3)
+  (declare (optimize (speed 3) (debug 0) (space 0) (safety 0)
+                     (hcl:fixnum-safety 0)
+                     (compilation-speed 0))
+           (type (unsigned-byte 8) b0 b1 b2 b3))
+  (ldb (byte 32 0) 
+       (logior (ash b0 24)
+               (ash b1 16)
+               (ash b2 8)
+               b3)))
+
+(defun pack-4-bytes-v2 (b0 b1 b2 b3)
+  (declare (optimize (speed 3) (debug 0) (space 0) (safety 0)
+                     (hcl:fixnum-safety 0)
+                     (compilation-speed 0))
+           (type (unsigned-byte 8) b0 b1 b2 b3))
+  (let ((res 0))
+    (declare (type (unsigned-byte 32) res))
+    (setf (ldb (byte 8 24) res) b0
+          (ldb (byte 8 16) res) b1
+          (ldb (byte 8  8) res) b2
+          (ldb (byte 8  0) res) b3)
+    res))
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Fastest way to turn 4 bytes into a 32 bit number?</h1>
+                 <pre>
+&gt&gt&gt&gt&gt On Thu, 11 May 2006 12:04:17 -0700, Chris Dean &lt;ctdean@sokitomi.com&gt said:
+&gt 
+&gt I have 4 bytes, each 8 bits long.  I wish to turn these into a single
+&gt 32 bit number.  What's the fastest way to do that in LispWorks on
+&gt Linux?
+&gt 
+&gt I tried a number of different approaches and looked at the disassemble
+&gt output and ran some micro benchmarks and the best I could come up with
+&gt is the PACK-4-BYTES-V0¨function below.  Is there a better way?
+
+Beware fixnum-safety 0 -- PACK-4-BYTES-V0 is only fastest because it doesn't
+do all the work :-)  The intermediate ash results are not fixnums.
+
+I suspect something like below might be the fastest, because it can safely
+compute two 16 bit quuantities as fixnums.
+
+(defun pack-4-bytes-v3 (b0 b1 b2 b3)
+  (declare (optimize (speed 3) (debug 0) (space 0) (safety 0)
+                     (compilation-speed 0))
+           (type (unsigned-byte 8) b0 b1 b2 b3))
+  (logior (the (unsigned-byte 32)
+               (ash (logior (the (unsigned-byte 16) (ash b0 8)) b1) 16))
+	  (logior (the (unsigned-byte 16) (ash b2 8)) b3)))
+
+(defun pack-4-bytes-v4 (b0 b1 b2 b3)
+  (declare (optimize (speed 3) (debug 0) (space 0) (safety 0)
+                     (compilation-speed 0))
+           (type (unsigned-byte 8) b0 b1 b2 b3))
+  (dpb (logior (the (unsigned-byte 16) (ash b0 8)) b1) (byte 16 16)
+       (logior (the (unsigned-byte 16) (ash b2 8)) b3)))
+
+
+&gt 
+&gt There are some other versions below for your entertainment.
+&gt 
+&gt Thanks for any tips you might have,
+&gt Chris Dean
+&gt 
+&gt 
+&gt (defun pack-4-bytes-v0 (b0 b1 b2 b3)
+&gt   (declare (optimize (speed 3) (debug 0) (space 0) (safety 0)
+&gt                      (hcl:fixnum-safety 0)
+&gt                      (compilation-speed 0))
+&gt            (type (unsigned-byte 8) b0 b1 b2 b3))
+&gt   (the (unsigned-byte 32) 
+&gt     (logior (ash b0 24)
+&gt             (ash b1 16)
+&gt             (ash b2 8)
+&gt             b3)))
+&gt 
+&gt (defun pack-4-bytes-v1 (b0 b1 b2 b3)
+&gt   (declare (optimize (speed 3) (debug 0) (space 0) (safety 0)
+&gt                      (hcl:fixnum-safety 0)
+&gt                      (compilation-speed 0))
+&gt            (type (unsigned-byte 8) b0 b1 b2 b3))
+&gt   (ldb (byte 32 0) 
+&gt        (logior (ash b0 24)
+&gt                (ash b1 16)
+&gt                (ash b2 8)
+&gt                b3)))
+&gt 
+&gt (defun pack-4-bytes-v2 (b0 b1 b2 b3)
+&gt   (declare (optimize (speed 3) (debug 0) (space 0) (safety 0)
+&gt                      (hcl:fixnum-safety 0)
+&gt                      (compilation-speed 0))
+&gt            (type (unsigned-byte 8) b0 b1 b2 b3))
+&gt   (let ((res 0))
+&gt     (declare (type (unsigned-byte 32) res))
+&gt     (setf (ldb (byte 8 24) res) b0
+&gt           (ldb (byte 8 16) res) b1
+&gt           (ldb (byte 8  8) res) b2
+&gt           (ldb (byte 8  0) res) b3)
+&gt     res))
+&gt 
+
+__Martin
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Fastest way to turn 4 bytes into a 32 bit number?</h1>
+                 <pre>
+
+Martin Simmons &lt;martin@lispworks.com&gt writes:
+&gt Beware fixnum-safety 0 -- PACK-4-BYTES-V0 is only fastest because it doesn't
+&gt do all the work :-)  
+
+Good catch!  I eventually figured that out after a while :).
+
+&gt The intermediate ash results are not fixnums.
+&gt
+&gt I suspect something like below might be the fastest, because it can
+&gt safely compute two 16 bit quantities as fixnums.
+
+Great, thanks - I'll use a variant of the ones below.
+
+Regards,
+Chris Dean
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:45 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

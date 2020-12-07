@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>A Mac OS X very specific question</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>A Mac OS X very specific question</h1>
+                <pre>
+Hi,
+
+Some procedures on Mac OS X need always the old structure FSSpec (QuickTime
+for instance). I have to transmit a pathname by this way to some coreAudio
+MusicDevice. I found the way to get a FSSpec from a FSRef from a lisp
+string... The pathname seems to be correctly transmitted to the foreign
+routines : no error code and the file I want to load is correctly loaded.
+But after several calls to the function (sometimes 1, sometimes more...) LW
+crashes, often when quitting. It¹s impossible for me to understand if the
+problem is in my codes, in the Mac codes or in the LW codes...
+
+I tried to reproduce a very simple example here but, however, it¹s need some
+lines of codes... I'm really sorry.
+
+Any suggestion will be very appreciated !
+
+Thanks
+
+Denis
+
+
+
+(defpackage "PACKAGE-FOO"
+  (:nicknames foo) (:use cl fli))
+
+(in-package :foo)
+
+
+(define-c-typedef Uint8 (:unsigned :char))
+(define-c-typedef Uint32 (:unsigned :long))
+
+
+#|
+declaration in Files.h :
+struct FSRef {
+  UInt8               hidden[80];             /* private to File Manager;
+need symbolic constant */
+};
+
+typedef struct FSRef                    FSRef;
+|#
+
+(define-c-struct FSRef  (hidden (:c-array Uint8 80)))
+
+
+#|
+declaration  in Files.h :
+struct FSSpec {
+  short               vRefNum;
+  long                parID;
+  StrFileName         name;                   /* a Str63 on MacOS*/
+};
+
+typedef struct FSSpec                   FSSpec;
+|#
+
+(define-c-struct FSSpec
+  (vRefNum :short)
+  (parID :long)
+  (StrFilename (:pointer (:c-array Uint8 64))))
+
+#|
+declaration  in Files.h :
+extern OSStatus  FSPathMakeRef(const UInt8 *path, FSRef *ref, Boolean
+*isDirectory)   
+|#
+
+(define-foreign-function (FSPathMakeRef "FSPathMakeRef") ((path
+(:reference-pass (:ef-mb-string :limit 255 :null-terminated-p t))) (ref
+(:pointer FSRef)) (isDirectory (:reference-return :boolean))) ;
+  :result-type :long)
+
+#|
+declaration  in Files.h :
+extern OSErr  FSGetCatalogInfo(const FSRef *ref, FSCatalogInfoBitmap
+whichInfo, FSCatalogInfo *catalogInfo, HFSUniStr255 *outName, FSSpec
+*fsSpec, FSRef *parentRef)
+|#
+
+(define-foreign-function (FSGetCatalogInfo "FSGetCatalogInfo") ((FSref
+(:const (:ptr FSRef))) (whichInfo Uint32) (catalogInfo (:ptr :void))
+(outName (:ptr :void)) (fsSpec (:ptr fsSpec)) (parentRef (:ptr :void))) ;
+  :result-type :long)
+
+;my function
+
+(defmacro with-no-error (code &amp;body body)
+  `(let ((error (progn ,.body)))
+     (unless (zerop error) (error (format nil "~d ~d" ,code error)))))
+
+(defun string-&gtFSSpec (string)
+  (let ((FSRef (allocate-foreign-object :type 'FSRef))
+        (FSSpec (allocate-foreign-object :type 'FSspec)))
+    (with-no-error "FSPathMakeRef" (FSPathMakeRef string FSRef nil))
+    (with-no-error "FSGetCatalogInfo" (FSGetCatalogInfo FSRef 0 nil nil
+FSSpec nil))
+    (free FSRef) ;I'm not sure about that, but it crashes anyway...
+    (free FSSpec)))
+
+
+#|
+
+(dotimes (i 10) (string-&gtFSSpec pathname-string)) ;&lt;--- put here every
+pathname to an existing file
+
+normally the system crashes after evaluation (or when quitting LW)...
+|#
+
+
+-------------------------------------------------------
+Denis Pousseur
+70 rue de Wansijn
+1180 Bruxelles, Belgique
+
+Tel : 32 (0)2 219 31 09
+Mail :  denis.pousseur@compositeurs.be
+Website : http://compositeurs.be/pousseur
+-------------------------------------------------------
+
+
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: A Mac OS X very specific question</h1>
+                 <pre>
+Don't quote me, but...
+
+At a quick glance, your translation of the FSSpec type is wrong.   
+You've defined the filename element as a pointer to a 64-byte array  
+but the actual definition in the header file is that the filename  
+element is the 64-byte array.  So, you're FSSpec structure isn't long  
+enough and your causing your C heap to be corrupted.
+
+Change the definition of FSSpec to
+
+(define-c-struct FSSpec
+   (vRefNum :short)
+   (parID :long)
+   (StrFilename (:c-array Uint8 64)))
+
+and see what happens.
+
+   - Gary Palter
+     Principal Software Engineer
+     Clozure Associates
+     Cell:  617-947-0536
+
+
+On Oct 27, 2006, at 3:14 PM, Denis Pousseur wrote:
+
+&gt
+&gt Hi,
+&gt
+&gt Some procedures on Mac OS X need always the old structure FSSpec  
+&gt (QuickTime
+&gt for instance). I have to transmit a pathname by this way to some  
+&gt coreAudio
+&gt MusicDevice. I found the way to get a FSSpec from a FSRef from a lisp
+&gt string... The pathname seems to be correctly transmitted to the  
+&gt foreign
+&gt routines : no error code and the file I want to load is correctly  
+&gt loaded.
+&gt But after several calls to the function (sometimes 1, sometimes  
+&gt more...) LW
+&gt crashes, often when quitting. It’s impossible for me to understand  
+&gt if the
+&gt problem is in my codes, in the Mac codes or in the LW codes...
+&gt
+&gt I tried to reproduce a very simple example here but, however, it’s  
+&gt need some
+&gt lines of codes... I'm really sorry.
+&gt
+&gt Any suggestion will be very appreciated !
+&gt
+&gt Thanks
+&gt
+&gt Denis
+&gt
+&gt
+&gt
+&gt (defpackage "PACKAGE-FOO"
+&gt   (:nicknames foo) (:use cl fli))
+&gt
+&gt (in-package :foo)
+&gt
+&gt
+&gt (define-c-typedef Uint8 (:unsigned :char))
+&gt (define-c-typedef Uint32 (:unsigned :long))
+&gt
+&gt
+&gt #|
+&gt declaration in Files.h :
+&gt struct FSRef {
+&gt   UInt8               hidden[80];             /* private to File  
+&gt Manager;
+&gt need symbolic constant */
+&gt };
+&gt
+&gt typedef struct FSRef                    FSRef;
+&gt |#
+&gt
+&gt (define-c-struct FSRef  (hidden (:c-array Uint8 80)))
+&gt
+&gt
+&gt #|
+&gt declaration  in Files.h :
+&gt struct FSSpec {
+&gt   short               vRefNum;
+&gt   long                parID;
+&gt   StrFileName         name;                   /* a Str63 on MacOS*/
+&gt };
+&gt
+&gt typedef struct FSSpec                   FSSpec;
+&gt |#
+&gt
+&gt (define-c-struct FSSpec
+&gt   (vRefNum :short)
+&gt   (parID :long)
+&gt   (StrFilename (:pointer (:c-array Uint8 64))))
+&gt
+&gt #|
+&gt declaration  in Files.h :
+&gt extern OSStatus  FSPathMakeRef(const UInt8 *path, FSRef *ref, Boolean
+&gt *isDirectory)
+&gt |#
+&gt
+&gt (define-foreign-function (FSPathMakeRef "FSPathMakeRef") ((path
+&gt (:reference-pass (:ef-mb-string :limit 255 :null-terminated-p t)))  
+&gt (ref
+&gt (:pointer FSRef)) (isDirectory (:reference-return :boolean))) ;
+&gt   :result-type :long)
+&gt
+&gt #|
+&gt declaration  in Files.h :
+&gt extern OSErr  FSGetCatalogInfo(const FSRef *ref, FSCatalogInfoBitmap
+&gt whichInfo, FSCatalogInfo *catalogInfo, HFSUniStr255 *outName, FSSpec
+&gt *fsSpec, FSRef *parentRef)
+&gt |#
+&gt
+&gt (define-foreign-function (FSGetCatalogInfo "FSGetCatalogInfo") ((FSref
+&gt (:const (:ptr FSRef))) (whichInfo Uint32) (catalogInfo (:ptr :void))
+&gt (outName (:ptr :void)) (fsSpec (:ptr fsSpec)) (parentRef  
+&gt (:ptr :void))) ;
+&gt   :result-type :long)
+&gt
+&gt ;my function
+&gt
+&gt (defmacro with-no-error (code &amp;body body)
+&gt   `(let ((error (progn ,.body)))
+&gt      (unless (zerop error) (error (format nil "~d ~d" ,code error)))))
+&gt
+&gt (defun string-&gtFSSpec (string)
+&gt   (let ((FSRef (allocate-foreign-object :type 'FSRef))
+&gt         (FSSpec (allocate-foreign-object :type 'FSspec)))
+&gt     (with-no-error "FSPathMakeRef" (FSPathMakeRef string FSRef nil))
+&gt     (with-no-error "FSGetCatalogInfo" (FSGetCatalogInfo FSRef 0 nil  
+&gt nil
+&gt FSSpec nil))
+&gt     (free FSRef) ;I'm not sure about that, but it crashes anyway...
+&gt     (free FSSpec)))
+&gt
+&gt
+&gt #|
+&gt
+&gt (dotimes (i 10) (string-&gtFSSpec pathname-string)) ;&lt;--- put here every
+&gt pathname to an existing file
+&gt
+&gt normally the system crashes after evaluation (or when quitting LW)...
+&gt |#
+&gt
+&gt
+&gt -------------------------------------------------------
+&gt Denis Pousseur
+&gt 70 rue de Wansijn
+&gt 1180 Bruxelles, Belgique
+&gt
+&gt Tel : 32 (0)2 219 31 09
+&gt Mail :  denis.pousseur@compositeurs.be
+&gt Website : http://compositeurs.be/pousseur
+&gt -------------------------------------------------------
+&gt
+&gt
+&gt
+
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: A Mac OS X very specific question</h1>
+                  <pre>
+Gosh ! I'm to stupid ! It works perfectly now...
+Your "quick glance" is more accurate than a few ours of mine...
+
+Thanks a lot !
+
+Denis
+
+PS : if I can abuse of your knowledge...: must a foreign structure define in
+lisp be deallocated, even if the foreign procedure doesn't require an
+explicit release ? (the FSSpec and the FSREF structures don't need release
+as I can read in the Mac doc. However, I free the foreign structure in my
+code. Is it correct ?).
+
+
+Le 27/10/06 21:27, «&nbsp;[NOM]&nbsp;» &lt;[ADRESSE]&gt a écrit&nbsp;:
+
+&gt 
+&gt Don't quote me, but...
+&gt 
+&gt At a quick glance, your translation of the FSSpec type is wrong.
+&gt You've defined the filename element as a pointer to a 64-byte array
+&gt but the actual definition in the header file is that the filename
+&gt element is the 64-byte array.  So, you're FSSpec structure isn't long
+&gt enough and your causing your C heap to be corrupted.
+&gt 
+&gt Change the definition of FSSpec to
+&gt 
+&gt (define-c-struct FSSpec
+&gt    (vRefNum :short)
+&gt    (parID :long)
+&gt    (StrFilename (:c-array Uint8 64)))
+&gt 
+&gt and see what happens.
+&gt 
+&gt    - Gary Palter
+&gt      Principal Software Engineer
+&gt      Clozure Associates
+&gt      Cell:  617-947-0536
+&gt 
+&gt 
+&gt On Oct 27, 2006, at 3:14 PM, Denis Pousseur wrote:
+&gt 
+&gt&gt 
+&gt&gt Hi,
+&gt&gt 
+&gt&gt Some procedures on Mac OS X need always the old structure FSSpec
+&gt&gt (QuickTime
+&gt&gt for instance). I have to transmit a pathname by this way to some
+&gt&gt coreAudio
+&gt&gt MusicDevice. I found the way to get a FSSpec from a FSRef from a lisp
+&gt&gt string... The pathname seems to be correctly transmitted to the
+&gt&gt foreign
+&gt&gt routines : no error code and the file I want to load is correctly
+&gt&gt loaded.
+&gt&gt But after several calls to the function (sometimes 1, sometimes
+&gt&gt more...) LW
+&gt&gt crashes, often when quitting. It¹s impossible for me to understand
+&gt&gt if the
+&gt&gt problem is in my codes, in the Mac codes or in the LW codes...
+&gt&gt 
+&gt&gt I tried to reproduce a very simple example here but, however, it¹s
+&gt&gt need some
+&gt&gt lines of codes... I'm really sorry.
+&gt&gt 
+&gt&gt Any suggestion will be very appreciated !
+&gt&gt 
+&gt&gt Thanks
+&gt&gt 
+&gt&gt Denis
+&gt&gt 
+&gt&gt 
+&gt&gt 
+&gt&gt (defpackage "PACKAGE-FOO"
+&gt&gt   (:nicknames foo) (:use cl fli))
+&gt&gt 
+&gt&gt (in-package :foo)
+&gt&gt 
+&gt&gt 
+&gt&gt (define-c-typedef Uint8 (:unsigned :char))
+&gt&gt (define-c-typedef Uint32 (:unsigned :long))
+&gt&gt 
+&gt&gt 
+&gt&gt #|
+&gt&gt declaration in Files.h :
+&gt&gt struct FSRef {
+&gt&gt   UInt8               hidden[80];             /* private to File
+&gt&gt Manager;
+&gt&gt need symbolic constant */
+&gt&gt };
+&gt&gt 
+&gt&gt typedef struct FSRef                    FSRef;
+&gt&gt |#
+&gt&gt 
+&gt&gt (define-c-struct FSRef  (hidden (:c-array Uint8 80)))
+&gt&gt 
+&gt&gt 
+&gt&gt #|
+&gt&gt declaration  in Files.h :
+&gt&gt struct FSSpec {
+&gt&gt   short               vRefNum;
+&gt&gt   long                parID;
+&gt&gt   StrFileName         name;                   /* a Str63 on MacOS*/
+&gt&gt };
+&gt&gt 
+&gt&gt typedef struct FSSpec                   FSSpec;
+&gt&gt |#
+&gt&gt 
+&gt&gt (define-c-struct FSSpec
+&gt&gt   (vRefNum :short)
+&gt&gt   (parID :long)
+&gt&gt   (StrFilename (:pointer (:c-array Uint8 64))))
+&gt&gt 
+&gt&gt #|
+&gt&gt declaration  in Files.h :
+&gt&gt extern OSStatus  FSPathMakeRef(const UInt8 *path, FSRef *ref, Boolean
+&gt&gt *isDirectory)
+&gt&gt |#
+&gt&gt 
+&gt&gt (define-foreign-function (FSPathMakeRef "FSPathMakeRef") ((path
+&gt&gt (:reference-pass (:ef-mb-string :limit 255 :null-terminated-p t)))
+&gt&gt (ref
+&gt&gt (:pointer FSRef)) (isDirectory (:reference-return :boolean))) ;
+&gt&gt   :result-type :long)
+&gt&gt 
+&gt&gt #|
+&gt&gt declaration  in Files.h :
+&gt&gt extern OSErr  FSGetCatalogInfo(const FSRef *ref, FSCatalogInfoBitmap
+&gt&gt whichInfo, FSCatalogInfo *catalogInfo, HFSUniStr255 *outName, FSSpec
+&gt&gt *fsSpec, FSRef *parentRef)
+&gt&gt |#
+&gt&gt 
+&gt&gt (define-foreign-function (FSGetCatalogInfo "FSGetCatalogInfo") ((FSref
+&gt&gt (:const (:ptr FSRef))) (whichInfo Uint32) (catalogInfo (:ptr :void))
+&gt&gt (outName (:ptr :void)) (fsSpec (:ptr fsSpec)) (parentRef
+&gt&gt (:ptr :void))) ;
+&gt&gt   :result-type :long)
+&gt&gt 
+&gt&gt ;my function
+&gt&gt 
+&gt&gt (defmacro with-no-error (code &amp;body body)
+&gt&gt   `(let ((error (progn ,.body)))
+&gt&gt      (unless (zerop error) (error (format nil "~d ~d" ,code error)))))
+&gt&gt 
+&gt&gt (defun string-&gtFSSpec (string)
+&gt&gt   (let ((FSRef (allocate-foreign-object :type 'FSRef))
+&gt&gt         (FSSpec (allocate-foreign-object :type 'FSspec)))
+&gt&gt     (with-no-error "FSPathMakeRef" (FSPathMakeRef string FSRef nil))
+&gt&gt     (with-no-error "FSGetCatalogInfo" (FSGetCatalogInfo FSRef 0 nil
+&gt&gt nil
+&gt&gt FSSpec nil))
+&gt&gt     (free FSRef) ;I'm not sure about that, but it crashes anyway...
+&gt&gt     (free FSSpec)))
+&gt&gt 
+&gt&gt 
+&gt&gt #|
+&gt&gt 
+&gt&gt (dotimes (i 10) (string-&gtFSSpec pathname-string)) ;&lt;--- put here every
+&gt&gt pathname to an existing file
+&gt&gt 
+&gt&gt normally the system crashes after evaluation (or when quitting LW)...
+&gt&gt |#
+&gt&gt 
+&gt&gt 
+&gt&gt -------------------------------------------------------
+&gt&gt Denis Pousseur
+&gt&gt 70 rue de Wansijn
+&gt&gt 1180 Bruxelles, Belgique
+&gt&gt 
+&gt&gt Tel : 32 (0)2 219 31 09
+&gt&gt Mail :  denis.pousseur@compositeurs.be
+&gt&gt Website : http://compositeurs.be/pousseur
+&gt&gt -------------------------------------------------------
+&gt&gt 
+&gt&gt 
+&gt&gt 
+&gt 
+&gt 
+&gt 
+
+
+
+-------------------------------------------------------
+Denis Pousseur
+70 rue de Wansijn
+1180 Bruxelles, Belgique
+
+Tel : 32 (0)2 219 31 09
+Mail :  denis.pousseur@compositeurs.be
+Website : http://compositeurs.be/pousseur
+-------------------------------------------------------
+
+
+
+
+
+</pre>
+                 </article>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>Re: A Mac OS X very specific question</h1>
+                   <pre>
+&gt&gt&gt&gt&gt On Sat, 28 Oct 2006 09:09:36 +0200, Denis Pousseur said:
+&gt 
+&gt Gosh ! I'm to stupid ! It works perfectly now...
+&gt Your "quick glance" is more accurate than a few ours of mine...
+&gt 
+&gt Thanks a lot !
+&gt 
+&gt Denis
+&gt 
+&gt PS : if I can abuse of your knowledge...: must a foreign structure define in
+&gt lisp be deallocated, even if the foreign procedure doesn't require an
+&gt explicit release ? (the FSSpec and the FSREF structures don't need release
+&gt as I can read in the Mac doc. However, I free the foreign structure in my
+&gt code. Is it correct ?).
+
+Every foreign object must be released somehow.  Assuming that the APIs can be
+called from C with "automatic" variables e.g. like this:
+
+{
+  FSRef fr;
+  ...
+  FSPathMakeRef(...,&amp;fr,...)
+}
+
+then I suggest using (fli:with-dynamic-foreign-objects ((fr FSRef)) ...) to
+create objects that are released on exit from the form.
+
+-- 
+Martin Simmons
+LispWorks Ltd
+http://www.lispworks.com/
+
+
+&gt 
+&gt 
+&gt Le 27/10/06 21:27, «&nbsp;[NOM]&nbsp;» &lt;[ADRESSE]&gt a écrit&nbsp;:
+&gt 
+&gt &gt 
+&gt &gt Don't quote me, but...
+&gt &gt 
+&gt &gt At a quick glance, your translation of the FSSpec type is wrong.
+&gt &gt You've defined the filename element as a pointer to a 64-byte array
+&gt &gt but the actual definition in the header file is that the filename
+&gt &gt element is the 64-byte array.  So, you're FSSpec structure isn't long
+&gt &gt enough and your causing your C heap to be corrupted.
+&gt &gt 
+&gt &gt Change the definition of FSSpec to
+&gt &gt 
+&gt &gt (define-c-struct FSSpec
+&gt &gt    (vRefNum :short)
+&gt &gt    (parID :long)
+&gt &gt    (StrFilename (:c-array Uint8 64)))
+&gt &gt 
+&gt &gt and see what happens.
+&gt &gt 
+&gt &gt    - Gary Palter
+&gt &gt      Principal Software Engineer
+&gt &gt      Clozure Associates
+&gt &gt      Cell:  617-947-0536
+&gt &gt 
+&gt &gt 
+&gt &gt On Oct 27, 2006, at 3:14 PM, Denis Pousseur wrote:
+&gt &gt 
+&gt &gt&gt 
+&gt &gt&gt Hi,
+&gt &gt&gt 
+&gt &gt&gt Some procedures on Mac OS X need always the old structure FSSpec
+&gt &gt&gt (QuickTime
+&gt &gt&gt for instance). I have to transmit a pathname by this way to some
+&gt &gt&gt coreAudio
+&gt &gt&gt MusicDevice. I found the way to get a FSSpec from a FSRef from a lisp
+&gt &gt&gt string... The pathname seems to be correctly transmitted to the
+&gt &gt&gt foreign
+&gt &gt&gt routines : no error code and the file I want to load is correctly
+&gt &gt&gt loaded.
+&gt &gt&gt But after several calls to the function (sometimes 1, sometimes
+&gt &gt&gt more...) LW
+&gt &gt&gt crashes, often when quitting. It¹s impossible for me to understand
+&gt &gt&gt if the
+&gt &gt&gt problem is in my codes, in the Mac codes or in the LW codes...
+&gt &gt&gt 
+&gt &gt&gt I tried to reproduce a very simple example here but, however, it¹s
+&gt &gt&gt need some
+&gt &gt&gt lines of codes... I'm really sorry.
+&gt &gt&gt 
+&gt &gt&gt Any suggestion will be very appreciated !
+&gt &gt&gt 
+&gt &gt&gt Thanks
+&gt &gt&gt 
+&gt &gt&gt Denis
+&gt &gt&gt 
+&gt &gt&gt 
+&gt &gt&gt 
+&gt &gt&gt (defpackage "PACKAGE-FOO"
+&gt &gt&gt   (:nicknames foo) (:use cl fli))
+&gt &gt&gt 
+&gt &gt&gt (in-package :foo)
+&gt &gt&gt 
+&gt &gt&gt 
+&gt &gt&gt (define-c-typedef Uint8 (:unsigned :char))
+&gt &gt&gt (define-c-typedef Uint32 (:unsigned :long))
+&gt &gt&gt 
+&gt &gt&gt 
+&gt &gt&gt #|
+&gt &gt&gt declaration in Files.h :
+&gt &gt&gt struct FSRef {
+&gt &gt&gt   UInt8               hidden[80];             /* private to File
+&gt &gt&gt Manager;
+&gt &gt&gt need symbolic constant */
+&gt &gt&gt };
+&gt &gt&gt 
+&gt &gt&gt typedef struct FSRef                    FSRef;
+&gt &gt&gt |#
+&gt &gt&gt 
+&gt &gt&gt (define-c-struct FSRef  (hidden (:c-array Uint8 80)))
+&gt &gt&gt 
+&gt &gt&gt 
+&gt &gt&gt #|
+&gt &gt&gt declaration  in Files.h :
+&gt &gt&gt struct FSSpec {
+&gt &gt&gt   short               vRefNum;
+&gt &gt&gt   long                parID;
+&gt &gt&gt   StrFileName         name;                   /* a Str63 on MacOS*/
+&gt &gt&gt };
+&gt &gt&gt 
+&gt &gt&gt typedef struct FSSpec                   FSSpec;
+&gt &gt&gt |#
+&gt &gt&gt 
+&gt &gt&gt (define-c-struct FSSpec
+&gt &gt&gt   (vRefNum :short)
+&gt &gt&gt   (parID :long)
+&gt &gt&gt   (StrFilename (:pointer (:c-array Uint8 64))))
+&gt &gt&gt 
+&gt &gt&gt #|
+&gt &gt&gt declaration  in Files.h :
+&gt &gt&gt extern OSStatus  FSPathMakeRef(const UInt8 *path, FSRef *ref, Boolean
+&gt &gt&gt *isDirectory)
+&gt &gt&gt |#
+&gt &gt&gt 
+&gt &gt&gt (define-foreign-function (FSPathMakeRef "FSPathMakeRef") ((path
+&gt &gt&gt (:reference-pass (:ef-mb-string :limit 255 :null-terminated-p t)))
+&gt &gt&gt (ref
+&gt &gt&gt (:pointer FSRef)) (isDirectory (:reference-return :boolean))) ;
+&gt &gt&gt   :result-type :long)
+&gt &gt&gt 
+&gt &gt&gt #|
+&gt &gt&gt declaration  in Files.h :
+&gt &gt&gt extern OSErr  FSGetCatalogInfo(const FSRef *ref, FSCatalogInfoBitmap
+&gt &gt&gt whichInfo, FSCatalogInfo *catalogInfo, HFSUniStr255 *outName, FSSpec
+&gt &gt&gt *fsSpec, FSRef *parentRef)
+&gt &gt&gt |#
+&gt &gt&gt 
+&gt &gt&gt (define-foreign-function (FSGetCatalogInfo "FSGetCatalogInfo") ((FSref
+&gt &gt&gt (:const (:ptr FSRef))) (whichInfo Uint32) (catalogInfo (:ptr :void))
+&gt &gt&gt (outName (:ptr :void)) (fsSpec (:ptr fsSpec)) (parentRef
+&gt &gt&gt (:ptr :void))) ;
+&gt &gt&gt   :result-type :long)
+&gt &gt&gt 
+&gt &gt&gt ;my function
+&gt &gt&gt 
+&gt &gt&gt (defmacro with-no-error (code &amp;body body)
+&gt &gt&gt   `(let ((error (progn ,.body)))
+&gt &gt&gt      (unless (zerop error) (error (format nil "~d ~d" ,code error)))))
+&gt &gt&gt 
+&gt &gt&gt (defun string-&gtFSSpec (string)
+&gt &gt&gt   (let ((FSRef (allocate-foreign-object :type 'FSRef))
+&gt &gt&gt         (FSSpec (allocate-foreign-object :type 'FSspec)))
+&gt &gt&gt     (with-no-error "FSPathMakeRef" (FSPathMakeRef string FSRef nil))
+&gt &gt&gt     (with-no-error "FSGetCatalogInfo" (FSGetCatalogInfo FSRef 0 nil
+&gt &gt&gt nil
+&gt &gt&gt FSSpec nil))
+&gt &gt&gt     (free FSRef) ;I'm not sure about that, but it crashes anyway...
+&gt &gt&gt     (free FSSpec)))
+&gt &gt&gt 
+&gt &gt&gt 
+&gt &gt&gt #|
+&gt &gt&gt 
+&gt &gt&gt (dotimes (i 10) (string-&gtFSSpec pathname-string)) ;&lt;--- put here every
+&gt &gt&gt pathname to an existing file
+&gt &gt&gt 
+&gt &gt&gt normally the system crashes after evaluation (or when quitting LW)...
+&gt &gt&gt |#
+&gt &gt&gt 
+&gt &gt&gt 
+&gt &gt&gt -------------------------------------------------------
+&gt &gt&gt Denis Pousseur
+&gt &gt&gt 70 rue de Wansijn
+&gt &gt&gt 1180 Bruxelles, Belgique
+&gt &gt&gt 
+&gt &gt&gt Tel : 32 (0)2 219 31 09
+&gt &gt&gt Mail :  denis.pousseur@compositeurs.be
+&gt &gt&gt Website : http://compositeurs.be/pousseur
+&gt &gt&gt -------------------------------------------------------
+&gt &gt&gt 
+&gt &gt&gt 
+&gt &gt&gt 
+&gt &gt 
+&gt &gt 
+&gt &gt 
+&gt 
+&gt 
+&gt 
+&gt -------------------------------------------------------
+&gt Denis Pousseur
+&gt 70 rue de Wansijn
+&gt 1180 Bruxelles, Belgique
+&gt 
+&gt Tel : 32 (0)2 219 31 09
+&gt Mail :  denis.pousseur@compositeurs.be
+&gt Website : http://compositeurs.be/pousseur
+&gt -------------------------------------------------------
+&gt 
+&gt 
+&gt 
+&gt 
+
+
+</pre>
+                  </article>
+                 </section>
+                </section>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:43 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

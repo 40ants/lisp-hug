@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>"Missing" comm:shutdown</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>"Missing" comm:shutdown</h1><div dir="ltr"><div><div><div><div>Hi,<br><br></div>I&#39;ve been struggling for a few hours withn something that should be simple: open a network connection, write a file to the socket, then read back a response. Whatever I did, the read operation would either hang, or return with 0 bytes read. I tried interleaving reads and writes (based on some  personal experience in creating deadlocks). I also tried calling force-output and finish-output on the socket stream: no help. I also tried closing the socket, which just meant that the read operation failed.<br>
+<br></div>Finally, I found an implementation in Python of what I as trying to do, and noticed that they were calling shutdown on the write part of the socket. I found an fli definition for shutdown in <a href="http://gbbopen.org/svn/GBBopen/trunk/source/tools/portable-sockets.lisp">http://gbbopen.org/svn/GBBopen/trunk/source/tools/portable-sockets.lisp</a> , under the heading &quot;add missing shutdown to lispworks&quot;. By calling shutdown, I got my code to work the way it should.<br>
+<br></div>As far as I can see, there is no way of doing this except by going through the fli.<br><br></div>Is there any chance that shutdown can be added to the COMM package?<br></div>
+
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: "Missing" comm:shutdown</h1>
+                 <p>
+                  Unable to parse email body. Email id is 12552
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: "Missing" comm:shutdown</h1><div dir="ltr">Sure; see <a href="http://pastebin.com/bcRsqzz1">http://pastebin.com/bcRsqzz1</a><br><br></div><div class="gmail_extra"><br><br><div class="gmail_quote">On Fri, Nov 1, 2013 at 11:31 AM, Nick Levine <span dir="ltr">&lt;<a href="mailto:ndl@ravenbrook.com" target="_blank">ndl@ravenbrook.com</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">&gt; Date: Fri, 1 Nov 2013 10:32:03 +0100<br>
+&gt; From: Raymond Wiker &lt;<a href="mailto:rwiker@gmail.com">rwiker@gmail.com</a>&gt;<br>
+<div class="im">&gt;<br>
+&gt; Hi,<br>
+&gt;<br>
+&gt; I&#39;ve been struggling for a few hours withn something that should be<br>
+&gt; simple: open a network connection, write a file to the socket, then<br>
+&gt; read back a response. Whatever I did, the read operation would<br>
+</div>&gt; either hang, or return with 0 bytes read. [...]<br>
+<br>
+Any chance we can see your code?<br>
+<span class="HOEnZb"><font color="#888888"><br>
+- nick<br>
+</font></span></blockquote></div><br></div>
+
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: "Missing" comm:shutdown</h1>
+                 <p>
+                  Unable to parse email body. Email id is 12554
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: "Missing" comm:shutdown</h1><div dir="ltr">The shutdown is necessary because the Java side reads until it gets an EOF, which is a valid strategy. There are alternatives, like an HTTP-based service, but the &quot;raw&quot; tika service should be more efficient. <br>
+<br>The reason I would like to have this be efficient is because it will be used as part of a &quot;document processing pipeline&quot; used for feeding a search engine (Apache SOLR, but it will be possible to support other search engines).<br>
+</div><div class="gmail_extra"><br><br><div class="gmail_quote">On Fri, Nov 1, 2013 at 12:02 PM, Nick Levine <span dir="ltr">&lt;<a href="mailto:ndl@ravenbrook.com" target="_blank">ndl@ravenbrook.com</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">&gt; Date: Fri, 1 Nov 2013 11:51:48 +0100<br>
+&gt; From: Raymond Wiker &lt;<a href="mailto:rwiker@gmail.com">rwiker@gmail.com</a>&gt;<br>
+&gt; Cc: Lisp Hug Lispworks &lt;<a href="mailto:lisp-hug@lispworks.com">lisp-hug@lispworks.com</a>&gt;<br>
+&gt;<br>
+&gt; Sure; see <a href="http://pastebin.com/bcRsqzz1" target="_blank">http://pastebin.com/bcRsqzz1</a><br>
+<br>
+Nothing wrong with the lisp, as far as I can tell. Call to shutdown is<br>
+unexpected. My guess is there&#39;s some quirk in the Java side; I suggest<br>
+you write a dummy server in lisp to demonstrate that.<br>
+<br>
+By the way, <a href="http://paste.lisp.org" target="_blank">paste.lisp.org</a> (a) is written in lisp which makes it<br>
+cooler and (b) doesn&#39;t throw those nasty adverts at you...<br>
+<span class="HOEnZb"><font color="#888888"><br>
+- nick<br>
+<br>
+</font></span></blockquote></div><br></div>
+
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: "Missing" comm:shutdown</h1>
+                 <p>
+                  Unable to parse email body. Email id is 12556
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: "Missing" comm:shutdown</h1><div dir="ltr">That won&#39;t help in solving the actual problem I have here, but would certainly be required for production use. I&#39;ve added that to the to-be-production version of the code; thanks!<br></div><div class="gmail_extra">
+<br><br><div class="gmail_quote">On Fri, Nov 1, 2013 at 12:18 PM, Camille Troillard <span dir="ltr">&lt;<a href="mailto:camille@osculator.net" target="_blank">camille@osculator.net</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+Hi Raymond,<br>
+<br>
+Just a guess...<br>
+Wouldn’t need to call close on the socket-stream returned by open-tcp-stream?<br>
+<br>
+<br>
+Best,<br>
+Cam<br>
+<div class="HOEnZb"><div class="h5"><br>
+<br>
+On 01 Nov 2013, at 12:09, Raymond Wiker &lt;<a href="mailto:rwiker@gmail.com">rwiker@gmail.com</a>&gt; wrote:<br>
+<br>
+&gt; The shutdown is necessary because the Java side reads until it gets an EOF, which is a valid strategy. There are alternatives, like an HTTP-based service, but the &quot;raw&quot; tika service should be more efficient.<br>
+
+&gt;<br>
+&gt; The reason I would like to have this be efficient is because it will be used as part of a &quot;document processing pipeline&quot; used for feeding a search engine (Apache SOLR, but it will be possible to support other search engines).<br>
+
+&gt;<br>
+&gt;<br>
+&gt; On Fri, Nov 1, 2013 at 12:02 PM, Nick Levine &lt;<a href="mailto:ndl@ravenbrook.com">ndl@ravenbrook.com</a>&gt; wrote:<br>
+&gt; &gt; Date: Fri, 1 Nov 2013 11:51:48 +0100<br>
+&gt; &gt; From: Raymond Wiker &lt;<a href="mailto:rwiker@gmail.com">rwiker@gmail.com</a>&gt;<br>
+&gt; &gt; Cc: Lisp Hug Lispworks &lt;<a href="mailto:lisp-hug@lispworks.com">lisp-hug@lispworks.com</a>&gt;<br>
+&gt; &gt;<br>
+&gt; &gt; Sure; see <a href="http://pastebin.com/bcRsqzz1" target="_blank">http://pastebin.com/bcRsqzz1</a><br>
+&gt;<br>
+&gt; Nothing wrong with the lisp, as far as I can tell. Call to shutdown is<br>
+&gt; unexpected. My guess is there&#39;s some quirk in the Java side; I suggest<br>
+&gt; you write a dummy server in lisp to demonstrate that.<br>
+&gt;<br>
+&gt; By the way, <a href="http://paste.lisp.org" target="_blank">paste.lisp.org</a> (a) is written in lisp which makes it<br>
+&gt; cooler and (b) doesn&#39;t throw those nasty adverts at you...<br>
+&gt;<br>
+&gt; - nick<br>
+&gt;<br>
+&gt;<br>
+<br>
+</div></div></blockquote></div><br></div>
+
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: "Missing" comm:shutdown</h1>
+                 <pre>
+Camille Troillard &lt;camille@osculator.net&gt writes:
+
+&gt Hi Raymond,
+&gt
+&gt Just a guess...
+&gt Wouldn’t need to call close on the socket-stream returned by open-tcp-stream?
+
+http://cr.yp.to/tcpip/twofd.html has some good information about the
+issue.
+
+Zach
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: "Missing" comm:shutdown</h1>
+                 <pre>
+If I recall close() is the same as shutdown(socket,2)
+
+On Fri, Nov 1, 2013 at 3:46 PM, Zach Beane &lt;xach@xach.com&gt wrote:
+&gt
+&gt Camille Troillard &lt;camille@osculator.net&gt writes:
+&gt
+&gt&gt Hi Raymond,
+&gt&gt
+&gt&gt Just a guess...
+&gt&gt Wouldn’t need to call close on the socket-stream returned by open-tcp-stream?
+&gt
+&gt http://cr.yp.to/tcpip/twofd.html has some good information about the
+&gt issue.
+&gt
+&gt Zach
+&gt
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+&gt
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: "Missing" comm:shutdown</h1><div dir="ltr">If so, then I want something that is equivalent to shutdown(socket, 1) - only close the write side of the socket.<br></div><div class="gmail_extra"><br><br><div class="gmail_quote">On Fri, Nov 1, 2013 at 1:01 PM, Ala&#39;a Mohammad <span dir="ltr">&lt;<a href="mailto:amalawi@gmail.com" target="_blank">amalawi@gmail.com</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">If I recall close() is the same as shutdown(socket,2)<br>
+<div><div class="h5"><br>
+On Fri, Nov 1, 2013 at 3:46 PM, Zach Beane &lt;<a href="mailto:xach@xach.com">xach@xach.com</a>&gt; wrote:<br>
+&gt;<br>
+&gt; Camille Troillard &lt;<a href="mailto:camille@osculator.net">camille@osculator.net</a>&gt; writes:<br>
+&gt;<br>
+&gt;&gt; Hi Raymond,<br>
+&gt;&gt;<br>
+&gt;&gt; Just a guess...<br>
+&gt;&gt; Wouldn’t need to call close on the socket-stream returned by open-tcp-stream?<br>
+&gt;<br>
+&gt; <a href="http://cr.yp.to/tcpip/twofd.html" target="_blank">http://cr.yp.to/tcpip/twofd.html</a> has some good information about the<br>
+&gt; issue.<br>
+&gt;<br>
+&gt; Zach<br>
+&gt;<br>
+</div></div>&gt; _______________________________________________<br>
+&gt; Lisp Hug - the mailing list for LispWorks users<br>
+&gt; <a href="mailto:lisp-hug@lispworks.com">lisp-hug@lispworks.com</a><br>
+&gt; <a href="http://www.lispworks.com/support/lisp-hug.html" target="_blank">http://www.lispworks.com/support/lisp-hug.html</a><br>
+&gt;<br>
+</blockquote></div><br></div>
+
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: "Missing" comm:shutdown</h1>
+                 <p>
+                  Unable to parse email body. Email id is 12563
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:30 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

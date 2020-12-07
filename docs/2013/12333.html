@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Rendering images asynchronously</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Rendering images asynchronously</h1>
+                <pre>
+Hello List,
+
+I need to generate a bunch of thumbnails, and since it takes some time, I would like to do it in another process, so that the GUI is not blocked while they are generated. I'm using GP to draw the images, which means that the image objects used for the thumbnails need a CAPI pane to be initialized. And the CAPI pane needs to be accessed in the correct process, which on MacOSX is the Cocoa Event Loop, i.e. the GUI process.
+
+As far as I can tell, this makes it impossible to render images "in the background" using GP (at least on Cocoa, on Windows, it would probably be possible to display a dummy interface in its own process and using that to create the image objects).
+
+Is there any way around this? (Of course I could use some external graphics library instead of GP, but it's not a very attractive solution)
+
+Regards
+Erik
+
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Rendering images asynchronously</h1>
+                 <pre>
+Take a look at gp:pixmap-port to see if it suits your needs.
+
+pt
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Rendering images asynchronously</h1><div dir="ltr">Erik,<div><br></div><div>They definitely need to be rendered in the pane process. I don&#39;t know that they need to be created there.. But, assuming they do, the majority of time won&#39;t be generating the thumbnail in memory instead of loading the source image that&#39;s used to generate the thumbnail off disk (assuming they are images).</div>
+<div><br></div><div style>I&#39;d recommend something like giving your interface a mailbox and the thread that loads sources a mailbox as well. The load thread is just waiting on #&#39;mp:mailbox-read for a filename (or whatever it is that you use as source for the thumbnail) to be written to it, read the source, and then send it to the pane process mailbox, which in turn is periodically checking and using that data to create the thumbnail.</div>
+<div style><br></div><div style>Finally, I don&#39;t know if you have some large images that you are using to create smaller ones or if your source is something entirely different (e.g. a 3D model that needs to be rendered before being captured as a thumbnail image). I&#39;m assuming that it&#39;s just a larger image you want to render smaller. If that&#39;s the case, you may want to just use gp:with-graphics-scale instead of actually making a smaller version of the image.</div>
+<div style><br></div><div style>HTH. If my assumptions were way off base, then more information is needed. ;-)</div><div style><br></div><div style>Jeff M.</div><div style><br></div><div style><br></div></div><div class="gmail_extra">
+<br><br><div class="gmail_quote">On Thu, Jul 4, 2013 at 7:26 AM, Erik Ronström <span dir="ltr">&lt;<a href="mailto:erik.ronstrom@doremir.com" target="_blank">erik.ronstrom@doremir.com</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+<br>
+Thanks! Well, yes, I am using that already. But it seems that it leaks memory if run in a different process than the pane it was created with, which suggests that it should be run with apply-in-pane-process.<br>
+<br>
+Or am I wrong? In that case I need to find the correct way to do it!<br>
+<br>
+Regards<br>
+Erik<br>
+<br>
+<br>
+objc[4430]: Object 0x1247f0 of class __NSArrayI autoreleased with no pool in place - just leaking - break on objc_autoreleaseNoPool() to debug<br>
+objc[4430]: Object 0x1247f0 of class __NSArrayI autoreleased with no pool in place - just leaking - break on objc_autoreleaseNoPool() to debug<br>
+objc[4430]: Object 0xe0c11f0 of class __NSArrayM autoreleased with no pool in place - just leaking - break on objc_autoreleaseNoPool() to debug<br>
+objc[4430]: Object 0x1247f0 of class __NSArrayI autoreleased with no pool in place - just leaking - break on objc_autoreleaseNoPool() to debug<br>
+objc[4430]: Object 0xe0d7e10 of class __NSArrayM autoreleased with no pool in place - just leaking - break on objc_autoreleaseNoPool() to debug<br>
+objc[4430]: Object 0x1247f0 of class __NSArrayI autoreleased with no pool in place - just leaking - break on objc_autoreleaseNoPool() to debug<br>
+<br>
+<br>
+4 jul 2013 kl. 14:23 skrev Paul Tarvydas:<br>
+<div class="HOEnZb"><div class="h5"><br>
+&gt; Take a look at gp:pixmap-port to see if it suits your needs.<br>
+&gt;<br>
+&gt; pt<br>
+&gt;<br>
+<br>
+<br>
+_______________________________________________<br>
+Lisp Hug - the mailing list for LispWorks users<br>
+<a href="mailto:lisp-hug@lispworks.com">lisp-hug@lispworks.com</a><br>
+<a href="http://www.lispworks.com/support/lisp-hug.html" target="_blank">http://www.lispworks.com/support/lisp-hug.html</a><br>
+<br>
+</div></div></blockquote></div><br></div>
+
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Rendering images asynchronously</h1><div dir="ltr">Erik,<div><br></div><div style>&quot;Render&quot; == &quot;draw&quot;. :-)</div><div style><br></div><div style>By &quot;I don&#39;t know&quot; I meant to imply that I didn&#39;t know if they needed to be *created* in the pane&#39;s process. Since you are drawing multiple things to a port in order to generate your thumbnail, then yes, that part does need to take place in the pane&#39;s process. I thought that perhaps you were doing something different.</div>
+<div style><br></div><div style>At this point, my only suggestions (others may have better options) would be one of the following:</div><div style><br></div><div style>1. Have a thumbnail generation queue that is periodically processed to continuously generate the thumbnails from within the pane process. Each entry in the queue would likely either some data used to draw the next piece of a thumbnail (the pixmap port and the operation) or just a closure that does it.</div>
+<div style><br></div><div style>Pseudo code:</div><div style><br></div><div style>(defvar *thumbnail-queue*)</div><div style><br></div><div style>(defun insert-thumbnail-operation (function)</div><div style>  (enqueue *thumbnail-queue* function))</div>
+<div style><br></div><div style>(defun process-thumbnail-queue (pane)</div><div style>  (apply-in-pane-process pane</div><div style>    (loop for a few milliseconds...</div><div style>      (let ((op (dequeue *thumbnail-queue*)))</div>
+<div style>        (funcall op)))))</div><div style><br></div><div style>(defun create-example-thumbnail (pane port)</div><div style>  (insert-thumbnail-operation #&#39;(lambda () (gp:draw-line port 0 0 100 100)))</div>  (insert-thumbnail-operation #&#39;(lambda () (gp:draw-circle port 50 50 10)))<div style>
+  (insert-thumbnail-operation #&#39;(lambda () (notify-pane-thumbnail-complete pane port))))</div><div style><br></div><div style>I&#39;m not sure if this solution will have issues with GP state changes (e.g. setting the color or thickness of the line you&#39;d like to draw). But most GP function calls allow you to pass those options as keywords instead of modifying the global state before the call.</div>
+<div style><br></div><div style>2. Use something other than LispWorks to generate the thumbnails. For example, you can wrap ImageMagick (<a href="http://www.imagemagick.org/">http://www.imagemagick.org/</a>) use FLI and use similar functions for the operations you want, but just in another thread. Then convert the ImageMagick, in-memory image to a pixmap-port when done (I don&#39;t know how to do this, but I&#39;m sure others here have done it).. This likely requires a higher up-front cost in creating the FLI wrappers if someone else here hasn&#39;t already done it.</div>
+<div style><br></div><div style>HTH,</div><div style><br></div><div style>Jeff M.</div></div><div class="gmail_extra"><br><br><div class="gmail_quote">On Thu, Jul 4, 2013 at 9:25 AM, Erik Ronström <span dir="ltr">&lt;<a href="mailto:erik.ronstrom@doremir.com" target="_blank">erik.ronstrom@doremir.com</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div style="word-wrap:break-word">Thanks for your answer!<div><br></div><div>You write &quot;They definitely need to be rendered in the pane process&quot;, but just to make it clear: what do you mean by &quot;rendered&quot; in this case? If it&#39;s &quot;to draw the in-memory pixmaps to the output-pane&quot;, then yes, that should definitely be done in the output-pane&#39;s process. But that is a very fast operation, especially if the images are already loaded (using load-image) to the pane.</div>
+<div><br></div><div>So what I&#39;m interested in is the generation of the in-memory pixmap images, which is also what takes time. And the source is not a big image, but rather a quite long list of objects that draw themselves to a port using different gp instructions (draw-line, draw-string etc). So it would not be an easy task to separate the drawing logic (which supposedly takes more time) from the drawing instructions (supposedly taking less time).</div>
+<div><br></div><div>But the core problem is that I cannot generate the in-memory images in another thread than the interface&#39;s thread (which on MacOSX is the Cocoa Event Loop), and this is because the pixmap-port needs to be attached to a pane, and therefore also needs to be accessed in that pane&#39;s process.</div>
+<div class="im"><div><br></div><div><blockquote type="cite"><div dir="ltr"><div>I don&#39;t know that they need to be created there.</div></div></blockquote><br></div></div><div>Do you mean that you don&#39;t know, or that you know that they don&#39;t need to? (Maybe you were clear, but I&#39;m not a native English speaker :)</div>
+<div><br></div><div>If you know it&#39;s possible to use pixmap-port in another process, that&#39;s very nice to know! In that case I should try it again, and I also would be very thankful for some example of how it can be done!</div>
+<div><br></div><div>Regards</div><div>Erik</div><div><br></div><div><br></div><div><br><div><div>4 jul 2013 kl. 16:03 skrev Jeff Massung:</div><div><div class="h5"><br><blockquote type="cite"><div dir="ltr">Erik,<div><br>
+</div><div>They definitely need to be rendered in the pane process. I don&#39;t know that they need to be created there. But, assuming they do, the majority of time won&#39;t be generating the thumbnail in memory instead of loading the source image that&#39;s used to generate the thumbnail off disk (assuming they are images).</div>
+
+<div><br></div><div>I&#39;d recommend something like giving your interface a mailbox and the thread that loads sources a mailbox as well. The load thread is just waiting on #&#39;mp:mailbox-read for a filename (or whatever it is that you use as source for the thumbnail) to be written to it, read the source, and then send it to the pane process mailbox, which in turn is periodically checking and using that data to create the thumbnail.</div>
+
+<div><br></div><div>Finally, I don&#39;t know if you have some large images that you are using to create smaller ones or if your source is something entirely different (e.g. a 3D model that needs to be rendered before being captured as a thumbnail image). I&#39;m assuming that it&#39;s just a larger image you want to render smaller. If that&#39;s the case, you may want to just use gp:with-graphics-scale instead of actually making a smaller version of the image.</div>
+
+<div><br></div><div>HTH. If my assumptions were way off base, then more information is needed. ;-)</div><div><br></div><div>Jeff M.</div><div><br></div><div><br></div></div><div class="gmail_extra">
+<br><br><div class="gmail_quote">On Thu, Jul 4, 2013 at 7:26 AM, Erik Ronström <span dir="ltr">&lt;<a href="mailto:erik.ronstrom@doremir.com" target="_blank">erik.ronstrom@doremir.com</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+
+<br>
+Thanks! Well, yes, I am using that already. But it seems that it leaks memory if run in a different process than the pane it was created with, which suggests that it should be run with apply-in-pane-process.<br>
+<br>
+Or am I wrong? In that case I need to find the correct way to do it!<br>
+<br>
+Regards<br>
+Erik<br>
+<br>
+<br>
+objc[4430]: Object 0x1247f0 of class __NSArrayI autoreleased with no pool in place - just leaking - break on objc_autoreleaseNoPool() to debug<br>
+objc[4430]: Object 0x1247f0 of class __NSArrayI autoreleased with no pool in place - just leaking - break on objc_autoreleaseNoPool() to debug<br>
+objc[4430]: Object 0xe0c11f0 of class __NSArrayM autoreleased with no pool in place - just leaking - break on objc_autoreleaseNoPool() to debug<br>
+objc[4430]: Object 0x1247f0 of class __NSArrayI autoreleased with no pool in place - just leaking - break on objc_autoreleaseNoPool() to debug<br>
+objc[4430]: Object 0xe0d7e10 of class __NSArrayM autoreleased with no pool in place - just leaking - break on objc_autoreleaseNoPool() to debug<br>
+objc[4430]: Object 0x1247f0 of class __NSArrayI autoreleased with no pool in place - just leaking - break on objc_autoreleaseNoPool() to debug<br>
+<br>
+<br>
+4 jul 2013 kl. 14:23 skrev Paul Tarvydas:<br>
+<div><div><br>
+&gt; Take a look at gp:pixmap-port to see if it suits your needs.<br>
+&gt;<br>
+&gt; pt<br>
+&gt;<br>
+<br>
+<br>
+_______________________________________________<br>
+Lisp Hug - the mailing list for LispWorks users<br>
+<a href="mailto:lisp-hug@lispworks.com" target="_blank">lisp-hug@lispworks.com</a><br>
+<a href="http://www.lispworks.com/support/lisp-hug.html" target="_blank">http://www.lispworks.com/support/lisp-hug.html</a><br>
+<br>
+</div></div></blockquote></div><br></div>
+</blockquote></div></div></div><br></div></div></blockquote></div><br></div>
+
+
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:31 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

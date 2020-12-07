@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Memory allocation and garbage collection</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Memory allocation and garbage collection</h1>
+                <pre>
+My Lisp doesn't cons enough.
+
+When I'm developing my application, the lisp image generally only gets
+to about 50 Meg, tops.
+
+The problem is that my machine has 500 Meg of RAM and the delivery
+platform will likely have a couple of Gig of RAM.  Since the image is
+keeping itself small, it is spending far more time garbage collecting
+than necessary.  In theory, if Lisp uses more memory, generational
+scavenging will be far less frequent and far more effective because
+short-lived objects will have more time to die.
+
+I have played with the GC parameters, but there are some non-intuitive
+behaviors.  It seems that these parameters should be relevant:
+
+:enlarge-by-segments
+    The default value of this is 10 (so the heap grows in 640K chunks)
+    I've increased this a bit, and it does seem to make lisp grab
+    bigger chunks when it has to, but since lisp is reluctant to grab
+    memory at all, it doesn't help much.
+
+:minimum-for-promote
+:minimum-for-sweep
+    These parameters control the `promotion' and how often `sweeping'
+    is done.  When I crank these values up a curious thing happens:
+    The GC does indeed run less frequently, but I find that my program
+    grinds to halt!  From the look of it, there is some sort of linear
+    process going on during allocation.  When I set these values
+    really high, the rate at which I can cons gets slower and slower
+    until it takes forever to cons anything.
+
+
+I'm afraid that the documentation for the GC is rather opaque.
+I know what all the terms mean, but I don't understand how the
+various pieces fit together.
+
+Ideally, I'd like this to be the case:
+
+  1.  Lisp is allowed to take up a substantial amount of memory.
+      I'm going to be manipulating a *lot* of objects, and I expect
+      to keep the entire address space in RAM.
+
+  2.  The youngest generation is `scavenged' or `collected' or
+      whatever you call it on the order of once every few seconds.
+      I expect that over 95% of the new objects will die in that time.
+      You should be able to cons hundreds of megabytes of storage
+      in this generation without collecting.  I want the objects
+      that survive to be promoted because I don't want to scan them
+      over and over at this level.
+
+  3.  The next youngest generation is collected maybe every 10 minutes
+      or so.  I don't exect it to be anywhere near as efficient as
+      the highest generation, so maybe it can only reclaim 30% - 50%
+
+  4.  The bottom generation is collected maybe once an hour, if that.
+
+Any advice on how to set the GC parameters to maximize performance
+and to maximize the utilization of RAM? (Hey, I spent money on that
+RAM, I want to use it!)  Any clue why larger parameters cause performance
+to drop so horribly?  What on earth are the other GC parameters for?
+How should I determine what to twiddle and tweak?  Some detailed
+explanation into the algorithms behind the GC would be nice.
+For instance, do objects ever move?  How does the allocator decide
+where to put objects?  How does the allocator decide when to trigger
+a GC?  How does the GC decide where to look for freeable objects?
+Is there coalescing going on?
+
+Thanks for your time.
+
+
+________________________________________________________________________
+This email has been scanned for all viruses by the MessageLabs Email
+Security System. For more information on a proactive email security
+service working around the clock, around the globe, visit
+http://www.messagelabs.com
+________________________________________________________________________
+
+</pre>
+               </article>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:55 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

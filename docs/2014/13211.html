@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Cannot set struct in Objective C</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Cannot set struct in Objective C</h1><div dir="ltr">Hi,<div><br></div><div>I cannot set a struct for an SCNNode.position, where position is a struct of 3 floats. </div><div><a href="https://developer.apple.com/library/prerelease/ios/documentation/SceneKit/Reference/SCNNode_Class/index.html#//apple_ref/occ/instp/SCNNode/position" target="_blank">https://developer.apple.com/library/prerelease/ios/documentation/SceneKit/Reference/SCNNode_Class/index.html#//apple_ref/occ/instp/SCNNode/position</a> and</div><div><a href="https://developer.apple.com/library/prerelease/ios/documentation/SceneKit/Reference/SceneKit_DataTypes/index.html#//apple_ref/c/tdef/SCNVector3" target="_blank">https://developer.apple.com/library/prerelease/ios/documentation/SceneKit/Reference/SceneKit_DataTypes/index.html#//apple_ref/c/tdef/SCNVector3</a></div><div><br></div><div>I have defined an ObjC struct for SCNVector using define-objc-struct. As per the docs for invoke, <a href="http://www.lispworks.com/documentation/lw61/OBJC/html/objc-47.htm#46194">http://www.lispworks.com/documentation/lw61/OBJC/html/objc-47.htm#46194</a>, for &#39;other structures&#39;, </div><div><div>-- <span style="color:rgb(0,0,0);font-family:Palatino,&#39;Palatino Linotype&#39;,serif;font-size:15px">The argument should be a foreign pointer to the appropriate struct object and is copied.</span></div></div><div><span style="color:rgb(0,0,0);font-family:Palatino,&#39;Palatino Linotype&#39;,serif;font-size:15px"><br></span></div><div>My understanding here is I just need to pass a pointer to SCNVector3. Is that right?</div><div><br></div><div>I am not able to identify why after I allocate a foreign object to SCNVector3, it ends up with this error:<br></div><div>-------<br></div><div><br></div><div>Error: #&lt;Pointer to type (:STRUCT SCN-VECTOR3) = #x00112400&gt; cannot be converted to foreign type (:STRUCT SCN-VECTOR3).<br></div><div>-------<br></div><div><br></div><div>I have attached the code in svn-position.lisp file. Just loading it will show the error. I am running LW 6.1 32 bit on OS X 10.10.</div><div><br></div><div>Thanks,</div><div><font color="#000000" face="Palatino, Palatino Linotype, serif"><span style="font-size:15px">Deepak<br clear="all"></span></font><div>-- <br></div><div><a href="http://deepaksurti.com" target="_blank">http://deepaksurti.com</a><br>To see a miracle, be the miracle..</div>
+</div></div>
+
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Cannot set struct in Objective C</h1><div dir="ltr">Eventually figured out the solution. The code to set the position is:<div><br></div><div><div>(fli:with-dynamic-foreign-objects ((new-pos scn-vector3))</div><div>  (setf</div><div>    (fli:foreign-slot-value new-pos &#39;x) 1.0</div><div>    (fli:foreign-slot-value new-pos &#39;y) 5.0</div><div>    (fli:foreign-slot-value new-pos &#39;z) 15.0)</div><div>  (format t &quot;New position is ~A ~%&quot; new-pos)</div><div>  ;(format t &quot;Now error should occur .... ~%&quot;)</div><div>  (objc:invoke *sphere-node* &quot;setPosition:&quot;</div><div>               (fli:dereference new-pos :copy-foreign-object nil)))</div></div><div><br></div><div>Thanks,</div><div>Deepak</div></div><div class="gmail_extra"><br><div class="gmail_quote">On Wed, Dec 3, 2014 at 6:03 PM, Deepak Surti <span dir="ltr">&lt;<a href="mailto:dmsurti@gmail.com" target="_blank">dmsurti@gmail.com</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div dir="ltr">Hi,<div><br></div><div>I cannot set a struct for an SCNNode.position, where position is a struct of 3 floats. </div><div><a href="https://developer.apple.com/library/prerelease/ios/documentation/SceneKit/Reference/SCNNode_Class/index.html#//apple_ref/occ/instp/SCNNode/position" target="_blank">https://developer.apple.com/library/prerelease/ios/documentation/SceneKit/Reference/SCNNode_Class/index.html#//apple_ref/occ/instp/SCNNode/position</a> and</div><div><a href="https://developer.apple.com/library/prerelease/ios/documentation/SceneKit/Reference/SceneKit_DataTypes/index.html#//apple_ref/c/tdef/SCNVector3" target="_blank">https://developer..apple.com/library/prerelease/ios/documentation/SceneKit/Reference/SceneKit_DataTypes/index.html#//apple_ref/c/tdef/SCNVector3</a></div><div><br></div><div>I have defined an ObjC struct for SCNVector using define-objc-struct. As per the docs for invoke, <a href="http://www.lispworks.com/documentation/lw61/OBJC/html/objc-47.htm#46194" target="_blank">http://www.lispworks.com/documentation/lw61/OBJC/html/objc-47.htm#46194</a>, for &#39;other structures&#39;, </div><div><div>-- <span style="color:rgb(0,0,0);font-family:Palatino,&#39;Palatino Linotype&#39;,serif;font-size:15px">The argument should be a foreign pointer to the appropriate struct object and is copied.</span></div></div><div><span style="color:rgb(0,0,0);font-family:Palatino,&#39;Palatino Linotype&#39;,serif;font-size:15px"><br></span></div><div>My understanding here is I just need to pass a pointer to SCNVector3. Is that right?</div><div><br></div><div>I am not able to identify why after I allocate a foreign object to SCNVector3, it ends up with this error:<br></div><div>-------<br></div><div><br></div><div>Error: #&lt;Pointer to type (:STRUCT SCN-VECTOR3) = #x00112400&gt; cannot be converted to foreign type (:STRUCT SCN-VECTOR3).<br></div><div>-------<br></div><div><br></div><div>I have attached the code in svn-position.lisp file. Just loading it will show the error. I am running LW 6.1 32 bit on OS X 10.10.</div><div><br></div><div>Thanks,</div><div><font color="#000000" face="Palatino, Palatino Linotype, serif"><span style="font-size:15px">Deepak<span class="HOEnZb"><font color="#888888"><br clear="all"></font></span></span></font><span class="HOEnZb"><font color="#888888"><div>-- <br></div><div><a href="http://deepaksurti.com" target="_blank">http://deepaksurti.com</a><br>To see a miracle, be the miracle.</div>
+</font></span></div></div>
+</blockquote></div><br><br clear="all"><div><br></div>-- <br><div class="gmail_signature"><a href="http://deepaksurti.com" target="_blank">http://deepaksurti.com</a><br>To see a miracle, be the miracle.</div>
+</div>
+
+
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:29 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Concatenate character encoding issue</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Concatenate character encoding issue</h1><!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN" "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+<meta charset="utf-8">
+<style>body{font-family:-apple-system,Helvetica,Arial,sans-serif;}blockquote{margin:0;padding:0 0 0 12px;border-left:1px solid #aaa;color:#aaa;}hr.unibox-forward{border:0;color:#888;background-color:#888;height:1px;}</style>
+</head>
+<body>
+<div>I have the following code:</div>
+<div><br></div>
+<div>
+<div>(setf dirname</div>
+<div>    (concatenate 'string </div>
+<div>                           (coerce dirname 'text-string)</div>
+<div>                           (coerce dp ‘text-string) "/"))</div>
+</div>
+<div><br></div>
+<div>I get the following error with a certain directory input name:</div>
+<div><br></div>
+<div>    Error: #\– (of type CHARACTER) is not of type BASE-CHAR.</div>
+<div><br></div>
+<div>The filename is:  BLADE X3 WORKStation – SUSE Studio,1_files</div>
+<div><br></div>
+<div>The ‘dp’ is coming from the result of #’pathname-directory.</div>
+<div>‘dirname’ is simply the result of concatenating the dp parts together with a “/“.</div>
+<div><br></div>
+<div>Any suggestions to help deal with this character range encoding issue?  </div>
+<div><br></div>
+<div>—</div>
+<div>Burton Samograd</div>
+<div><br></div>
+<div class="unibox-signature">
+  <div>—</div>
+<div>Burton Samograd</div>
+<div>BusFactor1@gmail.com http://BusFactor1.ca</div>
+<div>http://twitter.com/BusFactor1 http://facebook.com/BusFactor1 http://instagram.com/BusFactor1<attachment webkitattachmentpath="/Users/burton/[1],2-64x64.png"></attachment>
+</div>
+<div><attachment></attachment></div>
+
+</div>
+</body>
+</html>
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Concatenate character encoding issue</h1>
+                 <pre>Hi Burton,
+
+Have a look at http://www.lispworks.com/documentation/lw70/LW/html/lw-191.htm ,
+which explains the various string and character types in Lispworks 7.
+
+I guess the summary is: it helps to use CHARACTER as your default character
+element type, e.g.
+
+   (set-default-character-element-type 'character)
+
+Arthur
+
+------
+
+On Sat, 14 Jan 2017 16:56:48 +0100, BusFactor1 Inc. &lt;busfactor1@gmail.com&gt wrote:
+
+&gt I have the following code:
+&gt
+&gt
+&gt (setf dirname
+&gt     (concatenate 'string                           (coerce dirname 'text-string)
+&gt                            (coerce dp ‘text-string) "/"))
+&gt
+&gt
+&gt
+&gt I get the following error with a certain directory input name:
+&gt
+&gt
+&gt     Error: #\– (of type CHARACTER) is not of type BASE-CHAR.
+&gt
+&gt
+&gt The filename is:  BLADE X3 WORKStation – SUSE Studio,1_files
+&gt
+&gt
+&gt The ‘dp’ is coming from the result of #’pathname-directory.
+&gt ‘dirname’ is simply the result of concatenating the dp parts together with a “/“.
+&gt
+&gt
+&gt Any suggestions to help deal with this character range encoding issue?  
+&gt
+&gt —
+&gt Burton Samograd
+&gt
+&gt
+&gt   —
+&gt Burton Samograd
+&gt BusFactor1@gmail.com http://BusFactor1.ca
+&gt http://twitter.com/BusFactor1 http://facebook.com/BusFactor1 http://instagram.com/BusFactor1
+&gt
+&gt
+&gt
+&gt
+&gt
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Concatenate character encoding issue</h1>
+                 <pre>Clarification: your minus character is not an ordinary ASCII minus, so
+it does not belong to base-char.  For sure you can check it with
+char-code.
+
+If you need such chars (e.g. you do not generate them yourselves), use
+Lemmens suggestion about changing default character set.
+
+Regards
+
+ZJ
+ 
+
+Dnia 2017-01-14, sob o godzinie 07:56 -0800, BusFactor1 Inc. pisze:
+&gt I have the following code:
+&gt 
+&gt 
+&gt (setf dirname
+&gt     (concatenate 'string 
+&gt                            (coerce dirname 'text-string)
+&gt                            (coerce dp ‘text-string) "/"))
+&gt 
+&gt 
+&gt I get the following error with a certain directory input name:
+&gt 
+&gt 
+&gt     Error: #\– (of type CHARACTER) is not of type BASE-CHAR.
+&gt 
+&gt 
+&gt The filename is:  BLADE X3 WORKStation – SUSE Studio,1_files
+&gt 
+&gt 
+&gt The ‘dp’ is coming from the result of #’pathname-directory.
+&gt ‘dirname’ is simply the result of concatenating the dp parts together
+&gt with a “/“.
+&gt 
+&gt 
+&gt Any suggestions to help deal with this character range encoding
+&gt issue?  
+&gt 
+&gt 
+&gt —
+&gt Burton Samograd
+&gt 
+&gt 
+&gt —
+&gt Burton Samograd
+&gt BusFactor1@gmail.com http://BusFactor1.ca
+&gt http://twitter.com/BusFactor1 http://facebook.com/BusFactor1
+&gt http://instagram.com/BusFactor1
+&gt 
+
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Concatenate character encoding issue</h1>
+                 <pre>Hi,
+
+you have coerced the strings to type LW:TEXT-STRING.
+
+Then it would be a good idea to use this type in CONCATENATE, too:
+
+(concatenate 'text-string ...)
+
+Documentation:   text-string is the type of strings that can hold any character...
+
+Regards,
+
+Rainer
+
+
+&gt Am 18.01.2017 um 12:39 schrieb zbyszek &lt;zbyszek@mimuw.edu.pl&gt:
+&gt 
+&gt Clarification: your minus character is not an ordinary ASCII minus, so
+&gt it does not belong to base-char.  For sure you can check it with
+&gt char-code.
+&gt 
+&gt If you need such chars (e.g. you do not generate them yourselves), use
+&gt Lemmens suggestion about changing default character set.
+&gt 
+&gt Regards
+&gt 
+&gt ZJ
+&gt 
+&gt 
+&gt Dnia 2017-01-14, sob o godzinie 07:56 -0800, BusFactor1 Inc. pisze:
+&gt&gt I have the following code:
+&gt&gt 
+&gt&gt 
+&gt&gt (setf dirname
+&gt&gt    (concatenate 'string 
+&gt&gt                           (coerce dirname 'text-string)
+&gt&gt                           (coerce dp ‘text-string) "/"))
+&gt&gt 
+&gt&gt 
+&gt&gt I get the following error with a certain directory input name:
+&gt&gt 
+&gt&gt 
+&gt&gt    Error: #\– (of type CHARACTER) is not of type BASE-CHAR.
+&gt&gt 
+&gt&gt 
+&gt&gt The filename is:  BLADE X3 WORKStation – SUSE Studio,1_files
+&gt&gt 
+&gt&gt 
+&gt&gt The ‘dp’ is coming from the result of #’pathname-directory.
+&gt&gt ‘dirname’ is simply the result of concatenating the dp parts together
+&gt&gt with a “/“.
+&gt&gt 
+&gt&gt 
+&gt&gt Any suggestions to help deal with this character range encoding
+&gt&gt issue?  
+&gt&gt 
+&gt&gt 
+&gt&gt —
+&gt&gt Burton Samograd
+&gt&gt 
+&gt&gt 
+&gt&gt —
+&gt&gt Burton Samograd
+&gt&gt BusFactor1@gmail.com http://BusFactor1.ca
+&gt&gt http://twitter.com/BusFactor1 http://facebook.com/BusFactor1
+&gt&gt http://instagram.com/BusFactor1
+&gt&gt 
+&gt 
+&gt 
+&gt 
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:27 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

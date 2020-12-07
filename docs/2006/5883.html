@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>&amp; in file parsed by CXML</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>&amp; in file parsed by CXML</h1>
+                <pre>
+When I parse a file containing "&amp;"s, CXML:parse-file gives the error message 
+"Error: Document not well-formed: entity not defined: amp".  Maybe I need to 
+provide more information to the parser about how to handle the XML special 
+characters but I am not sure where to do that.
+
+Here is an example:
+REPL&gt (with-open-file (s "example.xml" :direction :output)
+    (write-string "&lt;test a='b&amp;amp;'&gt&lt;child/&gt&lt;/test&gt" s))
+
+--&gt "&lt;test a='b&amp;amp;'&gt&lt;child/&gt&lt;/test&gt"
+
+REPL&gt (cxml:parse-file "example.xml" (cxml-xmls:make-xmls-builder))
+
+--&gt Error: Document not well-formed: entity not defined: amp
+Context:
+  Line 1, column 16 in file://+
+
+Without the &amp;amp; it works fine and produces:
+--&gt ("test" (("a" "b")) ("child" NIL))
+
+Thanks for any help.
+Mitch 
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: &amp; in file parsed by CXML</h1>
+                 <pre>
+On Fri, 15 Sep 2006 15:00:26 -0400, "Mitch Berkson" &lt;mitch@bermita.com&gt wrote:
+
+&gt When I parse a file containing "&amp;"s, CXML:parse-file gives the error
+&gt message "Error: Document not well-formed: entity not defined: amp".
+&gt Maybe I need to provide more information to the parser about how to
+&gt handle the XML special characters but I am not sure where to do
+&gt that.
+&gt
+&gt Here is an example:
+&gt REPL&gt (with-open-file (s "example.xml" :direction :output)
+&gt     (write-string "&lt;test a='b&amp;amp;'&gt&lt;child/&gt&lt;/test&gt" s))
+&gt
+&gt --&gt "&lt;test a='b&amp;amp;'&gt&lt;child/&gt&lt;/test&gt"
+&gt
+&gt REPL&gt (cxml:parse-file "example.xml" (cxml-xmls:make-xmls-builder))
+&gt
+&gt --&gt Error: Document not well-formed: entity not defined: amp
+&gt Context:
+&gt   Line 1, column 16 in file://+
+&gt
+&gt Without the &amp;amp; it works fine and produces:
+&gt --&gt ("test" (("a" "b")) ("child" NIL))
+
+I don't think this is on topic for this mailing list, but anyway...
+
+&gtFrom looking at the source code my guess is that ENSURE-DTD is called
+too late in the P/DOCUMENT function.  You won't get this message if
+the entity isn't in the first child:
+
+  CL-USER 34 &gt (with-open-file (s "/tmp/example.xml" :direction :output :if-exists :supersede)
+                 (write-string "&lt;test a='b'&gt&lt;child a='b&amp;amp;'/&gt&lt;/test&gt" s))
+  "&lt;test a='b'&gt&lt;child a='b&amp;amp;'/&gt&lt;/test&gt"
+
+  CL-USER 35 &gt (cxml:parse-file "/tmp/example.xml" (cxml-xmls:make-xmls-builder))
+  ("test" (("a" "b")) ("child" (("a" "b&amp;"))))
+
+The CXML mailing list is here:
+
+  http://common-lisp.net/cgi-bin/mailman/listinfo/cxml-devel
+
+Cheers,
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:44 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

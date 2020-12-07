@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>in-package oddity</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>in-package oddity</h1>
+                <pre>
+Hello all
+
+I was recently given a file which contained, near the top  something like
+
+(cl:in-package :foo)
+
+[where :foo does actually denote a package]
+
+and I'm not being placed in the package named
+"FOO".
+
+removing the cl prefix from in-package gives the expected behavior.
+I've made a quicktime vid here:
+http://www.cs.rpi.edu/~tayloj/lispworks.mov
+
+Is this a bug?
+
+
+-- 
+=====================
+Joshua Taylor
+tayloj@rpi.edu
+
+"A lot of good things went down one time,
+     back in the goodle days."
+               John Hartford
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>AW: in-package oddity</h1>
+                 <pre>
+ 
+
+&gt -----Ursprüngliche Nachricht-----
+&gt Von: owner-lisp-hug@lispworks.com 
+&gt [mailto:owner-lisp-hug@lispworks.com] Im Auftrag von Taylor, Joshua
+&gt Gesendet: Samstag, 17. Februar 2007 22:09
+&gt An: Lispworks HUG
+&gt Betreff: in-package oddity
+&gt 
+&gt 
+&gt Hello all
+&gt 
+&gt I was recently given a file which contained, near the top  
+&gt something like
+&gt 
+&gt (cl:in-package :foo)
+&gt 
+&gt [where :foo does actually denote a package]
+&gt 
+&gt and I'm not being placed in the package named "FOO".
+&gt 
+&gt removing the cl prefix from in-package gives the expected behavior.
+&gt I've made a quicktime vid here:
+&gt http://www.cs.rpi.edu/~tayloj/lispworks.mov
+&gt 
+&gt Is this a bug?
+&gt ...
+
+Hi Joshua,
+
+in LWW 5.0.1 following happens:
+
+CL-USER 19 &gt (cl:in-package :capi)
+#&lt;The CAPI package, 3623/4096 internal, 665/1024 external&gt
+
+CAPI 20 &gt (cl:in-package :user)
+#&lt;The COMMON-LISP-USER package, 465/512 internal, 0/4 external&gt
+
+So I guess it is a bug.
+
+Andreas
+
+P.S.
+
+CL-USER 18 &gt (describe 'cl:in-package)
+
+IN-PACKAGE is a SYMBOL
+NAME          "IN-PACKAGE"
+VALUE         #&lt;unbound value&gt
+FUNCTION      #&lt;Function SYSTEM::IN-PACKAGE-MACRO 202B685A&gt
+PLIST         (EDITOR::SECTION EDITOR::SECTION-IN-PACKAGE)
+PACKAGE       #&lt;The COMMON-LISP package, 3/4 internal, 978/1024 external&gt
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: in-package oddity</h1>
+                 <pre>
+On Sat, 17 Feb 2007 16:09:01 -0500, "Taylor, Joshua" &lt;tayloj@rpi.edu&gt wrote:
+
+&gt I was recently given a file which contained, near the top something
+&gt like
+&gt
+&gt (cl:in-package :foo)
+&gt
+&gt [where :foo does actually denote a package]
+&gt
+&gt and I'm not being placed in the package named
+&gt "FOO".
+&gt
+&gt removing the cl prefix from in-package gives the expected behavior.
+&gt I've made a quicktime vid here:
+&gt http://www.cs.rpi.edu/~tayloj/lispworks.mov
+
+What you're seeing at the bottom (in the modeline) is not in which
+package you're "placed" (what would that mean anyway?), but which
+package the editor thinks your Lisp file is in (or more precise: which
+package the part of the Lisp file where point is is in).  It seems to
+use some kind of heuristics where it walks backwards beginning from
+point and looks for a form that starts at column 0 and begins with
+"(in-package ".
+
+Try this: In the listener, create packages :FOO and :BAR with
+DEFPACKAGE.  Now create a file foo.lisp which looks like this:
+
+-------------------&gt start of foo.lisp &lt;-------------------
+
+(in-package :foo)
+
+(in-package :bar)
+
+  (in-package :foo)
+
+(cl:in-package :foo)
+
+(in-package :cl-user)
+
+--------------------&gt end of foo.lisp &lt;--------------------
+
+(Note the indentation of the third form.)
+
+Now move the cursor up and down between these forms and press the
+Return key from time to time.  Note how the modeline changes depending
+on where you are.  Also note that the third and fourth form don't seem
+to have any effect.
+
+&gt Is this a bug?
+
+Depends on your POV, I'd say.  I think it is clear that you have to
+use some kind of heuristics.  One could argue that the heuristics the
+LW editor uses are a bit weak.  FWIW, SLIME can cope with the fourth
+form above, but it fails to recognize the third form as well.  Go
+figure...
+
+HTH,
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:43 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

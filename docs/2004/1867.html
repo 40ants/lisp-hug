@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>mouse or pane position</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>mouse or pane position</h1>
+                <pre>Hi,
+
+I have a feeling that this is an FAQ (or that I've asked it before
+myself, at least :-)), but anyway:
+
+Is there a way, preferably portable, to get the _screen_ position
+of the mouse or (even better) a pinboard object? I need this as
+input to :best-x/:best-y when creating an interface (I want a small
+window I create to pop up at (or nearby) a given pane or the mouse).
+-- 
+  (espen)
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: mouse or pane position</h1>
+                 <p>
+                  Unable to parse email body. Email id is 1870
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: mouse or pane position</h1>
+                 <pre>Espen Vestre wrote:
+
+&gt Is there a way, preferably portable, to get the _screen_ position
+&gt of the mouse
+
+On Windows, you can get the screen coordinates of the mouse with the
+function GetCursorPos. I have a FLI-interface to this function lying
+around somewhere. If you're interested in this, let me know and I'll
+dig it up for you.
+
+ --
+Arthur Lemmens
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: mouse or pane position</h1>
+                 <pre>Arthur Lemmens &lt;alemmens@xs4all.nl&gt writes:
+
+&gt On Windows, you can get the screen coordinates of the mouse with the
+&gt function GetCursorPos. I have a FLI-interface to this function lying
+&gt around somewhere. If you're interested in this, let me know and I'll
+&gt dig it up for you.
+
+Thanks a lot, but I think I'll rather come up with a portable solution
+myself (it's not very important for me to get the _exact_ position, and
+I can approximate a lot from the interface-geometry and the position
+within the interface).
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: mouse or pane position</h1>
+                 <pre>
+On Feb 10, 2004, at 4:05 PM, Espen Vestre wrote:
+&gt
+&gt Is there a way, preferably portable, to get the _screen_ position
+&gt of the mouse or (even better) a pinboard object?
+
+Espen,
+
+I've been able to get the screen mouse coordinates on OS X using FLI 
+calls to the Carbon GetGlobalMouse function.  I assume something 
+similar could be done in Windows with the Win32 library (?). I don't 
+know if there's a better/more portable way to do this.
+
+Here's the code for OS X:
+
+(fli:define-c-struct (point (:foreign-name "Point"))
+   (y :short)
+   (x :short))
+
+(fli:define-c-typedef (point (:foreign-name "Point"))
+   (:struct point))
+
+(fli:define-foreign-function (getglobalmouse "GetGlobalMouse" :source)
+     ((p (:pointer point)))
+   :result-type :void
+   :language :c)
+
+(defun get-global-mouse-position ()
+   (fli:with-dynamic-foreign-objects ()
+     (let ((point (fli:allocate-foreign-object :type 'point)))
+      (getglobalmouse point)
+      (list (fli:foreign-slot-value point 'x) (fli:foreign-slot-value 
+point 'y)))))
+
+Regards,
+
+Chris Sims
+
+Cognitive Science Department
+Rensselaer Polytechnic Institute
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:53 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

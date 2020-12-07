@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>How to determine if pane is scrolled</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>How to determine if pane is scrolled</h1>
+                <pre>
+Is there a simple capi way to determine if a pane is scrolled? Or do I 
+use something like:
+
+(defun pane-is-scrolled-p (pane orientation)
+   "t if the pane is scrolled. Orientation is :horizontal or :vertical"
+   (multiple-value-bind (min-range max-range slug-size)
+       (if (eql orientation :horizontal)
+         (capi:get-horizontal-scroll-parameters pane :min-range 
+:max-range :slug-size)
+         (capi:get-vertical-scroll-parameters pane :min-range :max-range 
+:slug-size))
+     (/= (- max-range min-range)
+         slug-size)))
+
+Mitch
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: How to determine if pane is scrolled</h1>
+                 <pre>
+I'm not sure to well understand your question but isn't simply the fact that
+%scroll-x% or %scroll-y% is non equal to zero ?
+For instance :
+(with-geometry pane
+  (case orientation
+    (:horizontal (and  %scroll-x% (not (zerop %scroll-x%))))
+    (t (and  %scroll-y% (not (zerop %scroll-y%))))))
+
+Best 
+
+Denis
+
+
+Le 5/02/08 15:21, «&nbsp;[NOM]&nbsp;» &lt;[ADRESSE]&gt a écrit&nbsp;:
+
+&gt 
+&gt Is there a simple capi way to determine if a pane is scrolled? Or do I
+&gt use something like:
+&gt 
+&gt (defun pane-is-scrolled-p (pane orientation)
+&gt    "t if the pane is scrolled. Orientation is :horizontal or :vertical"
+&gt    (multiple-value-bind (min-range max-range slug-size)
+&gt        (if (eql orientation :horizontal)
+&gt          (capi:get-horizontal-scroll-parameters pane :min-range
+&gt :max-range :slug-size)
+&gt          (capi:get-vertical-scroll-parameters pane :min-range :max-range
+&gt :slug-size))
+&gt      (/= (- max-range min-range)
+&gt          slug-size)))
+&gt 
+&gt Mitch
+&gt 
+
+-------------------------------------------------------
+Denis Pousseur
+70 rue de Wansijn
+1180 Bruxelles, Belgique
+
+Tel : 32 (0)2 219 31 09
+Mail :  denis.pousseur@gmail.com
+-------------------------------------------------------
+
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: How to determine if pane is scrolled</h1>
+                  <pre>
+Sorry for the sloppy description. What I am interested in knowing is 
+whether a scroll-bar is displayed. So even if the slug position is 0, if 
+the slug-width is less than the scroll range, it is possible to move the 
+slug and scroll the pane.
+
+Mitch
+
+Denis Pousseur wrote:
+&gt I'm not sure to well understand your question but isn't simply the fact that
+&gt %scroll-x% or %scroll-y% is non equal to zero ?
+&gt For instance :
+&gt (with-geometry pane
+&gt   (case orientation
+&gt     (:horizontal (and  %scroll-x% (not (zerop %scroll-x%))))
+&gt     (t (and  %scroll-y% (not (zerop %scroll-y%))))))
+&gt 
+&gt Best 
+&gt 
+&gt Denis
+&gt 
+&gt 
+&gt Le 5/02/08 15:21, « [NOM] » &lt;[ADRESSE]&gt a écrit :
+&gt 
+&gt&gt Is there a simple capi way to determine if a pane is scrolled? Or do I
+&gt&gt use something like:
+&gt&gt
+&gt&gt (defun pane-is-scrolled-p (pane orientation)
+&gt&gt    "t if the pane is scrolled. Orientation is :horizontal or :vertical"
+&gt&gt    (multiple-value-bind (min-range max-range slug-size)
+&gt&gt        (if (eql orientation :horizontal)
+&gt&gt          (capi:get-horizontal-scroll-parameters pane :min-range
+&gt&gt :max-range :slug-size)
+&gt&gt          (capi:get-vertical-scroll-parameters pane :min-range :max-range
+&gt&gt :slug-size))
+&gt&gt      (/= (- max-range min-range)
+&gt&gt          slug-size)))
+&gt&gt
+&gt&gt Mitch
+&gt&gt
+
+
+</pre>
+                 </article>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>Re: How to determine if pane is scrolled</h1>
+                   <pre>
+I suppose you can do this by compare the width (or height) of the pane with
+the %scroll-width% (or %scroll-height%) of the same 'with-geometry' macro
+
+Best 
+
+Denis
+
+
+Le 5/02/08 18:05, «&nbsp;[NOM]&nbsp;» &lt;[ADRESSE]&gt a écrit&nbsp;:
+
+&gt Sorry for the sloppy description. What I am interested in knowing is
+&gt whether a scroll-bar is displayed. So even if the slug position is 0, if
+&gt the slug-width is less than the scroll range, it is possible to move the
+&gt slug and scroll the pane.
+&gt 
+&gt Mitch
+&gt 
+&gt Denis Pousseur wrote:
+&gt&gt I'm not sure to well understand your question but isn't simply the fact that
+&gt&gt %scroll-x% or %scroll-y% is non equal to zero ?
+&gt&gt For instance :
+&gt&gt (with-geometry pane
+&gt&gt   (case orientation
+&gt&gt     (:horizontal (and  %scroll-x% (not (zerop %scroll-x%))))
+&gt&gt     (t (and  %scroll-y% (not (zerop %scroll-y%))))))
+&gt&gt 
+&gt&gt Best 
+&gt&gt 
+&gt&gt Denis
+&gt&gt 
+&gt&gt 
+&gt&gt Le 5/02/08 15:21, « [NOM] » &lt;[ADRESSE]&gt a écrit :
+&gt&gt 
+&gt&gt&gt Is there a simple capi way to determine if a pane is scrolled? Or do I
+&gt&gt&gt use something like:
+&gt&gt&gt 
+&gt&gt&gt (defun pane-is-scrolled-p (pane orientation)
+&gt&gt&gt    "t if the pane is scrolled. Orientation is :horizontal or :vertical"
+&gt&gt&gt    (multiple-value-bind (min-range max-range slug-size)
+&gt&gt&gt        (if (eql orientation :horizontal)
+&gt&gt&gt          (capi:get-horizontal-scroll-parameters pane :min-range
+&gt&gt&gt :max-range :slug-size)
+&gt&gt&gt          (capi:get-vertical-scroll-parameters pane :min-range :max-range
+&gt&gt&gt :slug-size))
+&gt&gt&gt      (/= (- max-range min-range)
+&gt&gt&gt          slug-size)))
+&gt&gt&gt 
+&gt&gt&gt Mitch
+&gt&gt&gt 
+&gt 
+
+-------------------------------------------------------
+Denis Pousseur
+70 rue de Wansijn
+1180 Bruxelles, Belgique
+
+Tel : 32 (0)2 219 31 09
+Mail :  denis.pousseur@gmail.com
+-------------------------------------------------------
+
+
+
+</pre>
+                  </article>
+                 </section>
+                </section>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:40 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>COM/Automation: how do I pass an array to a variant parameter in LWW ?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>COM/Automation: how do I pass an array to a variant parameter in LWW ?</h1>
+                <pre>
+I'm trying to use LWW 4.4.6 for programming AutoCAD 2006 through ActiveX,
+ and got stuck when trying to send a Lisp array to it in a parameter
+expecting a variant.
+I can't make any sense of the documents, and no example code I have found
+shows LWW operation with variants
+ containing arrays.
+
+Neither the array as such nor anything produced by com:make-lisp-variant
+that I have tried works.
+
+The receiving function definition in the type library as IDL:
+
+        [id(0x0000000e), helpstring("Append loops to the hatch"),
+helpcontext(0x00010117)]
+        HRESULT AppendOuterLoop([in] VARIANT ObjectArray);
+
+
+
+In VBA this can be used directly with an array of objects:
+    ' Create the associative Hatch object
+    Set hatchObj = ThisDrawing.ModelSpace.AddHatch(PatternType,
+patternName, bAssociativity)
+
+    ' Create the outer loop for the hatch.
+    ' An arc and a line are used to create a closed loop.
+    Dim outerLoop(0 To 1) As AcadEntity
+    Dim center(0 To 2) As Double
+    Dim radius As Double
+    Dim startAngle As Double
+    Dim endAngle As Double
+    center(0) = 5: center(1) = 3: center(2) = 0
+    radius = 1
+    startAngle = 0
+    endAngle = 3.141592
+    Set outerLoop(0) = ThisDrawing.ModelSpace.AddArc(center, radius,
+startAngle, endAngle)
+    Set outerLoop(1) =
+ThisDrawing.ModelSpace.AddLine(outerLoop(0).startPoint,
+outerLoop(0).endPoint)
+
+    ' Append the outer loop to the hatch object, and display the hatch
+    hatchObj.AppendOuterLoop (outerLoop)
+    hatchObj.Evaluate
+
+
+
+So, how am I supposed to call invoke-dispatch-method with an array of
+i-dispatch objects?
+
+
+-- 
+Martti Halminen
+
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: COM/Automation: how do I pass an array to a variant parameter in LWW ?</h1>
+                 <pre>
+At 21:53 18/10/2006, Martti Halminen wrote:
+
+&gtI'm trying to use LWW 4.4.6 for programming AutoCAD 2006 through ActiveX,
+&gt  and got stuck when trying to send a Lisp array to it in a parameter
+&gtexpecting a variant.
+&gtI can't make any sense of the documents, and no example code I have found
+&gtshows LWW operation with variants
+&gt  containing arrays.
+&gt
+&gtNeither the array as such nor anything produced by com:make-lisp-variant
+&gtthat I have tried works.
+&gt
+&gtThe receiving function definition in the type library as IDL:
+&gt
+&gt         [id(0x0000000e), helpstring("Append loops to the hatch"),
+&gthelpcontext(0x00010117)]
+&gt         HRESULT AppendOuterLoop([in] VARIANT ObjectArray);
+&gt
+&gt
+&gt
+&gtIn VBA this can be used directly with an array of objects:
+&gt     ' Create the associative Hatch object
+&gt     Set hatchObj = ThisDrawing.ModelSpace.AddHatch(PatternType,
+&gtpatternName, bAssociativity)
+&gt
+&gt     ' Create the outer loop for the hatch.
+&gt     ' An arc and a line are used to create a closed loop.
+&gt     Dim outerLoop(0 To 1) As AcadEntity
+&gt     Dim center(0 To 2) As Double
+&gt     Dim radius As Double
+&gt     Dim startAngle As Double
+&gt     Dim endAngle As Double
+&gt     center(0) = 5: center(1) = 3: center(2) = 0
+&gt     radius = 1
+&gt     startAngle = 0
+&gt     endAngle = 3.141592
+&gt     Set outerLoop(0) = ThisDrawing.ModelSpace.AddArc(center, radius,
+&gtstartAngle, endAngle)
+&gt     Set outerLoop(1) =
+&gtThisDrawing.ModelSpace.AddLine(outerLoop(0).startPoint,
+&gtouterLoop(0).endPoint)
+&gt
+&gt     ' Append the outer loop to the hatch object, and display the hatch
+&gt     hatchObj.AppendOuterLoop (outerLoop)
+&gt     hatchObj.Evaluate
+&gt
+&gt
+&gt
+&gtSo, how am I supposed to call invoke-dispatch-method with an array of
+&gti-dispatch objects?
+
+Hi,
+
+I would expect something like this to work (completely untested btw) ...
+
+(defun add-hatch (model-space pattern-type pattern-name b-associativity)
+   (let((center (vector 5.0 3.0 0.0))
+        (radius 1.0)
+        (start-angle 0.0)
+        (end-angle 3.141592))
+     (com:with-temp-interface
+         (hatch)
+         (com:invoke-dispatch-method model-space "AddHatch" pattern-type 
+pattern-name b-associativity)
+       (com:with-temp-interface
+           (arc-entity)
+           (com:invoke-dispatch-method model-space "AddArc" center radius 
+start-angle end-angle)
+         (let ((start-point (com:invoke-dispatch-get-property arc-entity 
+"startPoint"))
+               (end-point (com:invoke-dispatch-get-property arc-entity 
+"endPoint")))
+           (com:with-temp-interface
+               (line-entity)
+               (com:invoke-dispatch-method model-space "AddLine" 
+start-point end-point)
+             (com:invoke-dispatch-method hatch "AppendOuterLoop" (vector 
+arc-entity line-entity))
+             (com:invoke-dispatch-method hatch "Evaluate")))))))
+
+What errors do you get ?
+
+The LWW doc is not explicit about how it handles types inside arrays:
+
+http://www.lispworks.com/documentation/lw50/COM/html/com-95.htm#84037
+
+But as it can handle conversion between  com:com-interface and IDispatch*
+(VT_DISPATCH) as top level arguments I would expect it to work when these
+values are in an array.  LWW should create a VARIANT with vt set to VT_ARRAY
+| VT_DISPATCH.  This should work with the AppendOuterLoop method.
+
+If you want or need to try creating a variant explicitly then I think you 
+need to do
+(make-lisp-variant '(:array :dispatch :dispatch) (vector arc-entity 
+line-entity))
+rather than just (vector arc-entity line-entity) in the code above.
+
+(BTW I am guessing that startPoint and endPoint are properties that return
+an array of floats. If they return IDispatch interfaces then they should be
+wrapped in com:with-temp-interface or explicitly released. If they are
+methods not properties then use com:invoke-dispatch-method - to state the
+obvious ;-)
+
+HTH
+
+paulm
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:44 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

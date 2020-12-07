@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Home-grown "editor"</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Home-grown "editor"</h1>
+                <p>
+                 Unable to parse email body. Email id is 7705
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Home-grown "editor"</h1>
+                 <pre>
+Hello Edi,
+
+| 3. The "Undo" command doesn't seem to work as expected.  It only
+|    performs one undo operation and then reverts it.  I'd like to have
+|    the behaviour (C-x u) I have in the normal CAPI editor.  What am I
+|    doing wrong?
+
+I think you need a bit more than just the standard "Undo". The following
+works for me:
+
+(editor:defcommand "Grid Undo"  (p) "" ""
+  (let ((pane (editor::current-editor-pane)))
+    (if (ywi:undo-buffer-empty-p (capi:editor-pane-buffer pane))
+        (let ((grid (capi:element-interface pane)))
+          (%revert-cell grid (current-record grid) (current-column grid))
+          (beep))
+        (editor:undo-command p))))
+
+(defun undo-buffer-empty-p (buffer)
+ ;;; Test whether the editor "Undo" command will do nothing
+  ;; Use the accessor EDITOR::BUFFER-UNDO to get the undo slot of the editor
+buffer.
+  ;; The value is usually an object of type SYSTEM:RING (but can be NIL
+initially).
+  ;; Args:  buffer - editor's buffer.
+  ;; Value: True iff the "Undo" command will do nothing
+  (let ((undo (EDITOR::BUFFER-UNDO buffer)))
+    (if (sys:ringp undo)
+        (let ((bound (sys::ring-bound undo)))
+          (or (minusp bound) (= (sys::ring-v-pop undo) bound)))
+        t)))
+--
+Sincerely,
+Dmitriy Ivanov
+lisp.ystok.ru
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Home-grown "editor"</h1>
+                 <pre>
+
+On Feb 13, 2008, at 4:08 AM, Edi Weitz wrote:
+
+&gt 1. I only want to enable the "Cut" and "Paste" menu entries when
+&gt   there's actually somthing to cut or paste.  Is REGION-ACTIVE-P the
+&gt   right way to do that?
+&gt
+&gt   And if it is, is there a way to make sure that the active region is
+&gt   always highlighted when there is one?
+
+
+(defmethod edit-cut-enabled ((pane editor-pane))
+   (or (and (editor:buffer-writable (editor-pane-buffer pane)) (editor- 
+pane-selected-text-p pane))
+       (echo-selected-text-p pane)))
+
+
+Before you even get to this, you need to ensure your editor pane has  
+the focus. It gets more complicated when your interface has a mixture  
+of editor panes and text fields. I have several levels of edit-cut- 
+enabled methods that start at the interface level and filters down  
+based on what pane has the focus.
+
+
+&gt 2. Is the test which enables the "Paste" menu entry (which checks the
+&gt   clipboard) the right one?
+
+I'm not doing that, but have a note that I should be :).
+
+
+&gt 3. The "Undo" command doesn't seem to work as expected.  It only
+&gt   performs one undo operation and then reverts it.  I'd like to have
+&gt   the behaviour (C-x u) I have in the normal CAPI editor.  What am I
+&gt   doing wrong?
+
+
+I think this is all I'm doing and I get multiple-undo. I have not  
+implemented a "Redo" option.
+
+(defmethod edit-undo ((pane editor-pane))
+   (editor-or-echo-cmd pane 'editor:undo-command))
+
+
+(defmethod edit-undo-enabled ((pane editor-pane))
+   (let ((buffer (editor-pane-buffer pane)))
+     (or (and (editor:buffer-modified buffer) (editor:buffer-writable  
+buffer))
+         (echo-pane-active pane))))
+
+
+
+
+John DeSoi, Ph.D.
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Home-grown "editor"</h1>
+                 <pre>
+On Wed, 13 Feb 2008 12:13:22 -0500, John DeSoi &lt;desoi@pgedit.com&gt wrote:
+
+&gt (editor-pane-selected-text-p pane)
+
+D'oh!  I knew there was something I had forgotten...
+
+Yes, that gives me the behaviour I want.
+
+&gt (editor-or-echo-cmd pane 'editor:undo-command))
+
+That's interesting.  There seems to be a difference between calling
+PROCESS-CHARACTER with the string "Undo" (which is supposed to call
+UNDO-COMMAND) or with the symbol EDITOR:UNDO-COMMAND.  If I do the
+latter, it works as expected.
+
+Thanks,
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Home-grown "editor"</h1>
+                 <pre>
+On Wed, 13 Feb 2008 18:55:44 +0100, Edi Weitz &lt;edi@agharta.de&gt wrote:
+
+&gt&gt (editor-or-echo-cmd pane 'editor:undo-command))
+&gt
+&gt That's interesting.  There seems to be a difference between calling
+&gt PROCESS-CHARACTER with the string "Undo" (which is supposed to call
+&gt UNDO-COMMAND) or with the symbol EDITOR:UNDO-COMMAND.  If I do the
+&gt latter, it works as expected.
+
+Er, no, that was nonsense.  The real culprit was that I was too
+careful[1] and wrapped the call to EDITOR:BUFFER-MODIFIED which
+checked if the "Undo" menu item should be enabled with the notorious
+EDITOR:PROCESS-CHARACTER.  If I call the function directly instead,
+the issue goes away.  Whether the undo command is called as "Undo" or
+as EDITOR:UNDO-COMMAND doesn't make a difference.
+
+Sorry for the confusion,
+Edi.
+
+
+[1] See also
+    http://thread.gmane.org/gmane.lisp.lispworks.general/7513
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:40 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

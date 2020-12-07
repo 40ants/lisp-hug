@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>FLI performance</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>FLI performance</h1>I&#39;m curious as to the general overhead of a foreign function call. Currently, I have a program that is making - on average - about 50,000 FLI function calls every iteration of a tight loop. I&#39;ve written the exact same program in C++ just for a simple comparison, and profiled the Lisp program to make sure I&#39;m not doing something else bad.<br /><br />In the C++ code, I can make the 50,000 DLL function calls in ~40 milliseconds. Considering what the function does internally, this is quite good. On the Lisp side, the same 50,000 calls take ~200 milliseconds. Now, while I expected there to be some overhead with the foreign call (type checking, setting up the stack, etc), I didn&#39;t expect it to be 5x that of comparable C++ code.<br /><br />So, my question: are there any declarations I can do to increase this performance (turn off the type checking, making the foreign code __stdcall instead of __cdecl)? Also, another solution I have to the problem - since I have access to the DLL source - is to create a batch function that let&#39;s me accumulate all my data into a large buffer and then make the function call only once. But, before continue on this path, I&#39;d like to make sure that a magical declare won&#39;t fix the problem for me, and that filling out the data in the buffer won&#39;t be equally (or more) slow than the foreign call.<br /><br />Thanks for any help!<br /><br />Jeff M.
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: FLI performance</h1>
+                 <pre>
+Just as a follow-up. Creating a batch function and making a foreign buffer that 
+holds all the data sped the code to being only 2x instead of 5x. Much improved, 
+but using the foreign buffer is a bit of a pain. It'd be much nicer if there 
+was a way to improve the foreign call performance. ;-)
+
+Another side question, while I was creating a batching structure, I came across 
+define-foreign-pointer. I'm trying to understand what this is for and if it's 
+can help simplify my code. For example, let's say this is my foreign buffer for 
+batching:
+
+
+(define-c-struct point3 (x :float) (y :float) (z :float))
+
+(defun make-batch-buffer (size)
+  (allocate-foreign-object :type `(:c-array point3 ,size)))
+
+
+Trying to access members of any one of those point structures is a real 
+frustration. I can't use the obvious foreign-aref or a simple dereference 
+because I'm dealing with an aggregate type. So, getting an element in there is 
+something like:
+
+
+(foreign-slot-value 
+ (dereference (foreign-array-pointer buf index) :copy-foreign-object nil)
+ 'x)
+
+
+I was looking at define-foreign-pointer as a possible to this, since it allows 
+defining slots in the structure. But I can't find any examples of where this is 
+useful or how they are used. Does anyone have any?
+
+Thanks!
+
+Jeff M.
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:38 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

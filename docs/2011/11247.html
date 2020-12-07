@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>single or double float from byte array</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>single or double float from byte array</h1>
+                <pre>
+How do you create a single or double float from a Lisp array of bytes?
+
+	Thanks, Joel
+
+--------------------------------------------------------------------------
+- for hire: mac osx device driver ninja, kernel extensions and usb drivers
+---------------------+------------+---------------------------------------
+http://wagerlabs.com | @wagerlabs | http://www.linkedin.com/in/joelreymont
+---------------------+------------+---------------------------------------
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: single or double float from byte array</h1>
+                 <pre>
+Joel Reymont wrote:
+&gt How do you create a single or double float from a Lisp array of bytes?
+&gt 
+
+There may be an easier method (i.e., using undocumented functions), but 
+this seems to work for me assuming IEEE 754 on a little-endian arch:
+
+(defun unsigned-bytes-to-float (bytes)
+   #-ieee-floating-point (error "fixme")
+   (let ((ft (ecase (length bytes)
+               (4 :lisp-single-float)
+               (8 :lisp-double-float))))
+     (fli:with-dynamic-foreign-objects
+         ((x (:unsigned :byte)
+             :initial-contents (coerce bytes 'list)
+             :nelems (length bytes)))
+       (fli:with-coerced-pointer
+           (y :type ft) x
+         (fli:dereference y)))))
+
+CL-USER 361 &gt (= pi (unsigned-bytes-to-float (reverse #(#x40 #x09 #x21 
+#xfb #x54 #x44 #x2d #x18))))
+T
+
+
+Mike
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: single or double float from byte array</h1>
+                 <pre>Hi Joel,
+
+On 26 sept. 2011, at 21:32, Joel Reymont wrote:
+
+&gt How do you create a single or double float from a Lisp array of bytes?
+
+You could try the ieee-floats library:
+
+http://common-lisp.net/project/ieee-floats/
+
+
+Works well for me.
+
+
+Best Regards,
+Cam
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:33 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Curious case of slowdown with file output</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Curious case of slowdown with file output</h1>
+                <pre>
+Hi,
+
+We have encountered a curious case of slowdown with file output: When performing an (open pathname :direction :output :if-exists :supersede), if the file indeed already exists, output is dramatically slower than if the file didn’t exist before. We see a degradation of a factor of 3, which can hurt a lot for very large files (several gigabytes). By doing a (when-let (path (probe-file pathname)) (assert (delete-file path))) before the call to ‘open, the slowdown can be avoided.
+
+Does anybody know a different / better keyword to pass to :if-exists to avoid this issue? :rename-and-delete sounds clunky, but maybe that’s better?
+
+This is in LispWorks 64bit on Linux.
+
+Thanks,
+Pascal
+
+--
+Pascal Costanza, ExaScience Life Lab, Intel, Belgium
+pascal.costanza@intel.com
+
+
+
+Intel Corporation NV/SA
+Kings Square, Veldkant 31
+2550 Kontich
+RPM (Bruxelles) 0415.497.718. 
+Citibank, Brussels, account 570/1031255/09
+
+This e-mail and any attachments may contain confidential material for the sole use of the intended recipient(s). Any review or distribution by others is strictly prohibited. If you are not the intended recipient, please contact the sender and delete all copies.
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Curious case of slowdown with file output</h1>
+                 <pre>
+Have you checked the I/O load on the machine?  Using :if-exists :supersede
+causes the file to be opened with O_TRUNC, so this might be interacting badly
+with the auto_da_alloc mount option if you are using ext4 (see
+https://www.kernel.org/doc/Documentation/filesystems/ext4.txt).
+
+:rename-and-delete will not be better because we treat it as a synonym for
+:supersede.
+
+-- 
+Martin Simmons
+LispWorks Ltd
+http://www.lispworks.com/
+
+
+&gt&gt&gt&gt&gt On Fri, 23 May 2014 09:06:42 +0000, Costanza, Pascal said:
+&gt 
+&gt Hi,
+&gt 
+&gt We have encountered a curious case of slowdown with file output: When performing an (open pathname :direction :output :if-exists :supersede), if the file indeed already exists, output is dramatically slower than if the file didn’t exist before. We see a degradation of a factor of 3, which can hurt a lot for very large files (several gigabytes). By doing a (when-let (path (probe-file pathname)) (assert (delete-file path))) before the call to ‘open, the slowdown can be avoided.
+&gt 
+&gt Does anybody know a different / better keyword to pass to :if-exists to avoid this issue? :rename-and-delete sounds clunky, but maybe that’s better?
+&gt 
+&gt This is in LispWorks 64bit on Linux.
+&gt 
+&gt Thanks,
+&gt Pascal
+&gt 
+&gt --
+&gt Pascal Costanza, ExaScience Life Lab, Intel, Belgium
+&gt pascal.costanza@intel.com
+&gt 
+&gt 
+&gt 
+&gt Intel Corporation NV/SA
+&gt Kings Square, Veldkant 31
+&gt 2550 Kontich
+&gt RPM (Bruxelles) 0415.497.718. 
+&gt Citibank, Brussels, account 570/1031255/09
+&gt 
+&gt This e-mail and any attachments may contain confidential material for the sole use of the intended recipient(s). Any review or distribution by others is strictly prohibited. If you are not the intended recipient, please contact the sender and delete all copies.
+&gt 
+&gt 
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+&gt 
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:29 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

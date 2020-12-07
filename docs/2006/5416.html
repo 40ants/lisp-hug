@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Save an image with the IDE</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Save an image with the IDE</h1>
+                <pre>
+
+How do I save an image that still retains the LispWorks IDE/GUI ?  
+
+(I think this is a FAQ and one I might even have asked before, but I
+was unable to find the answer).
+
+My normal pattern is to save a console only image and use SLIME for
+development.  This works great and I can preload some packages in the
+image to make my life easier.
+
+Now, I would like to create an image that when it starts opens the
+LispWorks IDE with all the normal menus, windows, etc.  How do I do
+that?  Can someone point me to a good example?
+
+I'm running on Linux and Mac OS.
+
+Thanks!
+
+Regards,
+Chris Dean
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Save an image with the IDE</h1>
+                 <pre>
+Hi,
+
+The example below is from the Lispworks Reference Manual entry for 
+save-image. The only change is that I added ':environment t' to ensure that 
+the IDE is launched when the saved image is started.
+
+---8&lt;---
+Here is an example initialization script. Save this to a file such as 
+my-file.lisp , then run LispWorks with the command line argument -init 
+c:/my-file.lisp to build the image my-image.exe .
+
+(load-all-patches)
+
+(load "my-application")
+
+(save-image "my-image" :environment t)
+
+(quit)
+---8&lt;---
+
+cheers
+
+paulm
+
+At 21:39 18/03/2006, Chris Dean wrote:
+
+
+&gtHow do I save an image that still retains the LispWorks IDE/GUI ?
+&gt
+&gt(I think this is a FAQ and one I might even have asked before, but I
+&gtwas unable to find the answer).
+&gt
+&gtMy normal pattern is to save a console only image and use SLIME for
+&gtdevelopment.  This works great and I can preload some packages in the
+&gtimage to make my life easier.
+&gt
+&gtNow, I would like to create an image that when it starts opens the
+&gtLispWorks IDE with all the normal menus, windows, etc.  How do I do
+&gtthat?  Can someone point me to a good example?
+&gt
+&gtI'm running on Linux and Mac OS.
+&gt
+&gtThanks!
+&gt
+&gtRegards,
+&gtChris Dean
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Save an image with the IDE</h1>
+                 <pre>
+
+Paul Miller &lt;paulm@xanalys.com&gt writes:
+&gt The example below is from the Lispworks Reference Manual entry for
+&gt save-image. The only change is that I added ':environment t' to ensure
+&gt that the IDE is launched when the saved image is started.
+
+Thanks!  I tried that and it doesn't work on my Mac.  What it does is
+create an image that when launched has a listener window, but no
+menubar or anything else.  I can even load the Mac specific
+macos-application-bundle.lisp and that doesn't help.
+
+Below is my deliver script.
+
+Regards,
+Chris Dean
+
+
+
+(load-all-patches)
+
+#+:cocoa 
+(compile-file-if-needed 
+ (sys:example-file "/Applications/LispWorks 4.4.5/Library/lib/4-4-0-0/examples/configuration/macos-application-bundle.lisp")
+ :load t) 
+
+(save-image "my-image" :environment t)
+
+(quit)
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Save an image with the IDE</h1>
+                 <pre>
+
+Ah.
+
+What happens if you do (env:start-environment) in the listener that you get ?
+If this works maybe you could specify this as the :restart-function.
+
+Maybe it is related to multiprocessing - you could try adding 
+:multiprocessing t to your save-image.
+
+(Just a couple of guesses - I don't  have a Mac version)
+
+cheers
+
+paulm
+
+
+At 16:57 19/03/2006, Chris Dean wrote:
+
+
+&gtPaul Miller &lt;paulm@xanalys.com&gt writes:
+&gt &gt The example below is from the Lispworks Reference Manual entry for
+&gt &gt save-image. The only change is that I added ':environment t' to ensure
+&gt &gt that the IDE is launched when the saved image is started.
+&gt
+&gtThanks!  I tried that and it doesn't work on my Mac.  What it does is
+&gtcreate an image that when launched has a listener window, but no
+&gtmenubar or anything else.  I can even load the Mac specific
+&gtmacos-application-bundle.lisp and that doesn't help.
+&gt
+&gtBelow is my deliver script.
+&gt
+&gtRegards,
+&gtChris Dean
+&gt
+&gt
+&gt
+&gt(load-all-patches)
+&gt
+&gt#+:cocoa
+&gt(compile-file-if-needed
+&gt  (sys:example-file "/Applications/LispWorks 
+&gt 4.4.5/Library/lib/4-4-0-0/examples/configuration/macos-application-bundle.lisp")
+&gt  :load t)
+&gt
+&gt(save-image "my-image" :environment t)
+&gt
+&gt(quit)
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Save an image with the IDE</h1>
+                 <pre>
+
+Thanks again for your help.  I've tried various combinations of:
+
+  (save-image "my-image" 
+              :environment t :multiprocessing t
+              :restart-function 'env:start-environment)
+
+With no new result.  I'll try it on my linux version when I have a chance.
+
+The Listener window on the Mac is also not behaving normally, I can't
+seem to get focus on the window for example. 
+
+Regards,
+Chris Dean
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Save an image with the IDE</h1>
+                 <pre>
+
+&gt Thanks again for your help.  I've tried various combinations of:
+&gt
+&gt   (save-image "my-image" 
+&gt               :environment t :multiprocessing t
+&gt               :restart-function 'env:start-environment)
+&gt
+&gt With no new result.  I'll try it on my linux version when I have a
+&gt chance.
+
+On Linux it works much better.  I get many X11 errors and I might need
+to rebind *stanard-output*, but at least the windows come up.
+
+If someone has an example delivery script that they use to create an
+IDE image, I would appreciate a copy.
+
+Thanks!
+
+Regards,
+Chris Dean
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Save an image with the IDE</h1>
+                 <p>
+                  Unable to parse email body. Email id is 5425
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Save an image with the IDE</h1>
+                 <p>
+                  Unable to parse email body. Email id is 5426
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Save an image with the IDE</h1>
+                 <pre>
+
+&gt BTW it's not a delivery script, as it calls SAVE-IMAGE rather than
+&gt DELIVER. You can't deliver the IDE.
+
+Ah yes, of course.  Thanks for the clarification.
+
+Regards,
+Chris Dean
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Save an image with the IDE</h1>
+                 <pre>
+
+Thanks everyone.   Following the documentation in 
+
+  ftp://ftp.lispworks.com/pub/software_tools/reference/lw445/readme-4-4-5.pdf
+
+worked great.
+
+I did end up using a restart-function as shown here:
+
+    (save-image
+     #+:cocoa 
+     (write-macos-application-bundle
+      (merge-pathnames "lispworks-gui-dev" (hcl:get-working-directory)))
+
+     #-:cocoa "lispworks-gui-dev"
+
+     :environment t :multiprocessing t
+     :restart-function 'env:start-environment)
+
+Regards,
+Chris Dean
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Starting Lispworks with files open in editor</h1>
+                 <pre>
+At 27/03/2006 01:53, Mitch Berkson wrote:
+
+&gtI would like Lispworks to start with some files open in the 
+&gteditor.  I've tried putting the following line in my ~/.lispworks file:
+&gt(ed "c:/path/foo.lisp")
+
+Maybe you should check (ed "c:/path/foo.lisp") in the listener and see what happens.
+
+Francis
+
+
+&gtBut that doesn't appear to do the job.  I've also tried adding 
+&gtthe line to my-configuration.lisp and following the instructions 
+&gtto save a new image. That also doesn't work.
+&gt
+&gtThanks for any help.
+&gt
+&gtAs an aside - a useful feature, common in other programs, would 
+&gtbe a most recent files list in the "File" menu.
+&gt
+&gtMitch
+&gt
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Starting Lispworks with files open in editor</h1>
+                 <pre>
+At 27/03/2006 14:28, Mitch Berkson wrote:
+
+&gtFrancis Leboutte wrote:
+&gt&gtAt 27/03/2006 01:53, Mitch Berkson wrote:
+&gt&gt
+&gt&gt&gtI would like Lispworks to start with some files open in the
+&gt&gt&gteditor.  I've tried putting the following line in my ~/.lispworks
+&gt&gt&gtfile: (ed "c:/path/foo.lisp")
+&gt&gtMaybe you should check (ed "c:/path/foo.lisp") in the listener and
+&gt&gtsee what happens.
+&gt
+&gtI did.  It works fine.
+
+Conclusion: the file with (ed "c:/path/foo.lisp") is not loaded 
+at startup time or this form is not evaluated. BTW which 
+LispWorks are you using ? I think you can't use an init file in the Personal Edition.
+
+Francis
+
+&gtMitch
+&gt
+&gt
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:45 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

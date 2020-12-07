@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>distinguishing double click and single click and drag</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>distinguishing double click and single click and drag</h1>
+                <pre>
+I'd like to have an input model which does one action on a double click,
+and a different action after a single-click -&gt drag -&gt release. I need to record
+the starting point of the drag, which I think would be a :press, but whatever
+I specify to happen on the :press gets invoked when I try to double click.
+I hope it doesn't make a difference, but I'm on LWM 4.4.6. How does one
+distinguish between a single and double click? I know about :press and
+:second-press, but with
+(:button-1 :press) foo
+(:button-1 :second-press) bar
+If I double click (or try to) foo gets called. Thoughts?
+-- 
+=====================
+Joshua Taylor
+tayloj@rpi.edu
+
+"A lot of good things went down one time,
+     back in the goodle days."
+               John Hartford
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: distinguishing double click and single click and drag</h1>
+                 <pre>
+On Fri, 29 Dec 2006 11:41:44 -0500, "Taylor, Joshua" &lt;tayloj@rpi.edu&gt wrote:
+
+&gt I'd like to have an input model which does one action on a double
+&gt click, and a different action after a single-click -&gt drag -&gt
+&gt release. I need to record the starting point of the drag, which I
+&gt think would be a :press, but whatever I specify to happen on the
+&gt :press gets invoked when I try to double click.  I hope it doesn't
+&gt make a difference, but I'm on LWM 4.4.6. How does one distinguish
+&gt between a single and double click? I know about :press and
+&gt :second-press, but with
+&gt (:button-1 :press) foo
+&gt (:button-1 :second-press) bar
+&gt If I double click (or try to) foo gets called. Thoughts?
+
+Try to play with
+
+  (:button-1 :press)        foo
+  (:button-1 :second-press) bar
+  (:button-1 :release)      baz
+
+Put the actual "action" into BAZ and in FOO and BAR only "record"
+whether the button has been pressed once or twice before it was
+released.  That worked for me with LWW 4.4.6.
+
+HTH,
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: distinguishing double click and single click and drag</h1>
+                 <pre>
+On Friday 29 December 2006 11:41 am, Taylor, Joshua wrote:
+&gt I'd like to have an input model which does one action on a double click,
+&gt and a different action after a single-click -&gt drag -&gt release. I need to
+&gt record the starting point of the drag, which I think would be a :press, but
+&gt whatever I specify to happen on the :press gets invoked when I try to
+&gt double click. I hope it doesn't make a difference, but I'm on LWM 4.4.6.
+&gt How does one distinguish between a single and double click? I know about
+&gt :press and
+&gt
+&gt :second-press, but with
+&gt
+&gt (:button-1 :press) foo
+&gt (:button-1 :second-press) bar
+&gt If I double click (or try to) foo gets called. Thoughts?
+
+My recollection might be rusty, but I think that :second-press comes 
+after :press.  So, when a double-click happens, you see :press 
+then :second-press then :release.  When a click-drag happens, you see :press 
+followed by one or more :motions followed by :release.
+
+The best way to think about this problem is to use a state machine, which I 
+will sketch using an impromptu textual language:
+
+state-machine MOUSE-TRACKER:
+
+  state IDLE:
+    on :press execute 'save-mouse-coordinates and goto-state PRESSED
+    otherwise ignore
+  end state
+
+  state PRESSED:
+    on :release execute 'clicked and goto-state IDLE
+    on :second-press execute 'double-click and goto-state IDLE
+    on :motion execute 'relative-motion and goto-state DRAGGING
+    otherwise ignore
+  end state
+
+  state DRAGGING:
+    on :release execute 'finalize-drag and goto-state IDLE
+    on :motion execute 'relative-motion and goto-state DRAGGING
+    otherwise ignore
+  end state
+
+end state-machine
+
+A much better way to do this is to draw the state machine on paper - use one 
+circle / oval for each state, and transitions (goto-state) are drawn as 
+arrows from one state bubble to another.  You won't regret going to the 
+trouble of drawing out the state diagram when you try to incorporate all of 
+the other mouse actions and buttons into your mouse-handling code.
+
+pt
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: distinguishing double click and single click and drag</h1>
+                 <pre>
+Ah yes, I do seem to recall this sort of approach some time ago.
+I haven't had a chance to play with it yet, but I think this will do
+the trick; thank you!
+
+My next question may be (and I'll ask it explicitly if it comes up)
+is whether there's a nice way to encode these in terms of the
+capi:define-command? It seems that the commands provide a
+nice abstraction for some of things, e.g., if I decide to use
+ctrl-shift-x-button-1-second-press instead of something else
+to make a selection later, I can just change the capi:define-command
+and leave :make-selection in the input model. It seems awkward
+if conceptually distinct gestures, e.g., double-click, single-click,
+etc., could be thrown into the mix, but maybe that's not feasible.
+We'll see if I get there. ^_^
+
+Thanks!
+
+On 12/29/06, Paul Tarvydas &lt;tarvydas@visualframeworksinc.com&gt wrote:
+&gt On Friday 29 December 2006 11:41 am, Taylor, Joshua wrote:
+&gt &gt I'd like to have an input model which does one action on a double click,
+&gt &gt and a different action after a single-click -&gt drag -&gt release. I need to
+&gt &gt record the starting point of the drag, which I think would be a :press, but
+&gt &gt whatever I specify to happen on the :press gets invoked when I try to
+&gt &gt double click. I hope it doesn't make a difference, but I'm on LWM 4.4.6.
+&gt &gt How does one distinguish between a single and double click? I know about
+&gt &gt :press and
+&gt &gt
+&gt &gt :second-press, but with
+&gt &gt
+&gt &gt (:button-1 :press) foo
+&gt &gt (:button-1 :second-press) bar
+&gt &gt If I double click (or try to) foo gets called. Thoughts?
+&gt
+&gt My recollection might be rusty, but I think that :second-press comes
+&gt after :press.  So, when a double-click happens, you see :press
+&gt then :second-press then :release.  When a click-drag happens, you see :press
+&gt followed by one or more :motions followed by :release.
+&gt
+&gt The best way to think about this problem is to use a state machine, which I
+&gt will sketch using an impromptu textual language:
+&gt
+&gt state-machine MOUSE-TRACKER:
+&gt
+&gt   state IDLE:
+&gt     on :press execute 'save-mouse-coordinates and goto-state PRESSED
+&gt     otherwise ignore
+&gt   end state
+&gt
+&gt   state PRESSED:
+&gt     on :release execute 'clicked and goto-state IDLE
+&gt     on :second-press execute 'double-click and goto-state IDLE
+&gt     on :motion execute 'relative-motion and goto-state DRAGGING
+&gt     otherwise ignore
+&gt   end state
+&gt
+&gt   state DRAGGING:
+&gt     on :release execute 'finalize-drag and goto-state IDLE
+&gt     on :motion execute 'relative-motion and goto-state DRAGGING
+&gt     otherwise ignore
+&gt   end state
+&gt
+&gt end state-machine
+&gt
+&gt A much better way to do this is to draw the state machine on paper - use one
+&gt circle / oval for each state, and transitions (goto-state) are drawn as
+&gt arrows from one state bubble to another.  You won't regret going to the
+&gt trouble of drawing out the state diagram when you try to incorporate all of
+&gt the other mouse actions and buttons into your mouse-handling code.
+&gt
+&gt pt
+&gt
+&gt
+
+
+-- 
+=====================
+Joshua Taylor
+tayloj@rpi.edu
+
+"A lot of good things went down one time,
+     back in the goodle days."
+               John Hartford
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:43 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

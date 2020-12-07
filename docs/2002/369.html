@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>some features</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>some features</h1>
+                <pre>I was used to work with Allegro CL and now I moved to LispWorks for Windows.
+I'm missing a few features, and I'd like to know if it's possible to obtain
+them in LispWorks:
+
+1. How can I make the GUI debugger appear automatically every time there is
+a bug (without having to press the debug button)?
+
+2. I want the editor and listener to indent all lines automatically (without
+having to press TAB each line). How can that be done?
+
+3. In ACL, pressing Ctrl+: toggels between adding ";;; " to the beginning of
+a line and removing it. In LispWorks I only managed to add ";;;; " by adding
+(editor:bind-key "Comment Region" "Control-:")
+to msw-key-binds.lisp. Is there a way to make Control-: (or another key
+combination) make the comment prefix disappear? Is there a way to make the
+comment add only three ";" instead of four?
+
+4. What is the most convenient way to search for a string in all the files
+under a directory? And in all the files that belong to a system (which is
+defined with defsystem)?
+
+5. In a file defsys.lisp that I wrote (containing my defsystem from), I
+added 
+(eval-when (:load-toplevel)
+  (compile-system 'mysys)
+  (load-system 'mysys))
+so that when I load the file, the entire system will be compiled if needed
+and loaded. One of the files in the system defines a package called "MAIN".
+What can I write in defsys.lisp so that the listener will switch to that
+package? (in-package :main) under the eval-when didn't have that effect.
+
+6. Is there a command to invoke the GUI inspector on some value instead of
+the TTY inspector?
+
+7. I succeeded in building an interface with CAPI. 
+a. (format t ...) in a callback function writes to the output buffer. How do
+I write to the listener instead?
+b. How do I invoke the GUI inspector on some value from a callback function?
+
+
+Another comment: I suggest that in all your html documentations, you add a
+link to the cover page of all documentation manuals (C:\Program
+Files\Xanalys\LispWorks\lib\4-2-0-0\manual\online\intro.htm) to facilitate
+moving between them. Otherwise, one needs to go to the LispWork help menu
+and select the desired manual.
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: some features</h1>
+                 <pre>Let's deal with the easiest one first:
+
+Iddo Lev wrote:
+
+&gt Another comment: I suggest that in all your html documentations, you add a
+&gt link to the cover page of all documentation manuals (C:\Program
+&gt Files\Xanalys\LispWorks\lib\4-2-0-0\manual\online\intro.htm) to facilitate
+&gt moving between them. Otherwise, one needs to go to the LispWork help menu
+&gt and select the desired manual.
+
+There is precisely such a file. I don't have LW installed at home, but I believe
+it's somewhere like
+
+       manual\online\index.html  (or maybe .htm)
+
+I'll answer (some) others tomorrow when I'm in a position to test my answers, if
+nobody else has got there first.
+
+- nick
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: some features</h1>
+                 <p>
+                  Unable to parse email body. Email id is 371
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: some features</h1>
+                 <pre>Iddo Lev &lt;ilev@baobabtech.com&gt writes:
+
+&gt I was used to work with Allegro CL and now I moved to LispWorks for Windows.
+&gt I'm missing a few features, and I'd like to know if it's possible to obtain
+&gt them in LispWorks:
+
+&gt 1. How can I make the GUI debugger appear automatically every time there is
+&gt a bug (without having to press the debug button)?
+
+(setf *enter-debugger-directly* t)
+
+This (and other useful bits) is documented (somewhat) in the file:
+
+[lispworks-dir]/lib/4-2-0-0/config/configure.lisp
+
+&gt 2. I want the editor and listener to indent all lines automatically (without
+&gt having to press TAB each line). How can that be done?
+
+(bind-key "Indent New Line" #\Return)
+
+&gt 4. What is the most convenient way to search for a string in all the files
+&gt under a directory? And in all the files that belong to a system (which is
+&gt defined with defsystem)?
+
+Use the "Grep Browser" from the "Tools" menu.
+
+Or you can use the tags commands in the editor:
+
+M-x "Find Source" (bound to \M-.)
+M-x "Find Tag"
+M-x "Continue Tags Search" (bound to \M-,)
+
+&gt 6. Is there a command to invoke the GUI inspector on some value instead of
+&gt the TTY inspector?
+
+(environment:display-inspector :object foo)
+
+e.g.:
+
+(environment:display-inspector :object '(a b c))
+
+&gt b. How do I invoke the GUI inspector on some value from a callback function?
+
+See previous answer.
+
+&gt Another comment: I suggest that in all your html documentations, you add a
+&gt link to the cover page of all documentation manuals (C:\Program
+&gt Files\Xanalys\LispWorks\lib\4-2-0-0\manual\online\intro.htm) to facilitate
+&gt moving between them. Otherwise, one needs to go to the LispWork help menu
+&gt and select the desired manual.
+
+Couldn't you just make a bookmark/favorite in your browser of choice?
+
+Regards,
+
+-ram
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: some features</h1>
+                 <p>
+                  Unable to parse email body. Email id is 374
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:58 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

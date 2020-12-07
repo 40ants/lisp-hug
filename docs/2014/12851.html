@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Native code stepper for lispworks?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Native code stepper for lispworks?</h1>
+                <pre>
+Hi list!
+
+When digging into lispworks compiled functions, I found that there is
+vector attached to every function, which maps code offsets into source
+"offsets". This vector seem to be used by debugger when finding a
+source of a frame.
+
+I wonder is there a way to implement native code stepper this way?
+Lispworks instrumentation based stepper is fine, but it has some
+disadvanteges. Consider the following example:
+
+#.(defpackage :test3
+  (:use :cl))
+
+(in-package :test3)
+
+(defun steppable (x)
+  (+ x 1))
+
+(defun nonsteppable (x)
+  (+ (steppable x) (steppable x)))
+
+
+if I put breakpoint in "steppable" and then call "nonsteppable", I'm
+unable to continue stepping out of steppable function. When I write
+just (break) somewhere, I unable continue stepping. And so on. Next, I
+guess stepper uses an interpreter. If code contains compiler-macros,
+its behaviour can differ in stepped code and in truly compiled one.
+Combined, these disadvantages make stepper very inconvinient compared
+e.g. to Delphi (and, likely, C#, Visual Basic etc...) source level
+debuggers. Yes, I'm aware of trace, incremental development, logging,
+restarting frames, but there is still some essential inconvinience.
+
+I have made some experimens. I was able to alter compiled machine code
+and put int 3 instruction into it (32bit Windows):
+
+(in-package :cl-user)
+
+(defun extract-address-from-function (function)
+  "Stupid: extract function address from printed representation"
+  (assert (functionp function))
+  (let* ((text (format nil "~A" function))
+         (length (length text))
+         (offset (- length 9))
+         (hex-address (subseq text offset (+ offset 8)))
+         (*read-base* 16)
+         (address (read-from-string hex-address)))
+    address))
+
+(defun poke (addr byte)
+  (setf (fli:dereference (fli:make-pointer :address addr :type :byte)) byte))
+
+(cl-user::poke (+ (cl-user::extract-address-from-function
+#'TEST3::nonsteppable) 28) #xCC)
+
+This seem to be the first step to implement true native code
+breakpoints. On a stack I found win32::exception-reentry-function, and
+was able to return something from it, but stack was smashed. I guess
+one need to create corrent int 3 handler, but I do not know how to do
+this.
+
+If I was able just to continue execution from int 3, this would be the
+core of native code breakpoints and stepper implmenetation.
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+               </article>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:30 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

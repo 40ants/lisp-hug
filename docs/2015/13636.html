@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>calling MAKE-INSTANCE on a structure-class</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>calling MAKE-INSTANCE on a structure-class</h1><div dir="ltr">I&#39;m trying to get the current version of CL-SDL2 to work in Lispworks 7 and I ran into an issue where MAKE-INSTANCE is being called on a structure class.  For example, this works in SBCL and CCL:<div><br></div><div><div>CL-USER&gt; (defstruct foo)</div><div>FOO</div><div>CL-USER&gt; (make-instance (find-class &#39;foo))</div><div>#S(FOO)</div></div><div><div>CL-USER&gt; (make-instance &#39;foo)</div><div>#S(FOO)</div></div><div><br></div><div>When running the same code in Lispworks 7 I get:</div><div><br></div><div><div>No applicable methods for #&lt;STANDARD-GENERIC-FUNCTION MAKE-INSTANCE 4100096004&gt; with args (#&lt;STRUCTURE-CLASS FOO 4020352373&gt;)</div></div><div><br></div><div>I cannot find anything in the CLHS indicating that structures can be instantiated with MAKE-INSTANCE so I&#39;m not sure if this is a bug in Lispworks or just a feature of SBCL/CCL. </div><div><br></div><div>Any ideas?</div></div>
+
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: calling MAKE-INSTANCE on a structure-class</h1>
+                 <pre>
+
+
+On 24/12/15 20:34, Anthony Fairchild wrote:
+&gt I'm trying to get the current version of CL-SDL2 to work in Lispworks 
+&gt 7 and I ran into an issue where MAKE-INSTANCE is being called on a 
+&gt structure class.  For example, this works in SBCL and CCL:
+&gt
+&gt CL-USER&gt (defstruct foo)
+&gt FOO
+&gt CL-USER&gt (make-instance (find-class 'foo))
+&gt #S(FOO)
+&gt CL-USER&gt (make-instance 'foo)
+&gt #S(FOO)
+&gt
+&gt When running the same code in Lispworks 7 I get:
+&gt
+&gt No applicable methods for #&lt;STANDARD-GENERIC-FUNCTION MAKE-INSTANCE 
+&gt 4100096004&gt with args (#&lt;STRUCTURE-CLASS FOO 4020352373&gt)
+&gt
+&gt I cannot find anything in the CLHS indicating that structures can be 
+&gt instantiated with MAKE-INSTANCE so I'm not sure if this is a bug in 
+&gt Lispworks or just a feature of SBCL/CCL.
+&gt
+&gt Any ideas?
+
+There's nothing in the CLHS that prevents structures to be implemented 
+as CLOS classes either.
+
+But it is not conforming, for a program to depend on it.
+This CL-SDL2 library is not conforming!  It should not have been called 
+CL- something!
+
+The only way to create a structure is to call one of the structure 
+constructors (or one of the structure copiers), that can be declared in 
+the defstruct structure options; by default, it's MAKE-FOO for a 
+structure named FOO.
+
+
+Now, you have basically two choices:
+
+- either make the code conforming by replacing the calls to 
+make-instance to calls to make-foo; but there may have other places 
+where they have taken advantage of structures as CLOS objects; notably, 
+the structure accessors are not (necessarily) generic functions! So you 
+may prefer to:
+
+- implement a DEFSTRUCT macro that will define CLOS classes instead, and 
+shadow CL:DEFSTRUCT, to use it instead. Depending on how packages are 
+used by the source base, this may be more or less work, and it is also 
+indiscriminate since it would apply to all the structures defined in 
+those packages, but it may be preferable to do that.  Notice that 
+DEFSTRUCT is not a trivial macro (it defines a lot of functions, 
+computing a lot of names, and you must be careful with case, and 
+packages where those symbols are interned), and there's a big stubbling 
+block: :INCLUDE may refer structures that have not been defined with 
+your DEFSTRUCT macro (and therefore that are NOT CLOS classes).  I guess 
+you can fall back to CL:DEFSTRUCT if there's an :INCLUDE referencing a 
+structure you don't know and have generated as a DEFCLASS.
+
+See 
+http://informatimago.com/articles/usenet.html#Improved-DEFSTRUCT-macro--run-time-access-to-the-fields 
+for a few examples, notably DEFINE-STRUCTURE-CLASS in the 
+DEFINE-WITH-STRUCTURE 
+&lt;http://groups.google.com/group/comp.lang.lisp/msg/f687db3424753775&gt page.
+
+
+Probably, making the code conforming would be the simpliest option, even 
+if it could be laborious on a big code base.
+
+-- 
+__Pascal J. Bourguignon__
+http://www.informatimago.com/
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: calling MAKE-INSTANCE on a structure-class</h1>
+                 <pre>
+On 12/24/15 Dec 24 -1:57 PM, Pascal J. Bourguignon wrote:
+&gt 
+&gt 
+&gt 
+&gt On 24/12/15 20:34, Anthony Fairchild wrote:
+&gt&gt I'm trying to get the current version of CL-SDL2 to work in Lispworks
+&gt&gt 7 and I ran into an issue where MAKE-INSTANCE is being called on a
+&gt&gt structure class.  For example, this works in SBCL and CCL:
+&gt&gt
+&gt&gt CL-USER&gt (defstruct foo)
+&gt&gt FOO
+&gt&gt CL-USER&gt (make-instance (find-class 'foo))
+&gt&gt #S(FOO)
+&gt&gt CL-USER&gt (make-instance 'foo)
+&gt&gt #S(FOO)
+&gt&gt
+&gt&gt When running the same code in Lispworks 7 I get:
+&gt&gt
+&gt&gt No applicable methods for #&lt;STANDARD-GENERIC-FUNCTION MAKE-INSTANCE
+&gt&gt 4100096004&gt with args (#&lt;STRUCTURE-CLASS FOO 4020352373&gt)
+&gt&gt
+&gt&gt I cannot find anything in the CLHS indicating that structures can be
+&gt&gt instantiated with MAKE-INSTANCE so I'm not sure if this is a bug in
+&gt&gt Lispworks or just a feature of SBCL/CCL.
+&gt&gt
+&gt&gt Any ideas?
+&gt 
+&gt There's nothing in the CLHS that prevents structures to be implemented
+&gt as CLOS classes either.
+&gt 
+&gt But it is not conforming, for a program to depend on it.
+&gt This CL-SDL2 library is not conforming!  It should not have been called
+&gt CL- something!
+&gt 
+&gt The only way to create a structure is to call one of the structure
+&gt constructors (or one of the structure copiers), that can be declared in
+&gt the defstruct structure options; by default, it's MAKE-FOO for a
+&gt structure named FOO.
+&gt 
+&gt 
+&gt Now, you have basically two choices:
+&gt 
+&gt - either make the code conforming by replacing the calls to
+&gt make-instance to calls to make-foo; but there may have other places
+&gt where they have taken advantage of structures as CLOS objects; notably,
+&gt the structure accessors are not (necessarily) generic functions! So you
+&gt may prefer to:
+&gt 
+&gt - implement a DEFSTRUCT macro that will define CLOS classes instead, and
+&gt shadow CL:DEFSTRUCT, to use it instead. Depending on how packages are
+&gt used by the source base, this may be more or less work, and it is also
+&gt indiscriminate since it would apply to all the structures defined in
+&gt those packages, but it may be preferable to do that.  Notice that
+&gt DEFSTRUCT is not a trivial macro (it defines a lot of functions,
+&gt computing a lot of names, and you must be careful with case, and
+&gt packages where those symbols are interned), and there's a big stubbling
+&gt block: :INCLUDE may refer structures that have not been defined with
+&gt your DEFSTRUCT macro (and therefore that are NOT CLOS classes).  I guess
+&gt you can fall back to CL:DEFSTRUCT if there's an :INCLUDE referencing a
+&gt structure you don't know and have generated as a DEFCLASS.
+
+Note that this can be *conditionally* implemented.  You can retain code
+that uses MAKE-INSTANCE on structure classes for those implementations
+that you know to support it.
+
+I don't know who wrote this, or what their motivations were, but
+replacing all structures with CLOS objects *might* have an adverse
+effect on the efficiency of the code, so you might not want to replace
+structures with classes.
+
+Note also that you might not have to replace calls to MAKE-INSTANCE with
+calls to make-foo -- the MOP says MAKE-INSTANCE is a generic function,
+so you could add EQL methods for the (names of) the structure classes
+you need, again, conditionally compiling for those lisps that need them.
+
+The accessors might be more of a nuisance, and require some macrology,
+but this would depend on whether you really rely on them being treated
+as GFs.  If someone's fussed about efficiency, my guess is that they
+would be using the accessors in ways that are consistent with them not
+being GFs.
+
+hth
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: calling MAKE-INSTANCE on a structure-class</h1>
+                 <pre>
+Pascal Costanza &lt;pc@p-cos.net&gt writes:
+
+&gt&gt On 24 Dec 2015, at 21:13, Robert Goldman &lt;rpgoldman@sift.net&gt wrote:
+&gt&gt 
+&gt&gt Note also that you might not have to replace calls to MAKE-INSTANCE with
+&gt&gt calls to make-foo -- the MOP says MAKE-INSTANCE is a generic function,
+&gt&gt so you could add EQL methods for the (names of) the structure classes
+&gt&gt you need, again, conditionally compiling for those lisps that need them.
+&gt&gt 
+&gt
+&gt No, you can’t. ANSI CL already specifies make-instance as a generic
+&gt function, and bullet 19 of
+&gt http://www.lispworks.com/documentation/HyperSpec/Body/11_abab.htmprevents
+&gt you from defining such methods.
+
+
+Indeed. I was about to propose a third solution consisting in having a
+CLOS wrapper over structures, but this opens three more cans of worms,
+so really, the library should be rewritten in conforming CL code instead
+of sbclese.
+
+-- 
+__Pascal Bourguignon__                 http://www.informatimago.com/
+“The factory of the future will have only two employees, a man and a
+dog. The man will be there to feed the dog. The dog will be there to
+keep the man from touching the equipment.” -- Carl Bass CEO Autodesk
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: calling MAKE-INSTANCE on a structure-class</h1><div dir="ltr"><div><div>Thanks for the help everyone.  I&#39;ll work on rewriting the code to be be CL conforming which will mean changing the make-instance calls to make-&lt;structure-name&gt; calls.<br><br></div>Thanks!<br><br></div>Anthony<br></div><br><div class="gmail_quote"><div dir="ltr">On Thu, Dec 24, 2015 at 5:27 PM Pascal J. Bourguignon &lt;<a href="mailto:pjb@informatimago.com">pjb@informatimago.com</a>&gt; wrote:<br></div><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><br>
+Pascal Costanza &lt;<a href="mailto:pc@p-cos.net" target="_blank">pc@p-cos.net</a>&gt; writes:<br>
+<br>
+&gt;&gt; On 24 Dec 2015, at 21:13, Robert Goldman &lt;<a href="mailto:rpgoldman@sift.net" target="_blank">rpgoldman@sift.net</a>&gt; wrote:<br>
+&gt;&gt;<br>
+&gt;&gt; Note also that you might not have to replace calls to MAKE-INSTANCE with<br>
+&gt;&gt; calls to make-foo -- the MOP says MAKE-INSTANCE is a generic function,<br>
+&gt;&gt; so you could add EQL methods for the (names of) the structure classes<br>
+&gt;&gt; you need, again, conditionally compiling for those lisps that need them.<br>
+&gt;&gt;<br>
+&gt;<br>
+&gt; No, you can’t. ANSI CL already specifies make-instance as a generic<br>
+&gt; function, and bullet 19 of<br>
+&gt; <a href="http://www.lispworks.com/documentation/HyperSpec/Body/11_abab.htmprevents" rel="noreferrer" target="_blank">http://www.lispworks.com/documentation/HyperSpec/Body/11_abab.htmprevents</a><br>
+&gt; you from defining such methods.<br>
+<br>
+<br>
+Indeed. I was about to propose a third solution consisting in having a<br>
+CLOS wrapper over structures, but this opens three more cans of worms,<br>
+so really, the library should be rewritten in conforming CL code instead<br>
+of sbclese.<br>
+<br>
+--<br>
+__Pascal Bourguignon__                 <a href="http://www.informatimago.com/" rel="noreferrer" target="_blank">http://www.informatimago.com/</a><br>
+“The factory of the future will have only two employees, a man and a<br>
+dog. The man will be there to feed the dog. The dog will be there to<br>
+keep the man from touching the equipment.” -- Carl Bass CEO Autodesk<br>
+<br>
+_______________________________________________<br>
+Lisp Hug - the mailing list for LispWorks users<br>
+<a href="mailto:lisp-hug@lispworks.com" target="_blank">lisp-hug@lispworks.com</a><br>
+<a href="http://www.lispworks.com/support/lisp-hug.html" rel="noreferrer" target="_blank">http://www.lispworks.com/support/lisp-hug.html</a><br>
+<br>
+</blockquote></div>
+
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: calling MAKE-INSTANCE on a structure-class</h1>
+                 <pre>
+Just out of curiosity I looked for but couldn't find an occurrence of
+make-instance in https://github.com/lispgames/cl-sdl2, does it occur
+in some other code using that library?
+
+On 25 December 2015 at 06:04, Anthony Fairchild
+&lt;fairchild.anthony@gmail.com&gt wrote:
+&gt I'm trying to get the current version of CL-SDL2 to work in Lispworks 7 and
+&gt I ran into an issue where MAKE-INSTANCE is being called on a structure
+&gt class.  For example, this works in SBCL and CCL:
+&gt
+&gt CL-USER&gt (defstruct foo)
+&gt FOO
+&gt CL-USER&gt (make-instance (find-class 'foo))
+&gt #S(FOO)
+&gt CL-USER&gt (make-instance 'foo)
+&gt #S(FOO)
+&gt
+&gt When running the same code in Lispworks 7 I get:
+&gt
+&gt No applicable methods for #&lt;STANDARD-GENERIC-FUNCTION MAKE-INSTANCE
+&gt 4100096004&gt with args (#&lt;STRUCTURE-CLASS FOO 4020352373&gt)
+&gt
+&gt I cannot find anything in the CLHS indicating that structures can be
+&gt instantiated with MAKE-INSTANCE so I'm not sure if this is a bug in
+&gt Lispworks or just a feature of SBCL/CCL.
+&gt
+&gt Any ideas?
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: calling MAKE-INSTANCE on a structure-class</h1><div dir="ltr"><div>The issue I&#39;m seeing is in <a href="https://github.com/rpav/cl-autowrap">https://github.com/rpav/cl-autowrap</a>  which is a dependency.   You can repro the issue by running:<br><br>(sdl2-examples:renderer-test)<br><br></div>I plan on submitting a pull request within the next few days.<br></div><br><div class="gmail_quote"><div dir="ltr">On Sat, Dec 26, 2015 at 9:24 PM Andrew Kirkpatrick &lt;<a href="mailto:ubermonk@gmail.com">ubermonk@gmail.com</a>&gt; wrote:<br></div><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">Just out of curiosity I looked for but couldn&#39;t find an occurrence of<br>
+make-instance in <a href="https://github.com/lispgames/cl-sdl2" rel="noreferrer" target="_blank">https://github.com/lispgames/cl-sdl2</a>, does it occur<br>
+in some other code using that library?<br>
+<br>
+On 25 December 2015 at 06:04, Anthony Fairchild<br>
+&lt;<a href="mailto:fairchild.anthony@gmail.com" target="_blank">fairchild.anthony@gmail.com</a>&gt; wrote:<br>
+&gt; I&#39;m trying to get the current version of CL-SDL2 to work in Lispworks 7 and<br>
+&gt; I ran into an issue where MAKE-INSTANCE is being called on a structure<br>
+&gt; class.  For example, this works in SBCL and CCL:<br>
+&gt;<br>
+&gt; CL-USER&gt; (defstruct foo)<br>
+&gt; FOO<br>
+&gt; CL-USER&gt; (make-instance (find-class &#39;foo))<br>
+&gt; #S(FOO)<br>
+&gt; CL-USER&gt; (make-instance &#39;foo)<br>
+&gt; #S(FOO)<br>
+&gt;<br>
+&gt; When running the same code in Lispworks 7 I get:<br>
+&gt;<br>
+&gt; No applicable methods for #&lt;STANDARD-GENERIC-FUNCTION MAKE-INSTANCE<br>
+&gt; 4100096004&gt; with args (#&lt;STRUCTURE-CLASS FOO 4020352373&gt;)<br>
+&gt;<br>
+&gt; I cannot find anything in the CLHS indicating that structures can be<br>
+&gt; instantiated with MAKE-INSTANCE so I&#39;m not sure if this is a bug in<br>
+&gt; Lispworks or just a feature of SBCL/CCL.<br>
+&gt;<br>
+&gt; Any ideas?<br>
+</blockquote></div>
+
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: calling MAKE-INSTANCE on a structure-class</h1><div dir="ltr">For those interested this is the change I made to get the CL-SDL2 example working in Lispworks.  Feedback welcome.<br><br><a href="https://github.com/anthonyf/cl-autowrap/commit/5385f479d1e9494a8fd212ba50479f36906deedc">https://github.com/anthonyf/cl-autowrap/commit/5385f479d1e9494a8fd212ba50479f36906deedc</a><br></div><br><div class="gmail_quote"><div dir="ltr">On Sun, Dec 27, 2015 at 6:25 AM Anthony Fairchild &lt;<a href="mailto:fairchild.anthony@gmail.com">fairchild.anthony@gmail.com</a>&gt; wrote:<br></div><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div dir="ltr"><div>The issue I&#39;m seeing is in <a href="https://github.com/rpav/cl-autowrap" target="_blank">https://github.com/rpav/cl-autowrap</a>  which is a dependency.   You can repro the issue by running:<br><br>(sdl2-examples:renderer-test)<br><br></div>I plan on submitting a pull request within the next few days.<br></div><br><div class="gmail_quote"><div dir="ltr">On Sat, Dec 26, 2015 at 9:24 PM Andrew Kirkpatrick &lt;<a href="mailto:ubermonk@gmail.com" target="_blank">ubermonk@gmail.com</a>&gt; wrote:<br></div><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">Just out of curiosity I looked for but couldn&#39;t find an occurrence of<br>
+make-instance in <a href="https://github.com/lispgames/cl-sdl2" rel="noreferrer" target="_blank">https://github.com/lispgames/cl-sdl2</a>, does it occur<br>
+in some other code using that library?<br>
+<br>
+On 25 December 2015 at 06:04, Anthony Fairchild<br>
+&lt;<a href="mailto:fairchild.anthony@gmail.com" target="_blank">fairchild.anthony@gmail.com</a>&gt; wrote:<br>
+&gt; I&#39;m trying to get the current version of CL-SDL2 to work in Lispworks 7 and<br>
+&gt; I ran into an issue where MAKE-INSTANCE is being called on a structure<br>
+&gt; class.  For example, this works in SBCL and CCL:<br>
+&gt;<br>
+&gt; CL-USER&gt; (defstruct foo)<br>
+&gt; FOO<br>
+&gt; CL-USER&gt; (make-instance (find-class &#39;foo))<br>
+&gt; #S(FOO)<br>
+&gt; CL-USER&gt; (make-instance &#39;foo)<br>
+&gt; #S(FOO)<br>
+&gt;<br>
+&gt; When running the same code in Lispworks 7 I get:<br>
+&gt;<br>
+&gt; No applicable methods for #&lt;STANDARD-GENERIC-FUNCTION MAKE-INSTANCE<br>
+&gt; 4100096004&gt; with args (#&lt;STRUCTURE-CLASS FOO 4020352373&gt;)<br>
+&gt;<br>
+&gt; I cannot find anything in the CLHS indicating that structures can be<br>
+&gt; instantiated with MAKE-INSTANCE so I&#39;m not sure if this is a bug in<br>
+&gt; Lispworks or just a feature of SBCL/CCL.<br>
+&gt;<br>
+&gt; Any ideas?<br>
+</blockquote></div></blockquote></div>
+
+
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:28 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

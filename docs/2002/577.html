@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Interface update</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Interface update</h1>
+                <pre>
+Hi,
+
+I have a little question. I've got an interface object defined by the
+following class:
+
+(capi:define-interface main-interface ()
+  ((browser :accessor browser :initarg :browser)
+   (library-structure :accessor library-structure :initarg
+:library-structure))
+  (:panes   ...blablabla....)
+  (:layouts
+    (main-tab-layout
+    capi:tab-layout
+    '(tree-pane-1)
+    :items (list (list "Browser" browser) (list "Library's Structure"
+library-structure))
+    :visible-child-function 'second
+    :print-function 'car
+    :selection 0))
+   (etc etc etc...))   ---&gt end of interface
+
+I create a new interface by assigning 2 objects to the browser and
+library-structure slots...like this:
+
+(setf aa (make-instance
+                    'capi:output-pane
+                    :background :red))
+
+(setf bb (make-instance
+                    'capi:output-pane
+                    :background :blue))
+
+(setf it (make-instance 'main-interface
+                    :browser aa
+                    :library-structure bb))
+
+(capi:contain it)
+
+Now, the problem I've got is that I do the following somewhere else in
+the application:
+
+(defun import-callback (data interface)
+  (let ((path-name
+         (capi:prompt-for-file "Choose a structure file:"
+                               :filter "*.st"
+                               :filters '("All Files" "*.*")))
+        (test-instance (make-tester)))
+    (if (not (null path-name))
+        (let ((sr (test-1 test-instance (namestring path-name))))
+          (setf (library-structure interface) (tree-generator
+(dimensions sr)))     ********** HERE
+          (capi:redisplay-interface
+interface))                                                 **********
+HERE
+        nil)))
+
+this import-callback function is invoked by selecting "import" in the
+menu of the interface defined above (it doesn't appear in this mail
+because it's too long). The problem is that I try to assign to the slot
+library-structure of the interface a new value (I can do it), but the
+problem is that it doesn't update the interface. The function
+"tree-generator generates a tree-view with the results.
+I know that the function and the results work, because if I add a
+capi:contain in the same tree-generator function I get a new window with
+the tree I calculated.
+Does anyone know how to update the interface with the new value of the
+library-structure slot of the interface?
+
+thanks in advance for your time,
+regards,
+Miro Casanova
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Interface update</h1>
+                 <pre>
+----- Original Message -----
+From: "Miro Casanova" &lt;mcasanov@vub.ac.be&gt
+To: "Lisp" &lt;lisp-hug@xanalys.com&gt
+Sent: Tuesday, September 17, 2002 9:13 AM
+Subject: Interface update
+
+
+|
+| Hi,
+|
+| I have a little question. I've got an interface object defined by the
+| following class:
+|
+| (capi:define-interface main-interface ()
+|   ((browser :accessor browser :initarg :browser)
+|    (library-structure :accessor library-structure :initarg
+| :library-structure))
+|   (:panes   ...blablabla....)
+|   (:layouts
+|     (main-tab-layout
+|     capi:tab-layout
+|     '(tree-pane-1)
+|     :items (list (list "Browser" browser) (list "Library's Structure"
+| library-structure))
+|     :visible-child-function 'second
+|     :print-function 'car
+|     :selection 0))
+|    (etc etc etc...))   ---&gt end of interface
+|
+| I create a new interface by assigning 2 objects to the browser and
+| library-structure slots...like this:
+|
+| (setf aa (make-instance
+|                     'capi:output-pane
+|                     :background :red))
+|
+| (setf bb (make-instance
+|                     'capi:output-pane
+|                     :background :blue))
+|
+| (setf it (make-instance 'main-interface
+|                     :browser aa
+|                     :library-structure bb))
+|
+| (capi:contain it)
+|
+| Now, the problem I've got is that I do the following somewhere else in
+| the application:
+|
+| (defun import-callback (data interface)
+|   (let ((path-name
+|          (capi:prompt-for-file "Choose a structure file:"
+|                                :filter "*.st"
+|                                :filters '("All Files" "*.*")))
+|         (test-instance (make-tester)))
+|     (if (not (null path-name))
+|         (let ((sr (test-1 test-instance (namestring path-name))))
+|           (setf (library-structure interface) (tree-generator
+| (dimensions sr)))     ********** HERE
+|           (capi:redisplay-interface
+| interface))                                                 **********
+| HERE
+|         nil)))
+|
+| this import-callback function is invoked by selecting "import" in the
+| menu of the interface defined above (it doesn't appear in this mail
+| because it's too long). The problem is that I try to assign to the slot
+| library-structure of the interface a new value (I can do it), but the
+| problem is that it doesn't update the interface. The function
+| "tree-generator generates a tree-view with the results.
+| I know that the function and the results work, because if I add a
+| capi:contain in the same tree-generator function I get a new window with
+| the tree I calculated.
+| Does anyone know how to update the interface with the new value of the
+| library-structure slot of the interface?
+
+You have to do something like, to set the items in tab-layout to a new tree.
+
+(setf (capi:layout-description (slot-value interface 'main-tab-layout))
+    (list (list "Browser" (slot-value interface 'browser))
+          (list "Library's Structure"
+              (setf (library-structure interface)
+                     (tree-generator dimensions sr)))))
+
+There are probably better ways to get a better interface, such as changing the roots of
+the current tree view in the interface.  Then tree-generator can return the roots (instead
+of a new tree-view) and you update the interface with,
+
+(setf (capi:tree-view-roots (slot-value interface 'tree-view-pane))
+    (tree-generator dimensions sr))
+
+where tree-view-pane is a pane slot in your interface and is an item in tab-layout.
+
+Wade
+
+Wade
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:57 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Underscore in logical pathname</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Underscore in logical pathname</h1>
+                <pre>Hi,
+
+I have one question regarding logical pathnames. How can I specify a 
+file name / folder name which includes the underscore character? Here is 
+a simple example:
+
+(setf (logical-pathname-translations "myapp")
+      `(("root;**;*.*"  "c:\\Development\\myapp\\**\\")))
+
+(translate-logical-pathname "myapp:root;simple-application.lisp")
+
+works fine, but:
+
+(translate-logical-pathname "myapp:root;simple_application.lisp")
+
+does not work (can't parse the logical pathname).
+
+Thank you,
+Lukas
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Underscore in logical pathname</h1>
+                 <pre>* I wrote:
+&gt (merge-pathnames #P"current/source_1.dat" 
+&gt                  (translate-logical-pathname #P"DATA:LOCAL;FOO.BAR"))
+
+Incidentally, if you really don't like to wire in physical pathnames,
+you can do something like the following hack (this is not really
+tested):
+
+(set-dispatch-macro-character #\# #\P
+  #'(lambda (s sub infix)
+      (declare (ignore infix))
+      (let* ((*read-eval* nil)
+             (read (read s)))
+        (typecase read
+          (list (apply #'make-pathname read))
+          (t (parse-namestring read))))))
+
+And now #P(:directory (:relative "local") :name "source_1" :type "dat")
+
+Is legal syntax.
+
+--tim
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Underscore in logical pathname</h1>
+                 <pre>* Lukas Trejtnar wrote:
+&gt I have one question regarding logical pathnames. How can I specify a 
+&gt file name / folder name which includes the underscore character? Here is 
+&gt a simple example:
+
+You can't: underscore isn't legal syntax in logical pathnames.
+
+If you want to special-case some translation so you can refer to a
+physical name with an underscore you could do something like that:
+
+CL-USER 1 &gt (setf (logical-pathname-translations "MYLH")
+                  '(("FOO;**;ZIG-BAT.*.*" "C:/temp/foo/**/zig_bat.lisp")
+                    ("FOO;**;*.*.*" "C:/temp/foo/**/*.*")))
+(("FOO;**;ZIG-BAT.*.*" "C:/temp/foo/**/zig_bat.lisp") ("FOO;**;*.*.*" "C:/temp/foo/**/*.*"))
+
+CL-USER 2 &gt (translate-logical-pathname "MYLH:FOO;GRUB.LISP")
+#P"C:/temp/foo/grub.lisp"
+
+CL-USER 3 &gt (translate-logical-pathname "MYLH:FOO;ZIG-BAT.LISP")
+#P"C:/temp/foo/zig_bat.lisp"
+
+A better way of working, if you want to refer to completely general
+physical pathnames while using the logical pathname machinery is to
+agree that the physical directory structure will suitably agree with
+the logical one, and then use logical pathnames to simply find the
+appropriate directories, then use physical names to actually derive
+pathnames.
+
+(setf (logical-pathname-translations "DATA")
+      ;; there are two sources of data.
+      '(("LOCAL;**;*.*.*" "C:/data/**/*.*")
+        ("GLOBAL;**;*.*.*" "//fs/data/**/*.*")))
+
+Then you can say
+
+(merge-pathnames #P"current/source_1.dat" 
+                 (translate-logical-pathname #P"DATA:LOCAL;FOO.BAR"))
+
+for instance.  Really you're just using logical pathnames as a source
+of abstract directory names, and then plunging into physical
+pathnames for the hairy stuff.  Doing this, with a couple of utilities
+to abstractify it, is quite pleasant.
+
+--tim
+
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:54 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

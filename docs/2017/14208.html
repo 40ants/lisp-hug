@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Goodies...</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Goodies...</h1>
+                <pre>Anyway… after all the esoteric delving into Reppy Channels, Apple-like Dispatch-queues, and Butterfly, here’s the PAR construct reduced to its minimum for LW:
+
+;; -------------------------------------------
+;; PAR Construct
+
+(defun %par (fn &amp;rest fns)
+  (let* ((nfns (length fns))
+         (sem  (mp:make-semaphore :count 0)))
+    (dolist (fn fns)
+      (mp:funcall-async (lambda ()
+                          (unwind-protect
+                              (funcall fn)
+                            (mp:semaphore-release sem)))
+                        ))
+    (prog1
+        (funcall fn)
+      (mp:semaphore-acquire sem :count nfns))))
+  
+(defmacro par1 (&amp;rest clauses)
+  ;; like PROG1, but executes all clauses in parallel, synchronizing
+  ;; at the closing paren, and returning value of first clause
+  (when clauses
+    (if (rest clauses)
+        `(%par ,@(mapcar #`(lambda ()
+                             ,a1)
+                         clauses))
+      ;; else
+      (first clauses))))
+
+(defmacro par (&amp;rest clauses)
+  ;; like PROGN, but executes all clauses in parallel, synchronizing
+  ;; at the closing paren, and returning value of last clause
+  `(par1 ,@(nreverse clauses)))
+
+———————
+
+I use this all the time in signal processing when I have to send multiple channels through filter banks and perform FFT’s on multi-channel signals. Using a PAR construct allows me to write the individual channel clauses and have them all operating in parallel on an SMP machine, like most of us have now. It really speeds things up and keeps the CPU humming.
+
+Cheers,
+
+- DM
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Goodies...</h1>
+                 <pre>… not to beat a dead horse, but here is an improved version…
+
+;; -------------------------------------------
+;; PAR Construct
+
+(defmethod group ((lst list) n)
+  (unless (plusp n)
+    (error "zero or negative length"))
+  (labels ((rec (source acc)
+             (let ((rest (nthcdr n source)))
+               (if (consp rest)
+                   (rec rest (cons (subseq source 0 n) acc))
+                 (nreverse (cons source acc))))))
+    (when lst
+      (rec lst nil))))
+ 
+(defun %par1 (&amp;rest fns)
+  ;; Accept a list of functions, execute them all in parallel and
+  ;; return the value of the first one.
+  ;;
+  ;; Since they are all slated for parallel execution, evaluation
+  ;; order must be irrelevant.
+  ;;
+  ;; We group them to try to balance the load among available threads,
+  ;; including our own. Since our thread is doing all the work, try to
+  ;; keep the shortest subgroup for our thread.
+  ;;
+  (let* ((nfns  (length fns))
+         (sem   (mp:make-semaphore :count 0))
+         ;; count our thread plus available BG threads
+         (nthr  (1+ (mp:set-funcall-async-limit nil)))
+         (ngrp  (ceiling nfns nthr))
+         (grps  (nreverse (group (rest fns) ngrp)))
+         (count 0))
+    (dolist (grp (rest grps)) ;; last (now first) group will be shorter if any are
+      (dolist (fn grp)
+        (incf count)
+        (mp:funcall-async (lambda ()
+                            (unwind-protect
+                                (funcall fn)
+                              (mp:semaphore-release sem)))
+                          )))
+    (prog1
+        (progn
+          (dolist (fn (first grps))
+            (funcall fn))
+          (funcall (first fns)))
+      (mp:semaphore-acquire sem :count count)
+      )))
+  
+(defmacro par1 (&amp;rest clauses)
+  ;; like PROG1, but executes all clauses in parallel, synchronizing
+  ;; at the closing paren, and returning value of first clause
+  (when clauses
+    (if (rest clauses)
+        `(%par1 ,@(mapcar #`(lambda ()
+                             ,a1)
+                         clauses))
+      ;; else
+      (first clauses))))
+
+(defmacro par (&amp;rest clauses)
+  ;; like PROGN, but executes all clauses in parallel, synchronizing
+  ;; at the closing paren, and returning value of last clause
+  `(par1 ,@(nreverse clauses)))
+
+#|
+  ;; NOTE: if you execute this from the editor, the editor will use
+  ;; one BG thread for itself.  And so the results will be off,
+  ;; compared to executing this from the listener or some other non-BG
+  ;; thread.
+  ;;
+  ;; Since we had up to 5 BG threads, this ought to take 3 seconds for
+  ;; 18 clauses.  Adding just one more clause copy will push us to 4
+  ;; seconds.
+(time
+ (par
+   (sleep 1) ;; 1
+   (sleep 1) ;; 2
+   (sleep 1) ;; 3
+   (sleep 1) ;; 4
+   (sleep 1) ;; 5
+   
+   (sleep 1) ;; 1
+   (sleep 1) ;; 2
+   (sleep 1) ;; 3
+   (sleep 1) ;; 4
+   (sleep 1) ;; 5
+
+   (sleep 1) ;; 1
+   (sleep 1) ;; 2
+   (sleep 1) ;; 3
+   (sleep 1) ;; 4
+   (sleep 1) ;; 5
+   
+   (sleep 1) ;; 1
+   (sleep 1) ;; 2
+   (sleep 1) ;; 3
+   ))
+ |#
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Goodies...</h1>
+                 <pre>Hi David,
+
+Thanks for sharing this!
+Does this program require a specific dependency?
+
+
+Cam
+
+
+
+&gt On 7 Feb 2017, at 16:17, David McClain &lt;dbm@refined-audiometrics.com&gt wrote:
+&gt 
+&gt … not to beat a dead horse, but here is an improved version…
+&gt 
+&gt ;; -------------------------------------------
+&gt ;; PAR Construct
+&gt 
+&gt (defmethod group ((lst list) n)
+&gt  (unless (plusp n)
+&gt    (error "zero or negative length"))
+&gt  (labels ((rec (source acc)
+&gt             (let ((rest (nthcdr n source)))
+&gt               (if (consp rest)
+&gt                   (rec rest (cons (subseq source 0 n) acc))
+&gt                 (nreverse (cons source acc))))))
+&gt    (when lst
+&gt      (rec lst nil))))
+&gt 
+&gt (defun %par1 (&amp;rest fns)
+&gt  ;; Accept a list of functions, execute them all in parallel and
+&gt  ;; return the value of the first one.
+&gt  ;;
+&gt  ;; Since they are all slated for parallel execution, evaluation
+&gt  ;; order must be irrelevant.
+&gt  ;;
+&gt  ;; We group them to try to balance the load among available threads,
+&gt  ;; including our own. Since our thread is doing all the work, try to
+&gt  ;; keep the shortest subgroup for our thread.
+&gt  ;;
+&gt  (let* ((nfns  (length fns))
+&gt         (sem   (mp:make-semaphore :count 0))
+&gt         ;; count our thread plus available BG threads
+&gt         (nthr  (1+ (mp:set-funcall-async-limit nil)))
+&gt         (ngrp  (ceiling nfns nthr))
+&gt         (grps  (nreverse (group (rest fns) ngrp)))
+&gt         (count 0))
+&gt    (dolist (grp (rest grps)) ;; last (now first) group will be shorter if any are
+&gt      (dolist (fn grp)
+&gt        (incf count)
+&gt        (mp:funcall-async (lambda ()
+&gt                            (unwind-protect
+&gt                                (funcall fn)
+&gt                              (mp:semaphore-release sem)))
+&gt                          )))
+&gt    (prog1
+&gt        (progn
+&gt          (dolist (fn (first grps))
+&gt            (funcall fn))
+&gt          (funcall (first fns)))
+&gt      (mp:semaphore-acquire sem :count count)
+&gt      )))
+&gt 
+&gt (defmacro par1 (&amp;rest clauses)
+&gt  ;; like PROG1, but executes all clauses in parallel, synchronizing
+&gt  ;; at the closing paren, and returning value of first clause
+&gt  (when clauses
+&gt    (if (rest clauses)
+&gt        `(%par1 ,@(mapcar #`(lambda ()
+&gt                             ,a1)
+&gt                         clauses))
+&gt      ;; else
+&gt      (first clauses))))
+&gt 
+&gt (defmacro par (&amp;rest clauses)
+&gt  ;; like PROGN, but executes all clauses in parallel, synchronizing
+&gt  ;; at the closing paren, and returning value of last clause
+&gt  `(par1 ,@(nreverse clauses)))
+&gt 
+&gt #|
+&gt  ;; NOTE: if you execute this from the editor, the editor will use
+&gt  ;; one BG thread for itself.  And so the results will be off,
+&gt  ;; compared to executing this from the listener or some other non-BG
+&gt  ;; thread.
+&gt  ;;
+&gt  ;; Since we had up to 5 BG threads, this ought to take 3 seconds for
+&gt  ;; 18 clauses.  Adding just one more clause copy will push us to 4
+&gt  ;; seconds.
+&gt (time
+&gt (par
+&gt   (sleep 1) ;; 1
+&gt   (sleep 1) ;; 2
+&gt   (sleep 1) ;; 3
+&gt   (sleep 1) ;; 4
+&gt   (sleep 1) ;; 5
+&gt 
+&gt   (sleep 1) ;; 1
+&gt   (sleep 1) ;; 2
+&gt   (sleep 1) ;; 3
+&gt   (sleep 1) ;; 4
+&gt   (sleep 1) ;; 5
+&gt 
+&gt   (sleep 1) ;; 1
+&gt   (sleep 1) ;; 2
+&gt   (sleep 1) ;; 3
+&gt   (sleep 1) ;; 4
+&gt   (sleep 1) ;; 5
+&gt 
+&gt   (sleep 1) ;; 1
+&gt   (sleep 1) ;; 2
+&gt   (sleep 1) ;; 3
+&gt   ))
+&gt |#
+&gt 
+&gt 
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:27 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

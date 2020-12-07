@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Animation with Timers</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Animation with Timers</h1><!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN" "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+<meta charset="utf-8">
+<style>body{font-family:-apple-system,Helvetica,Arial,sans-serif;}blockquote{margin:0;padding:0 0 0 12px;border-left:1px solid #aaa;color:#aaa;}hr.unibox-forward{border:0;color:#888;background-color:#888;height:1px;}</style>
+</head>
+<body>
+<div>Hello,</div>
+<div><br></div>
+<div>I’ve searched through the examples for an animation example and found balloons.lisp.  I’ve come up with the following code:</div>
+<div><br></div>
+<div>
+<div>(defpackage :typing</div>
+<div>  (:use :cl :capi))</div>
+<div>(in-package :typing)</div>
+<div><br></div>
+<div>(defparameter *typing-timer* nil)</div>
+<div><br></div>
+<div>(defun typing-display-callback (pane &amp;optional x y w h)</div>
+<div>  (unless *typing-timer*</div>
+<div>    (setf *typing-timer* (mp:make-timer #'typing-display-callback pane)))</div>
+<div><br></div>
+<div>  (with-atomic-redisplay (pane)</div>
+<div>    (gp:clear-graphics-port pane)</div>
+<div>    (gp:draw-string pane "testing" (random 800) (random 450)))</div>
+<div><br></div>
+<div>  (mp:schedule-timer-relative *typing-timer* (/ 1 30)))</div>
+<div><br></div>
+<div>(defun typing ()</div>
+<div>  (let ((pane (make-instance 'output-pane</div>
+<div>                             :display-callback 'typing-display-callback</div>
+<div>                             :background :white</div>
+<div>                             :initial-constraints</div>
+<div>                             '(:visible-min-width 800 :visible-min-height 450)</div>
+<div>                             :title "Typing - the game")))</div>
+<div>    (contain pane)))</div>
+</div>
+<div><br></div>
+<div>I am expecting from this code the work “testing” jumping around the screen, but what I get is (usually) just a single frame and no further graphics updates, like something needs to be synched or flipped.  I know the timer is running, because if I put in a (format t “.”) I see a stream of dots in the output buffer.  I have searched for ways to swap or flush the buffer to screen (redisplay-all-screens) on Cocoa, as the documentation states that it is a buffered display to no avail.</div>
+<div><br></div>
+<div>Sometimes I do see what I expect, but only if I put another window obscuring part of the main window.</div>
+<div><br></div>
+<div>Any tips on how I can get animation output using CAPI?</div>
+<div><br></div>
+<div>Burton Samograd<br>
+</div>
+<div class="unibox-signature"><br></div>
+</body>
+</html>
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Animation with Timers</h1>
+                 <pre>BusFactor1 wrote on Fri, 30 Dec 2016 18:06:28 -0800 (PST) 05:06:
+
+| I've searched through the examples for an animation example and found
+| balloons.lisp.  I've come up with the following code:
+| ...snip...|
+| (defun typing-display-callback (pane &amp;optional x y w h)
+|   (unless *typing-timer*
+|     (setf *typing-timer* (mp:make-timer #'typing-display-callback pane)))
+|     ...
+
+You should invoke the typing-display-callback in the process of the pane.
+For example:
+
+  (setf *typing-timer* (mp:make-timer #'capi:apply-in-pane-process
+                                 pane #'typing-display-callback
+                                 (list pane))))
+--
+Sincerely,
+Dmitry Ivanov
+lisp.ystok.ru
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Animation with Timers</h1>
+                 <pre>Hi,
+
+You've forgot to call gp:invalidate-rectangle to force display callback
+to be called.
+
+Have a look at attached slightly modified code, which works.
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:27 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

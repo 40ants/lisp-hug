@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>How to send EOF to SYS:OPEN-PIPE?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>How to send EOF to SYS:OPEN-PIPE?</h1>
+                <pre>How can I use SYS:OPEN-PIPE with programs that read until EOF,
+i.e. how can I signal that I'm finished sending data to a program? The
+example from the docs doesn't work in this case:
+
+(with-open-stream
+  (s (sys:open-pipe "perl -lne '$count++; END {print $count}'"
+                    :direction :io))
+  (write-line "foo" s)
+  (write-line "bar" s)
+  (force-output s)
+  (read-line s))
+
+I want this to return "2" but it hangs instead.
+
+Thanks,
+Edi.
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: How to send EOF to SYS:OPEN-PIPE?</h1>
+                 <pre>On Tuesday 28 October 2003 06:26 am, Edi Weitz wrote:
+&gt How can I use SYS:OPEN-PIPE with programs that read until EOF,
+....
+&gt (with-open-stream
+&gt   (s (sys:open-pipe "perl -lne '$count++; END {print $count}'"
+....
+&gt I want this to return "2" but it hangs instead.
+
+If you run the line of perl by itself in bash, you find that it does not 
+finish until you hit ^D (unix eof character).
+
+The lisp code and the perl code are hanging, waiting for each other to send 
+EOF.
+
+This is a protocol problem.
+
+You either need to open two separate streams - one output, one input - and 
+close the output pipe before reading from the input, or, you need to rewrite 
+the perl scriptlet so that it runs a simple protocol and "knows" when to quit 
+(e.g. it quits when lisp sends it some specific character).
+
+pt
+
+p.s. After a quick glance at the manuals, I don't see how to open two streams 
+on one shell command, so I would suggest altering the perl.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: How to send EOF to SYS:OPEN-PIPE?</h1>
+                 <pre>On Tue, 28 Oct 2003 11:08:40 -0500, tarvydas &lt;tarvydas@allstream.net&gt wrote:
+
+&gt You either need to open two separate streams - one output, one input
+&gt - and close the output pipe before reading from the input, or, you
+&gt need to rewrite the perl scriptlet so that it runs a simple protocol
+&gt and "knows" when to quit (e.g. it quits when lisp sends it some
+&gt specific character).
+&gt 
+&gt p.s. After a quick glance at the manuals, I don't see how to open
+&gt two streams on one shell command, so I would suggest altering the
+&gt perl.
+
+Altering the program is not an option, unfortunately. (It's a C
+program and I don't have the source. I used the Perl snippet for
+illustration purposes only.)
+
+I had hopes that LW would allow for separate streams like CMUCL or
+AllegroCL but it looks like this isn't possible. In CMUCL you can, for
+example, do it like this:
+
+  (let (prog)
+    (unwind-protect
+      (progn
+        (setq prog
+                (ext:run-program "/tmp/foo.pl" nil
+                                 :output :stream
+                                 :input :stream
+                                 :wait nil))
+        (with-open-stream (in (ext:process-input prog))
+          (write-line "foo" in)
+          (write-line "bar" in)
+          (write-line "baz" in))
+        (with-open-stream (out (ext:process-output prog))
+          (with-output-to-string (s)
+            (loop for line = (read-line out nil nil)
+                  while line
+                  do (write-string line s)))))
+      (ext:process-close prog)))
+
+("foo.pl" is a small Perl script which counts the lines coming from
+stdin. This form will actually return the string "3".)
+
+This doesn't work in CMUCL, BTW, if I replace "foo.pl" with the Perl
+one-liner from my previous post but this doesn't bother me. I guess
+you have to use the :PTY variant of RUN-PROGRAM in this case.
+
+Thanks,
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: How to send EOF to SYS:OPEN-PIPE?</h1>
+                 <pre>On Tue, 28 Oct 2003 17:12:13 -0500, tarvydas &lt;tarvydas@allstream.net&gt wrote:
+
+&gt Pending a reply from David Fox, have you tried the following kludges?:
+&gt 
+&gt a) if you only need the final reply from the C program, then use an
+&gt input stream and redirect the output of the C program to a file
+&gt (sys:with-open-pipe "cprog &gt/tmp/reply" :direction :output)
+&gt 
+&gt b) Write a small C / Perl / whatever program that invokes the big C
+&gt program, redirecting stdin and stdout to two separate file
+&gt descriptors.  The tiny program can run a small protocol with the
+&gt lisp program.
+&gt 
+&gt c) You could probably do it all with FFI and direct calls to Unix
+&gt exec, read and write.
+&gt 
+&gt d) Use two comm:socket-stream's in lisp.  Write two perl (C / Tcl/Tk
+&gt / whatever) helpers - one which reads from a socket and writes to
+&gt stdout, the other reads from stdin and writes to a socket, then do
+&gt something like
+&gt 
+&gt 	(sys:run-shell-command "sock2stdout | cprog | stdin2sock")
+
+Thanks for the helpful ideas! I'll try some of these unless someone
+comes up with a LW feature I don't know of yet.
+
+Thanks again,
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:55 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Chicken and egg, or am I just too dumb?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Chicken and egg, or am I just too dumb?</h1>
+                <pre>
+I'm trying to dynamically create an interface which will contain a
+pinboard layout.  The pinboard layout in turn will consist of drawn
+pinboard objects which show text snippets.  The sizes and the
+locations of these objects are to be computed based on the extent of
+the text snippets.  Finally, the size of the pinboard layout is
+determined by its objects.  It is supposed to fit exactly, i.e. no
+empty space around it, no scrolling.
+
+Now, my problem is that in order to compute the text extents with
+GP:GET-STRING-EXTENT I seemingly already need to have the interface
+and it even has to be displayed.  But when the interface is already
+displayed, then it's too late to compute its size as described above.
+
+I can think of a workaround where I put some dummy with an estimated
+size into the interface and then, once the interface has been created
+and displayed, compute the real size constraints and replace the dummy
+with the real thing.  But that doesn't seem right to me.  Is there a
+better solution?
+
+Thanks,
+Edi.
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Chicken and egg, or am I just too dumb?</h1>
+                 <pre>
+Edi Weitz &lt;edi@agharta.de&gt writes:
+
+&gt I can think of a workaround where I put some dummy with an estimated
+&gt size into the interface and then, once the interface has been created
+&gt and displayed, compute the real size constraints and replace the dummy
+&gt with the real thing.  But that doesn't seem right to me.  Is there a
+&gt better solution?
+
+I haven't found any better solution, I display the interfaces with
+mostly empty pinboards, and then do all the math.
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Chicken and egg, or am I just too dumb?</h1>
+                 <pre>
+At 09:02 23/01/2006, Espen Vestre wrote:
+
+&gtEdi Weitz &lt;edi@agharta.de&gt writes:
+&gt
+&gt &gt I can think of a workaround where I put some dummy with an estimated
+&gt &gt size into the interface and then, once the interface has been created
+&gt &gt and displayed, compute the real size constraints and replace the dummy
+&gt &gt with the real thing.  But that doesn't seem right to me.  Is there a
+&gt &gt better solution?
+&gt
+&gtI haven't found any better solution, I display the interfaces with
+&gtmostly empty pinboards, and then do all the math.
+&gt--
+&gt   (espen)
+
+
+I had a similar problem with getting string extents for a layout into an 
+output-pane. I am not sure the issue is with interfaces exactly - 
+get-string-extent needs a 'realized' graphics-port-mixin. At least that was 
+my problem. I moved the layout code into the display-callback of the 
+output-pane and arranged for it to be called once only - at the first 
+display. IIRC this advice came from the Lispworks team.
+
+Anyway as pinboard-layout is a subclass of output-pane this approach might 
+work for you. Change the display-callback  of the pinboard-layout to create 
+the items and set the size then call capi::pinboard-pane-display.
+
+Hopefully the code below illustrates the approach.
+
+cheers
+
+paulm
+
+
+(in-package "CL-USER")
+
+(capi:define-interface string-extent-test ()
+   ((the-string-y :initform 0)
+    (the-string :initarg :the-string)
+    (the-string-pane :initform nil))
+   (:panes )
+   (:layouts
+    (pinboard
+     capi:pinboard-layout
+     '()
+     :display-callback 'display-string-extent-test
+     :background :white
+     :vertical-scroll nil
+     :horizontal-scroll nil
+     :visible-border nil))
+   (:default-initargs
+    :layout 'pinboard
+    :title "string-extent-test"))
+
+(defun display-string-extent-test (pinboard  x y width height)
+   (let ((interface (capi:top-level-interface pinboard)))
+     (with-slots (the-string the-string-pane the-string-y) interface
+       (unless the-string-pane
+         (setf the-string-pane
+               (make-instance 'capi:drawn-pinboard-object
+                              :display-callback 'draw-the-string)
+               (capi:layout-description pinboard)
+               (list the-string-pane))
+         (multiple-value-bind (left top right bottom)
+             (gp:get-string-extent pinboard the-string)
+           (capi:set-hint-table pinboard  (list :visible-min-width (- right 
+left)
+                                                :visible-max-width t
+                                                :visible-min-height (- 
+bottom top)
+                                                :visible-max-height t))
+           (setf the-string-y (abs top))))
+       (capi::pinboard-pane-display pinboard x y width height))))
+
+(defun draw-the-string (pane object x y width height)
+   (declare (ignore x y width height))
+   (let ((interface (capi:element-interface
+                     (capi:pinboard-object-pinboard object))))
+     (with-slots (the-string the-string-y) interface
+         (gp:draw-string pane the-string 0 the-string-y))))
+
+(defun string-extent-test (the-string)
+   (capi:display (make-instance 'string-extent-test
+                                :the-string the-string)))
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Chicken and egg, or am I just too dumb?</h1>
+                 <pre>
+
+On Jan 22, 2006, at 11:22 AM, Edi Weitz wrote:
+
+&gt I can think of a workaround where I put some dummy with an estimated
+&gt size into the interface and then, once the interface has been created
+&gt and displayed, compute the real size constraints and replace the dummy
+&gt with the real thing.  But that doesn't seem right to me.  Is there a
+&gt better solution?
+
+Have you tried using the interface :create-callback initarg? It is  
+still basically the same solution, but at least this is the  
+documented way to perform initialization after the interface is  
+created but before it is displayed on the screen.
+
+John
+
+
+
+
+John DeSoi, Ph.D.
+http://pgedit.com/
+Power Tools for PostgreSQL
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Chicken and egg, or am I just too dumb?</h1>
+                 <p>
+                  Unable to parse email body. Email id is 5243
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:45 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Installing default handlers for CAPI applications</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Installing default handlers for CAPI applications</h1>
+                <pre>Hi,
+
+I'm currently putting the finishing touches on a CAPI (Win32) application
+for a client of mine, and as part of this I'd like to install "default"
+handlers for errors and warnings.
+
+Is there any simple way in LW to achieve this?  The most obvious way I can
+think of would be to wrap the given handlers around the message-loop in
+each interface's process, however this brings up the question of how I'd
+manually construct a valid CAPI message-loop process, given that this
+isn't documented AFAIK, and involves internal symbols in the CAPI package
+(capi::run-in-process??).
+
+Another option would be general hooks into the condition signalling
+process, which is trivial for errors (cl:*debugger-hook*) but not so for
+warnings.
+
+Of course in the worst case I could establish the various handlers around
+each an every callback, etc. manually, but this seems tedious.
+
+Given that this isn't all that unusual to do, it seems to me I must be
+missing something obvious, so any advice would be most welcome...
+
+Regs, Pierre.
+
+-- 
+Pierre R. Mai &lt;pmai@acm.org&gt                    http://www.pmsf.de/pmai/
+ The most likely way for the world to be destroyed, most experts agree,
+ is by accident. That's where we come in; we're computer professionals.
+ We cause accidents.                           -- Nathaniel Borenstein
+
+
+________________________________________________________________________
+This email has been scanned for all viruses by the MessageLabs Email
+Security System. For more information on a proactive email security
+service working around the clock, around the globe, visit
+http://www.messagelabs.com
+________________________________________________________________________
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Installing default handlers for CAPI applications</h1>
+                 <p>
+                  Unable to parse email body. Email id is 1292
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Installing default handlers for CAPI applications</h1>
+                 <pre>"Pierre R. Mai" &lt;pmai@pmsf.de&gt writes:
+
+&gt Hi,
+&gt 
+&gt I'm currently putting the finishing touches on a CAPI (Win32) application
+&gt for a client of mine, and as part of this I'd like to install "default"
+&gt handlers for errors and warnings.
+
+I always wrap things I give to execute-with-interface in a handler-case 
+(Remember that you can use (warning (cond) ...) clauses in handler-case).
+
+I assume you also want to capture _everything_ that goes wrong.
+Here we use the following (where you define FATAL-ERROR-HANDLER as
+you like):
+
+(lw:defadvice (capi::call-and-process-events handle-capi-thread-error :around)
+      (function interface finished-notify args)
+    (handler-bind ((error 'fatal-error-handler))
+      (lw:call-next-advice function interface finished-notify args)))
+
+I think my colleague got this from Xanalys support before I started working
+with CAPI, maybe someone from Xanalys cares to comment whether this is
+kosher or not.
+-- 
+  (espen)
+
+
+________________________________________________________________________
+This email has been scanned for all viruses by the MessageLabs Email
+Security System. For more information on a proactive email security
+service working around the clock, around the globe, visit
+http://www.messagelabs.com
+________________________________________________________________________
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: Installing default handlers for CAPI applications</h1>
+                  <p>
+                   Unable to parse email body. Email id is 1295
+                 </article>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>Re: Installing default handlers for CAPI applications</h1>
+                   <pre>David Fox &lt;davef@xanalys.com&gt writes:
+
+&gt FWIW I can't find any record of that code coming out of Xanalys support. 
+
+Ok, I was just guessing!
+
+&gt Anyway as Nick said, the :TOP-LEVEL-HOOK initarg for CAPI:INTERFACE is
+&gt now the way to go.
+
+thanks!
+-- 
+  (espen)
+
+
+________________________________________________________________________
+This email has been scanned for all viruses by the MessageLabs Email
+Security System. For more information on a proactive email security
+service working around the clock, around the globe, visit
+http://www.messagelabs.com
+________________________________________________________________________
+
+</pre>
+                  </article>
+                 </section>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>Re: Installing default handlers for CAPI applications</h1>
+                   <pre>Several months ago, David Fox &lt;davef@xanalys.com&gt wrote:
+
+&gt Anyway as Nick said, the :TOP-LEVEL-HOOK initarg for CAPI:INTERFACE is
+&gt now the way to go.
+
+I just noticed that the top-level-hook seems to be useless on
+Mac OS X.
+
+Is this because of the fact that all interfaces run
+in the single Cocoa thread?
+
+Is it a bug? If not, is there by chance any workaround?
+-- 
+  (espen)
+
+
+</pre>
+                  </article>
+                 </section>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>Re: GETENV</h1>
+                   <pre>On Thu, 22 Jan 2004 18:32:46 -0500, Marco Antoniotti &lt;marcoxa@cs.nyu.edu&gt wrote:
+
+&gt is there a LW[LWM] function that can do the equivalent of GETENV?
+
+  (lw:environment-variable name)
+
+Edi.
+
+
+</pre>
+                  </article>
+                  <section class=tree>
+                   <article class=email>
+                    <h1>Re: GETENV</h1>
+                    <pre>Thanks.
+
+Marco
+
+
+
+
+On Thursday, Jan 22, 2004, at 20:45 America/New_York, Edi Weitz wrote:
+
+&gt On Thu, 22 Jan 2004 18:32:46 -0500, Marco Antoniotti 
+&gt &lt;marcoxa@cs.nyu.edu&gt wrote:
+&gt
+&gt&gt is there a LW[LWM] function that can do the equivalent of GETENV?
+&gt
+&gt   (lw:environment-variable name)
+&gt
+&gt Edi.
+&gt
+--
+Marco Antoniotti					http://bioinformatics.nyu.edu
+NYU Courant Bioinformatics Group		tel. +1 - 212 - 998 3488
+715 Broadway 10th FL				fax. +1 - 212 - 998 3484
+New York, NY, 10003, U.S.A.
+
+
+</pre>
+                   </article>
+                  </section>
+                 </section>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>Re: Installing default handlers for CAPI applications</h1>
+                   <pre>davef@xanalys.com writes:
+
+&gt Possible workarounds would to put an error handler in your callbacks,
+&gt or set *DEBUGGER-HOOK* (or perhaps even bind it via
+&gt MP:*PROCESS-INITIAL-BINDINGS*).
+
+....but how do I bind *debugger-hook* for the cocoa-event process?
+-- 
+  (espen)
+
+
+</pre>
+                  </article>
+                 </section>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>Re: Installing default handlers for CAPI applications</h1>
+                   <p>
+                    Unable to parse email body. Email id is 1799
+                  </article>
+                 </section>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>Re: Installing default handlers for CAPI applications</h1>
+                   <pre>davef@xanalys.com writes:
+
+&gt (pushnew '(*debugger-hook* . 'my-debugger-hook) mp:*process-initial-bindings*
+&gt          :test 'equal)
+
+thanks, that was what I thought, too, but I can't get it to work,
+if I build an image with mp:*process-initial-bindings* (or the
+global binding of *debugger-hook*) set this way, the cocoa thread
+seems to ignore it (does it bind *debugger-hook* to nil itself..?))
+-- 
+  (espen)
+
+
+</pre>
+                  </article>
+                 </section>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>Re: Installing default handlers for CAPI applications</h1>
+                   <p>
+                    Unable to parse email body. Email id is 1804
+                  </article>
+                 </section>
+                </section>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:55 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

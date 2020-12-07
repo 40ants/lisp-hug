@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Re: Convert integer to signed 32bits representation</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Re: Convert integer to signed 32bits representation</h1>
+                <pre>Hi,
+
+   I did it this way:
+
+  The result of the crc32 calculation is always a integer with the
+  length of 32. I presume the sign bit is on bit position 32 so i
+  did it this way:
+
+  (defconstant 2^31 (expt 2 31))
+  (defun uint32-to-sint32 (num)
+         (if (&lt; num 2^31)
+             num                ; bit 32 not set
+             (- (- num 2^31)))  ; bit 32 set
+
+  (UINT32-TO-SINT32 2581689048) =&gt -434205400
+             
+  simon hickley sent me this (thanks simon)
+
+(defconstant 2^32 (expt 2 32))
+
+(defun get-crc (num)
+   (let ((val (rem num 2^32))
+         (sign (floor (coerce (/ num 2^32) 'float))))
+     (if (evenp sign)
+         val
+       (- val))))
+
+  (get-crc 2581689048) =&gt 2581689048
+
+  and Paul sent this (also thanks paul:
+  (logior (ash -1 31) 2581689048) =&gt -1713278248
+
+  aha, but who's right?
+  
+
+-- 
+Met vriendelijke groet,
+ Steven
+www.interstudio.nl
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Convert integer to signed 32bits representation</h1>
+                 <pre>Steven Manschot &lt;steven@manschot.net&gt writes:
+
+&gt Hi,
+&gt
+&gt    I did it this way:
+&gt
+&gt   The result of the crc32 calculation is always a integer with the
+&gt   length of 32. I presume the sign bit is on bit position 32 so i
+&gt   did it this way:
+&gt
+&gt   (defconstant 2^31 (expt 2 31))
+&gt   (defun uint32-to-sint32 (num)
+&gt          (if (&lt; num 2^31)
+&gt              num                ; bit 32 not set
+&gt              (- (- num 2^31)))  ; bit 32 set
+
+No need to presume where the sign bit is, that's how 2's complement
+works.  I like your solution because it follows the definition of
+2's complement.  You can simplify that last term, though. 
+
+;; I *think* I typed these right.
+(declaim (ftype (function ((integer 0 4294967296)) 
+                           (integer -2147483648 2147483647)) 
+                 uint32-to-sint32)
+         (inline uint32-to-sint32))
+
+(defun uint32-to-sint32 (num)
+  (declare (type (integer 0 4294967296) num))
+  (if (&gt= num 2^31)
+      (- 2^31 num)  ; by definition of 2's complement
+      num))         
+
+Don't forget the declarations.
+
+&gt   (UINT32-TO-SINT32 2581689048) =&gt -434205400
+&gt              
+&gt   simon hickley sent me this (thanks simon)
+&gt
+&gt (defconstant 2^32 (expt 2 32))
+&gt
+&gt (defun get-crc (num)
+&gt    (let ((val (rem num 2^32))
+&gt          (sign (floor (coerce (/ num 2^32) 'float))))
+&gt      (if (evenp sign)
+&gt          val
+&gt        (- val))))
+&gt
+&gt   (get-crc 2581689048) =&gt 2581689048
+&gt
+&gt   and Paul sent this (also thanks paul:
+&gt   (logior (ash -1 31) 2581689048) =&gt -1713278248
+&gt
+&gt   aha, but who's right?
+
+logior is wrong.  logxor would be right.
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:54 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

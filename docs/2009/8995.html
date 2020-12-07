@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Problems with FUNCALLABLE-STANDARD-CLASS</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Problems with FUNCALLABLE-STANDARD-CLASS</h1>
+                <pre>
+Hello,
+
+I'm trying to create a new FUNCALLABLE-STANDARD-CLASS and always get  
+an error if I do so. I've reduced it to the following examples.
+
+The following works:
+
+(defclass mixin-without-slots () ())
+(defclass my-funcallable-instance (mixin-without-slots  
+clos:funcallable-standard-object)
+   ()
+   (:metaclass clos:funcallable-standard-class))
+
+  (let ((fn (make-instance 'my-funcallable-instance)))
+    (set-funcallable-instance-funcation fn (lambda (a b) (+ a b)))
+    (funcall fn 2 3))
+
+
+But the following raises a condition when defining the class.
+
+(defclass mixin-with-slot () (a))
+(defclass my-buggy-funcallable-instance (mixin-with-slot  
+clos:funcallable-standard-object)
+   ()
+   (:metaclass clos:funcallable-standard-class))
+
+Error: #&lt;STANDARD-CLASS MIXIN-WITH-SLOT 22DEAEFB&gt is an invalid  
+superclass of #&lt;FUNCALLABLE-STANDARD-CLASS MY-BUGGY-FUNCALLABLE- 
+INSTANCE 22E291A7&gt.
+
+Does anybody know this?
+Is there something wrong with this code?
+
+ciao,
+Jochen
+
+--
+Jochen Schmidt
+CRISPYLOGICS
+Uhlandstr. 9 , 90408 Nuremberg
+
+Fon +49 (0)911 517 999 82
+Fax +49 (0)911 517 999 83
+
+mailto:info@crispylogics.com
+http://www.crispylogics.com
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Problems with FUNCALLABLE-STANDARD-CLASS</h1>
+                 <pre>
+
+On 11 Feb 2009, at 15:08, Jochen Schmidt wrote:
+
+&gt
+&gt Hello,
+&gt
+&gt I'm trying to create a new FUNCALLABLE-STANDARD-CLASS and always get  
+&gt an error if I do so. I've reduced it to the following examples.
+&gt
+&gt The following works:
+&gt
+&gt (defclass mixin-without-slots () ())
+&gt (defclass my-funcallable-instance (mixin-without-slots  
+&gt clos:funcallable-standard-object)
+&gt  ()
+&gt  (:metaclass clos:funcallable-standard-class))
+&gt
+&gt (let ((fn (make-instance 'my-funcallable-instance)))
+&gt   (set-funcallable-instance-funcation fn (lambda (a b) (+ a b)))
+&gt   (funcall fn 2 3))
+&gt
+&gt
+&gt But the following raises a condition when defining the class.
+&gt
+&gt (defclass mixin-with-slot () (a))
+&gt (defclass my-buggy-funcallable-instance (mixin-with-slot  
+&gt clos:funcallable-standard-object)
+&gt  ()
+&gt  (:metaclass clos:funcallable-standard-class))
+&gt
+&gt Error: #&lt;STANDARD-CLASS MIXIN-WITH-SLOT 22DEAEFB&gt is an invalid  
+&gt superclass of #&lt;FUNCALLABLE-STANDARD-CLASS MY-BUGGY-FUNCALLABLE- 
+&gt INSTANCE 22E291A7&gt.
+&gt
+&gt Does anybody know this?
+&gt Is there something wrong with this code?
+
+Your code is correct according to the CLOS MOP specification. However,  
+LispWorks has the limitation that standard-class and funcallable- 
+standard-class are not compatible with each other in the general case.  
+The case that it happens to work if the standard-class doesn't define  
+any slots is an exception.
+
+The only way out of this is to duplicate the class hierarchy and make  
+one version of the hierarchy be all funcallable-standard-class (and  
+keep the original as standard-class). Closer to MOP also doesn't fix  
+this - it's just not possible without tweaking internal implementation  
+details.
+
+Allegro Common Lisp and CMUCL currently have the same limitation. (In  
+general, the generic function protocols are the least stable in most  
+CLOS MOP implementations, with different problems everywhere.)  
+(LispWorks is actually one of the best ones IMHO. ;)
+
+I hope this helps.
+
+Best,
+Pascal
+
+-- 
+ELS'09: http://www.european-lisp-symposium.org/
+
+Pascal Costanza, mailto:pc@p-cos.net, http://p-cos.net
+Vrije Universiteit Brussel
+Programming Technology Lab
+Artificial Intelligence Lab
+Pleinlaan 2, B-1050 Brussel, Belgium
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Problems with FUNCALLABLE-STANDARD-CLASS</h1>
+                 <pre>
+On Wed, Feb 11, 2009 at 3:30 PM, Pascal Costanza &lt;pc@p-cos.net&gt wrote:
+&gt On 11 Feb 2009, at 15:08, Jochen Schmidt wrote:
+&gt&gt But the following raises a condition when defining the class.
+&gt&gt
+&gt&gt (defclass mixin-with-slot () (a))
+&gt&gt (defclass my-buggy-funcallable-instance (mixin-with-slot
+&gt&gt clos:funcallable-standard-object)
+&gt&gt  ()
+&gt&gt  (:metaclass clos:funcallable-standard-class))
+&gt&gt
+&gt&gt Error: #&lt;STANDARD-CLASS MIXIN-WITH-SLOT 22DEAEFB&gt is an invalid superclass
+&gt&gt of #&lt;FUNCALLABLE-STANDARD-CLASS MY-BUGGY-FUNCALLABLE-INSTANCE 22E291A7&gt.
+&gt&gt
+&gt&gt Does anybody know this?
+&gt&gt Is there something wrong with this code?
+&gt
+&gt Your code is correct according to the CLOS MOP specification. However,
+&gt LispWorks has the limitation that standard-class and
+&gt funcallable-standard-class are not compatible with each other in the general
+&gt case. The case that it happens to work if the standard-class doesn't define
+&gt any slots is an exception.
+
+Another exception is when you define your own subclass of
+funcallable-standard-class, and I think that's a good workaround:
+
+(defclass my-funcallable-meta-class (funcallable-standard-class)
+  ())
+
+(defmethod validate-superclass ((class my-funcallable-meta-class) superclass)
+  (declare (ignorable class superclass))
+  t)
+
+(defclass mixin-with-slot () (a))
+
+(defclass my-buggy-funcallable-instance (mixin-with-slot
+clos:funcallable-standard-object)
+  ()
+  (:metaclass my-funcallable-meta-class))
+
+(let ((fn (make-instance 'my-buggy-funcallable-instance)))
+  (clos:set-funcallable-instance-function fn (lambda (a b) (+ a b)))
+  (setf (slot-value fn 'a) 42)
+  (values (funcall fn 2 3)
+          (slot-value fn 'a)))
+
+I'm using a setup like this in CLPython, and it works reliable in
+Allegro and Lispworks. The above code also seems to work on SBCL
+1.0.20, but I've encountered problems using more complex classes and
+metaclasses.
+
+- Willem
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Problems with FUNCALLABLE-STANDARD-CLASS</h1>
+                 <p>
+                  Unable to parse email body. Email id is 8999
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:37 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

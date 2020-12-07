@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>How do you wait for an interface?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>How do you wait for an interface?</h1>
+                <pre>Hi!
+
+A (probably rather dumb) CAPI question:
+
+This works:
+
+(defpackage "TEST"
+  (:use "CL" "CAPI")
+  (:export "TEST"))
+
+(in-package "TEST")
+
+(define-interface test ()
+  ((stream :initarg :stream :reader test-stream))
+  (:panes
+   (read-it push-button :text "Read Line"
+            :callback (lambda (data interface)
+                        (declare (ignore data interface))
+                        (display-message "Got ~A" (read-line stream nil nil))))))
+
+(defun test (file-name)
+  (with-open-file (stream file-name)
+    (mp:process-wait "Waiting for interface."
+                     (lambda (process)
+                       (not (mp:process-alive-p process)))
+                     (capi-internals:interface-process
+                      (display (make-instance 'test :stream stream))))))
+
+but it looks rather clumsy to me.  I'd prefer to give a :process nil
+argument to CAPI:DISPLAY, but how do make the current process process
+events then?
+
+Regards,
+-- 
+Nils Gösche
+"Don't ask for whom the &lt;CTRL-G&gt tolls."
+
+PGP key ID 0x0655CFA0
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: How do you wait for an interface?</h1>
+                 <pre>I &lt;cartan@cartan.de&gt wrote:
+
+&gt                      (lambda (process)
+&gt                        (not (mp:process-alive-p process)))
+
+Never mind COMPLEMENT ;-)
+
+Regards,
+-- 
+Nils Gösche
+"Don't ask for whom the &lt;CTRL-G&gt tolls."
+
+PGP key ID 0x0655CFA0
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: How do you wait for an interface?</h1>
+                 <p>
+                  Unable to parse email body. Email id is 834
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: How do you wait for an interface?</h1>
+                  <pre>David Fox &lt;davef@xanalys.com&gt writes:
+
+&gt try this:
+&gt 
+&gt (defun test2 (file-name)
+&gt   (with-open-file (stream file-name)
+&gt 		  (capi-internals:loop-process-events 
+&gt 		   (display (make-instance 'test
+&gt 					   :stream stream) 
+&gt 			    :process nil)  
+&gt 		   (list #'(lambda (pane stream) 
+&gt 			     (not (listen stream))) 
+&gt 			 stream) 
+&gt 		   nil  "Waiting" nil)))
+
+Cool, thanks.  However, I'd rather wait until the window is closed (or
+destroyed).  Like this:
+
+(defun test (file-name)
+  (with-open-file (stream file-name)
+    (let ((done nil))
+      (capi-internals:loop-process-events
+       (display (make-instance 'test
+                               :stream stream
+                               :destroy-callback
+                               (lambda (interface)
+                                 (declare (ignore interface))
+                                 (setq done t)))
+                :process nil)
+       (list (lambda (pane)
+               (declare (ignore pane))
+               done))
+       nil "Wating" nil))))
+
+Is there some function like ``destroyed-p´´ that I could call on the
+interface?
+
+Regards,
+-- 
+Nils Gösche
+"Don't ask for whom the &lt;CTRL-G&gt tolls."
+
+PGP key ID 0x0655CFA0
+
+
+</pre>
+                 </article>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>
+                    Unable to render article 837 because of ":DEFAULT stream decoding error on 
+                    #&lt;SB-SYS:FD-STREAM for \"socket 192.168.43.216:53527, peer: 
+                    116.202.254.214:119\" {1002EFC683}&gt: the octet sequence #(180) cannot be 
+                    decoded." error</h1>
+                  </article>
+                  <section class=tree>
+                   <article class=email>
+                    <h1>Re: How do you wait for an interface?</h1>
+                    <pre>David Fox &lt;davef@xanalys.com&gt writes:
+
+&gt Yes, you can call CAPI:TOP-LEVEL-INTERFACE-DISPLAY-STATE. If this
+&gt returns NIL, the interface has been destroyed:
+&gt 
+&gt (defun test4 (file-name)
+&gt      (with-open-file (stream file-name)
+&gt        (capi-internals:loop-process-events
+&gt 	  (display (make-instance 'test
+&gt 				  :stream stream)
+&gt 		   :process nil)
+&gt 	  (list (lambda (pane)
+&gt 		  (not (capi:top-level-interface-display-state pane))))
+&gt 	  nil "Wating" nil)))
+
+Perfect; thanks again!
+
+Regards,
+-- 
+Nils Gösche
+"Don't ask for whom the &lt;CTRL-G&gt tolls."
+
+PGP key ID 0x0655CFA0
+
+
+</pre>
+                   </article>
+                  </section>
+                 </section>
+                </section>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:57 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

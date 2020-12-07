@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Very tall CAPI:DISPLAY-PANEs and vertical scroll</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Very tall CAPI:DISPLAY-PANEs and vertical scroll</h1>
+                <pre>I want to display a few hundred lines of text in a window.
+
+Using a CAPI:EDITOR-PANE, I can do this:
+
+
+(defparameter *multi-line-text*
+  (with-output-to-string (s)
+    (loop for i from 1 to 1000
+          do (format s "~&amp;Line ~A~%" i))))
+
+(capi:contain
+ (make-instance 'capi:editor-pane
+                :text *multi-line-text*
+                :horizontal-scroll t
+                :vertical-scroll t)
+ :best-x 0
+ :best-y 0
+ :best-width 600
+ :best-height 800)
+
+
+The above works ok except that it allows the text to be
+edited by the user. Having :ENABLED NIL for the editor pane
+disables the editing but it also disables the scroll bar.
+
+I suppose I should really be using CAPI:DISPLAY-PANE. But
+when I try that I have problems:
+
+
+;; Same as above, except use a CAPI:DISPLAY-PANE instead
+;; of a CAPI:EDITOR-PANE
+(capi:contain
+ (make-instance 'capi:display-pane
+                :text *multi-line-text*
+                :horizontal-scroll t
+                :vertical-scroll t)
+ :best-x 0
+ :best-y 0
+ :best-width 600
+ :best-height 800)
+
+;; Try using :VISIBLE-MAX-HEIGHT for the CAPI:DISPLAY-PANE
+(capi:contain
+ (make-instance 'capi:display-pane
+                :text *multi-line-text*
+                :horizontal-scroll t
+                :vertical-scroll t
+                :visible-max-height 800)
+ :best-x 0
+ :best-y 0)
+
+
+In both case, the resulting window is too high to fit on the screen.
+
+Any ideas?
+
+BTW, similar things happen with very wide text, but that's not causing
+me any grief.
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>RE: Very tall CAPI:DISPLAY-PANEs and vertical scroll</h1>
+                 <pre>Hi simon,
+
+don't ask me why, but just add an :visible-min-height constraint, and your
+display-pane should be ok.
+
+(capi:contain
+ (make-instance 'capi:display-pane
+                :text *multi-line-text*
+                :horizontal-scroll t
+                :vertical-scroll t
+                :visible-max-height 800
+		    :visible-min-height '(:character 5)))
+
+Cheers,
+Sebastien.
+
+
+&gt -----Message d'origine-----
+
+&gt De : owner-lisp-hug@xanalys.com [mailto:owner-lisp-hug@xanalys.com]De la
+&gt part de Simon Katz
+&gt Envoye : mardi 28 septembre 2004 18:30
+&gt A : lisp-hug@xanalys.com
+&gt Objet : Very tall CAPI:DISPLAY-PANEs and vertical scroll
+&gt
+&gt
+&gt I want to display a few hundred lines of text in a window.
+&gt
+&gt Using a CAPI:EDITOR-PANE, I can do this:
+&gt
+&gt
+&gt (defparameter *multi-line-text*
+&gt   (with-output-to-string (s)
+&gt     (loop for i from 1 to 1000
+&gt           do (format s "~&amp;Line ~A~%" i))))
+&gt
+&gt (capi:contain
+&gt  (make-instance 'capi:editor-pane
+&gt                 :text *multi-line-text*
+&gt                 :horizontal-scroll t
+&gt                 :vertical-scroll t)
+&gt  :best-x 0
+&gt  :best-y 0
+&gt  :best-width 600
+&gt  :best-height 800)
+&gt
+&gt
+&gt The above works ok except that it allows the text to be
+&gt edited by the user. Having :ENABLED NIL for the editor pane
+&gt disables the editing but it also disables the scroll bar.
+&gt
+&gt I suppose I should really be using CAPI:DISPLAY-PANE. But
+&gt when I try that I have problems:
+&gt
+&gt
+&gt ;; Same as above, except use a CAPI:DISPLAY-PANE instead
+&gt ;; of a CAPI:EDITOR-PANE
+&gt (capi:contain
+&gt  (make-instance 'capi:display-pane
+&gt                 :text *multi-line-text*
+&gt                 :horizontal-scroll t
+&gt                 :vertical-scroll t)
+&gt  :best-x 0
+&gt  :best-y 0
+&gt  :best-width 600
+&gt  :best-height 800)
+&gt
+&gt ;; Try using :VISIBLE-MAX-HEIGHT for the CAPI:DISPLAY-PANE
+&gt (capi:contain
+&gt  (make-instance 'capi:display-pane
+&gt                 :text *multi-line-text*
+&gt                 :horizontal-scroll t
+&gt                 :vertical-scroll t
+&gt                 :visible-max-height 800)
+&gt  :best-x 0
+&gt  :best-y 0)
+&gt
+&gt
+&gt In both case, the resulting window is too high to fit on the screen.
+&gt
+&gt Any ideas?
+&gt
+&gt BTW, similar things happen with very wide text, but that's not causing
+&gt me any grief.
+&gt
+&gt
+&gt
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>RE: Very tall CAPI:DISPLAY-PANEs and vertical scroll</h1>
+                  <pre>&gt From: owner-lisp-hug@xanalys.com 
+&gt [mailto:owner-lisp-hug@xanalys.com] On Behalf Of Sebastien
+Saint-Sevin
+&gt Sent: 28 September 2004 18:12
+&gt To: ML Xanalys LispWorks; Simon Katz
+&gt Subject: RE: Very tall CAPI:DISPLAY-PANEs and vertical scroll
+&gt 
+&gt Hi simon,
+&gt 
+&gt don't ask me why, but just add an :visible-min-height 
+&gt constraint, and your
+&gt display-pane should be ok.
+&gt 
+&gt (capi:contain
+&gt  (make-instance 'capi:display-pane
+&gt                 :text *multi-line-text*
+&gt                 :horizontal-scroll t
+&gt                 :vertical-scroll t
+&gt                 :visible-max-height 800
+&gt 		    :visible-min-height '(:character 5)))
+&gt 
+&gt Cheers,
+&gt Sebastien.
+
+Thanks, yes, that does the trick.
+
+
+
+</pre>
+                 </article>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>Re: Very tall CAPI:DISPLAY-PANEs and vertical scroll</h1>
+                   <p>
+                    Unable to parse email body. Email id is 2826
+                  </article>
+                 </section>
+                </section>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:51 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

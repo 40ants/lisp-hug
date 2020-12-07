@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Package EXTERNAL-PROGRAM: SYS:PID-EXIT-STATUS no more available in 
+             Lispworks 7</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Package EXTERNAL-PROGRAM: SYS:PID-EXIT-STATUS no more available in Lispworks 
+                 7</h1><html><head><meta http-equiv="Content-Type" content="text/html charset=utf-8"><meta http-equiv="Content-Type" content="text/html charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">Dear LW Gurus!<div class=""><br class=""></div><div class="">While loading package EXTERNAL-PROGRAM (see&nbsp;<a href="https://github.com/sellout/external-program" class="">https://github.com/sellout/external-program</a>) - I used Quicklisp to load this package,</div><div class=""><br class=""></div><div class="">I get the following error:</div><div class=""><br class=""></div><div class=""><div class="">**++++ Error between functions:</div><div class="">&nbsp; Symbol "PID-EXIT-STATUS" not found at all in the SYSTEM package.</div><div class="">; (METHOD EXTERNAL-PROGRAM:PROCESS-P (EXTERNAL-PROGRAM::EXTERNAL-PROCESS))</div></div><div class=""><br class=""></div><div class="">The relevant code section is:</div><div class=""><br class=""></div><div class=""><div class="">(defmethod process-status ((process external-process))</div><div class="">&nbsp; (let ((status-code (sys:pid-exit-status (external-process-process-id</div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;process))))</div><div class="">&nbsp; &nbsp; (values (if status-code :exited :running) status-code)))</div></div><div class=""><br class=""></div><div class="">I would like to make this available on LW7 - but so far could not find a more or less drop-in replacement for this call. I am sure I am missing something … Any help / hint / advice really appreciated. Thanks for your help.</div><div class=""><br class=""></div><div class="">Kind regards</div><div class=""><br class=""></div><div class="">&nbsp; &nbsp;Frank</div><div class=""><br class=""></div><div class=""><br class=""></div></body></html>
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Package EXTERNAL-PROGRAM: SYS:PID-EXIT-STATUS no more available in 
+                  Lispworks 7</h1><div dir="ltr"><div>I discovered the same thing some time back, and contacted Lispworks support about it. The response I got was<br><br>: Thanks for the report -- the change is documented in the Release Notes 15.20.6<br>
+: (<a href="http://www.lispworks.com/documentation/lw70/RNIG/html/readme-151.htm#marker-972462" rel="noreferrer" target="_blank">http://www.lispworks.com/documentation/lw70/RNIG/html/readme-151.htm#marker-972462</a>)<br>
+: but was missing from the index so is not easy to find.<br>
+<br>
+: LispWorks 7.0 has <span class="">sys</span>:pipe-<span class="">exit</span>-<span class="">status</span> for pipes.<br>
+<br>
+: We don&#39;t support working with PIDs inside Lisp because the SIGCHLD handler<br>
+: automatically reaps the <span class="">exit</span> <span class="">status</span> and hence the <span class="">PID</span> will no longer be<br>
+: unique.<br>
+<br></div>It should be relatively easy to make the necessary changes to code that uses sys:pid-exit-status.<br><div><div class="gmail_extra"><br><div class="gmail_quote">On Fri, Aug 28, 2015 at 12:46 AM, &quot;Frank Gönninger, Gönninger B&amp;T&quot; <span dir="ltr">&lt;<a href="mailto:frank.goenninger@goenninger.net" target="_blank">frank.goenninger@goenninger.net</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div style="word-wrap:break-word">Dear LW Gurus!<div><br></div><div>While loading package EXTERNAL-PROGRAM (see <a href="https://github.com/sellout/external-program" target="_blank">https://github.com/sellout/external-program</a>) - I used Quicklisp to load this package,</div><div><br></div><div>I get the following error:</div><div><br></div><div><div>**++++ Error between functions:</div><div>  Symbol &quot;PID-EXIT-STATUS&quot; not found at all in the SYSTEM package.</div><div>; (METHOD EXTERNAL-PROGRAM:PROCESS-P (EXTERNAL-PROGRAM::EXTERNAL-PROCESS))</div></div><div><br></div><div>The relevant code section is:</div><div><br></div><div><div>(defmethod process-status ((process external-process))</div><div>  (let ((status-code (sys:pid-exit-status (external-process-process-id</div><div>                                           process))))</div><div>    (values (if status-code :exited :running) status-code)))</div></div><div><br></div><div>I would like to make this available on LW7 - but so far could not find a more or less drop-in replacement for this call. I am sure I am missing something … Any help / hint / advice really appreciated. Thanks for your help.</div><div><br></div><div>Kind regards</div><span class="HOEnZb"><font color="#888888"><div><br></div><div>   Frank</div><div><br></div><div><br></div></font></span></div></blockquote></div><br></div></div></div>
+
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Package EXTERNAL-PROGRAM: SYS:PID-EXIT-STATUS no more available in 
+                  Lispworks 7</h1>
+                 <pre>
+Here is an example that has both lispworks6 and lispworks7 versions side by side: https://github.com/ExaScience/elprep/blob/master/io-utils.lisp
+
+Look for “(defstruct process”, “(defun run-program”, and “(defun process-close”.
+
+Pascal
+
+On Aug 28, 2015, at 08:50, Raymond Wiker &lt;rwiker@gmail.com&lt;mailto:rwiker@gmail.com&gt&gt wrote:
+
+I discovered the same thing some time back, and contacted Lispworks support about it. The response I got was
+
+: Thanks for the report -- the change is documented in the Release Notes 15.20.6
+: (http://www.lispworks.com/documentation/lw70/RNIG/html/readme-151.htm#marker-972462)
+: but was missing from the index so is not easy to find.
+
+: LispWorks 7.0 has sys:pipe-exit-status for pipes.
+
+: We don't support working with PIDs inside Lisp because the SIGCHLD handler
+: automatically reaps the exit status and hence the PID will no longer be
+: unique.
+
+It should be relatively easy to make the necessary changes to code that uses sys:pid-exit-status.
+
+On Fri, Aug 28, 2015 at 12:46 AM, "Frank Gönninger, Gönninger B&amp;T" &lt;frank.goenninger@goenninger.net&lt;mailto:frank.goenninger@goenninger.net&gt&gt wrote:
+Dear LW Gurus!
+
+While loading package EXTERNAL-PROGRAM (see https://github.com/sellout/external-program) - I used Quicklisp to load this package,
+
+I get the following error:
+
+**++++ Error between functions:
+  Symbol "PID-EXIT-STATUS" not found at all in the SYSTEM package.
+; (METHOD EXTERNAL-PROGRAM:PROCESS-P (EXTERNAL-PROGRAM::EXTERNAL-PROCESS))
+
+The relevant code section is:
+
+(defmethod process-status ((process external-process))
+  (let ((status-code (sys:pid-exit-status (external-process-process-id
+                                           process))))
+    (values (if status-code :exited :running) status-code)))
+
+I would like to make this available on LW7 - but so far could not find a more or less drop-in replacement for this call. I am sure I am missing something … Any help / hint / advice really appreciated. Thanks for your help.
+
+Kind regards
+
+   Frank
+
+
+
+
+--
+Pascal Costanza, ExaScience Lab Belgium, Intel Health &amp; Life Sciences
+pascal.costanza@intel.com&lt;mailto:pascal.costanza@intel.com&gt
+
+Intel Corporation NV/SA
+Kings Square, Veldkant 31
+2550 Kontich
+RPM (Bruxelles) 0415.497.718. 
+Citibank, Brussels, account 570/1031255/09
+
+This e-mail and any attachments may contain confidential material for the sole use of the intended recipient(s). Any review or distribution by others is strictly prohibited. If you are not the intended recipient, please contact the sender and delete all copies.
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Package EXTERNAL-PROGRAM: SYS:PID-EXIT-STATUS no more available in 
+                  Lispworks 7</h1>
+                 <pre>
+May I recommend uiop:run-program instead of external-program?
+
+If you're doing only synchronous calls, it's a slam dunk better.
+
+If you're doing asynchronous calls, however, it is admittedly mostly
+undocumented.
+
+—♯ƒ • François-René ÐVB Rideau •Reflection&amp;Cybernethics• http://fare.tunes.org
+Sex is not the answer.  Sex is the question.  "Yes" is the answer.
+                — Swami X
+
+
+On Thu, Aug 27, 2015 at 6:46 PM, "Frank Gönninger, Gönninger B&amp;T"
+&lt;frank.goenninger@goenninger.net&gt wrote:
+&gt Dear LW Gurus!
+&gt
+&gt While loading package EXTERNAL-PROGRAM (see
+&gt https://github.com/sellout/external-program) - I used Quicklisp to load this
+&gt package,
+&gt
+&gt I get the following error:
+&gt
+&gt **++++ Error between functions:
+&gt   Symbol "PID-EXIT-STATUS" not found at all in the SYSTEM package.
+&gt ; (METHOD EXTERNAL-PROGRAM:PROCESS-P (EXTERNAL-PROGRAM::EXTERNAL-PROCESS))
+&gt
+&gt The relevant code section is:
+&gt
+&gt (defmethod process-status ((process external-process))
+&gt   (let ((status-code (sys:pid-exit-status (external-process-process-id
+&gt                                            process))))
+&gt     (values (if status-code :exited :running) status-code)))
+&gt
+&gt I would like to make this available on LW7 - but so far could not find a
+&gt more or less drop-in replacement for this call. I am sure I am missing
+&gt something … Any help / hint / advice really appreciated. Thanks for your
+&gt help.
+&gt
+&gt Kind regards
+&gt
+&gt    Frank
+&gt
+&gt
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:28 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

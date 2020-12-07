@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>CAPI application starting with a prompt; prompt won't return</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>CAPI application starting with a prompt; prompt won't return</h1>
+                <pre>
+Hi all,  I'm trying to deliver an application which, when started,
+will prompt for the type of the first document to be created.  (Cf.
+the way in which a word processor might ask what kind of document a
+user wants to start.)  A minimal example that reproduces my problem
+follows.  I'm on OS X, so the function that starts the application
+creates an application interface, sets it as the application
+interface, and then prompts for some input which is then used in
+creating another interface.  My problem is that while the application
+is delivered with no problem, and when I start it, the prompt appears,
+nothing happens when I click "OK" or "Cancel" in the prompt.  The
+buttons get pushed, and I can select different elements in the prompt,
+but the prompt is never dismissed.  What am I missing?  Thanks in
+advance,  //JT
+
+
+(in-package "CL-USER")
+
+(load-all-patches)
+
+(capi:define-interface display-pane-interface () ()
+  (:panes (dp capi:display-pane :text (:initarg :text))))
+
+(defun display-pane-interface ()
+  (capi:with-dialog-results (text okp)
+      (capi:prompt-with-list
+       (list "one" "two" "three" "four" "five")
+       "Choose a string.")
+    (when okp
+      (capi:display
+       (make-instance 'display-pane-interface :text text)))))
+
+(capi:define-interface app-interface
+    (capi:cocoa-default-application-interface) ())
+
+(defun start-app ()
+  (capi:set-application-interface
+   (make-instance 'app-interface))
+  (display-pane-interface))
+
+;; Load the Application Bundle builder
+(compile-file (sys:example-file
+               "configuration/macos-application-bundle.lisp")
+              :load t)
+
+(deliver 'start-app
+         (when (save-argument-real-p)
+           (write-macos-application-bundle
+            "~/Desktop/Problem.app"))
+         0 :interface :capi)
+
+
+-- 
+Joshua Taylor, http://www.cs.rpi.edu/~tayloj/
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: CAPI application starting with a prompt; prompt won't return</h1>
+                 <pre>
+On Tue, Feb 9, 2010 at 12:00 AM, Joshua TAYLOR &lt;tayloj@cs.rpi.edu&gt wrote:
+&gt Hi all, &nbsp;I'm trying to deliver an application which, when started,
+&gt will prompt for the type of the first document to be created. &nbsp;(Cf.
+&gt the way in which a word processor might ask what kind of document a
+&gt user wants to start.) &nbsp;A minimal example that reproduces my problem
+&gt follows. &nbsp;I'm on OS X, so the function that starts the application
+&gt creates an application interface, sets it as the application
+&gt interface, and then prompts for some input which is then used in
+&gt creating another interface. &nbsp;My problem is that while the application
+&gt is delivered with no problem, and when I start it, the prompt appears,
+&gt nothing happens when I click "OK" or "Cancel" in the prompt. &nbsp;The
+&gt buttons get pushed, and I can select different elements in the prompt,
+&gt but the prompt is never dismissed. &nbsp;What am I missing? &nbsp;Thanks in
+&gt advance, &nbsp;//JT
+
+An update to those following this:
+
+After a bit more digging, I've discovered some more interesting
+behaviors related to this issue.  First, if the function that the
+application begins with uses multiple-value-bind and the
+capi:prompt-with-list rather than capi:with-dialog-results, things
+work as expected.  The issue with this, of course, is that it means
+that I need two "new document" type functions—one for when the
+application is started and there's no existing document to own the
+prompt, and another for when there is.  The issue isn't just with
+application startup though.  I have the same problem if the "new
+document" function is run as a callback from the menu for the
+application interface.  At least that gives me a better reason to have
+duplicated code—it seems that I need almost, but not quite, identical
+callbacks for normal interface menus and application interface menus.
+Needless to say, it's a bit irritating that I need two sets of
+callbacks for a File menu that is conceptually the same for the
+application interface and for document interfaces.  With any luck,
+someone will chime in and tell me what I'm doing wrong.
+
+Thanks in advance,  //JT
+
+-- 
+Joshua Taylor, http://www.cs.rpi.edu/~tayloj/
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:36 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

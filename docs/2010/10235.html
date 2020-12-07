@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>DEFCLASS slot options in CAPI:DEFINE-INTERFACE</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>DEFCLASS slot options in CAPI:DEFINE-INTERFACE</h1>
+                <pre>
+Has anyone noticed that the :DOCUMENTATION slot-option, if provided in
+a define-interface form for a slot defined within :panes (and
+:layouts, &amp;c., but I haven't checked these cases), doesn't get put
+into the slot definition of the corresponding DEFCLASS form.  E.g., in
+the following DEFINE-INTERFACE, the :reader, :writer, and :accessor
+are present in the macroexpansion's DEFCLASS.
+
+It make sense that the allocation, initarg, initform and type aren't
+passed through, since the allocation should always be instance (so
+that the same pane isn't displayed in multiple interfaces), the
+initarg wouldn't be used, initform isn't useful since the
+capi::initialize-instance method creates an instance of the pane, and
+the type is already known from the define-interface form.  But I don't
+see a reason not to pass the :documentation option through to the
+defclass.
+
+(capi:define-interface interface-class () ()
+  (:panes
+   (output capi:output-pane
+           :reader reader
+           :writer writer
+           :accessor accessor
+           :allocation allocation ; * shouldn't be passed through
+           :initarg initarg ; * no reason to pass through
+           :initform initform ; * no reason to pass through
+           :type type ; * already known
+           :documentation "docstring")))
+
+expands to
+
+(DSPEC:DEF (CAPI:DEFINE-INTERFACE INTERFACE-CLASS)
+  (DEFCLASS INTERFACE-CLASS
+            (CAPI:INTERFACE)
+            ((OUTPUT :READER READER :WRITER WRITER :ACCESSOR ACCESSOR))
+            (:METACLASS CAPI::CAPI-CLASS))
+  NIL
+  NIL
+  (DEFMETHOD CAPI::INITIALIZE-INTERFACE
+    :AFTER
+    ((#:SELF465245 INTERFACE-CLASS) &amp;REST #:ARGS465246 &amp;KEY &amp;ALLOW-OTHER-KEYS)
+    (WITH-SLOTS (OUTPUT) #:SELF465245
+      (DECLARE (IGNORABLE OUTPUT))
+      (LET ((CAPI::SELF #:SELF465245) (CAPI:INTERFACE #:SELF465245))
+        (DECLARE (IGNORABLE CAPI::SELF CAPI:INTERFACE))
+        (SETF (SLOT-VALUE #:SELF465245 'OUTPUT)
+              (MAKE-INSTANCE 'CAPI:OUTPUT-PANE
+                             :ALLOCATION
+                             ALLOCATION
+                             :INITARG
+                             INITARG
+                             :INITFORM
+                             INITFORM
+                             :TYPE
+                             TYPE
+                             :DOCUMENTATION ; should be up in the defclass form
+                             "docstring"
+                             :NAME
+                             'OUTPUT))
+        (SETF (SLOT-VALUE #:SELF465245 'CAPI::PANES)
+              (LIST* (SLOT-VALUE #:SELF465245 'OUTPUT)
+                     (SLOT-VALUE #:SELF465245 'CAPI::PANES))))))
+  'INTERFACE-CLASS)
+
+As a workaround, I do
+
+(capi:define-interface interface-class () ()
+  (:panes
+   (output capi:output-pane
+           #-(and) :documentation #-(and) "docstring")))
+
+since it really is nice to have a docstring with the slot definition,
+to have it look like a docstring in the source rather than a comment,
+and since the documentation shouldn't be an initarg to the pane.  (In
+my syntax highlighting, strings (including docstrings) are green, but
+comments are red, so the difference really is noticeable.)  While I
+don't think LW does anything with slot docstrings, some documentation
+generators know about them, and that's another reason that it would be
+nice to have define-interface recognize the :documentation
+option---the documentation generators can macroexpand to see the
+defclass form and read the documentation.
+
+Anyone else run into this?
+
+-- 
+Joshua Taylor, http://www.cs.rpi.edu/~tayloj/
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: DEFCLASS slot options in CAPI:DEFINE-INTERFACE</h1>
+                 <pre>
+Joshua TAYLOR wrote on Thu, 22 Apr 2010 19:16:18 -0400 03:16:
+
+| Has anyone noticed that the :DOCUMENTATION slot-option, if provided in
+| a define-interface form for a slot defined within :panes (and
+| :layouts, &amp;c., but I haven't checked these cases), doesn't get put
+| into the slot definition of the corresponding DEFCLASS form.
+
+IMHO, the :HELP-KEY or :TOOLTIP is more useful than :DOCUMENTATION for
+panes.
+--
+Sincerely,
+Dmitriy Ivanov
+lisp.ystok.ru
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: DEFCLASS slot options in CAPI:DEFINE-INTERFACE</h1>
+                 <p>
+                  Unable to parse email body. Email id is 10241
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>(Lisp HUG) Delivery (?) Issue...</h1>
+                 <pre>
+Greetings to the List --
+
+I am Delivering a fairly complex system (called ls1100) from within 
+LispWorks v5.1on a Windows XP system.
+
+Occasionally, when I start the ls1100.exe file on the Windows box, I 
+see the following error:
+
+"file d:\ls1100.exe did not begin or end with WR32" in a DOSy looking 
+error box -
+
+I did a google of the error and found only a single reference at 
+http://forums.opensuse.org/english/other-forums/looking-something-other-than-support/417965-regular-expression-tester-2.html
+
+The interesting thing is that, best that I can tell, that same error 
+popped up with Lisp in a Linux application -
+
+This implies, perhaps, that it is some sort of startup code generated 
+by the Delivery mechanism that fails during the Lisp start 
+sequence(??), considering that it has been seen in both a Windows XP 
+and Linux environment.
+
+The error goes away (usually) if I recompile/rebuild/redeliver the 
+app. It is quite sporadic - last time I saw this was several months ago.
+
+Has anyone seen this and/or know what it might mean and, of course, 
+how to kill the wretched thing with some incantation or the other??
+
+
+Regards on a lovely fall day from the Rocky Mountains.
+
+Jack Harper
+Secure Outcomes Inc.
+Evergreen, Colorado USA
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:35 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Stress test failure with threads</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Stress test failure with threads</h1>
+                <pre>
+I seem to have found a bug in LW-6.0 (Personal Edition), however I am
+reluctant to file a report since LW-6.1 Personal Edition has not been
+released yet. For my own purposes I'd like to know if it's been fixed.
+
+The RUN function below eventually hangs on my Linux machine, typically
+within 100 to 3000 iterations. I am certain it's not due to the
+Personal Edition memory limit since I can interrupt (SLIME C-c-c)
+after the hang occurs and re-run it.
+
+(defun test (thread-count)
+  (let ((from-threads (mp:make-semaphore))
+        (to-threads   (mp:make-semaphore)))
+    (loop repeat thread-count
+       do (mp:process-run-function
+           "test" nil (lambda ()
+                        (mp:semaphore-acquire to-threads)
+                        (mp:semaphore-release from-threads))))
+    (loop repeat thread-count
+       do (mp:semaphore-release to-threads))
+    (loop repeat thread-count
+       do (mp:semaphore-acquire from-threads))))
+
+(defun run ()
+  (loop
+     (test 16)
+     (format t ".")))
+
+
+* It does not hang when a semaphore is removed.
+
+* The probability of hanging increases as thread-count increases.
+
+* Also hangs when semaphores are replaced with blocking queues
+  implemented with condition variables.
+
+* Also hangs when the FORMAT call is removed.
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Stress test failure with threads</h1>
+                 <pre>
+
+I can confirm this bug does not exist under LW 6.1 on OS X.   The test below runs indefinitely without hanging even with high thread counts as high as 128.   
+
+On Jun 4, 2012, at 2:59 PM, James M. Lawrence wrote:
+
+&gt 
+&gt I seem to have found a bug in LW-6.0 (Personal Edition), however I am
+&gt reluctant to file a report since LW-6.1 Personal Edition has not been
+&gt released yet. For my own purposes I'd like to know if it's been fixed.
+&gt 
+&gt The RUN function below eventually hangs on my Linux machine, typically
+&gt within 100 to 3000 iterations. I am certain it's not due to the
+&gt Personal Edition memory limit since I can interrupt (SLIME C-c-c)
+&gt after the hang occurs and re-run it.
+&gt 
+&gt (defun test (thread-count)
+&gt  (let ((from-threads (mp:make-semaphore))
+&gt        (to-threads   (mp:make-semaphore)))
+&gt    (loop repeat thread-count
+&gt       do (mp:process-run-function
+&gt           "test" nil (lambda ()
+&gt                        (mp:semaphore-acquire to-threads)
+&gt                        (mp:semaphore-release from-threads))))
+&gt    (loop repeat thread-count
+&gt       do (mp:semaphore-release to-threads))
+&gt    (loop repeat thread-count
+&gt       do (mp:semaphore-acquire from-threads))))
+&gt 
+&gt (defun run ()
+&gt  (loop
+&gt     (test 16)
+&gt     (format t ".")))
+&gt 
+&gt 
+&gt * It does not hang when a semaphore is removed.
+&gt 
+&gt * The probability of hanging increases as thread-count increases.
+&gt 
+&gt * Also hangs when semaphores are replaced with blocking queues
+&gt  implemented with condition variables.
+&gt 
+&gt * Also hangs when the FORMAT call is removed.
+&gt 
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+&gt 
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>RE: Stress test failure with threads</h1>
+                 <pre>
+LW6.1 on Linux works normal as well, but LW6.0 Linux enterprise fails really hard...
+
+I have similar test with 2 semaphores which emulate MVar and it behaves the same way as this test.
+
+Cheers
+Ruslan Abdulkhalikov
+
+-----Original Message-----
+From: owner-lisp-hug@lispworks.com [mailto:owner-lisp-hug@lispworks.com] On Behalf Of Gene Diveglia
+Sent: Tuesday, 5 June 2012 4:59 AM
+To: lisp-hug@lispworks.com
+Subject: Re: Stress test failure with threads
+
+
+
+I can confirm this bug does not exist under LW 6.1 on OS X.   The test below runs indefinitely without hanging even with high thread counts as high as 128.
+
+On Jun 4, 2012, at 2:59 PM, James M. Lawrence wrote:
+
+&gt
+&gt I seem to have found a bug in LW-6.0 (Personal Edition), however I am
+&gt reluctant to file a report since LW-6.1 Personal Edition has not been
+&gt released yet. For my own purposes I'd like to know if it's been fixed.
+&gt
+&gt The RUN function below eventually hangs on my Linux machine, typically
+&gt within 100 to 3000 iterations. I am certain it's not due to the
+&gt Personal Edition memory limit since I can interrupt (SLIME C-c-c)
+&gt after the hang occurs and re-run it.
+&gt
+&gt (defun test (thread-count)
+&gt  (let ((from-threads (mp:make-semaphore))
+&gt        (to-threads   (mp:make-semaphore)))
+&gt    (loop repeat thread-count
+&gt       do (mp:process-run-function
+&gt           "test" nil (lambda ()
+&gt                        (mp:semaphore-acquire to-threads)
+&gt                        (mp:semaphore-release from-threads))))
+&gt    (loop repeat thread-count
+&gt       do (mp:semaphore-release to-threads))
+&gt    (loop repeat thread-count
+&gt       do (mp:semaphore-acquire from-threads))))
+&gt
+&gt (defun run ()
+&gt  (loop
+&gt     (test 16)
+&gt     (format t ".")))
+&gt
+&gt
+&gt * It does not hang when a semaphore is removed.
+&gt
+&gt * The probability of hanging increases as thread-count increases.
+&gt
+&gt * Also hangs when semaphores are replaced with blocking queues
+&gt  implemented with condition variables.
+&gt
+&gt * Also hangs when the FORMAT call is removed.
+&gt
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+&gt
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+
+________________________________
+Subject to local law, communications with Accenture and its affiliates including telephone calls and emails (including content), may be monitored by our systems for the purposes of security and the assessment of internal compliance with Accenture policy.
+______________________________________________________________________________________
+
+www.accenture.com
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Stress test failure with threads</h1>
+                 <p>
+                  Unable to parse email body. Email id is 11616
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Stress test failure with threads</h1>
+                 <pre>
+On Thu, Jun 7, 2012 at 10:27 AM, Martin Simmons &lt;martin@lispworks.com&gt wrote:
+&gt Yes, this is a bug in the LispWorks 6.0 implementation of semaphores.  It is
+&gt fixed in LispWorks 6.1.
+
+Thanks for the official word.
+
+&gt&gt * Also hangs when semaphores are replaced with blocking queues
+&gt&gt   implemented with condition variables.
+&gt
+&gt Please post the code for this, because condition variables don't have the same
+&gt bug AFAIK.
+
+For simplicity I've replaced the queue with a homemade semaphore. The
+following hung between 500 and 17000 iterations in the course of five
+runs.
+
+(defstruct sema
+  (count 0)
+  (lock (mp:make-lock :recursivep nil))
+  (cvar (mp:make-condition-variable)))
+
+(defun inc-sema (sema)
+  (mp:with-lock ((sema-lock sema))
+    (incf (sema-count sema))
+    (mp:condition-variable-signal (sema-cvar sema))))
+
+(defun dec-sema (sema)
+  (mp:with-lock ((sema-lock sema))
+    (loop (cond ((plusp (sema-count sema))
+                 (decf (sema-count sema))
+                 (return))
+                (t
+                 (mp:condition-variable-wait
+                  (sema-cvar sema) (sema-lock sema)))))))
+
+(defun test (thread-count)
+  (let ((from-threads (make-sema))
+        (to-threads   (make-sema)))
+    (loop repeat thread-count
+       do (mp:process-run-function
+           "test" nil (lambda ()
+                        (dec-sema to-threads)
+                        (inc-sema from-threads))))
+    (loop repeat thread-count
+       do (inc-sema to-threads))
+    (loop repeat thread-count
+       do (dec-sema from-threads))))
+
+(defun run ()
+  (loop
+     (test 16)
+     (format t ".")))
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>RE: Stress test failure with threads</h1>
+                 <pre>
+James,
+
+your test seems to work on LW6.1 Linux Ent...
+
+Cheers
+Rus
+
+-----Original Message-----
+From: owner-lisp-hug@lispworks.com [mailto:owner-lisp-hug@lispworks.com] On Behalf Of James M. Lawrence
+Sent: Friday, 8 June 2012 2:46 AM
+To: lisp-hug@lispworks.com
+Subject: Re: Stress test failure with threads
+
+
+On Thu, Jun 7, 2012 at 10:27 AM, Martin Simmons &lt;martin@lispworks.com&gt wrote:
+&gt Yes, this is a bug in the LispWorks 6.0 implementation of semaphores.  It is
+&gt fixed in LispWorks 6.1.
+
+Thanks for the official word.
+
+&gt&gt * Also hangs when semaphores are replaced with blocking queues
+&gt&gt   implemented with condition variables.
+&gt
+&gt Please post the code for this, because condition variables don't have the same
+&gt bug AFAIK.
+
+For simplicity I've replaced the queue with a homemade semaphore. The
+following hung between 500 and 17000 iterations in the course of five
+runs.
+
+(defstruct sema
+  (count 0)
+  (lock (mp:make-lock :recursivep nil))
+  (cvar (mp:make-condition-variable)))
+
+(defun inc-sema (sema)
+  (mp:with-lock ((sema-lock sema))
+    (incf (sema-count sema))
+    (mp:condition-variable-signal (sema-cvar sema))))
+
+(defun dec-sema (sema)
+  (mp:with-lock ((sema-lock sema))
+    (loop (cond ((plusp (sema-count sema))
+                 (decf (sema-count sema))
+                 (return))
+                (t
+                 (mp:condition-variable-wait
+                  (sema-cvar sema) (sema-lock sema)))))))
+
+(defun test (thread-count)
+  (let ((from-threads (make-sema))
+        (to-threads   (make-sema)))
+    (loop repeat thread-count
+       do (mp:process-run-function
+           "test" nil (lambda ()
+                        (dec-sema to-threads)
+                        (inc-sema from-threads))))
+    (loop repeat thread-count
+       do (inc-sema to-threads))
+    (loop repeat thread-count
+       do (dec-sema from-threads))))
+
+(defun run ()
+  (loop
+     (test 16)
+     (format t ".")))
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+
+________________________________
+Subject to local law, communications with Accenture and its affiliates including telephone calls and emails (including content), may be monitored by our systems for the purposes of security and the assessment of internal compliance with Accenture policy.
+______________________________________________________________________________________
+
+www.accenture.com
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Stress test failure with threads</h1>
+                 <pre>
+Thanks to all who responded. Unless I hear otherwise I'll assume it's fixed.
+
+On Thu, Jun 7, 2012 at 9:11 PM,  &lt;ruslan.abdulkhalikov@accenture.com&gt wrote:
+&gt
+&gt James,
+&gt
+&gt your test seems to work on LW6.1 Linux Ent...
+&gt
+&gt Cheers
+&gt Rus
+&gt
+&gt -----Original Message-----
+&gt From: owner-lisp-hug@lispworks.com [mailto:owner-lisp-hug@lispworks.com] On Behalf Of James M. Lawrence
+&gt Sent: Friday, 8 June 2012 2:46 AM
+&gt To: lisp-hug@lispworks.com
+&gt Subject: Re: Stress test failure with threads
+&gt
+&gt
+&gt On Thu, Jun 7, 2012 at 10:27 AM, Martin Simmons &lt;martin@lispworks.com&gt wrote:
+&gt&gt Yes, this is a bug in the LispWorks 6.0 implementation of semaphores. &nbsp;It is
+&gt&gt fixed in LispWorks 6.1.
+&gt
+&gt Thanks for the official word.
+&gt
+&gt&gt&gt * Also hangs when semaphores are replaced with blocking queues
+&gt&gt&gt &nbsp; implemented with condition variables.
+&gt&gt
+&gt&gt Please post the code for this, because condition variables don't have the same
+&gt&gt bug AFAIK.
+&gt
+&gt For simplicity I've replaced the queue with a homemade semaphore. The
+&gt following hung between 500 and 17000 iterations in the course of five
+&gt runs.
+&gt
+&gt (defstruct sema
+&gt &nbsp;(count 0)
+&gt &nbsp;(lock (mp:make-lock :recursivep nil))
+&gt &nbsp;(cvar (mp:make-condition-variable)))
+&gt
+&gt (defun inc-sema (sema)
+&gt &nbsp;(mp:with-lock ((sema-lock sema))
+&gt &nbsp; &nbsp;(incf (sema-count sema))
+&gt &nbsp; &nbsp;(mp:condition-variable-signal (sema-cvar sema))))
+&gt
+&gt (defun dec-sema (sema)
+&gt &nbsp;(mp:with-lock ((sema-lock sema))
+&gt &nbsp; &nbsp;(loop (cond ((plusp (sema-count sema))
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (decf (sema-count sema))
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (return))
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(t
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (mp:condition-variable-wait
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(sema-cvar sema) (sema-lock sema)))))))
+&gt
+&gt (defun test (thread-count)
+&gt &nbsp;(let ((from-threads (make-sema))
+&gt &nbsp; &nbsp; &nbsp; &nbsp;(to-threads &nbsp; (make-sema)))
+&gt &nbsp; &nbsp;(loop repeat thread-count
+&gt &nbsp; &nbsp; &nbsp; do (mp:process-run-function
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; "test" nil (lambda ()
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(dec-sema to-threads)
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(inc-sema from-threads))))
+&gt &nbsp; &nbsp;(loop repeat thread-count
+&gt &nbsp; &nbsp; &nbsp; do (inc-sema to-threads))
+&gt &nbsp; &nbsp;(loop repeat thread-count
+&gt &nbsp; &nbsp; &nbsp; do (dec-sema from-threads))))
+&gt
+&gt (defun run ()
+&gt &nbsp;(loop
+&gt &nbsp; &nbsp; (test 16)
+&gt &nbsp; &nbsp; (format t ".")))
+&gt
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+&gt
+&gt
+&gt
+&gt ________________________________
+&gt Subject to local law, communications with Accenture and its affiliates including telephone calls and emails (including content), may be monitored by our systems for the purposes of security and the assessment of internal compliance with Accenture policy.
+&gt ______________________________________________________________________________________
+&gt
+&gt www.accenture.com
+&gt
+&gt
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+&gt
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Stress test failure with threads</h1>
+                 <pre>
+I can't repeat the hanging with the condition variable implementation in
+LispWorks 6.0 either.
+
+-- 
+Martin Simmons
+LispWorks Ltd
+http://www.lispworks.com/
+
+
+&gt&gt&gt&gt&gt On Wed, 13 Jun 2012 09:57:57 -0400, James M Lawrence said:
+&gt 
+&gt Thanks to all who responded. Unless I hear otherwise I'll assume it's fixed.
+&gt 
+&gt On Thu, Jun 7, 2012 at 9:11 PM,  &lt;ruslan.abdulkhalikov@accenture.com&gt wrote:
+&gt &gt
+&gt &gt James,
+&gt &gt
+&gt &gt your test seems to work on LW6.1 Linux Ent...
+&gt &gt
+&gt &gt Cheers
+&gt &gt Rus
+&gt &gt
+&gt &gt -----Original Message-----
+&gt &gt From: owner-lisp-hug@lispworks.com [mailto:owner-lisp-hug@lispworks.com] On Behalf Of James M. Lawrence
+&gt &gt Sent: Friday, 8 June 2012 2:46 AM
+&gt &gt To: lisp-hug@lispworks.com
+&gt &gt Subject: Re: Stress test failure with threads
+&gt &gt
+&gt &gt
+&gt &gt On Thu, Jun 7, 2012 at 10:27 AM, Martin Simmons &lt;martin@lispworks.com&gt wrote:
+&gt &gt&gt Yes, this is a bug in the LispWorks 6.0 implementation of semaphores.. &nbsp;It is
+&gt &gt&gt fixed in LispWorks 6.1.
+&gt &gt
+&gt &gt Thanks for the official word.
+&gt &gt
+&gt &gt&gt&gt * Also hangs when semaphores are replaced with blocking queues
+&gt &gt&gt&gt &nbsp; implemented with condition variables.
+&gt &gt&gt
+&gt &gt&gt Please post the code for this, because condition variables don't have the same
+&gt &gt&gt bug AFAIK.
+&gt &gt
+&gt &gt For simplicity I've replaced the queue with a homemade semaphore. The
+&gt &gt following hung between 500 and 17000 iterations in the course of five
+&gt &gt runs.
+&gt &gt
+&gt &gt (defstruct sema
+&gt &gt &nbsp;(count 0)
+&gt &gt &nbsp;(lock (mp:make-lock :recursivep nil))
+&gt &gt &nbsp;(cvar (mp:make-condition-variable)))
+&gt &gt
+&gt &gt (defun inc-sema (sema)
+&gt &gt &nbsp;(mp:with-lock ((sema-lock sema))
+&gt &gt &nbsp; &nbsp;(incf (sema-count sema))
+&gt &gt &nbsp; &nbsp;(mp:condition-variable-signal (sema-cvar sema))))
+&gt &gt
+&gt &gt (defun dec-sema (sema)
+&gt &gt &nbsp;(mp:with-lock ((sema-lock sema))
+&gt &gt &nbsp; &nbsp;(loop (cond ((plusp (sema-count sema))
+&gt &gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (decf (sema-count sema))
+&gt &gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (return))
+&gt &gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(t
+&gt &gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (mp:condition-variable-wait
+&gt &gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(sema-cvar sema) (sema-lock sema)))))))
+&gt &gt
+&gt &gt (defun test (thread-count)
+&gt &gt &nbsp;(let ((from-threads (make-sema))
+&gt &gt &nbsp; &nbsp; &nbsp; &nbsp;(to-threads &nbsp; (make-sema)))
+&gt &gt &nbsp; &nbsp;(loop repeat thread-count
+&gt &gt &nbsp; &nbsp; &nbsp; do (mp:process-run-function
+&gt &gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; "test" nil (lambda ()
+&gt &gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(dec-sema to-threads)
+&gt &gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(inc-sema from-threads))))
+&gt &gt &nbsp; &nbsp;(loop repeat thread-count
+&gt &gt &nbsp; &nbsp; &nbsp; do (inc-sema to-threads))
+&gt &gt &nbsp; &nbsp;(loop repeat thread-count
+&gt &gt &nbsp; &nbsp; &nbsp; do (dec-sema from-threads))))
+&gt &gt
+&gt &gt (defun run ()
+&gt &gt &nbsp;(loop
+&gt &gt &nbsp; &nbsp; (test 16)
+&gt &gt &nbsp; &nbsp; (format t ".")))
+&gt &gt
+&gt &gt _______________________________________________
+&gt &gt Lisp Hug - the mailing list for LispWorks users
+&gt &gt lisp-hug@lispworks.com
+&gt &gt http://www.lispworks.com/support/lisp-hug.html
+&gt &gt
+&gt &gt
+&gt &gt
+&gt &gt ________________________________
+&gt &gt Subject to local law, communications with Accenture and its affiliates including telephone calls and emails (including content), may be monitored by our systems for the purposes of security and the assessment of internal compliance with Accenture policy.
+&gt &gt ______________________________________________________________________________________
+&gt &gt
+&gt &gt www.accenture.com
+&gt &gt
+&gt &gt
+&gt &gt _______________________________________________
+&gt &gt Lisp Hug - the mailing list for LispWorks users
+&gt &gt lisp-hug@lispworks.com
+&gt &gt http://www.lispworks.com/support/lisp-hug.html
+&gt &gt
+&gt 
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+&gt
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Stress test failure with threads</h1>
+                 <pre>
+Are you writing to confirm that it was fixed in one of the 6.0
+patches, or are you looking to reproduce the hang? If the latter then
+run
+
+lispworks-personal-6-0-1-x86-linux, md5 0f836edc2f40485ffb07224485bf44e3
+
+You need to compile the example. I just tried interpreted mode and did
+not see a hang.
+
+On Wed, Jun 13, 2012 at 10:57 AM, Martin Simmons &lt;martin@lispworks.com&gt wrote:
+&gt
+&gt I can't repeat the hanging with the condition variable implementation in
+&gt LispWorks 6.0 either.
+&gt
+&gt --
+&gt Martin Simmons
+&gt LispWorks Ltd
+&gt http://www.lispworks.com/
+&gt
+&gt
+&gt&gt&gt&gt&gt&gt On Wed, 13 Jun 2012 09:57:57 -0400, James M Lawrence said:
+&gt&gt
+&gt&gt Thanks to all who responded. Unless I hear otherwise I'll assume it's fixed.
+&gt&gt
+&gt&gt On Thu, Jun 7, 2012 at 9:11 PM, &nbsp;&lt;ruslan.abdulkhalikov@accenture.com&gt wrote:
+&gt&gt &gt
+&gt&gt &gt James,
+&gt&gt &gt
+&gt&gt &gt your test seems to work on LW6.1 Linux Ent...
+&gt&gt &gt
+&gt&gt &gt Cheers
+&gt&gt &gt Rus
+&gt&gt &gt
+&gt&gt &gt -----Original Message-----
+&gt&gt &gt From: owner-lisp-hug@lispworks.com [mailto:owner-lisp-hug@lispworks.com] On Behalf Of James M. Lawrence
+&gt&gt &gt Sent: Friday, 8 June 2012 2:46 AM
+&gt&gt &gt To: lisp-hug@lispworks.com
+&gt&gt &gt Subject: Re: Stress test failure with threads
+&gt&gt &gt
+&gt&gt &gt
+&gt&gt &gt On Thu, Jun 7, 2012 at 10:27 AM, Martin Simmons &lt;martin@lispworks.com&gt wrote:
+&gt&gt &gt&gt Yes, this is a bug in the LispWorks 6.0 implementation of semaphores. &nbsp;It is
+&gt&gt &gt&gt fixed in LispWorks 6.1.
+&gt&gt &gt
+&gt&gt &gt Thanks for the official word.
+&gt&gt &gt
+&gt&gt &gt&gt&gt * Also hangs when semaphores are replaced with blocking queues
+&gt&gt &gt&gt&gt &nbsp; implemented with condition variables.
+&gt&gt &gt&gt
+&gt&gt &gt&gt Please post the code for this, because condition variables don't have the same
+&gt&gt &gt&gt bug AFAIK.
+&gt&gt &gt
+&gt&gt &gt For simplicity I've replaced the queue with a homemade semaphore. The
+&gt&gt &gt following hung between 500 and 17000 iterations in the course of five
+&gt&gt &gt runs.
+&gt&gt &gt
+&gt&gt &gt (defstruct sema
+&gt&gt &gt &nbsp;(count 0)
+&gt&gt &gt &nbsp;(lock (mp:make-lock :recursivep nil))
+&gt&gt &gt &nbsp;(cvar (mp:make-condition-variable)))
+&gt&gt &gt
+&gt&gt &gt (defun inc-sema (sema)
+&gt&gt &gt &nbsp;(mp:with-lock ((sema-lock sema))
+&gt&gt &gt &nbsp; &nbsp;(incf (sema-count sema))
+&gt&gt &gt &nbsp; &nbsp;(mp:condition-variable-signal (sema-cvar sema))))
+&gt&gt &gt
+&gt&gt &gt (defun dec-sema (sema)
+&gt&gt &gt &nbsp;(mp:with-lock ((sema-lock sema))
+&gt&gt &gt &nbsp; &nbsp;(loop (cond ((plusp (sema-count sema))
+&gt&gt &gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (decf (sema-count sema))
+&gt&gt &gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (return))
+&gt&gt &gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(t
+&gt&gt &gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (mp:condition-variable-wait
+&gt&gt &gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(sema-cvar sema) (sema-lock sema)))))))
+&gt&gt &gt
+&gt&gt &gt (defun test (thread-count)
+&gt&gt &gt &nbsp;(let ((from-threads (make-sema))
+&gt&gt &gt &nbsp; &nbsp; &nbsp; &nbsp;(to-threads &nbsp; (make-sema)))
+&gt&gt &gt &nbsp; &nbsp;(loop repeat thread-count
+&gt&gt &gt &nbsp; &nbsp; &nbsp; do (mp:process-run-function
+&gt&gt &gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; "test" nil (lambda ()
+&gt&gt &gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(dec-sema to-threads)
+&gt&gt &gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(inc-sema from-threads))))
+&gt&gt &gt &nbsp; &nbsp;(loop repeat thread-count
+&gt&gt &gt &nbsp; &nbsp; &nbsp; do (inc-sema to-threads))
+&gt&gt &gt &nbsp; &nbsp;(loop repeat thread-count
+&gt&gt &gt &nbsp; &nbsp; &nbsp; do (dec-sema from-threads))))
+&gt&gt &gt
+&gt&gt &gt (defun run ()
+&gt&gt &gt &nbsp;(loop
+&gt&gt &gt &nbsp; &nbsp; (test 16)
+&gt&gt &gt &nbsp; &nbsp; (format t ".")))
+&gt&gt &gt
+&gt&gt &gt _______________________________________________
+&gt&gt &gt Lisp Hug - the mailing list for LispWorks users
+&gt&gt &gt lisp-hug@lispworks.com
+&gt&gt &gt http://www.lispworks.com/support/lisp-hug.html
+&gt&gt &gt
+&gt&gt &gt
+&gt&gt &gt
+&gt&gt &gt ________________________________
+&gt&gt &gt Subject to local law, communications with Accenture and its affiliates including telephone calls and emails (including content), may be monitored by our systems for the purposes of security and the assessment of internal compliance with Accenture policy.
+&gt&gt &gt ______________________________________________________________________________________
+&gt&gt &gt
+&gt&gt &gt www.accenture.com
+&gt&gt &gt
+&gt&gt &gt
+&gt&gt &gt _______________________________________________
+&gt&gt &gt Lisp Hug - the mailing list for LispWorks users
+&gt&gt &gt lisp-hug@lispworks.com
+&gt&gt &gt http://www.lispworks.com/support/lisp-hug.html
+&gt&gt &gt
+&gt&gt
+&gt&gt _______________________________________________
+&gt&gt Lisp Hug - the mailing list for LispWorks users
+&gt&gt lisp-hug@lispworks.com
+&gt&gt http://www.lispworks.com/support/lisp-hug.html
+&gt&gt
+&gt
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+&gt
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Stress test failure with threads</h1>
+                 <pre>
+I've managed to repeat it now.  The bug that causes condition variables to
+hang under stress is fixed in LispWorks 6.1 too.
+
+-- 
+Martin Simmons
+LispWorks Ltd
+http://www.lispworks.com/
+
+
+&gt&gt&gt&gt&gt On Wed, 13 Jun 2012 21:05:30 -0400, James M Lawrence said:
+&gt 
+&gt Are you writing to confirm that it was fixed in one of the 6.0
+&gt patches, or are you looking to reproduce the hang? If the latter then
+&gt run
+&gt 
+&gt lispworks-personal-6-0-1-x86-linux, md5 0f836edc2f40485ffb07224485bf44e3
+&gt 
+&gt You need to compile the example. I just tried interpreted mode and did
+&gt not see a hang.
+&gt 
+&gt On Wed, Jun 13, 2012 at 10:57 AM, Martin Simmons &lt;martin@lispworks.com&gt wrote:
+&gt &gt
+&gt &gt I can't repeat the hanging with the condition variable implementation in
+&gt &gt LispWorks 6.0 either.
+&gt &gt
+&gt &gt --
+&gt &gt Martin Simmons
+&gt &gt LispWorks Ltd
+&gt &gt http://www.lispworks.com/
+&gt &gt
+&gt &gt
+&gt &gt&gt&gt&gt&gt&gt On Wed, 13 Jun 2012 09:57:57 -0400, James M Lawrence said:
+&gt &gt&gt
+&gt &gt&gt Thanks to all who responded. Unless I hear otherwise I'll assume it's fixed.
+&gt &gt&gt
+&gt &gt&gt On Thu, Jun 7, 2012 at 9:11 PM, &nbsp;&lt;ruslan.abdulkhalikov@accenture.com&gt wrote:
+&gt &gt&gt &gt
+&gt &gt&gt &gt James,
+&gt &gt&gt &gt
+&gt &gt&gt &gt your test seems to work on LW6.1 Linux Ent...
+&gt &gt&gt &gt
+&gt &gt&gt &gt Cheers
+&gt &gt&gt &gt Rus
+&gt &gt&gt &gt
+&gt &gt&gt &gt -----Original Message-----
+&gt &gt&gt &gt From: owner-lisp-hug@lispworks.com [mailto:owner-lisp-hug@lispworks.com] On Behalf Of James M. Lawrence
+&gt &gt&gt &gt Sent: Friday, 8 June 2012 2:46 AM
+&gt &gt&gt &gt To: lisp-hug@lispworks.com
+&gt &gt&gt &gt Subject: Re: Stress test failure with threads
+&gt &gt&gt &gt
+&gt &gt&gt &gt
+&gt &gt&gt &gt On Thu, Jun 7, 2012 at 10:27 AM, Martin Simmons &lt;martin@lispworks.com&gt wrote:
+&gt &gt&gt &gt&gt Yes, this is a bug in the LispWorks 6.0 implementation of semaphores. &nbsp;It is
+&gt &gt&gt &gt&gt fixed in LispWorks 6.1.
+&gt &gt&gt &gt
+&gt &gt&gt &gt Thanks for the official word.
+&gt &gt&gt &gt
+&gt &gt&gt &gt&gt&gt * Also hangs when semaphores are replaced with blocking queues
+&gt &gt&gt &gt&gt&gt &nbsp; implemented with condition variables.
+&gt &gt&gt &gt&gt
+&gt &gt&gt &gt&gt Please post the code for this, because condition variables don't have the same
+&gt &gt&gt &gt&gt bug AFAIK.
+&gt &gt&gt &gt
+&gt &gt&gt &gt For simplicity I've replaced the queue with a homemade semaphore. The
+&gt &gt&gt &gt following hung between 500 and 17000 iterations in the course of five
+&gt &gt&gt &gt runs.
+&gt &gt&gt &gt
+&gt &gt&gt &gt (defstruct sema
+&gt &gt&gt &gt &nbsp;(count 0)
+&gt &gt&gt &gt &nbsp;(lock (mp:make-lock :recursivep nil))
+&gt &gt&gt &gt &nbsp;(cvar (mp:make-condition-variable)))
+&gt &gt&gt &gt
+&gt &gt&gt &gt (defun inc-sema (sema)
+&gt &gt&gt &gt &nbsp;(mp:with-lock ((sema-lock sema))
+&gt &gt&gt &gt &nbsp; &nbsp;(incf (sema-count sema))
+&gt &gt&gt &gt &nbsp; &nbsp;(mp:condition-variable-signal (sema-cvar sema))))
+&gt &gt&gt &gt
+&gt &gt&gt &gt (defun dec-sema (sema)
+&gt &gt&gt &gt &nbsp;(mp:with-lock ((sema-lock sema))
+&gt &gt&gt &gt &nbsp; &nbsp;(loop (cond ((plusp (sema-count sema))
+&gt &gt&gt &gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (decf (sema-count sema))
+&gt &gt&gt &gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (return))
+&gt &gt&gt &gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(t
+&gt &gt&gt &gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (mp:condition-variable-wait
+&gt &gt&gt &gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(sema-cvar sema) (sema-lock sema)))))))
+&gt &gt&gt &gt
+&gt &gt&gt &gt (defun test (thread-count)
+&gt &gt&gt &gt &nbsp;(let ((from-threads (make-sema))
+&gt &gt&gt &gt &nbsp; &nbsp; &nbsp; &nbsp;(to-threads &nbsp; (make-sema)))
+&gt &gt&gt &gt &nbsp; &nbsp;(loop repeat thread-count
+&gt &gt&gt &gt &nbsp; &nbsp; &nbsp; do (mp:process-run-function
+&gt &gt&gt &gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; "test" nil (lambda ()
+&gt &gt&gt &gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(dec-sema to-threads)
+&gt &gt&gt &gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(inc-sema from-threads))))
+&gt &gt&gt &gt &nbsp; &nbsp;(loop repeat thread-count
+&gt &gt&gt &gt &nbsp; &nbsp; &nbsp; do (inc-sema to-threads))
+&gt &gt&gt &gt &nbsp; &nbsp;(loop repeat thread-count
+&gt &gt&gt &gt &nbsp; &nbsp; &nbsp; do (dec-sema from-threads))))
+&gt &gt&gt &gt
+&gt &gt&gt &gt (defun run ()
+&gt &gt&gt &gt &nbsp;(loop
+&gt &gt&gt &gt &nbsp; &nbsp; (test 16)
+&gt &gt&gt &gt &nbsp; &nbsp; (format t ".")))
+&gt &gt&gt &gt
+&gt &gt&gt &gt _______________________________________________
+&gt &gt&gt &gt Lisp Hug - the mailing list for LispWorks users
+&gt &gt&gt &gt lisp-hug@lispworks.com
+&gt &gt&gt &gt http://www.lispworks.com/support/lisp-hug.html
+&gt &gt&gt &gt
+&gt &gt&gt &gt
+&gt &gt&gt &gt
+&gt &gt&gt &gt ________________________________
+&gt &gt&gt &gt Subject to local law, communications with Accenture and its affiliates including telephone calls and emails (including content), may be monitored by our systems for the purposes of security and the assessment of internal compliance with Accenture policy.
+&gt &gt&gt &gt ______________________________________________________________________________________
+&gt &gt&gt &gt
+&gt &gt&gt &gt www.accenture.com
+&gt &gt&gt &gt
+&gt &gt&gt &gt
+&gt &gt&gt &gt _______________________________________________
+&gt &gt&gt &gt Lisp Hug - the mailing list for LispWorks users
+&gt &gt&gt &gt lisp-hug@lispworks.com
+&gt &gt&gt &gt http://www.lispworks.com/support/lisp-hug.html
+&gt &gt&gt &gt
+&gt &gt&gt
+&gt &gt&gt _______________________________________________
+&gt &gt&gt Lisp Hug - the mailing list for LispWorks users
+&gt &gt&gt lisp-hug@lispworks.com
+&gt &gt&gt http://www.lispworks.com/support/lisp-hug.html
+&gt &gt&gt
+&gt &gt
+&gt &gt _______________________________________________
+&gt &gt Lisp Hug - the mailing list for LispWorks users
+&gt &gt lisp-hug@lispworks.com
+&gt &gt http://www.lispworks.com/support/lisp-hug.html
+&gt &gt
+&gt 
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+&gt 
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:32 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

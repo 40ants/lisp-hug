@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Tail recursive calls</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Tail recursive calls</h1><!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML><HEAD>
+<META http-equiv=Content-Type content="text/html; charset=koi8-r">
+<META content="MSHTML 6.00.2800.1106" name=GENERATOR>
+<STYLE></STYLE>
+</HEAD>
+<BODY bgColor=#ffffff>
+<DIV><FONT face=Arial size=2>Hi</FONT></DIV>
+<DIV><FONT face=Arial size=2></FONT>&nbsp;</DIV>
+<DIV><FONT face=Arial size=2>I've typed in an BSTree example from&nbsp;"ANSI 
+Common Lisp" by Paul Graham (page 72). It uses recursion to find place for node 
+insertion and Lispworks 4.3.7 says that stack is full when I tried to push 10000 
+values in the tree.</FONT></DIV>
+<DIV><FONT face=Arial size=2></FONT>&nbsp;</DIV>
+<DIV><FONT face=Arial size=2>I tried to compile it with all possible OPTIMIZE 
+options but result was same.</FONT></DIV>
+<DIV><FONT face=Arial size=2></FONT>&nbsp;</DIV>
+<DIV><FONT face=Arial size=2>(defun bst-insert (obj bst &lt;)<BR>&nbsp; (declare 
+(optimize (speed 3)(debug 0)(safety 0)))<BR>&nbsp; (do ((cur 
+bst))<BR>&nbsp;&nbsp;&nbsp;&nbsp; ((null cur) (make-node :elt 
+obj))<BR>&nbsp;&nbsp;&nbsp; (let ((elt (node-elt 
+bst)))<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (if (eql obj 
+elt)<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+bst<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (if (funcall &lt; 
+obj 
+elt)<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+(make-node<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+:elt 
+elt<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+:l (bst-insert obj (node-l bst) 
+&lt;)<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+:r (node-r 
+bst))<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+(make-node<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+:elt 
+elt<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+:r (bst-insert obj (node-r bst) 
+&lt;)<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+:l (node-l bst)))<BR>))))<BR></FONT></DIV>
+<DIV><FONT face=Arial size=2>Is optimization possible where ? I like recursive 
+variant&nbsp;more that iterative.</FONT></DIV>
+<DIV><FONT face=Arial size=2></FONT>&nbsp;</DIV>
+<DIV><FONT face=Arial size=2>Thanks</FONT></DIV>
+<DIV><FONT face=Arial size=2>Lisper</FONT></DIV></BODY></HTML>
+
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Tail recursive calls</h1>
+                 <pre>On 8896 day of my life lisptracker@mail.ru wrote:
+&gt (defun bst-insert (obj bst &lt;)
+
+....
+
+&gt               (make-node
+&gt                :elt elt
+&gt                :l (bst-insert obj (node-l bst) &lt;)
+&gt                :r (node-r bst))
+&gt               (make-node
+&gt                :elt elt
+&gt                :r (bst-insert obj (node-r bst) &lt;)
+&gt                :l (node-l bst)))
+&gt ))))
+&gt
+&gt Is optimization possible where ? I like recursive variant more that
+&gt iterative.
+
+It is not tail recursion.  After returning from nested BST-INSERT
+call, other action is performed: MAKE-NODE.
+
+-- 
+Ivan Boldyrev
+
+                                        | recursion, n:
+                                        |       See recursion
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Tail recursive calls</h1>
+                 <pre>On 8896 day of my life lisptracker@mail.ru wrote:
+&gt (defun bst-insert (obj bst &lt;)
+&gt   (declare (optimize (speed 3)(debug 0)(safety 0)))
+&gt   (do ((cur bst))
+&gt      ((null cur) (make-node :elt obj))
+&gt     (let ((elt (node-elt bst)))
+&gt       (if (eql obj elt)
+&gt           bst
+&gt           (if (funcall &lt; obj elt)
+&gt               (make-node
+&gt                :elt elt
+&gt                :l (bst-insert obj (node-l bst) &lt;)
+&gt                :r (node-r bst))
+&gt               (make-node
+&gt                :elt elt
+&gt                :r (bst-insert obj (node-r bst) &lt;)
+&gt                :l (node-l bst)))
+&gt ))))
+&gt
+&gt Is optimization possible where ? I like recursive variant more that
+&gt iterative.
+
+Do not call MAKE-NODE inside IF: these objects are just ignored.  DO
+form evaluates statements inside but ignores results.  Then the
+function will be tail-recursive.
+
+I'd replace whole body of the loop with:
+
+    (let ((elt (node-eld bst)))
+       (if (eql obj elt)
+          bst
+          (bst-insert  obj
+                       (if (funcall &lt; obj elt)
+                          (node-l bst)
+                          (node-r bst))
+                       &lt;)))
+
+-- 
+Ivan Boldyrev
+
+                        Today is the first day of the rest of your life.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Tail recursive calls</h1>
+                 <pre>On 8897 day of my life Ivan Boldyrev wrote:
+&gt On 8896 day of my life lisptracker@mail.ru wrote:
+&gt&gt (defun bst-insert (obj bst &lt;)
+&gt&gt   (declare (optimize (speed 3)(debug 0)(safety 0)))
+&gt&gt   (do ((cur bst))
+
+&gt Do not call MAKE-NODE inside IF: these objects are just ignored.  DO
+&gt form evaluates statements inside but ignores results.  Then the
+&gt function will be tail-recursive.
+
+My mistake: it will never be tail-recursive because every recursive
+call is inside DO loop.   You have to find another way to code it :)
+
+-- 
+Ivan Boldyrev
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:51 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Alpha channel on windows</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Alpha channel on windows</h1>
+                <pre>
+I can't seem to draw a transparent rectangle on windows. &nbsp;I do the
+following test:
+
+(setq p (capi:contain
+&nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(make-instance 'capi:output-pane)))
+(capi:apply-in-pane-process p
+&nbsp;(lambda ()
+&nbsp; &nbsp;(gp:clear-rectangle p 0 0 120 120)
+&nbsp;&nbsp; (gp:draw-line p 0 0 300 300
+&nbsp;&nbsp; &nbsp; &nbsp;:foreground :red
+&nbsp;&nbsp; &nbsp; &nbsp;:thickness 3)
+&nbsp;&nbsp; (gp:draw-rectangle p 10 10 100 100
+&nbsp;&nbsp; &nbsp; &nbsp;:filled t
+&nbsp;&nbsp; &nbsp; &nbsp;:foreground (color:make-rgb&nbsp;0.9 0.9 0.9 0.5))))
+
+On my mac, the red line shows through the gray rectangle. &nbsp;On my
+Windows XP box, it doesn't. &nbsp;Any idea why this might be?
+
+Thanks,
+Gail
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Alpha channel on windows</h1>
+                 <pre>
+If I'm not mistaken, LW on Windows uses GDI to draw all kinds of graphics. GDI doesn't support transparency, antialiasing, another niceties. GDI+ does.. And Direct2D does (Win7 and Vista SP2).
+
+Best,
+ Art
+
+--- On Tue, 10/19/10, Gail Zacharias &lt;gz@clozure.com&gt wrote:
+
+&gt From: Gail Zacharias &lt;gz@clozure.com&gt
+&gt Subject: Alpha channel on windows
+&gt To: lisp-hug@lispworks.com
+&gt Date: Tuesday, October 19, 2010, 11:48 AM
+&gt 
+&gt I can't seem to draw a transparent rectangle on windows.
+&gt &nbsp;I do the
+&gt following test:
+&gt 
+&gt (setq p (capi:contain
+&gt &nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(make-instance 'capi:output-pane)))
+&gt (capi:apply-in-pane-process p
+&gt &nbsp;(lambda ()
+&gt &nbsp; &nbsp;(gp:clear-rectangle p 0 0 120 120)
+&gt &nbsp;&nbsp; (gp:draw-line p 0 0 300 300
+&gt &nbsp;&nbsp; &nbsp; &nbsp;:foreground :red
+&gt &nbsp;&nbsp; &nbsp; &nbsp;:thickness 3)
+&gt &nbsp;&nbsp; (gp:draw-rectangle p 10 10 100 100
+&gt &nbsp;&nbsp; &nbsp; &nbsp;:filled t
+&gt &nbsp;&nbsp; &nbsp; &nbsp;:foreground (color:make-rgb&nbsp;0.9 0.9 0.9 0.5))))
+&gt 
+&gt On my mac, the red line shows through the gray rectangle.
+&gt &nbsp;On my
+&gt Windows XP box, it doesn't. &nbsp;Any idea why this might be?
+&gt 
+&gt Thanks,
+&gt Gail
+&gt 
+&gt 
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Alpha channel on windows</h1>
+                 <pre>
+Gail Zacharias wrote:
+
+&gt (capi:apply-in-pane-process p
+&gt  (lambda ()
+&gt    (gp:clear-rectangle p 0 0 120 120)
+&gt    (gp:draw-line p 0 0 300 300
+&gt       :foreground :red
+&gt       :thickness 3)
+&gt    (gp:draw-rectangle p 10 10 100 100
+&gt       :filled t
+&gt       :foreground (color:make-rgb 0.9 0.9 0.9 0.5))))
+&gt
+&gt On my mac, the red line shows through the gray rectangle.  On my
+&gt Windows XP box, it doesn't.
+
+I had the same problem a while ago.  My workaround was to copy the
+existing pane contents (your red line) to a pixmap, draw the new objects
+(your rectangle) on that pixmap, and then use GP:DRAW-IMAGE with the
+GLOBAL-ALPHA keyword parameter to draw everything with the desired alpha
+on the output pane.
+
+Here's an example:
+
+(defun simple-display-transparency-test (pane x y width height)
+   (declare (ignore x y width height))
+   (let ((width 100)
+         (height 100))
+     (gp:draw-rectangle pane 10 10 80 80
+                        :filled t
+                        :foreground :blue)
+     (gp:with-pixmap-graphics-port (port pane width height)
+       ;; Draw the original image on the pixmap.
+       (let ((original-image (gp:make-image-from-port pane)))
+         (gp:draw-image port original-image 0 0))
+       ;; Draw the new object on the pixmap.
+       (gp:draw-circle port 25 25 25 :filled t :foreground :yellow)
+       ;; Make an image from the pixmap and draw it half transparently.
+       (let ((image (gp:make-image-from-port port)))
+         (gp:draw-image pane image 0 0 :use-source-alpha t :global-alpha 0.5
+                        :to-width 50 :to-height 50
+                        :from-width 50 :from-height 50)))
+     ;; Show a plain yellow circle for reference.
+     (gp:draw-circle pane 75 75 20 :filled t :foreground :yellow)))
+
+
+It's ugly and slow, but better than nothing.
+
+Arthur
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Alpha channel on windows</h1>
+                 <pre>
+I applied this technique to my situation and it works great.  Thanks!
+
+On Tue, Oct 19, 2010 at 4:00 PM, Arthur Lemmens &lt;alemmens@xs4all.nl&gt wrote:
+&gt Gail Zacharias wrote:
+&gt
+&gt&gt (capi:apply-in-pane-process p
+&gt&gt &nbsp;(lambda ()
+&gt&gt &nbsp; (gp:clear-rectangle p 0 0 120 120)
+&gt&gt &nbsp; (gp:draw-line p 0 0 300 300
+&gt&gt &nbsp; &nbsp; &nbsp;:foreground :red
+&gt&gt &nbsp; &nbsp; &nbsp;:thickness 3)
+&gt&gt &nbsp; (gp:draw-rectangle p 10 10 100 100
+&gt&gt &nbsp; &nbsp; &nbsp;:filled t
+&gt&gt &nbsp; &nbsp; &nbsp;:foreground (color:make-rgb 0.9 0.9 0.9 0.5))))
+&gt&gt
+&gt&gt On my mac, the red line shows through the gray rectangle. &nbsp;On my
+&gt&gt Windows XP box, it doesn't.
+&gt
+&gt I had the same problem a while ago. &nbsp;My workaround was to copy the
+&gt existing pane contents (your red line) to a pixmap, draw the new objects
+&gt (your rectangle) on that pixmap, and then use GP:DRAW-IMAGE with the
+&gt GLOBAL-ALPHA keyword parameter to draw everything with the desired alpha
+&gt on the output pane.
+&gt
+&gt Here's an example:
+&gt
+&gt (defun simple-display-transparency-test (pane x y width height)
+&gt &nbsp;(declare (ignore x y width height))
+&gt &nbsp;(let ((width 100)
+&gt &nbsp; &nbsp; &nbsp; &nbsp;(height 100))
+&gt &nbsp; &nbsp;(gp:draw-rectangle pane 10 10 80 80
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; :filled t
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; :foreground :blue)
+&gt &nbsp; &nbsp;(gp:with-pixmap-graphics-port (port pane width height)
+&gt &nbsp; &nbsp; &nbsp;;; Draw the original image on the pixmap.
+&gt &nbsp; &nbsp; &nbsp;(let ((original-image (gp:make-image-from-port pane)))
+&gt &nbsp; &nbsp; &nbsp; &nbsp;(gp:draw-image port original-image 0 0))
+&gt &nbsp; &nbsp; &nbsp;;; Draw the new object on the pixmap.
+&gt &nbsp; &nbsp; &nbsp;(gp:draw-circle port 25 25 25 :filled t :foreground :yellow)
+&gt &nbsp; &nbsp; &nbsp;;; Make an image from the pixmap and draw it half transparently.
+&gt &nbsp; &nbsp; &nbsp;(let ((image (gp:make-image-from-port port)))
+&gt &nbsp; &nbsp; &nbsp; &nbsp;(gp:draw-image pane image 0 0 :use-source-alpha t :global-alpha 0.5
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; :to-width 50 :to-height 50
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; :from-width 50 :from-height 50)))
+&gt &nbsp; &nbsp;;; Show a plain yellow circle for reference.
+&gt &nbsp; &nbsp;(gp:draw-circle pane 75 75 20 :filled t :foreground :yellow)))
+&gt
+&gt
+&gt It's ugly and slow, but better than nothing.
+&gt
+&gt Arthur
+&gt
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:34 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Problems with read and delivery level 5 on LWW 4.3.7</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Problems with read and delivery level 5 on LWW 4.3.7</h1>
+                <pre>This code (read.lisp):
+
+(defun test ()
+  (with-open-file (i "/tmp/test-in.txt")
+    (let ((data (read i nil)))
+      (let ((foo (cdr (assoc 'foo data))))
+        (with-open-file (o "/tmp/test-out.txt" :direction :output :if-exists
+:supersede)
+          (format o "data: ~A~%foo: ~A~%" data foo))))))
+
+with test-in.txt:
+
+((foo . "Hello"))
+
+produces test-out.txt:
+
+data: ((FOO . Hello))
+foo: Hello
+
+But when I deliver it like this:
+
+(load-all-patches)
+(compile-file-if-needed (current-pathname "c:/tmp/read.lisp") :load t)
+(deliver 'test "read" 5 :keep-lisp-reader t)
+(quit)
+
+and start the read.exe, the test-out.txt looks like this:
+
+data: ((FOO . Hello))
+foo: NIL
+
+How can I fix it, using delivery level 5?
+
+-- 
+Frank Buß, fb@frank-buss.de
+http://www.frank-buss.de, http://www.it4-systems.de
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Problems with read and delivery level 5 on LWW 4.3.7</h1>
+                 <pre>Frank Buss wrote:
+
+&gt
+&gtBut when I deliver it like this:
+&gt
+&gt(load-all-patches)
+&gt(compile-file-if-needed (current-pathname "c:/tmp/read.lisp") :load t)
+&gt(deliver 'test "read" 5 :keep-lisp-reader t)
+&gt(quit)
+&gt
+&gt  
+&gt
+You probably need to do
+
+(deliver 'test "read" 5 :keep-lisp-reader t :symbol-names-action nil)
+
+See
+http://www.lispworks.com/documentation/lw43/DV/html/deluser-162.htm#pgfId-107436
+
+Wade
+
+&gtand start the read.exe, the test-out.txt looks like this:
+&gt
+&gtdata: ((FOO . Hello))
+&gtfoo: NIL
+&gt
+&gtHow can I fix it, using delivery level 5?
+&gt
+&gt  
+&gt
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>RE: Problems with read and delivery level 5 on LWW 4.3.7</h1>
+                  <pre>yes, this works, thanks! 
+
+&gt -----Original Message-----
+&gt From: Wade Humeniuk [mailto:whumeniu@telus.net] 
+&gt Sent: Sunday, May 22, 2005 3:07 PM
+&gt To: Frank Buss
+&gt Cc: lisp-hug@lispworks.com
+&gt Subject: Re: Problems with read and delivery level 5 on LWW 4.3.7
+&gt 
+&gt Frank Buss wrote:
+&gt 
+&gt &gt
+&gt &gtBut when I deliver it like this:
+&gt &gt
+&gt &gt(load-all-patches)
+&gt &gt(compile-file-if-needed (current-pathname 
+&gt "c:/tmp/read.lisp") :load t) 
+&gt &gt(deliver 'test "read" 5 :keep-lisp-reader t)
+&gt &gt(quit)
+&gt &gt
+&gt &gt  
+&gt &gt
+&gt You probably need to do
+&gt 
+&gt (deliver 'test "read" 5 :keep-lisp-reader t :symbol-names-action nil)
+&gt 
+&gt See
+&gt http://www.lispworks.com/documentation/lw43/DV/html/deluser-16
+&gt 2.htm#pgfId-107436
+&gt 
+&gt Wade
+&gt 
+&gt &gtand start the read.exe, the test-out.txt looks like this:
+&gt &gt
+&gt &gtdata: ((FOO . Hello))
+&gt &gtfoo: NIL
+&gt &gt
+&gt &gtHow can I fix it, using delivery level 5?
+&gt &gt
+&gt &gt  
+&gt &gt
+&gt 
+&gt 
+
+
+</pre>
+                 </article>
+                </section>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:48 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

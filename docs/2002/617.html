@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>MOP metaclass extensibility question</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>MOP metaclass extensibility question</h1>
+                <pre>I am using the Linux Personal Edition of Lispworks to evaluate
+Lispwork's current MOP capabilities.  Specifically, I'm looking into
+the ability to use the MOP to create specialized
+direct-slot-definition objects based on the use of an extended
+defclass slot option; silly e.g.:
+
+  (defclass test ()
+    ((regular :initform 3)
+     (extended :extended-slot t :initform 4))
+    (:metaclass extended-class))
+
+  (defmethod clos:direct-slot-definition-class ((class extended-class)
+                                               initargs)
+  (if (getf initargs :extended-slot)
+      'extended-direct-slot-definition
+      (call-next-method)))
+
+where extended-class is a subclass of standard-class and
+extended-direct-slot-definition is a subclass of
+standard-direct-slot-definition.
+
+The problem I'm having is that Lispwork's
+canonicalize-defstruct-slot complains about the extended slot
+option before the protocol gets to determining/initializing the
+slot-definition object.  Is there a Lispwork's idiom supporting
+this type of metaclass extensibility or am I at a dead end?
+Any advice is greatly appreciated--especially as a Personal
+Edition (trial) user who is not yet a paying customer...
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: MOP metaclass extensibility question</h1>
+                 <pre>
+Dan Corkill wrote:
+
+&gt The problem I'm having is that Lispwork's
+&gt canonicalize-defstruct-slot complains about the extended slot
+&gt option before the protocol gets to determining/initializing the
+&gt slot-definition object.  Is there a Lispwork's idiom supporting
+&gt this type of metaclass extensibility or am I at a dead end?
+
+I've used (a variant of) the code below to solve the problem you mention.
+You can use a similar around-method for clos::canonicalize-class-options.
+This is probably not the official way, but It Works For Me.
+
+While we're on the subject of the MOP, I'd like to make two requests to
+Xanalys:
+
+  1. I find Lispworks' behaviour with canonicalize-defstruct-slot and
+     canonicalize-class-options rather annoying. I would appreciate it
+     if there were some way to turn the errors off. That would also
+     be better compatible with the AMOP (The Art of the Metaobject
+     Protocol) and with other Lisp implementations like Allegro CL 
+     and CMUCL (I think; I never tested this).
+
+  2. More generally, I would really appreciate some documentation of 
+     Lispworks' way of handling the MOP. I would expect at least a 
+     description of all places where Lispworks deviates from AMOP.
+
+Thanks,
+
+Arthur Lemmens
+
+ --     
+
+;; For Lispworks, we need to write around-methods for canonicalize-defclass-slot 
+;; and canonicalize-class-options, because it will signal an error when it 
+;; doesn't recognize a slot or class option. We solve this by removing our own 
+;; extra options, then calling the next method, then adding our own options again.
+
+#+lispworks
+(defconstant +extra-slot-options+ '(:slot-option-1 :slot-option-2))
+
+#+lispworks
+(defmethod clos::canonicalize-defclass-slot :around 
+     ((class extended-class) slot-specifier)
+  (destructuring-bind (slot-name &amp;rest options)
+      slot-specifier
+    (loop for (key value) on options by #'cddr
+          if (find key +extra-slot-options+)
+          append (list key (list 'quote value)) into extra-options
+          else append (list key value) into normal-options
+          finally (return (append (call-next-method class 
+                                                    (cons slot-name normal-options)) 
+                                  extra-options)))))
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: MOP metaclass extensibility question</h1>
+                  <p>
+                   Unable to parse email body. Email id is 622
+                 </article>
+                </section>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:57 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

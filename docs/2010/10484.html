@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Odd strings in running image?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Odd strings in running image?</h1>
+                <pre>
+I have some simple Lisp code that ideally should just keep on running, but unfortunately the running image keeps growing until it runs out of memory. To get an idea of what is happening, I wrote a simple function that lists all packages with the number of internal/external symbols, and another that lists all all object types [(class-name (class-of o))] along with the count of objects of that type.
+
+I saw that the number of simple-strings kept growing, so I wrote another function to look at those. I found that there were a huge number of strings of the form
+
+~d=&gt ~d [WHATEVER]++
+
+where the length of WHATEVER matches the value represented by the ~d's (identical, for all the cases I've seen).
+
+I was stumped for a while, until I realised that these strings matched stuff that had previously been written to *standard-output* and/or *error-output*.
+
+My current best guess (which replaced some earlier guesses that turned out to be less than perfect) is that Lispworks caches strings sent to *standard-output*/*error-output*, possibly for debugging purposes. If this is the case, I'd like to be able to restrict the size of this cache.
+
+Any hints?
+
+Regards,
+Raymond Wiker
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Odd strings in running image?</h1>
+                 <pre>
+Followup: in the lisp image (in my case,
+lispworks-6-0-0-x86-win32.exe), I find the string
+
+~a=&gt ~a [~a]++
+
+--- this looks like it would be the format string that generates the
+strings cause my lisp image to blow up. I've been trying to find a
+symbol that points to this string, but without success (no reason that
+it should be available through a symbol, of course).
+
+This format string can also be found in the Lispworks Personal image
+(also Windows).
+
+On Mon, Aug 23, 2010 at 5:37 PM, Raymond Wiker &lt;rwiker@gmail.com&gt wrote:
+&gt I have some simple Lisp code that ideally should just keep on running, but unfortunately the running image keeps growing until it runs out of memory.. To get an idea of what is happening, I wrote a simple function that lists all packages with the number of internal/external symbols, and another that lists all all object types [(class-name (class-of o))] along with the count of objects of that type.
+&gt
+&gt I saw that the number of simple-strings kept growing, so I wrote another function to look at those. I found that there were a huge number of strings of the form
+&gt
+&gt ~d=&gt ~d [WHATEVER]++
+&gt
+&gt where the length of WHATEVER matches the value represented by the ~d's (identical, for all the cases I've seen).
+&gt
+&gt I was stumped for a while, until I realised that these strings matched stuff that had previously been written to *standard-output* and/or *error-output*.
+&gt
+&gt My current best guess (which replaced some earlier guesses that turned out to be less than perfect) is that Lispworks caches strings sent to *standard-output*/*error-output*, possibly for debugging purposes. If this is the case, I'd like to be able to restrict the size of this cache.
+&gt
+&gt Any hints?
+&gt
+&gt Regards,
+&gt Raymond Wiker
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Odd strings in running image?</h1>
+                 <pre>I'm attaching a simple test case along with a delivery script. When
+run, the test generates a single string of the type I found ~85000 of
+from a small run with my application; I suspect that I should be able
+to generate more of these strings with a bit of experimentation.
+
+The "problem string" in my output (in the file simple-strings.txt) is
+
+=====================================
+Length:     128; Value = 1282=&gt 8192 [ssage 809: The quick brown fox
+jumps over the l ... \000ADebug output message 810: The quick brown
+fox jumps over th
+=====================================
+
+The test file contains several test cases; the only ones I could get
+to cause errors used a combination of string output streams and
+writing to *debug-io* (I just checked, and I get the same behaviour if
+I use *standard-output*).
+
+On Tue, Aug 24, 2010 at 1:22 PM, Martin Simmons &lt;martin@lispworks.com&gt wrote:
+&gt
+&gt Hi Raymond,
+&gt
+&gt There is a cache of format strings, so that might be the cause.
+&gt
+&gt Can you post the code that causes the problem?
+&gt
+&gt --
+&gt Martin Simmons
+&gt LispWorks Ltd
+&gt http://www.lispworks.com/
+&gt
+&gt
+&gt
+&gt&gt&gt&gt&gt&gt On Tue, 24 Aug 2010 10:56:23 +0200, Raymond Wiker said:
+&gt&gt
+&gt&gt Followup: in the lisp image (in my case,
+&gt&gt lispworks-6-0-0-x86-win32.exe), I find the string
+&gt&gt
+&gt&gt ~a=&gt ~a [~a]++
+&gt&gt
+&gt&gt --- this looks like it would be the format string that generates the
+&gt&gt strings cause my lisp image to blow up. I've been trying to find a
+&gt&gt symbol that points to this string, but without success (no reason that
+&gt&gt it should be available through a symbol, of course).
+&gt&gt
+&gt&gt This format string can also be found in the Lispworks Personal image
+&gt&gt (also Windows).
+&gt&gt
+&gt&gt On Mon, Aug 23, 2010 at 5:37 PM, Raymond Wiker &lt;rwiker@gmail.com&gt wrote:
+&gt&gt &gt I have some simple Lisp code that ideally should just keep on running, but
+&gt&gt &gt unfortunately the running image keeps growing until it runs out of
+&gt&gt &gt memory. To get an idea of what is happening, I wrote a simple function
+&gt&gt &gt that lists all packages with the number of internal/external symbols, and
+&gt&gt &gt another that lists all all object types [(class-name (class-of o))] along
+&gt&gt &gt with the count of objects of that type.
+&gt&gt &gt
+&gt&gt &gt I saw that the number of simple-strings kept growing, so I wrote another
+&gt&gt &gt function to look at those. I found that there were a huge number of
+&gt&gt &gt strings of the form
+&gt&gt &gt
+&gt&gt &gt ~d=&gt ~d [WHATEVER]++
+&gt&gt &gt
+&gt&gt &gt where the length of WHATEVER matches the value represented by the ~d's
+&gt&gt &gt (identical, for all the cases I've seen).
+&gt&gt &gt
+&gt&gt &gt I was stumped for a while, until I realised that these strings matched
+&gt&gt &gt stuff that had previously been written to *standard-output* and/or
+&gt&gt &gt *error-output*.
+&gt&gt &gt
+&gt&gt &gt My current best guess (which replaced some earlier guesses that turned out
+&gt&gt &gt to be less than perfect) is that Lispworks caches strings sent to
+&gt&gt &gt *standard-output*/*error-output*, possibly for debugging purposes. If this
+&gt&gt &gt is the case, I'd like to be able to restrict the size of this cache.
+&gt&gt &gt
+&gt&gt &gt Any hints?
+&gt&gt &gt
+&gt&gt &gt Regards,
+&gt&gt &gt Raymond Wiker
+&gt&gt
+&gt
+&gt
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Odd strings in running image?</h1>
+                 <p>
+                  Unable to parse email body. Email id is 10493
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:35 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

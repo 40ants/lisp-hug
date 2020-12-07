@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Accessing the Windows message pump from LW/CAPI</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Accessing the Windows message pump from LW/CAPI</h1>
+                <pre>
+And here's a second question, not directly related to my previous one:
+
+The C library I'm interfacing to is meant to be used in such a way
+that a Windows programming talking with it has to modify the Windows
+message pump.  It has to call GetMessage, inspect the message to see
+if it's for the library and hand it over, and only send all other
+(i.e. normal) messages to the usual TranslateMessage, DispatchMessage
+mechanism.
+
+This is, I think, something than can't be done in CAPI.  What I came
+up with is the following: I start a new ("worker") thread which
+creates (using Win32 functions directly) a new hidden window and then
+establishes its own message pump which it also uses to communicate
+with the rest of the program.
+
+Does this sound feasible or does anybody expect a problem there?  Am I
+right to assume that if a new thread creates its own window that it
+gets its own message queue from Windows which CAPI won't interfer with
+because I'm not using CAPI in this thread?  Or is this approach
+doomed?
+
+Or is there a much better and elegant way to hook into the message
+pump in CAPI?
+
+Thanks,
+Edi.
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Accessing the Windows message pump from LW/CAPI</h1>
+                 <p>
+                  Unable to parse email body. Email id is 10449
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Accessing the Windows message pump from LW/CAPI</h1>
+                 <pre>
+Raymond, did you mean to register-module the Win32 library, or were
+you talking about other, third-party C libs?
+
+Thanks,
+Edi.
+
+
+On Wed, Aug 11, 2010 at 4:12 PM, Raymond C Laning &lt;rclaning@raytheon.com&gt wrote:
+&gt One note -
+&gt
+&gt I found that, for processes with their own non-CAPI window, their own
+&gt message pump and a foreign library, I had to call register-module in that
+&gt process to avoid problems w/CAPI's windows library.
+&gt
+&gt &nbsp;Raymond Laning
+&gt &nbsp;Principal Systems Engr
+&gt &nbsp;Missile Systems
+&gt &nbsp;Raytheon Company
+&gt
+&gt
+&gt
+&gt
+&gt &nbsp;520.794.7924
+&gt &nbsp;rclaning@raytheon.com
+&gt
+&gt
+&gt
+&gt &nbsp;1151 E Hermans Rd
+&gt &nbsp;Tucson, AZ 85756 &nbsp; &nbsp;www.raytheon.com
+&gt
+&gt
+&gt &nbsp;(Embedded image moved to file: pic03474.gif)Raytheon Sustainability
+&gt
+&gt &nbsp;This message contains information that may be confidential and privileged.
+&gt &nbsp;Unless you are the addressee (or authorized to receive mail for the
+&gt &nbsp;addressee), you should not use, copy or disclose to anyone this message or
+&gt &nbsp;any information contained in this message. If you have received this message
+&gt &nbsp;in error, please so advise the sender by reply e-mail and delete this
+&gt &nbsp;message. Thank you for your cooperation.
+&gt
+&gt
+&gt
+&gt
+&gt
+&gt
+&gt
+&gt
+&gt &nbsp;From: &nbsp; &nbsp; &nbsp; Martin Simmons &lt;martin@lispworks.com&gt
+&gt
+&gt &nbsp;To: &nbsp; &nbsp; &nbsp; &nbsp; lisp-hug@lispworks.com
+&gt
+&gt &nbsp;Date: &nbsp; &nbsp; &nbsp; 08/11/2010 05:19 AM
+&gt
+&gt &nbsp;Subject: &nbsp; &nbsp;Re: Accessing the Windows message pump from LW/CAPI
+&gt
+&gt &nbsp;Sent by: &nbsp; &nbsp;owner-lisp-hug@lispworks.com
+&gt
+&gt
+&gt
+&gt
+&gt
+&gt
+&gt
+&gt&gt&gt&gt&gt&gt On Wed, 11 Aug 2010 13:16:07 +0200, Edi Weitz said:
+&gt&gt
+&gt&gt And here's a second question, not directly related to my previous one:
+&gt&gt
+&gt&gt The C library I'm interfacing to is meant to be used in such a way
+&gt&gt that a Windows programming talking with it has to modify the Windows
+&gt&gt message pump. &nbsp;It has to call GetMessage, inspect the message to see
+&gt&gt if it's for the library and hand it over, and only send all other
+&gt&gt (i.e. normal) messages to the usual TranslateMessage, DispatchMessage
+&gt&gt mechanism.
+&gt&gt
+&gt&gt This is, I think, something than can't be done in CAPI. &nbsp;What I came
+&gt&gt up with is the following: I start a new ("worker") thread which
+&gt&gt creates (using Win32 functions directly) a new hidden window and then
+&gt&gt establishes its own message pump which it also uses to communicate
+&gt&gt with the rest of the program.
+&gt&gt
+&gt&gt Does this sound feasible or does anybody expect a problem there? &nbsp;Am I
+&gt&gt right to assume that if a new thread creates its own window that it
+&gt&gt gets its own message queue from Windows which CAPI won't interfer with
+&gt&gt because I'm not using CAPI in this thread? &nbsp;Or is this approach
+&gt&gt doomed?
+&gt&gt
+&gt&gt Or is there a much better and elegant way to hook into the message
+&gt&gt pump in CAPI?
+&gt
+&gt Your approach will work fine. &nbsp;Window handles are owned by the thread that
+&gt creates them and by default will use a per-thread message queue.
+&gt
+&gt --
+&gt Martin Simmons
+&gt LispWorks Ltd
+&gt http://www.lispworks.com/
+&gt
+&gt
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Accessing the Windows message pump from LW/CAPI</h1>
+                 <p>
+                  Unable to parse email body. Email id is 10453
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Accessing the Windows message pump from LW/CAPI</h1>
+                 <pre>
+On Wed, Aug 11, 2010 at 4:54 PM, Xu Jingtao &lt;jingtaozf@gmail.com&gt wrote:
+
+&gt I uses windows api |SetWindowLong| to hook message of capi pane.
+
+That was very helpful and something I wasn't aware of before.  This
+indeed looks more elegant to me than my own approach.
+
+Thanks a lot, I'll try this.
+
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Accessing the Windows message pump from LW/CAPI</h1>
+                 <pre>
+On Wed, Aug 11, 2010 at 2:18 PM, Martin Simmons &lt;martin@lispworks.com&gt wrote:
+
+&gt Your approach will work fine. &nbsp;Window handles are owned by the thread that
+&gt creates them and by default will use a per-thread message queue.
+
+This all works fine as long as the window is visible.  But if I create
+the window with the win32:ws_visible flag not set, it doesn't work
+anymore.  It seems to me as if messages are not sent to invisible
+windows.  Is that true?  Maybe someone with more knowledge about
+Windows can enlighten me?
+
+Thanks,
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Accessing the Windows message pump from LW/CAPI</h1>
+                 <pre>
+&gt&gt&gt&gt&gt On Sun, 15 Aug 2010 23:16:29 +0200, Edi Weitz said:
+&gt 
+&gt On Wed, Aug 11, 2010 at 2:18 PM, Martin Simmons &lt;martin@lispworks.com&gt wrote:
+&gt 
+&gt &gt Your approach will work fine. &nbsp;Window handles are owned by the thread that
+&gt &gt creates them and by default will use a per-thread message queue.
+&gt 
+&gt This all works fine as long as the window is visible.  But if I create
+&gt the window with the win32:ws_visible flag not set, it doesn't work
+&gt anymore.  It seems to me as if messages are not sent to invisible
+&gt windows.  Is that true?  Maybe someone with more knowledge about
+&gt Windows can enlighten me?
+
+That is unexpected, in particular because DDE and COM/Automation both use
+invisible windows to pass messages between application.
+
+Have you tried using Spy++ to watch the messages?
+
+Is the window enabled (it should be by default)?  
+
+-- 
+Martin Simmons
+LispWorks Ltd
+http://www.lispworks.com/
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Accessing the Windows message pump from LW/CAPI</h1>
+                 <pre>
+On Mon, Aug 16, 2010 at 2:21 PM, Martin Simmons &lt;martin@lispworks.com&gt wrote:
+
+&gt That is unexpected, in particular because DDE and COM/Automation both use
+&gt invisible windows to pass messages between application.
+
+OK, that means it definitely should work which is an important piece
+of information.
+
+&gt Have you tried using Spy++ to watch the messages?
+
+Heh, until now I didn't even know that I had it on my hard disk.  I'll
+run some tests and report back.
+
+&gt Is the window enabled (it should be by default)?
+
+I didn't disabled it explicitly, but I'll double-check.
+
+Thanks again for your help,
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Accessing the Windows message pump from LW/CAPI</h1>
+                 <pre>
+On Mon, Aug 16, 2010 at 3:13 PM, Edi Weitz &lt;edi@agharta.de&gt wrote:
+
+&gt&gt Have you tried using Spy++ to watch the messages?
+&gt
+&gt Heh, until now I didn't even know that I had it on my hard disk. &nbsp;I'll
+&gt run some tests and report back.
+
+Which I'm doing now for the sake of completeness: The funny thing was
+that the invisible window didn't receive messages but started to
+receive them once I monitored it with Spy++.  Which - after some
+head-scratching - helped me figure out that I had a race condition in
+my code.  In other words: Spy++ slowed down the whole process just
+enough to make the race condition disappear.
+
+Looks like this is solved and I'm off to the next problem.
+
+Thanks,
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:35 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

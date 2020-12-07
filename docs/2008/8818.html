@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Ask for test: UDP Multicast support in LispWorks-UDP 4.1</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Ask for test: UDP Multicast support in LispWorks-UDP 4.1</h1>
+                <pre>
+Hi, Dear LispWorks Users
+
+LispWorks-UDP will support UDP Multicast in release 4.1, now I'm look  
+for testers who have potential applications on this new feature.
+
+*Notice*: Only non-win32 platform is support at this time. To make UDP  
+multicast work on win32, more work should be done because this part of  
+WinSock API is quite different from BSD Sockets.
+
+The Multicast API design idea is mainly from the book UNP (Unix  
+Network Programming), following is the ChangeLog so far:
+
+* [4.1] SO_REUSEADDR support, new function SOCKET-REUSE-ADDRESS and  
+(SETF SOCKET-REUSE-ADDRESS)
+
+* [4.1] UDP Multicast Support (only on non-win32 platform)
+
+   Add new keyword argumets to START-UDP-SERVER:
+
+   + MULTICAST (default NIL), set it to T will enable a multicast  
+server.
+   + MCAST-LOOP (default T), IP_MULTICAST_LOOP, local loopback of  
+multicast datagrams.
+   + MCAST-TTL (default 1), IP_MULTICAST_TTL, hop limit for outgoing  
+multicast datagrams.
+   + MCAST-INTERFACE (default 0, equal to "0.0.0.0"), the interface  
+for outgoing
+     multicast datagrams sent on this socket. (You should get the  
+address of each
+     interface by other method, currently no API can list all  
+interface addresses
+     of host OS)
+
+   New funtions:
+
+   + MCAST-JOIN
+   + MCAST-LEAVE
+   + MCAST-LOOP and (SETF MCAST-LOOP),
+   + MCAST-TTL and (SETF MCAST-TTL),
+   + MCAST-INTERFACE and (SETF MCAST-INTERFACE),
+
+Since version 4.1 haven't release, the only way to get the source code  
+is checking out the Subversion repository. Following command will  
+works on any UNIX terminal windows which SVN is installed:
+
+$ svn co https://cl-net-snmp.svn.sourceforge.net/svnroot/cl-net-snmp/lispworks-udp/trunk 
+  lispworks-udp
+
+All new API functions are well documented in README file.
+
+Following is a same usage from TEST.LISP in LispWorks-UDP's source code:
+
+#-mswindows
+(defun mcast-test-1 (&amp;optional (host "224.0.0.1") (port 10000))
+   "Send one get three"
+   (let* ((echo-fn #'(lambda (data) data))
+          (server-processes (mapcar #'(lambda (x) (comm+:start-udp- 
+server :function echo-fn :service port
+                                                                         :announce 
+  t
+                                                                         :address 
+  host
+                                                                         :multicast 
+  t))
+                                    '(nil nil nil))))
+     (unwind-protect
+         (comm+:with-connected-udp-socket (socket host port :read- 
+timeout 1 :errorp t)
+           (let ((data #(1 2 3 4 5 6 7 8 9 10)))
+             (format t "~A~%" (comm+:send-message socket data))
+             (format t "SOCKET: Send message: ~A~%" data)
+             (dotimes (i 3)
+               (let ((echo (multiple-value-list (comm+:receive-message  
+socket :max-buffer-size 8))))
+                 (format t "SOCKET: Recv message: ~A~%" echo)))))
+       (mapcar #'comm+:stop-udp-server server-processes))))
+
+In function MCAST-TEST-1, I start three multicast-enabled UDP server  
+which listen on same host/port, and start a UDP client which will get  
+connect to the multicast address and read data three times:
+
+CL-USER 11 &gt (mcast-test-1)
+;; server started
+;; server started
+;; server started
+10
+SOCKET: Send message: #(1 2 3 4 5 6 7 8 9 10)
+SOCKET: Recv message: (#(1 2 3 4 5 6 7 8) 8 3758096385 10000)
+SOCKET: Recv message: (#(1 2 3 4 5 6 7 8) 8 3758096385 10000)
+SOCKET: Recv message: (#(1 2 3 4 5 6 7 8) 8 3758096385 10000)
+NIL
+
+Send ONE get THREE!
+
+Bug report, feature request, API change, ... all are welcome.
+
+--
+Chun Tian (binghe)
+NetEase.com, Inc.
+P. R. China
+
+http://common-lisp.net/project/cl-net-snmp/lispworks.html
+
+
+
+</pre>
+               </article>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:38 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

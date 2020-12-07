@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>"Formally" not a bug, but very annoying.</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>"Formally" not a bug, but very annoying.</h1>
+                <pre>
+
+Consider the following file/buffer (this is the personal version on  
+an Intel Mac 5.0.1)
+
+=====
+(defstruct foo
+   (a nil :type string))
+
+(defun bar (a-foo)
+   (null (foo-a a-foo)))
+=====
+
+compile it and then...
+
+CL-USER 1 &gt (defvar f (make-foo))
+F
+
+CL-USER 2 &gt f
+#S(FOO :A NIL :B NIL)
+
+CL-USER 3 &gt (bar f)
+NIL
+
+
+Of course, this is one of those cases where I usually hear a "don't  
+lie to the compiler" canned answer (not from you people at LW,  
+granted!), but the compiler should be understanding of our cosmic  
+luser condition :) and warn me that I am trying to set the initial  
+value of a slot to an incompatible value.  :)  After all it is an  
+implementation dependent choice per the CLHS, or maybe an even an error.
+
+Cheers
+
+Marco
+
+
+
+
+
+--
+Marco Antoniotti, Associate Professor
+DISCo, Università Milano Bicocca U14 2043
+Viale Sarca 336
+I-20126 Milan (MI) ITALY
+
+Please note that I am not checking my Spam-box anymore.
+
+
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: "Formally" not a bug, but very annoying.</h1>
+                 <pre>
+[ lisp-support removed from CC list ]
+
+On Wed, Nov 21, 2007 at 01:24:19PM +0100, Marco Antoniotti wrote:
+&gt Consider the following file/buffer (this is the personal version on
+&gt an Intel Mac 5.0.1)
+&gt 
+&gt =====
+&gt (defstruct foo
+&gt   (a nil :type string))
+&gt 
+&gt (defun bar (a-foo)
+&gt   (null (foo-a a-foo)))
+&gt =====
+&gt 
+&gt compile it and then...
+&gt 
+&gt CL-USER 1 &gt (defvar f (make-foo))
+&gt F
+&gt 
+&gt CL-USER 2 &gt f
+&gt #S(FOO :A NIL :B NIL)
+&gt 
+&gt CL-USER 3 &gt (bar f)
+&gt NIL
+
+Wow, that's funky.  So apparently the compiler knows that since A is
+supposed to be a string, it can "never" be NIL, so the NULL test is
+optimized away into just returning NIL -- do I have that right?
+
+Interestingly, though I guess not surprisingly, I guess, setting a
+breakpoint at NULL and then stepping makes that optimization go away
+and you get T.
+
+&gt Of course, this is one of those cases where I usually hear a "don't
+&gt lie to the compiler" canned answer (not from you people at LW,
+&gt granted!), but the compiler should be understanding of our cosmic
+&gt luser condition :) and warn me that I am trying to set the initial
+&gt value of a slot to an incompatible value.  :)  After all it is an
+&gt implementation dependent choice per the CLHS, or maybe an even an
+&gt error.
+
+Agree that the optimizer and type checker should operate in tandem.
+
+-- L
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: "Formally" not a bug, but very annoying.</h1>
+                 <pre>
+That's fun! (in a sick sort of way). What does the disassembly of  
+#'bar look like? What are the global compile optimization settings?
+
+On Nov 21, 2007, at 7:24 AM, Marco Antoniotti wrote:
+
+&gt
+&gt
+&gt Consider the following file/buffer (this is the personal version on  
+&gt an Intel Mac 5.0.1)
+&gt
+&gt =====
+&gt (defstruct foo
+&gt   (a nil :type string))
+&gt
+&gt (defun bar (a-foo)
+&gt   (null (foo-a a-foo)))
+&gt =====
+&gt
+&gt compile it and then...
+&gt
+&gt CL-USER 1 &gt (defvar f (make-foo))
+&gt F
+&gt
+&gt CL-USER 2 &gt f
+&gt #S(FOO :A NIL :B NIL)
+&gt
+&gt CL-USER 3 &gt (bar f)
+&gt NIL
+&gt
+&gt
+&gt Of course, this is one of those cases where I usually hear a "don't  
+&gt lie to the compiler" canned answer (not from you people at LW,  
+&gt granted!), but the compiler should be understanding of our cosmic  
+&gt luser condition :) and warn me that I am trying to set the initial  
+&gt value of a slot to an incompatible value.  :)  After all it is an  
+&gt implementation dependent choice per the CLHS, or maybe an even an  
+&gt error.
+&gt
+&gt Cheers
+&gt
+&gt Marco
+&gt
+&gt
+&gt
+&gt
+&gt
+&gt --
+&gt Marco Antoniotti, Associate Professor
+&gt DISCo, Università Milano Bicocca U14 2043
+&gt Viale Sarca 336
+&gt I-20126 Milan (MI) ITALY
+&gt
+&gt Please note that I am not checking my Spam-box anymore.
+&gt
+&gt
+&gt
+&gt
+
+--
+Gary Warren King, metabang.com
+Cell: (413) 559 8738
+Fax: (206) 338-4052
+gwkkwg on Skype * garethsan on AIM
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: "Formally" not a bug, but very annoying.</h1>
+                 <pre>
+On Nov 21, 2007 7:24 AM, Marco Antoniotti
+&lt;antoniotti.marco@disco.unimib.it&gt wrote:
+&gt Consider the following file/buffer (this is the personal version on
+&gt an Intel Mac 5.0.1)
+&gt
+&gt =====
+&gt (defstruct foo
+&gt    (a nil :type string))
+&gt
+&gt (defun bar (a-foo)
+&gt    (null (foo-a a-foo)))
+&gt =====
+&gt
+&gt compile it and then...
+&gt
+&gt CL-USER 1 &gt (defvar f (make-foo))
+&gt F
+&gt
+&gt CL-USER 2 &gt f
+&gt #S(FOO :A NIL :B NIL)
+&gt
+&gt CL-USER 3 &gt (bar f)
+&gt NIL
+&gt
+
+What's more, it seems to be a difference in compiled code:
+
+;;; Session 1
+CL-USER 1 &gt (load "~/foo.lisp")
+; Loading text file /Users/tayloj/foo.lisp
+#P"/Users/tayloj/foo.lisp"
+
+CL-USER 2 &gt (defvar f (make-foo))
+
+Error: The value Nil does not satisfy the type specifier String.
+  1 (continue) Return the value(s) anyway.
+  2 Return some other values.
+  3 (abort) Return to level 0.
+  4 Restart top-level loop.
+
+Type :b for backtrace, :c &lt;option number&gt to proceed,  or :? for other options
+
+CL-USER 3 : 1 &gt
+
+;;; Session 2
+CL-USER 1 &gt (compile-file "~/foo.lisp" :load t)
+;;; Compiling file ~/foo.lisp ...
+;;; Safety = 3, Speed = 1, Space = 1, Float = 1, Interruptible = 0
+;;; Compilation speed = 1, Debug = 2, Fixnum safety = 3
+;;; Source level debugging is on
+;;; Source file recording is  on
+;;; Cross referencing is on
+; (Top-Level-Form 1)
+; (Subfunction (Defsetf Foo-A) (Defstruct Foo))
+; (Subfunction Make-Foo (Defstruct Foo))
+; (Subfunction Make-Foo (Defstruct Foo))
+; Bar
+; (Top-Level-Form 2)
+; Loading fasl file /Users/tayloj/foo.nfasl
+#P"/Users/tayloj/foo.nfasl"
+Nil
+Nil
+
+CL-USER 2 &gt (defvar f (make-foo))
+F
+
+CL-USER 3 &gt f
+#S(Foo :A Nil)
+
+and safety was 3. What other settings bear on whether type
+discrepancies signal an error?
+
+Now, if the defvar is in the file, (now on foo2.lisp)
+;;; Loading...
+CL-USER 1 &gt (load "~/foo2.lisp")
+; Loading text file /Users/tayloj/foo2.lisp
+
+Error: The value Nil does not satisfy the type specifier String.
+  1 (continue) Return the value(s) anyway.
+  2 Return some other values.
+  3 Try loading ~/foo2.lisp again.
+  4 Give up loading ~/foo2.lisp.
+  5 Try loading another file instead of ~/foo2.lisp.
+  6 (abort) Return to level 0.
+  7 Restart top-level loop.
+
+Type :b for backtrace, :c &lt;option number&gt to proceed,  or :? for other options
+
+CL-USER 2 : 1 &gt
+
+;;; Compile and Loading
+CL-USER 1 &gt (compile-file "~/foo2.lisp" :load t)
+;;; Compiling file ~/foo2.lisp ...
+;;; Safety = 3, Speed = 1, Space = 1, Float = 1, Interruptible = 0
+;;; Compilation speed = 1, Debug = 2, Fixnum safety = 3
+;;; Source level debugging is on
+;;; Source file recording is  on
+;;; Cross referencing is on
+; (Top-Level-Form 1)
+; (Subfunction (Defsetf Foo-A) (Defstruct Foo))
+; (Subfunction Make-Foo (Defstruct Foo))
+; (Subfunction Make-Foo (Defstruct Foo))
+; Bar
+;;;*** Warning in (Defvar F): Declared type String and value type Null
+are disjoint.
+; (Defvar F)
+; (Top-Level-Form 2)
+; Loading fasl file /Users/tayloj/foo2.nfasl
+#P"/Users/tayloj/foo2.nfasl"
+(((Defvar F) #&lt;Simple-Warning 201007AF&gt))
+T
+
+CL-USER 2 &gt f
+#S(Foo :A Nil)
+
+There's at least a warning in the compilation.
+
+-- 
+=====================
+Joshua Taylor
+jtaylor@alum.rpi.edu
+
+"A lot of good things went down one time,
+     back in the goodle days."
+               John Hartford
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: "Formally" not a bug, but very annoying.</h1>
+                 <p>
+                  Unable to parse email body. Email id is 7196
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:41 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

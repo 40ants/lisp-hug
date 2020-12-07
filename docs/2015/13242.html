@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Signing + Apple App Store</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Signing + Apple App Store</h1>
+                <pre>
+If anyone here has experience with signing their LW app and submitting 
+it to Apple's App store (and you wouldn't mind sharing that experience), 
+I'd very much appreciate a run-down of anything special you needed to do 
+when delivering your app, and any pitfalls you ran into submitting it 
+(e.g. if you kept debug mode and were rejected because of it).
+
+Thanks!
+
+Jeff M.
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Signing + Apple App Store</h1>
+                 <pre>
+Hello Jeff
+Here is some meta code of how we do it. I hope I haven’t forgotten anything.
+Best,
+Sven
+
+Step 1, building from a shell file
+/Applications/LispWorks\ 6.1/LispWorks.app/Contents/MacOS/lispworks-6-1-0-macos-universal -build deliver.lisp
+
+Step 2, this happens inside deliver.lisp
+(compile-system ’myapp :load t)
+(deliver ’run-myapp-gui
+…
+;; some things needed for App Store delivery
+:split :resources
+:exe-file (current-pathname "xstarter-with-uuid" nil)
+…)
+
+Step 3. Now we are back in the shell script
+# Prepare for delivery in App Store
+dsymutil --arch=i386 -o ~/Desktop/myapp.app.dSYM ~/Desktop/myapp.app/Contents/MacOS/ScoreCloud
+# Sign myapp.app including everything in the bundle
+# SANDBOXING
+codesign --deep -s "Mac App Distribution: My Company" -v --entitlements ./myapp.entitlements ~/Desktop/myapp.app
+productbuild --sign "Mac Installer Distribution: My Company" --product ./product-definition.plist --component ~/Desktop/myapp.app /Applications ~/Desktop/myapp.pkg
+
+Step 4. Use "Application Loader.app” to upload ~/Desktop/myapp.pkg to App Store
+
+--- the end ---
+
+# example of the myapp.entitlements file
+&lt;?xml version="1.0" encoding="UTF-8"?&gt
+&lt;!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"&gt
+&lt;plist version="1.0"&gt
+&lt;dict&gt
+  &lt;key&gtcom.apple.security.app-sandbox&lt;/key&gt
+  &lt;true/&gt
+  &lt;key&gtcom.apple.security.device.microphone&lt;/key&gt
+  &lt;true/&gt
+  &lt;key&gtcom.apple.security.files.user-selected.read-write&lt;/key&gt
+  &lt;true/&gt
+  &lt;key&gtcom.apple.security.network.client&lt;/key&gt
+  &lt;true/&gt
+  &lt;key&gtcom.apple.security.network.server&lt;/key&gt
+  &lt;true/&gt
+  &lt;key&gtcom.apple.security.print&lt;/key&gt
+  &lt;true/&gt
+  &lt;key&gtcom.apple.security.temporary-exception.mach-lookup.global-name&lt;/key&gt
+  &lt;array&gt
+    &lt;string&gtcom.apple.midiserver&lt;/string&gt
+    &lt;string&gtcom.apple.midiserver.io&lt;/string&gt
+  &lt;/array&gt
+  &lt;key&gtcom.apple.security.temporary-exception.audio-unit-host&lt;/key&gt
+  &lt;true/&gt
+&lt;/dict&gt
+&lt;/plist&gt
+
+# example of product-definition.plist
+# NOTE: myapp doesn’t run with 10.7
+&lt;?xml version="1.0" encoding="UTF-8"?&gt
+&lt;!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"&gt
+&lt;plist version="1.0"&gt
+&lt;dict&gt
+  &lt;key&gtos&lt;/key&gt
+  &lt;array&gt
+    &lt;string&gt10.6&lt;/string&gt
+    &lt;string&gt10.8&lt;/string&gt
+    &lt;string&gt10.9&lt;/string&gt
+    &lt;string&gt10.10&lt;/string&gt
+  &lt;/array&gt
+&lt;/dict&gt
+&lt;/plist&gt
+
+
+
+22 jan 2015 kl. 16:52 skrev Jeffrey Massung &lt;massung@gmail.com&gt:
+
+&gt 
+&gt If anyone here has experience with signing their LW app and submitting it to Apple's App store (and you wouldn't mind sharing that experience), I'd very much appreciate a run-down of anything special you needed to do when delivering your app, and any pitfalls you ran into submitting it (e.g. if you kept debug mode and were rejected because of it).
+&gt 
+&gt Thanks!
+&gt 
+&gt Jeff M.
+&gt 
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+&gt 
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:29 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Funny LW error (terminal popup on 9th error)</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Funny LW error (terminal popup on 9th error)</h1>
+                <pre>
+Open LispWorks (I noticed this with v5.1.1 Mac Intel).
+
+Type in a in the Listener.
+
+--&gt
+
+Error: The variable A is unbound.
+   1 (continue) Try evaluating A again.
+   2 Return the value of :A instead.
+   3 Specify a value to use this time instead of evaluating A.
+   4 Specify a value to set A to.
+   5 (abort) Return to level 0.
+   6 Return to top loop level 0.
+
+Type :b for backtrace, :c &lt;option number&gt to proceed,  or :? for other options
+
+Now, type again a, and repeat it for 7 times. You get the same
+error message.
+
+What is bothering me is that when a is typed again, the Terminal
+Window pops up.
+
+- Why the Listener can handle only 8 errors, and then use the Terminal?
+- I would like the Listener handle all errors, since it is annoying
+to get the Terminal popup, and then type :top or other option to let
+the control return back to LispWorks.
+- A. Is there a way to increase Listener error handling capabilities
+to hundreds of error cases instead of 8?
+- B. Or better: is there a way NOT to popup Terminal in any case (and
+maybe let the error situation return automatically to the top level)?
+
+I know that the typical answer would be that you have to define your
+own error handlers, or that it is not possible.
+
+Console popup is a very bad interface design for the Mac, since it halts
+execution totally and requests further information with clumsy
+pre-graphical interface commands, that was maybe cool 20 years ago, but
+should not be part of a modern application.
+
+If anybody has an example how to patch A or B, that would increase LW
+user-experience a lot!
+
+Pekka
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Funny LW error (terminal popup on 9th error)</h1>
+                 <pre>
+On 25 Jun 2009, at 14:31, Pekka Tolonen wrote:
+
+&gt - Why the Listener can handle only 8 errors, and then use the  
+&gt Terminal?
+
+I'm guessing that the problem is not 8 errors, but 8 *nested* errors,  
+at which point it is giving up and deciding that all is lost.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Funny LW error (terminal popup on 9th error)</h1>
+                 <p>
+                  Unable to parse email body. Email id is 9259
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Funny LW error (terminal popup on 9th error)</h1>
+                 <pre>
+&gt  &gt - I would like the Listener handle all errors, since it is annoying
+&gt&gt  to get the Terminal popup, and then type :top or other option to let
+&gt&gt  the control return back to LispWorks.
+&gt
+&gtWhy do you get 8 nested errors in real situations?
+
+To me Terminal Window and having debugging options to choose while 
+testing the algorithm is the most disturbing thing.
+
+If the algorithm is buggy, all I want to have a short description of 
+the error ... and then rethink it - and not spend time examining my 
+buggy algorithm on the debugger -&gt is more simpler that way :-)
+
+How about adding master error control, where the user can set up the behaviour:
+
+(setq *master-error-control* :signal-no-error-autostart-toplevel)
+
+This would be very useful for delivery apps, where it now needs huge 
+amounts of handler-case protection in myriad places, and still the 
+Terminal keeps up popping every now and them, driving you and your 
+app users mad.
+
+(setq *master-error-control* :signal-simple-error-autostart-toplevel)
+
+Tells just "unbound variable a" in a popup window (inside the app, 
+and not in the Terminal) and restarts toplevel.
+
+(setq *master-error-control* 
+:signal-simple-error-autostart-toplevel-show-backtrace)
+
+Tells "unbound variable a" &amp; backtrace in a popup window (inside the 
+app, and not in the Terminal) and restarts toplevel.
+
+(setq *master-error-control* :enter-debugger-on-listener)
+
+As now, but instead Terminal always uses the Listener.
+
+(setq *master-error-control* :enter-debugger-on-terminal)
+
+Uses Terminal.
+
+&gt  &gt Console popup is a very bad interface design for the Mac, since it halts
+&gt&gt  execution totally and requests further information with clumsy
+&gt&gt  pre-graphical interface commands, that was maybe cool 20 years ago, but
+&gt&gt  should not be part of a modern application.
+&gt
+&gtIt halts execution because it is used to debug the cause of the nested error
+&gtwithout anything else changing.  This is important for errors caused by window
+&gtsystem events.
+&gt
+&gtIf we can decide which nested error situations are useful and which are bugs,
+&gtthen we will try to avoid showing the Console in more cases.
+&gt
+
+With the above *master-error-control* you could set up it for the terminal when
+you need window system event debugging.
+
+But for the rest of us having a Terminal and backtrace showing dozens of
+UNDOCUMENTED CAPI CALLS is not very useful, even if the case is debugging our
+own interfaces :-)
+
+Pekka
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Funny LW error (terminal popup on 9th error)</h1>
+                 <p>
+                  Unable to parse email body. Email id is 9268
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Funny LW error (terminal popup on 9th error)</h1>
+                 <pre>
+Sounds very good. Please do provide an example how to make it.
+
+Pekka
+
+&gtOn 26 Jun 2009, at 05:14, Pekka Tolonen wrote:
+&gt&gt
+&gt&gtThis would be very useful for delivery apps, where it now needs 
+&gt&gthuge amounts of handler-case protection in myriad places, and still 
+&gt&gtthe Terminal keeps up popping every now and them, driving you and 
+&gt&gtyour app users mad.
+&gt
+&gtThis really isn't true.  When I wrote deliverable things in LW I had 
+&gtsome simple wrapper macro which went around every thread which 
+&gtprovided condition-handlers of last resort.  It was not complicated, 
+&gtand it worked very well.
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:37 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

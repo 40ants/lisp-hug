@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>www-utils::notify-log-window</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>www-utils::notify-log-window</h1>
+                <pre>A thread safe macro like with-output-to-editor-stream should be  
+provided by Lispworks so users do not need to wedge specialized code  
+into their applications
+
+It looks to me like one the point is locked, we have captured a lock  
+on the editor buffer, so this macro should be fairly easy to write.
+
+The way this is written we are going to cons strings for each entry.
+
+It would be better to pass a closure that just prints out the line.
+
+
+#+(and LispWorks (not (or lispworks4 lispworks5.0)))
+(define notify-log-window (format-string &amp;rest format-args)
+   "Top-level method for writing to the HTTP log window.
+FORMAT-STRING can also be a function applied to STREAM,
+in which case FORMAT-ARGS are ignored."
+   (declare (dynamic-extent format-args))
+   (let ((string (with-output-to-string (stream)
+                   (fresh-line stream)
+                   (write-char #\[ stream)
+                   (http::write-standard-time (get-universal-time)  
+stream)
+                   (write-string "]  " stream)
+                   (etypecase format-string
+                     (string
+                      (apply #'format stream format-string format-args))
+                     (function (funcall format-string stream)))))
+         (point (editor:editor-stream-point *log-window-output- 
+stream*)))
+     (editor:with-point-locked (point)
+       (let ((buffer (editor:point-buffer point)))
+         (editor:insert-string (editor:buffers-end buffer) string)
+         (when (and *log-window-output-line-count*
+                    (&gt= (incf *log-window-output-line-count*)
+                        *log-window-output-line-limit*))
+           (let ((keep-lines (floor *log-window-output-line-limit* -2)))
+             (editor:with-point ((point (editor:buffers-end buffer)))
+               (editor:line-offset point keep-lines)
+               (editor:delete-between-points (editor:buffers-start  
+buffer) point)
+               (editor:insert-string
+                point (load-time-value (format nil "---older lines  
+deleted---~%")))
+               (editor:use-buffer buffer (editor:clear-undo-command  
+buffer))))
+           (setq *log-window-output-line-count* 0))
+         (finish-output *log-window-output-stream*)))))
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: www-utils::notify-log-window</h1>
+                 <pre>I rewrote this function as follows to avoid the consing issue.  The  
+symbol editor::editor-stream-buffer should be exported.
+
+All of the operations on the notification window should use a task  
+queue in order to avoid blocking threads.
+
+#+(and LispWorks (not (or lispworks4 lispworks5.0)))
+(define notify-log-window (format-string &amp;rest format-args)
+   "Top-level method for writing to the HTTP log window.
+FORMAT-STRING can also be a function applied to STREAM,
+in which case FORMAT-ARGS are ignored."
+   (declare (dynamic-extent format-args))
+   (flet ((compact-editor-buffer-p ()
+            (and *log-window-output-line-count*
+                 (&gt= (incf *log-window-output-line-count*)
+                     *log-window-output-line-limit*)))
+          (compact-editor-buffer (buffer)
+            (let ((keep-lines (floor *log-window-output-line-limit*  
+-2)))
+              (editor:with-point ((point (editor:buffers-end buffer)))
+                (editor:line-offset point keep-lines)
+                (editor:delete-between-points (editor:buffers-start  
+buffer) point)
+                (editor:insert-string point (load-time-value (format  
+nil "---older lines deleted---~%")))
+                (editor:use-buffer buffer (editor:clear-undo-command  
+buffer))))
+            (setq *log-window-output-line-count* 0))
+          (write-entry (stream format-string format-args)
+            (fresh-line stream)
+            (write-char #\[ stream)
+            (http::write-standard-time (get-universal-time) stream)
+            (write-string "]  " stream)
+            (etypecase format-string
+              (string
+               (apply #'format stream format-string format-args))
+              (function (funcall format-string stream)))))
+     (declare (inline compact-editor-buffer-p write-entry))
+     (let* ((stream *log-window-output-stream*)
+            (buffer (editor::editor-stream-buffer stream)))
+       (editor:with-buffer-locked (buffer :for-modification t)
+         (write-entry stream format-string format-args)
+         (when (compact-editor-buffer-p)
+           (compact-editor-buffer buffer))))))
+
+On Oct 12, 2009, at 5:22 PM, John C. Mallery wrote:
+
+&gt A thread safe macro like with-output-to-editor-stream should be  
+&gt provided by Lispworks so users do not need to wedge specialized code  
+&gt into their applications
+&gt
+&gt It looks to me like one the point is locked, we have captured a lock  
+&gt on the editor buffer, so this macro should be fairly easy to write.
+&gt
+&gt The way this is written we are going to cons strings for each entry.
+&gt
+&gt It would be better to pass a closure that just prints out the line.
+&gt
+&gt
+&gt #+(and LispWorks (not (or lispworks4 lispworks5.0)))
+&gt (define notify-log-window (format-string &amp;rest format-args)
+&gt  "Top-level method for writing to the HTTP log window.
+&gt FORMAT-STRING can also be a function applied to STREAM,
+&gt in which case FORMAT-ARGS are ignored."
+&gt  (declare (dynamic-extent format-args))
+&gt  (let ((string (with-output-to-string (stream)
+&gt                  (fresh-line stream)
+&gt                  (write-char #\[ stream)
+&gt                  (http::write-standard-time (get-universal-time)  
+&gt stream)
+&gt                  (write-string "]  " stream)
+&gt                  (etypecase format-string
+&gt                    (string
+&gt                     (apply #'format stream format-string format-args))
+&gt                    (function (funcall format-string stream)))))
+&gt        (point (editor:editor-stream-point *log-window-output- 
+&gt stream*)))
+&gt    (editor:with-point-locked (point)
+&gt      (let ((buffer (editor:point-buffer point)))
+&gt        (editor:insert-string (editor:buffers-end buffer) string)
+&gt        (when (and *log-window-output-line-count*
+&gt                   (&gt= (incf *log-window-output-line-count*)
+&gt                       *log-window-output-line-limit*))
+&gt          (let ((keep-lines (floor *log-window-output-line-limit* -2)))
+&gt            (editor:with-point ((point (editor:buffers-end buffer)))
+&gt              (editor:line-offset point keep-lines)
+&gt              (editor:delete-between-points (editor:buffers-start  
+&gt buffer) point)
+&gt              (editor:insert-string
+&gt               point (load-time-value (format nil "---older lines  
+&gt deleted---~%")))
+&gt              (editor:use-buffer buffer (editor:clear-undo-command  
+&gt buffer))))
+&gt          (setq *log-window-output-line-count* 0))
+&gt        (finish-output *log-window-output-stream*)))))
+&gt
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: www-utils::notify-log-window</h1>
+                 <pre>
+
+* "John C. Mallery" &lt;CD0B4CFD-647B-4714-8CCF-7E6A7DA861C8@csail.mit.edu&gt :
+Wrote on Mon, 12 Oct 2009 18:10:18 -0400:
+
+| I rewrote this function as follows to avoid the consing issue.  The
+| symbol editor::editor-stream-buffer should be exported.
+|
+| All of the operations on the notification window should use a task
+| queue in order to avoid blocking threads.
+
+IIUC there is a concern because of the function tries to keep track of
+the lines outputted and the output limit.  However this is just an
+editor buffer, and a user may well M-x Clear Output the lines or select
+and delete lines, in which case the information maintained by cl-http
+becomes invalid/out of sync.  Perhaps this is not the place for
+bookkeeping *log-window-output-line-count*.
+
+If this aspect were handled separately, perhaps one could call the
+editor function directly with CAPI:APPLY-IN-PANE-PROCESS directly and
+punt all lock handling.  (I expect they already take care of it)
+
+--
+Madhu
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: www-utils::notify-log-window</h1>
+                 <pre>
+
+* Madhu &lt;m37hux7aze.fsf@moon.robolove.meer.net&gt :
+Wrote on Thu, 15 Oct 2009 06:02:37 +0530:
+
+| IIUC there is a concern because of the function tries to keep track of
+                                s/of//
+
+| the lines outputted and the output limit.  However this is just an
+| editor buffer, and a user may well M-x Clear Output the lines or select
+| and delete lines, in which case the information maintained by cl-http
+| becomes invalid/out of sync.  Perhaps this is not the place for
+| bookkeeping *log-window-output-line-count*.
+|
+| If this aspect were handled separately, perhaps one could call the
+| editor function directly with CAPI:APPLY-IN-PANE-PROCESS directly and
+| punt all lock handling.  (I expect they already take care of it)
+
+Would something like the following not be threadsafe?
+
+(define notify-log-window2 (format-string &amp;rest format-args)
+  (flet ((write-entry (stream format-string format-args)
+	   (fresh-line stream)
+	   (write-char #\[ stream)
+	   (http::write-standard-time (get-universal-time) stream)
+	   (write-string "]  " stream)
+	   (etypecase format-string
+             (string
+              (apply #'format stream format-string format-args))
+             (function (funcall format-string stream)))))
+    (let* ((stream  *log-window-output-stream*)
+	   (pane (editor:window-text-pane
+		  (editor::editor-stream-window *log-window-output-stream*))))
+      (capi:apply-in-pane-process
+       pane #'write-entry stream format-string format-args))))
+
+[I'd  handle  buffer-truncate-lines-to-limit from a different thread]
+--
+Madhu
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: www-utils::notify-log-window</h1>
+                 <pre>
+
+| * Madhu &lt;m37hux7aze.fsf@moon.robolove.meer.net&gt :
+| Wrote on Thu, 15 Oct 2009 06:02:37 +0530:
+|
+| | IIUC there is a concern because of the function tries to keep track of
+|                                 s/of//
+| | the lines outputted and the output limit.  However this is just an
+        ^^^^^^^^^ I meant `output lines'  of course.
+
+[Sorry this one was still hurting my eye too much; usually I try not to
+see the mistakes in my own messages from last-second copy-edit-before-send,
+to avoid corrections, and correcting those corrections, ...]
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:36 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

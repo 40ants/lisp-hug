@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Lisp Realtime Speedups</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Lisp Realtime Speedups</h1><html><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space; ">
+Hi All,<div><br></div><div>I have (not surprisingly) had several inquiries about how this speedup was achieved. So I'll answer here for the benefit of everyone.</div><div><br></div><div>First of all, this speedup was measured under LWM 5.1.1 on an iMac running Tiger (10.4.11) and a 2 GHz Intel Core 2 Duo processor with 2 GB RAM. I have also now verified the speedup on systems as old as a PowerPC iMac, which runs about 3x slower, and on newer systems running Leopard. All of them show substantial speedup.</div><div><br></div><div>By far the single most important speedup actually had little to do with the calling conventions and array transfer between Lisp and the external vDSP library. It turns out that that portion of the FFT never did take very much time. We did speed that up by about 2x-3x, but the most important speedup of the 670x, or so, has to do with data organization in memory.</div><div><br></div><div>A truly general purpose signal processor needs to be able to perform complex-valued convolutions for quite a variety of reasons. The most natural approach would be to use COMPLEX single-precision or double-precision values. That turns out to be a real speed killer because type COMPLEX is not a basic type for Lispworks (and probably not for any other Lisp either). A complex value will not be held in registers, and they will not be stored in unboxed arrays. All collections of type complex appear to use boxed elements. That is a huge time eater.</div><div><br></div><div>So, while I have never been much of a fan of the MatLab approach of storing real and imaginary components in separate arrays, that is precise what is needed here. Some external library may be comfortable with a packed (re, im) pairs representation of complex values. That appears to be the case in some of the Intel libraries (PPL, MKL). But it so happens that the native vDSP library on OS/X also wants to see FFT data in segregated form.</div><div><br></div><div>Hence, underneath, instead of using direct COMPLEX representations, arrays of such, and operations on such (e.g., (* c (conjugate c)) to get the power), it is better to keep real and imaginary components in separate vectors and arrays, and to perform the complex arithmetic, when needed, by your self -- use (+ (* r r) (* i i)) to get the power, use (atan i r) instead of (phase c), and so on.</div><div><br></div><div>By making that simple change, we brought our data manipulation time down by a huge factor.</div><div><br></div><div>There is also a tremendous speedup by using Martin's suggestion about :LISP-SIMPLE-1D-ARRAY for passing vectors of unboxed arrays to the outside world. Martin didn't specifically indicate that vectors of floats (single and double precision) would be stored as safely unboxed linear arrays, but they are. You can see that for yourself by using HCL:FIND-OBJECT-SIZE and trying variations of vectors in size and data type. This may be an non-portable expectation, but is quite reasonable to expect any serious language to create simple vectors of floats as unboxed representations. All the more so when you allocate in :STATIC for direct passing to the outside world.</div><div><br></div><div>Another thing that helped the speedup was to forego generality. My old code was willing to take numeric vectors in any form and coerce them to single- or double-precision floats, as requested, before sending to the outside libraries. By restricting the view to require correctly typed values ahead of time, and just being sure to enforce that in your own code, you save a tremendous amount of runtime. The old, more general, way was constructing a C-compatible dynamic FLI array, then copying one element at a time from a general input Lisp vector, coercing to the correct float type, and then storing into the FLI array, and then reversing the whole procedure on return. That kills a huge amount of time.</div><div><br></div><div>By adhering to strictly typed data you can use FLI:REPLACE-FOREIGN-ARRAY to copy entire vectors to and fro. Hence another huge speedup.</div><div><br></div><div>The final speedup came from simple caching of temporary buffers. When I need a scratch buffer of 4K doubles, I allocate one if not already cached, then hold on to it for future possible needs. I put a limit of 4K double complex on the largest buffer I'm willing to cache. Anything larger (much more rare in my code) will be forced to allocate and GC the larger scratch buffers. By far the most common sizes for my stuff are either 1024 or 4096 elements.</div><div><br></div><div>Together with an unboxed representation of complex-valued arrays, these data caching and unboxed techniques save a tremendous amount of data allocation. The result is that my routines, after the first call, see no more page misses at all, and the amount of memory allocated becomes around 10-50 bytes per call. This is a decrease from about 180-400KB per call in the old code.</div><div><br></div><div>Take all of these factors together -- use segregated complex types, use strictly typed arrays and vectors, use :STATIC array allocation, use FLI:REPLACE-FOREIGN-ARRAY, avoid memory allocation and boxing, and avoid page misses -- all of these together produce a speed up over the old code of more than 670x. That is extremely impressive. </div><div><br></div><div>And so now being able to perform 1024 element complex-valued FFT's at 100 kHz, there is really nothing standing in the way of some serious realtime audio processing with nearly arbitrary FIR filtering and convolutions. That is very very impressive to me, to see Lisp compete head on with hand-crafted C and DSP Assembly. At this point, I have no interest in reverting to such tedious practices when I can avoid it. And using Lisp directly is a prominent possibility and likelihood.</div><div><br></div><div>I didn't set out to compete against C or DSP Assembly code. But to my surprise, the code generated by LWM is very impressive, provided you take some responsibility for sensible fast computing practices. Very nice!</div><div><br></div><div>Dr. David McClain</div><div><div><span class="Apple-style-span" style="border-collapse: separate; color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant: normal; font-weight: normal; letter-spacing: normal; line-height: normal; orphans: 2; text-align: auto; text-indent: 0px; text-transform: none; white-space: normal; widows: 2; word-spacing: 0px; -webkit-border-horizontal-spacing: 0px; -webkit-border-vertical-spacing: 0px; -webkit-text-decorations-in-effect: none; -webkit-text-size-adjust: auto; -webkit-text-stroke-width: 0; "><span class="Apple-style-span" style="border-collapse: separate; -webkit-border-horizontal-spacing: 0px; -webkit-border-vertical-spacing: 0px; color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant: normal; font-weight: normal; letter-spacing: normal; line-height: normal; -webkit-text-decorations-in-effect: none; text-indent: 0px; -webkit-text-size-adjust: auto; text-transform: none; orphans: 2; white-space: normal; widows: 2; word-spacing: 0px; "><span class="Apple-style-span" style="border-collapse: separate; -webkit-border-horizontal-spacing: 0px; -webkit-border-vertical-spacing: 0px; color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant: normal; font-weight: normal; letter-spacing: normal; line-height: normal; -webkit-text-decorations-in-effect: none; text-indent: 0px; -webkit-text-size-adjust: auto; text-transform: none; orphans: 2; white-space: normal; widows: 2; word-spacing: 0px; "><span class="Apple-style-span" style="border-collapse: separate; -webkit-border-horizontal-spacing: 0px; -webkit-border-vertical-spacing: 0px; color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant: normal; font-weight: normal; letter-spacing: normal; line-height: normal; -webkit-text-decorations-in-effect: none; text-indent: 0px; -webkit-text-size-adjust: auto; text-transform: none; orphans: 2; white-space: normal; widows: 2; word-spacing: 0px; "><span class="Apple-style-span" style="border-collapse: separate; -webkit-border-horizontal-spacing: 0px; -webkit-border-vertical-spacing: 0px; color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant: normal; font-weight: normal; letter-spacing: normal; line-height: normal; -webkit-text-decorations-in-effect: none; text-indent: 0px; -webkit-text-size-adjust: auto; text-transform: none; orphans: 2; white-space: normal; widows: 2; word-spacing: 0px; "><span class="Apple-style-span" style="border-collapse: separate; -webkit-border-horizontal-spacing: 0px; -webkit-border-vertical-spacing: 0px; color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant: normal; font-weight: normal; letter-spacing: normal; line-height: normal; -webkit-text-decorations-in-effect: none; text-indent: 0px; -webkit-text-size-adjust: auto; text-transform: none; orphans: 2; white-space: normal; widows: 2; word-spacing: 0px; "><div style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; ">Chief Technical Officer</div><div style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; ">Refined Audiometrics Laboratory</div><div style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; ">4391 N. Camino Ferreo</div><div style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; ">Tucson, AZ  85750</div><div style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; font: normal normal normal 12px/normal Helvetica; min-height: 14px; "><br></div><div style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; ">email: <a href="mailto:dbm@refined-audiometrics.com">dbm@refined-audiometrics.com</a></div><div style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; ">phone: 1.520.390.3995</div><div style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; ">web: <a href="http://www.refined-audiometrics.com">http://www.refined-audiometrics.com</a></div><br class="Apple-interchange-newline"></span><span></span></span></span></span></span></span><br class="Apple-interchange-newline"> </div><br></div></body></html>
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Lisp Realtime Speedups</h1>
+                 <pre>
+David McClain &lt;dbm@refined-audiometrics.com&gt writes:
+
+&gt That turns out to be a real speed killer because type COMPLEX is not a
+&gt basic type for Lispworks (and probably not for any other Lisp either).
+
+CMUCL and relatives (SBCL, Scieneer) have complex floats as a basic type.
+So does Allegro.  I am not sure about GCL/ECL.
+
+Nicolas
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Lisp Realtime Speedups</h1>
+                 <pre>
+On Fri, 14 Nov 2008 18:55:32 -0000, David McClain  
+&lt;dbm@refined-audiometrics.com&gt wrote:
+
+&gt Hi All,
+&gt
+&gt I have (not surprisingly) had several inquiries about how this
+&gt speedup was achieved. So I'll answer here for the benefit of everyone.
+&gt
+&gt First of all, this speedup was measured under LWM 5.1.1 on an iMac
+&gt running Tiger (10.4.11) and a 2 GHz Intel Core 2 Duo processor with 2
+&gt GB RAM. I have also now verified the speedup on systems as old as a
+&gt PowerPC iMac, which runs about 3x slower, and on newer systems
+&gt running Leopard. All of them show substantial speedup.
+&gt
+&gt By far the single most important speedup actually had little to do
+&gt with the calling conventions and array transfer between Lisp and the
+&gt external vDSP library. It turns out that that portion of the FFT
+&gt never did take very much time. We did speed that up by about 2x-3x,
+&gt but the most important speedup of the 670x, or so, has to do with
+&gt data organization in memory.
+&gt
+&gt A truly general purpose signal processor needs to be able to perform
+&gt complex-valued convolutions for quite a variety of reasons. The most
+&gt natural approach would be to use COMPLEX single-precision or double-
+&gt precision values. That turns out to be a real speed killer because
+&gt type COMPLEX is not a basic type for Lispworks (and probably not for
+&gt any other Lisp either). A complex value will not be held in
+&gt registers, and they will not be stored in unboxed arrays. All
+&gt collections of type complex appear to use boxed elements. That is a
+&gt huge time eater.
+&gt
+&gt So, while I have never been much of a fan of the MatLab approach of
+&gt storing real and imaginary components in separate arrays, that is
+&gt precise what is needed here. Some external library may be comfortable
+&gt with a packed (re, im) pairs representation of complex values. That
+&gt appears to be the case in some of the Intel libraries (PPL, MKL). But
+&gt it so happens that the native vDSP library on OS/X also wants to see
+&gt FFT data in segregated form.
+&gt
+&gt Hence, underneath, instead of using direct COMPLEX representations,
+&gt arrays of such, and operations on such (e.g., (* c (conjugate c)) to
+&gt get the power), it is better to keep real and imaginary components in
+&gt separate vectors and arrays, and to perform the complex arithmetic,
+&gt when needed, by your self -- use (+ (* r r) (* i i)) to get the
+&gt power, use (atan i r) instead of (phase c), and so on.
+&gt
+&gt By making that simple change, we brought our data manipulation time
+&gt down by a huge factor.
+&gt
+&gt There is also a tremendous speedup by using Martin's suggestion
+&gt about :LISP-SIMPLE-1D-ARRAY for passing vectors of unboxed arrays to
+&gt the outside world. Martin didn't specifically indicate that vectors
+&gt of floats (single and double precision) would be stored as safely
+&gt unboxed linear arrays, but they are. You can see that for yourself by
+&gt using HCL:FIND-OBJECT-SIZE and trying variations of vectors in size
+&gt and data type. This may be an non-portable expectation, but is quite
+&gt reasonable to expect any serious language to create simple vectors of
+&gt floats as unboxed representations. All the more so when you allocate
+&gt in :STATIC for direct passing to the outside world.
+&gt
+&gt Another thing that helped the speedup was to forego generality. My
+&gt old code was willing to take numeric vectors in any form and coerce
+&gt them to single- or double-precision floats, as requested, before
+&gt sending to the outside libraries. By restricting the view to require
+&gt correctly typed values ahead of time, and just being sure to enforce
+&gt that in your own code, you save a tremendous amount of runtime. The
+&gt old, more general, way was constructing a C-compatible dynamic FLI
+&gt array, then copying one element at a time from a general input Lisp
+&gt vector, coercing to the correct float type, and then storing into the
+&gt FLI array, and then reversing the whole procedure on return. That
+&gt kills a huge amount of time.
+&gt
+&gt By adhering to strictly typed data you can use FLI:REPLACE-FOREIGN-
+&gt ARRAY to copy entire vectors to and fro. Hence another huge speedup.
+&gt
+&gt The final speedup came from simple caching of temporary buffers. When
+&gt I need a scratch buffer of 4K doubles, I allocate one if not already
+&gt cached, then hold on to it for future possible needs. I put a limit
+&gt of 4K double complex on the largest buffer I'm willing to cache.
+&gt Anything larger (much more rare in my code) will be forced to
+&gt allocate and GC the larger scratch buffers. By far the most common
+&gt sizes for my stuff are either 1024 or 4096 elements.
+&gt
+&gt Together with an unboxed representation of complex-valued arrays,
+&gt these data caching and unboxed techniques save a tremendous amount of
+&gt data allocation. The result is that my routines, after the first
+&gt call, see no more page misses at all, and the amount of memory
+&gt allocated becomes around 10-50 bytes per call. This is a decrease
+&gt from about 180-400KB per call in the old code.
+&gt
+&gt Take all of these factors together -- use segregated complex types,
+&gt use strictly typed arrays and vectors, use :STATIC array allocation,
+&gt use FLI:REPLACE-FOREIGN-ARRAY, avoid memory allocation and boxing,
+&gt and avoid page misses -- all of these together produce a speed up
+&gt over the old code of more than 670x. That is extremely impressive.
+&gt
+&gt And so now being able to perform 1024 element complex-valued FFT's at
+&gt 100 kHz, there is really nothing standing in the way of some serious
+&gt realtime audio processing with nearly arbitrary FIR filtering and
+&gt convolutions. That is very very impressive to me, to see Lisp compete
+&gt head on with hand-crafted C and DSP Assembly. At this point, I have
+&gt no interest in reverting to such tedious practices when I can avoid
+&gt it. And using Lisp directly is a prominent possibility and likelihood.
+&gt
+&gt I didn't set out to compete against C or DSP Assembly code. But to my
+&gt surprise, the code generated by LWM is very impressive, provided you
+&gt take some responsibility for sensible fast computing practices. Very
+&gt nice!
+&gt
+&gt Dr. David McClain
+&gt Chief Technical Officer
+&gt Refined Audiometrics Laboratory
+&gt 4391 N. Camino Ferreo
+&gt Tucson, AZ  85750
+&gt
+&gt email: dbm@refined-audiometrics.com
+&gt phone: 1.520.390.3995
+&gt web: http://www.refined-audiometrics.com
+&gt
+&gt
+&gt
+
+Hi David,
+
+this post never made much sense to me at the time even though it seemed to  
+talk about very interesting stuff, so I decided to hold onto it to come  
+back to later.
+
+So, how did it work out in the end, did you stick with lisp for doing  
+heavy DSP processing, or did you have to come back to the low level?
+
+Did you find any other cool ways to speed your audio processing even more,  
+or just make even more fun?
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Lisp Realtime Speedups</h1>
+                 <pre>
+Actually, using lisp as a C code compiler seems to be one of cool ways to  
+do things. I actually came across a lisp library a couple of days ago that  
+generates GPU kernels source for CUDA, one would be able to do some  
+massive DSP processing of teraflop scale this way. It seems to be a  
+problem as of now to perform general purpose GPU processing from inside  
+lisp easily but that might not be the case for too long.
+
+Thanks for your replies, David, they always stand out and give plenty of  
+food for thought.
+
+On Tue, 14 Aug 2012 00:03:35 +0100, David McClain  
+&lt;dbm@refined-audiometrics.com&gt wrote:
+
+&gt BTW... I have lately had numerous cases where I either had to write C  
+&gt for signal processing, or some custom DSP language encoded in C (e.g.,  
+&gt Tensilica).
+&gt
+&gt In those cases I have taken to writing a simple cross compiler from high  
+&gt level abstract Lisp notation to the needed low level C code. Along the  
+&gt way, my Lisp compilers perform code sequence optimization to give the  
+&gt shortest possible sequence of C code to perform needed computations.
+&gt
+&gt It is really simple to do this in Lisp.
+&gt
+&gt ----------------- (from an earlier letter to Usha Millar of LW)  
+&gt --------------------------
+&gt
+&gt Here is an example from my daily routine, where I need to write some DSP  
+&gt code for an integer-based DSP which uses fractional arithmetic  
+&gt encodings. It does not have floating point, but each 24-bit integer can  
+&gt represent a number with some (possibly varying) number of bits that  
+&gt represent its fractional value.
+&gt
+&gt For example, Pi in Q.21 notation is 6588397 (21-bits of fractional  
+&gt value, 2 bits of integer portion, and 1-bit of sign, for a total of 24  
+&gt bits)
+&gt
+&gt So, as you could imagine, writing code for elaborate arithmetic routines  
+&gt in such a system can quickly become a nightmare of book-keeping -- who  
+&gt has how many bits, what happens when I multiply two of them together,  
+&gt how many bits of shifting are needed, and in which direction, if I need  
+&gt to add two dissimilar fractional values, etc.
+&gt
+&gt So Lisp to the rescue with a simple meta-compiler. I declare the vars  
+&gt I'm about to use, their names, and how many bits of fraction each has,  
+&gt then I can simply write a Lisp expression for the arithmetic, and Lisp  
+&gt keeps track of all the bit precisions for me, performs shifting as  
+&gt needed, (or issues error messaages if I mess up!), and then it generates  
+&gt C code for the DSP compiler.
+&gt
+&gt It was most direct to just use 3-address encoding in Lisp, and let the  
+&gt follow-on C compiler optimize away any unnecessary loads and stores.
+&gt
+&gt Example, from the computation of Log2(x) using a minimax polynomial  
+&gt approximation, takes a Q.23 value in, and produces a Q.18 value out.  
+&gt Here's a portion of the routine, shown in comments as a Horner's  
+&gt encoding of the nested multiply-adds, then in Lisp with my simple  
+&gt meta-compiler, and then the C results (F23_t is just an int24_t  
+&gt designated so the human reader knows it is a Q.nn fractional value.):
+&gt
+&gt (let ((a (make-frac-opnd
+&gt          :name "a"
+&gt          :nbits 23))
+&gt      (b2 (fconst 23 -0.08621210823155004))
+&gt      (b1 (fconst 23  0.49506024005351723))
+&gt      (b0 (fconst 23 -0.41378789176844955))
+&gt      (b (make-frac-opnd
+&gt          :name "b"
+&gt          :nbits 23))
+&gt      (tmp23 (make-frac-opnd
+&gt              :name "tmp"
+&gt              :nbits 23))
+&gt      (nz18 (make-frac-opnd
+&gt             :name "nz"
+&gt             :nbits 18))
+&gt      (c18 (make-frac-opnd
+&gt            :name "c"
+&gt            :nbits 18)))
+&gt  ;; example from computation of Log2(x) with MiniMax polynomial  
+&gt approximation:
+&gt  ;;  c = (a * (a * -0.08621210823155004) + 0.49506024005351723) +  
+&gt -0.41378789176844955) + nz
+&gt  ;; for a = Q23
+&gt  ;;     nz = Q18
+&gt  ;;     c  = Q18
+&gt  (femit #&gt.end
+&gt   // a is Q.23
+&gt   // nz is Q.18
+&gt   .end)
+&gt  (fdecls tmp23 c18)
+&gt  (fadd
+&gt   (fadj
+&gt    (fadd
+&gt     (fmul
+&gt      a
+&gt      (fadd
+&gt       (fmul a b2 tmp23)
+&gt       b1 tmp23)
+&gt      tmp23)
+&gt     b0 tmp23)
+&gt    c18)
+&gt   nz18 c18))
+&gt
+&gt ==&gt
+&gt
+&gt   // a is Q.23
+&gt   // nz is Q.18
+&gt
+&gt   F23_t tmp; // tmp is Q.23
+&gt   F23_t c; // c is Q.18
+&gt   tmp = ((F23_t)((int64_t)a * (int64_t)((F23_t)(-723200))) &gt&gt 23);
+&gt   tmp = tmp + ((F23_t)(4152866));
+&gt   tmp = ((F23_t)((int64_t)a * (int64_t)tmp) &gt&gt 23);
+&gt   tmp = tmp + ((F23_t)(-3471104));
+&gt   c = (tmp &gt&gt 5);
+&gt   c = c + nz;
+&gt On Aug 13, 2012, at 15:22 PM, Yuri Davidovsky wrote:
+&gt
+&gt&gt
+&gt&gt On Fri, 14 Nov 2008 18:55:32 -0000, David McClain  
+&gt&gt &lt;dbm@refined-audiometrics.com&gt wrote:
+&gt&gt
+&gt&gt&gt Hi All,
+&gt&gt&gt
+&gt&gt&gt I have (not surprisingly) had several inquiries about how this
+&gt&gt&gt speedup was achieved. So I'll answer here for the benefit of everyone.
+&gt&gt&gt
+&gt&gt&gt First of all, this speedup was measured under LWM 5.1.1 on an iMac
+&gt&gt&gt running Tiger (10.4.11) and a 2 GHz Intel Core 2 Duo processor with 2
+&gt&gt&gt GB RAM. I have also now verified the speedup on systems as old as a
+&gt&gt&gt PowerPC iMac, which runs about 3x slower, and on newer systems
+&gt&gt&gt running Leopard. All of them show substantial speedup.
+&gt&gt&gt
+&gt&gt&gt By far the single most important speedup actually had little to do
+&gt&gt&gt with the calling conventions and array transfer between Lisp and the
+&gt&gt&gt external vDSP library. It turns out that that portion of the FFT
+&gt&gt&gt never did take very much time. We did speed that up by about 2x-3x,
+&gt&gt&gt but the most important speedup of the 670x, or so, has to do with
+&gt&gt&gt data organization in memory.
+&gt&gt&gt
+&gt&gt&gt A truly general purpose signal processor needs to be able to perform
+&gt&gt&gt complex-valued convolutions for quite a variety of reasons. The most
+&gt&gt&gt natural approach would be to use COMPLEX single-precision or double-
+&gt&gt&gt precision values. That turns out to be a real speed killer because
+&gt&gt&gt type COMPLEX is not a basic type for Lispworks (and probably not for
+&gt&gt&gt any other Lisp either). A complex value will not be held in
+&gt&gt&gt registers, and they will not be stored in unboxed arrays. All
+&gt&gt&gt collections of type complex appear to use boxed elements. That is a
+&gt&gt&gt huge time eater.
+&gt&gt&gt
+&gt&gt&gt So, while I have never been much of a fan of the MatLab approach of
+&gt&gt&gt storing real and imaginary components in separate arrays, that is
+&gt&gt&gt precise what is needed here. Some external library may be comfortable
+&gt&gt&gt with a packed (re, im) pairs representation of complex values. That
+&gt&gt&gt appears to be the case in some of the Intel libraries (PPL, MKL). But
+&gt&gt&gt it so happens that the native vDSP library on OS/X also wants to see
+&gt&gt&gt FFT data in segregated form.
+&gt&gt&gt
+&gt&gt&gt Hence, underneath, instead of using direct COMPLEX representations,
+&gt&gt&gt arrays of such, and operations on such (e.g., (* c (conjugate c)) to
+&gt&gt&gt get the power), it is better to keep real and imaginary components in
+&gt&gt&gt separate vectors and arrays, and to perform the complex arithmetic,
+&gt&gt&gt when needed, by your self -- use (+ (* r r) (* i i)) to get the
+&gt&gt&gt power, use (atan i r) instead of (phase c), and so on.
+&gt&gt&gt
+&gt&gt&gt By making that simple change, we brought our data manipulation time
+&gt&gt&gt down by a huge factor.
+&gt&gt&gt
+&gt&gt&gt There is also a tremendous speedup by using Martin's suggestion
+&gt&gt&gt about :LISP-SIMPLE-1D-ARRAY for passing vectors of unboxed arrays to
+&gt&gt&gt the outside world. Martin didn't specifically indicate that vectors
+&gt&gt&gt of floats (single and double precision) would be stored as safely
+&gt&gt&gt unboxed linear arrays, but they are. You can see that for yourself by
+&gt&gt&gt using HCL:FIND-OBJECT-SIZE and trying variations of vectors in size
+&gt&gt&gt and data type. This may be an non-portable expectation, but is quite
+&gt&gt&gt reasonable to expect any serious language to create simple vectors of
+&gt&gt&gt floats as unboxed representations. All the more so when you allocate
+&gt&gt&gt in :STATIC for direct passing to the outside world.
+&gt&gt&gt
+&gt&gt&gt Another thing that helped the speedup was to forego generality. My
+&gt&gt&gt old code was willing to take numeric vectors in any form and coerce
+&gt&gt&gt them to single- or double-precision floats, as requested, before
+&gt&gt&gt sending to the outside libraries. By restricting the view to require
+&gt&gt&gt correctly typed values ahead of time, and just being sure to enforce
+&gt&gt&gt that in your own code, you save a tremendous amount of runtime. The
+&gt&gt&gt old, more general, way was constructing a C-compatible dynamic FLI
+&gt&gt&gt array, then copying one element at a time from a general input Lisp
+&gt&gt&gt vector, coercing to the correct float type, and then storing into the
+&gt&gt&gt FLI array, and then reversing the whole procedure on return. That
+&gt&gt&gt kills a huge amount of time.
+&gt&gt&gt
+&gt&gt&gt By adhering to strictly typed data you can use FLI:REPLACE-FOREIGN-
+&gt&gt&gt ARRAY to copy entire vectors to and fro. Hence another huge speedup.
+&gt&gt&gt
+&gt&gt&gt The final speedup came from simple caching of temporary buffers. When
+&gt&gt&gt I need a scratch buffer of 4K doubles, I allocate one if not already
+&gt&gt&gt cached, then hold on to it for future possible needs. I put a limit
+&gt&gt&gt of 4K double complex on the largest buffer I'm willing to cache.
+&gt&gt&gt Anything larger (much more rare in my code) will be forced to
+&gt&gt&gt allocate and GC the larger scratch buffers. By far the most common
+&gt&gt&gt sizes for my stuff are either 1024 or 4096 elements.
+&gt&gt&gt
+&gt&gt&gt Together with an unboxed representation of complex-valued arrays,
+&gt&gt&gt these data caching and unboxed techniques save a tremendous amount of
+&gt&gt&gt data allocation. The result is that my routines, after the first
+&gt&gt&gt call, see no more page misses at all, and the amount of memory
+&gt&gt&gt allocated becomes around 10-50 bytes per call. This is a decrease
+&gt&gt&gt from about 180-400KB per call in the old code.
+&gt&gt&gt
+&gt&gt&gt Take all of these factors together -- use segregated complex types,
+&gt&gt&gt use strictly typed arrays and vectors, use :STATIC array allocation,
+&gt&gt&gt use FLI:REPLACE-FOREIGN-ARRAY, avoid memory allocation and boxing,
+&gt&gt&gt and avoid page misses -- all of these together produce a speed up
+&gt&gt&gt over the old code of more than 670x. That is extremely impressive.
+&gt&gt&gt
+&gt&gt&gt And so now being able to perform 1024 element complex-valued FFT's at
+&gt&gt&gt 100 kHz, there is really nothing standing in the way of some serious
+&gt&gt&gt realtime audio processing with nearly arbitrary FIR filtering and
+&gt&gt&gt convolutions. That is very very impressive to me, to see Lisp compete
+&gt&gt&gt head on with hand-crafted C and DSP Assembly. At this point, I have
+&gt&gt&gt no interest in reverting to such tedious practices when I can avoid
+&gt&gt&gt it. And using Lisp directly is a prominent possibility and likelihood.
+&gt&gt&gt
+&gt&gt&gt I didn't set out to compete against C or DSP Assembly code. But to my
+&gt&gt&gt surprise, the code generated by LWM is very impressive, provided you
+&gt&gt&gt take some responsibility for sensible fast computing practices. Very
+&gt&gt&gt nice!
+&gt&gt&gt
+&gt&gt&gt Dr. David McClain
+&gt&gt&gt Chief Technical Officer
+&gt&gt&gt Refined Audiometrics Laboratory
+&gt&gt&gt 4391 N. Camino Ferreo
+&gt&gt&gt Tucson, AZ  85750
+&gt&gt&gt
+&gt&gt&gt email: dbm@refined-audiometrics.com
+&gt&gt&gt phone: 1.520.390.3995
+&gt&gt&gt web: http://www.refined-audiometrics.com
+&gt&gt&gt
+&gt&gt&gt
+&gt&gt&gt
+&gt&gt
+&gt&gt Hi David,
+&gt&gt
+&gt&gt this post never made much sense to me at the time even though it seemed  
+&gt&gt to talk about very interesting stuff, so I decided to hold onto it to  
+&gt&gt come back to later.
+&gt&gt
+&gt&gt So, how did it work out in the end, did you stick with lisp for doing  
+&gt&gt heavy DSP processing, or did you have to come back to the low level?
+&gt&gt
+&gt&gt Did you find any other cool ways to speed your audio processing even  
+&gt&gt more, or just make even more fun?
+&gt&gt
+&gt&gt _______________________________________________
+&gt&gt Lisp Hug - the mailing list for LispWorks users
+&gt&gt lisp-hug@lispworks.com
+&gt&gt http://www.lispworks.com/support/lisp-hug.html
+&gt&gt
+&gt&gt
+&gt
+&gt Dr. David McClain
+&gt dbm@refined-audiometrics.com
+&gt
+&gt
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Lisp Realtime Speedups</h1>
+                 <pre>
+On Mon, 13 Aug 2012 23:51:06 +0100, David McClain  
+&lt;dbm@refined-audiometrics.com&gt wrote:
+
+&gt in addition to considerable parallel processing (thanks due to LW's  
+&gt excellent SMP implementation) for performing the heterodyning,  
+&gt filtering, and downsampling in the complex domain
+
+I remember you had complaints about complex numbers not being fast enough  
+in Lispworks 5.1, is that not an issue any more, or do you mean you split  
+complex number arrays in two real ones so non-native complex numbers are  
+not getting in the way altogether?
+
+&gt As for audio processing, I do a lot in Lisp, but for commercial release,  
+&gt so far, I have gone to low-level C code. And that is primarily because  
+&gt the binary obfuscation and IP protection programs don't have a clue  
+&gt about how to work on compiled Lisp code. They only understand compiled C  
+&gt and Java.
+
+I never thought of a necessity for that. Wouldn't be compiled lisp code  
+confusing enough already?
+
+&gt But our multiple layers of encryption utilize an embedded compiled  
+&gt Lispworks module for performing all the crypto. Our payloads are 2  
+&gt layers of loading, each layer encrypted differently. Encryption consists  
+&gt of Twofish-256 / AES-256 / Twofish-256 (triple encryption) for the bulk  
+&gt payloads, with key management and computation done on Elliptic Curve  
+&gt Crypto B-571 or one of its many isomorphisms, using 7th order Lagrangian  
+&gt interpolation to compute keys on the fly, based on numerous component  
+&gt keys. [if this seems extreme to you, it is because we have to face the  
+&gt Chinese government...]
+
+I got lost a bit here, what exactly you are encrypting? Is it about the  
+audio processing software, or are you talking about something else?
+
+
+&gt All of that good stuff is in Lisp. I wish I had more time to devote to  
+&gt audio plugin development in Lisp. I think that would be a riot.
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:38 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

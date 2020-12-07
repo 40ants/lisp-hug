@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Motif/Lesstif on Ubuntu 6.10 (32bit)</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Motif/Lesstif on Ubuntu 6.10 (32bit)</h1>
+                <pre>
+Hello all,
+I've just installed Ubuntu 6.10 on an IBM Thinkpad T22 as well as
+LWPro 4.4.5 (with patches). I've installed Lesstif (apt-cache show lesstif2
+gives me version 1:0.94.4-2). I'm running into some troubles with
+the LW IDE.
+
+When I start the IDE, the GC monitor and the splash screen appear, and
+then LW seems to hang. (Before I installed the patches, the GC monitor
+and splash screen appeared, and then I was dropped into an error message.)
+An interrupt or two at the console (Ctrl-C) gets me my error message
+(displayed in the standard message dialog, and in the console). It reads
+
+Warning: (Xt Warning) Actions not found: TextInputPaneCompleteText
+X ERROR
+  Display: #&lt;X-LIBRARY:DISPLAY ":0.0" = #x08072698&gt
+  Error: BadName (named color or font does not exist)
+  Major opcode of failed request: 45 (X_OpenFont)
+
+On Ubuntu, the lesstif libraries end up at /usr/lib/libXm.so.1.0.2,
+but I've changed the use-motif-library file in the config directory
+to read
+
+(:detect-version
+	(;; ("/usr/X11R6/lib/libXm.so.2.0.1" :lesstif)
+	 ;; ("/usr/X11R6/lib/libXm.so.2.0.1" :lesstif)
+	 ("/usr/lib/libXm.so.1.0.2" :lesstif)
+	 ;;("/usr/X11R6/lib/libXm.so.3" :motif)
+	)
+ :prefer-version :lesstif
+ )
+
+Lately I've been using SLIME/Emacs, and when I start the LW
+executable with -tty and subsequently run
+(x-utilities::ensure-motif-libraries), I can still do the things I'd
+like to using CAPI, so I'm not sure exactly where the problem
+is coming from, but it seems to be something related to the IDE.
+
+Also, if I remove the (load-all-patches) from siteinit.lisp to simulate
+the behavior I had before I added the patches, the error message
+appears when the IDE is starting. The same X ERROR appears that
+I showed above, but there is also a LispWorks Error which appears,
+and reads "In &gt= of (0 NIL) arguments should be of type REAL."
+If I abort this error, several more similar errors appear, (it seems
+as though there is one for each LW window in the IDE).
+
+Any ideas? Similar problems?
+
+ --
+=====================
+Joshua Taylor
+tayloj@rpi.edu
+
+"A lot of good things went down one time,
+     back in the goodle days."
+               John Hartford
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Motif/Lesstif on Ubuntu 6.10 (32bit)</h1>
+                 <pre>
+You could try to modify your font path a bit so unscaled fonts come first?
+
+See:
+http://thread.gmane.org/gmane.lisp.lispworks.general/5126/focus=5153
+-- 
+  -asbjxrn
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Motif/Lesstif on Ubuntu 6.10 (32bit)</h1>
+                 <pre>
+On 1/17/07, Lauri Oherd &lt;lauri.oherd@gmail.com&gt wrote:
+&gt Hello,
+&gt I had a similar problem when installing LW Personal 4.4.6 to Ubuntu 6.10.
+&gt Got solution from page
+&gt http://article.gmane.org/gmane.lisp.lispworks.general/4750
+&gt
+&gt &gt Just move away the app-defaults directory (fonts specified there aren't
+&gt &gt in the default Ubuntu distribution -- Hoary, Breezy both fail here):
+&gt &gt
+&gt &gt On my install:
+&gt &gt
+&gt &gt mv /usr/local/lib/LispWorksPersonal/lib/4-4-0-0/lib/app-defaults
+&gt &gt app-defaults.bak
+&gt
+&gt Hope this helps!
+
+That did the trick; Thanks!
+
+&gt Lauri Oherd
+&gt
+&gt
+&gt On 1/17/07, Taylor, Joshua &lt;tayloj@rpi.edu&gt wrote:
+&gt &gt
+&gt &gt Hello all,
+&gt &gt I've just installed Ubuntu 6.10 on an IBM Thinkpad T22 as well as
+&gt &gt LWPro 4.4.5 (with patches). I've installed Lesstif (apt-cache show lesstif2
+&gt &gt gives me version 1:0.94.4-2). I'm running into some troubles with
+&gt &gt the LW IDE.
+&gt &gt
+&gt &gt When I start the IDE, the GC monitor and the splash screen appear, and
+&gt &gt then LW seems to hang. (Before I installed the patches, the GC monitor
+&gt &gt and splash screen appeared, and then I was dropped into an error message.)
+&gt &gt An interrupt or two at the console (Ctrl-C) gets me my error message
+&gt &gt (displayed in the standard message dialog, and in the console). It reads
+&gt &gt
+&gt &gt Warning: (Xt Warning) Actions not found: TextInputPaneCompleteText
+&gt &gt X ERROR
+&gt &gt   Display: #&lt;X-LIBRARY:DISPLAY ":0.0" = #x08072698&gt
+&gt &gt   Error: BadName (named color or font does not exist)
+&gt &gt   Major opcode of failed request: 45 (X_OpenFont)
+&gt &gt
+&gt &gt On Ubuntu, the lesstif libraries end up at /usr/lib/libXm.so.1.0.2,
+&gt &gt but I've changed the use-motif-library file in the config directory
+&gt &gt to read
+&gt &gt
+&gt &gt (:detect-version
+&gt &gt         (;; ("/usr/X11R6/lib/libXm.so.2.0.1" :lesstif)
+&gt &gt          ;; ("/usr/X11R6/lib/libXm.so.2.0.1" :lesstif)
+&gt &gt          ("/usr/lib/libXm.so.1.0.2" :lesstif)
+&gt &gt          ;;("/usr/X11R6/lib/libXm.so.3" :motif)
+&gt &gt         )
+&gt &gt  :prefer-version :lesstif
+&gt &gt  )
+&gt &gt
+&gt &gt Lately I've been using SLIME/Emacs, and when I start the LW
+&gt &gt executable with -tty and subsequently run
+&gt &gt (x-utilities::ensure-motif-libraries), I can still do the things I'd
+&gt &gt like to using CAPI, so I'm not sure exactly where the problem
+&gt &gt is coming from, but it seems to be something related to the IDE.
+&gt &gt
+&gt &gt Also, if I remove the (load-all-patches) from siteinit.lisp to simulate
+&gt &gt the behavior I had before I added the patches, the error message
+&gt &gt appears when the IDE is starting. The same X ERROR appears that
+&gt &gt I showed above, but there is also a LispWorks Error which appears,
+&gt &gt and reads "In &gt= of (0 NIL) arguments should be of type REAL."
+&gt &gt If I abort this error, several more similar errors appear, (it seems
+&gt &gt as though there is one for each LW window in the IDE).
+&gt &gt
+&gt &gt Any ideas? Similar problems?
+&gt &gt
+&gt &gt  --
+&gt &gt =====================
+&gt &gt Joshua Taylor
+&gt &gt tayloj@rpi.edu
+&gt &gt
+&gt &gt "A lot of good things went down one time,
+&gt &gt      back in the goodle days."
+&gt &gt                John Hartford
+&gt &gt
+&gt &gt
+&gt
+
+
+-- 
+=====================
+Joshua Taylor
+tayloj@rpi.edu
+
+"A lot of good things went down one time,
+     back in the goodle days."
+               John Hartford
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:43 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

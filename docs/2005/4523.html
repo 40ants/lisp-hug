@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Serious bug</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Serious bug</h1>
+                <pre>Hi,
+
+I have found a serious bug in LispWorks. Given the following  
+definitions:
+
+(in-package :cl-user)
+
+(declaim (inline proceed))
+(defun proceed (function)
+   (funcall function))
+
+(defmethod test (msg)
+   (print msg))
+
+(defmethod test :around (msg)
+   (proceed #'call-next-method))
+
+(defun run ()
+   (test "Hello, World!"))
+
+....when I type (run) in the listener, NIL is printed and is the  
+return value. When I declaim (notinline proceed), "Hello, World" is  
+correctly printed and returned.
+
+I'm using LispWork 4.4.5 on Mac OS X 10.4.2.
+
+
+Cheers,
+Pascal
+
+-- 
+OOPSLA'05 tutorial on generic functions &amp; the CLOS Metaobject Protocol
+++++ see http://p-cos.net/oopsla05-tutorial.html for more details ++++
+
+Pascal Costanza, mailto:pc@p-cos.net, http://p-cos.net
+Vrije Universiteit Brussel, Programming Technology Lab
+Pleinlaan 2, B-1050 Brussel, Belgium
+
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Serious bug</h1>
+                 <pre>Hello Pascal,
+
+| I have found a serious bug in LispWorks. Given the following
+| definitions:
+| 
+| (in-package :cl-user)
+| 
+| (declaim (inline proceed))
+| (defun proceed (function)
+|    (funcall function))
+| 
+| (defmethod test (msg)
+|    (print msg))
+| 
+| (defmethod test :around (msg)
+|    (proceed #'call-next-method))
+| 
+| (defun run ()
+|    (test "Hello, World!"))
+| 
+| ...when I type (run) in the listener, NIL is printed and is the
+| return value. When I declaim (notinline proceed), "Hello, World" is
+| correctly printed and returned.
+| 
+| I'm using LispWork 4.4.5 on Mac OS X 10.4.2.
+
+Is it safe to invoke call-next-method from outside the lexical scope of
+defmethod body? What is your interpretation of the following excerpt
+form CLHS:
+  The function call-next-method can be used within the body forms
+  (but not the lambda list) of a method defined by a method-defining
+  form to call the next method
+?
+--
+Sincerely,
+Dmitriy Ivanov
+lisp.ystok.ru
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Serious bug</h1>
+                 <pre>"Dmitriy Ivanov" &lt;divanov@aha.ru&gt writes:
+
+&gt Is it safe to invoke call-next-method from outside the lexical scope of
+&gt defmethod body? 
+
+I think it's not (I actually worked on a program that needed this some
+while ago, and interpreted the spec as not allowing to treat
+call-next-method as a normal function).
+
+But you can achieve the desired effect by a lexical closure. By
+changing test to:
+
+(defmethod test :around (msg)
+  (proceed (lambda()(call-next-method))))
+
+the example will work as intended.
+
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Serious bug</h1>
+                 <p>
+                  Unable to parse email body. Email id is 4551
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:47 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

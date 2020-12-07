@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>tracking expanded tree-view nodes</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>tracking expanded tree-view nodes</h1>
+                <pre>     I'm displaying a big semantic network using tree-view.
+After updating that network,  the tree-view has to be
+repainted by retaining expansion for expanded nodes currently
+expanded by hand-gestures.
+
+    To record currently these expanded nodes,  I'm traversing
+capi:collection-items to call capi:tree-view-expanded-p.
+This works as long as the print-function prints out
+the node names unchanged.  But when print-function displays
+strings different from underlying unique nodes names fed to
+the children-function,  tree-view-expanded-p can't
+find the node names.
+
+    Is there any way to get a list of expanded nodes
+in terms of their underlying children-function names?
+For a big network retention of expanded nodes is important.
+
+-- Lawrence
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: tracking expanded tree-view nodes</h1>
+                 <pre>Hello Lawrence,
+
+|      I'm displaying a big semantic network using tree-view.
+| After updating that network,  the tree-view has to be
+| repainted by retaining expansion for expanded nodes currently
+| expanded by hand-gestures.
+|
+|     To record currently these expanded nodes,  I'm traversing
+| capi:collection-items to call capi:tree-view-expanded-p.
+| This works as long as the print-function prints out
+| the node names unchanged.  But when print-function displays
+| strings different from underlying unique nodes names fed to
+| the children-function,  tree-view-expanded-p can't
+| find the node names.
+|
+|     Is there any way to get a list of expanded nodes
+| in terms of their underlying children-function names?
+| For a big network retention of expanded nodes is important.
+
+Have you supplied the test-function? Personally, I would not recommend using
+strings as tree-view items, but "more meaningful" atoms accompanied by a
+print-function instead.
+
+BTW, it would be nice having the default test-function for various capi:collection
+subclasses documented :-(.
+--
+Sincerely,
+Dmitri Ivanov
+lisp.ystok.ru
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: tracking expanded tree-view nodes</h1>
+                  <pre>Hello Dmitri,
+     Thanks for your suggestion,  it really helped.
+I changed the children-function to use unique integers
+to identify nodes and children.  I also coded a complete breadth-first 
+scan
+of expanded children to track expanded nodes.  Everything
+works now,  and runs a lot faster too.
+
+    I also think it would be VERY nice to have the effect of the default 
+test-function
+documented.
+
+Lawrence
+
+On Thursday, June 17, 2004, at 01:42 AM, Dmitri Ivanov wrote:
+
+&gt Hello Lawrence,
+&gt
+&gt |      I'm displaying a big semantic network using tree-view.
+&gt | After updating that network,  the tree-view has to be
+&gt | repainted by retaining expansion for expanded nodes currently
+&gt | expanded by hand-gestures.
+&gt |
+&gt |     To record currently these expanded nodes,  I'm traversing
+&gt | capi:collection-items to call capi:tree-view-expanded-p.
+&gt | This works as long as the print-function prints out
+&gt | the node names unchanged.  But when print-function displays
+&gt | strings different from underlying unique nodes names fed to
+&gt | the children-function,  tree-view-expanded-p can't
+&gt | find the node names.
+&gt |
+&gt |     Is there any way to get a list of expanded nodes
+&gt | in terms of their underlying children-function names?
+&gt | For a big network retention of expanded nodes is important.
+&gt
+&gt Have you supplied the test-function? Personally, I would not recommend 
+&gt using
+&gt strings as tree-view items, but "more meaningful" atoms accompanied by 
+&gt a
+&gt print-function instead.
+&gt
+&gt BTW, it would be nice having the default test-function for various 
+&gt capi:collection
+&gt subclasses documented :-(.
+&gt --
+&gt Sincerely,
+&gt Dmitri Ivanov
+&gt lisp.ystok.ru
+&gt
+
+
+</pre>
+                 </article>
+                </section>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Weird capi:tree-view-update-an-item</h1>
+                 <pre>Hello lispworkers,
+
+Consider the following piece of code:
+
+(defvar *light* t)
+(capi:define-interface my-tree ()
+  ()
+  (:panes
+   (tree capi:tree-view
+    :roots '(:red :blue :green)
+    :children-function
+     (lambda (item)
+       (when (eq item :blue)
+         (cons :dark-blue (if *light*
+                              '(:light-blue)
+                              nil))))
+    :print-function 'string-capitalize))
+  (:default-initargs :width 200 :height 200))
+
+(setq my-tree (capi:contain (make-instance 'my-tree))
+      tv (slot-value my-tree 'tree))
+
+(setq *light* (not *light*))    ; switch the light
+
+Now, I want to update the tree-vew:
+
+(capi:execute-with-interface my-tree
+  'capi:tree-view-update-an-item tv :light-blue t)
+
+=&gt gives the wrong picture with the Blue root replace by Light-Blue. Next call:
+
+(capi:execute-with-interface my-tree
+  'capi:tree-view-update-an-item tv :blue nil)
+
+=&gt restores the correct view.
+
+The same occurs after switching the *light* again.
+
+What am I doing wrong? Do I always need calling capi:tree-view-update-an-item
+twice when adding or removing items?
+--
+Sincerely,
+Dmitri Ivanov
+lisp.ystok.ru
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:52 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

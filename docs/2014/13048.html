@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>objc bridge problem with (macosx) addressbook api</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>objc bridge problem with (macosx) addressbook api</h1>
+                <pre>
+This is what I want to do:
+
++--
+ABAddressBook *addressBook;
+ABPerson *newPerson;
+addressBook = [ABAddressBook sharedAddressBook];
+newPerson = [[ABPerson alloc] init];
+[newPerson setValue:@"John"
+         forProperty:kABFirstNameProperty];
+[newPerson setValue:@"Doe"
+         forProperty:kABLastNameProperty];
+[addressBook addRecord:newPerson];
+[addressBook save];
++--
+
+from 
+https://developer.apple.com/library/mac/documentation/UserExperience/Conceptual/AddressBook/Tasks/ManagingGroups.html#//apple_ref/doc/uid/20001022-BABHHIHC
+
+I tried to translate into this:
+
++--
+(objc:ensure-objc-initialized
+   :modules
+   '("/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation"
+     "/System/Library/Frameworks/Cocoa.framework/Versions/A/Cocoa"
+ 
+"/System/Library/Frameworks/AddressBook.framework/Versions/Current/AddressBook"))
+
+(defun addressbook-create-person (firstname)
+   "Calls Addressbook via LW objc-bridge"
+   (let ((pool (objc:alloc-init-object "NSAutoreleasePool")))
+     (unwind-protect
+       (let ((addressbook (objc:invoke "ABAddressBook" 
+"sharedAddressBook")))
+           (if addressbook
+             (let ((person (objc:invoke (objc:invoke "ABPerson" "alloc") 
+"initWithAddressBook:" addressbook)))
+               (if person
+                  (progn
+                   ;; the following line crashes LW
+                   (objc:invoke person "setValue:forProperty:" 
+(objc:invoke "NSString" "stringWithString:" firstname) 
+"kABFirstNameProperty")
+
+                   (objc:invoke addressbook "save"))
+                 (error "can't create person")))
+             (error "can't create shared addressbook")))
+       (progn
+         (objc:invoke pool "drain")))))
++--
+
+While trying to set the firstname property of my freshly created person 
+my LW session crashes noiseless. When I remove the offending line a 
+person without properties is visible in my Mac Addressbook.
+
+Obviously I am not allowed to insert a simple Lisp string at the 
+position where Objective-C expects an (id) type. But what kind of 
+pointer-foo do I have to do to get it right?
+
+thanks
+jens
+
+
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: objc bridge problem with (macosx) addressbook api</h1>
+                 <pre>
+Solved it.
+
+The line
+
+(objc:invoke person "setValue:forProperty:" firstname 
+"kABFirstNameProperty")
+
+must simply be
+
+(objc:invoke person "setValue:forProperty:" firstname "First")
+
+Sorry for the noise.
+
+
+Am 18.05.14 01:11, schrieb Jens Teich:
+&gt
+&gt This is what I want to do:
+&gt
+&gt +--
+&gt ABAddressBook *addressBook;
+&gt ABPerson *newPerson;
+&gt addressBook = [ABAddressBook sharedAddressBook];
+&gt newPerson = [[ABPerson alloc] init];
+&gt [newPerson setValue:@"John"
+&gt          forProperty:kABFirstNameProperty];
+&gt [newPerson setValue:@"Doe"
+&gt          forProperty:kABLastNameProperty];
+&gt [addressBook addRecord:newPerson];
+&gt [addressBook save];
+&gt +--
+&gt
+&gt from
+&gt https://developer.apple.com/library/mac/documentation/UserExperience/Conceptual/AddressBook/Tasks/ManagingGroups.html#//apple_ref/doc/uid/20001022-BABHHIHC
+&gt
+&gt
+&gt I tried to translate into this:
+&gt
+&gt +--
+&gt (objc:ensure-objc-initialized
+&gt    :modules
+&gt
+&gt '("/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation"
+&gt      "/System/Library/Frameworks/Cocoa.framework/Versions/A/Cocoa"
+&gt
+&gt "/System/Library/Frameworks/AddressBook.framework/Versions/Current/AddressBook"))
+&gt
+&gt
+&gt (defun addressbook-create-person (firstname)
+&gt    "Calls Addressbook via LW objc-bridge"
+&gt    (let ((pool (objc:alloc-init-object "NSAutoreleasePool")))
+&gt      (unwind-protect
+&gt        (let ((addressbook (objc:invoke "ABAddressBook"
+&gt "sharedAddressBook")))
+&gt            (if addressbook
+&gt              (let ((person (objc:invoke (objc:invoke "ABPerson" "alloc")
+&gt "initWithAddressBook:" addressbook)))
+&gt                (if person
+&gt                   (progn
+&gt                    ;; the following line crashes LW
+&gt                    (objc:invoke person "setValue:forProperty:"
+&gt (objc:invoke "NSString" "stringWithString:" firstname)
+&gt "kABFirstNameProperty")
+&gt
+&gt                    (objc:invoke addressbook "save"))
+&gt                  (error "can't create person")))
+&gt              (error "can't create shared addressbook")))
+&gt        (progn
+&gt          (objc:invoke pool "drain")))))
+&gt +--
+&gt
+&gt While trying to set the firstname property of my freshly created person
+&gt my LW session crashes noiseless. When I remove the offending line a
+&gt person without properties is visible in my Mac Addressbook.
+&gt
+&gt Obviously I am not allowed to insert a simple Lisp string at the
+&gt position where Objective-C expects an (id) type. But what kind of
+&gt pointer-foo do I have to do to get it right?
+&gt
+&gt thanks
+&gt jens
+&gt
+&gt
+&gt
+&gt
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+&gt
+&gt
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:30 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

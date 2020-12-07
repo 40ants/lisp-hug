@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>A new version of my lw-commands stuff, and a question</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>A new version of my lw-commands stuff, and a question</h1>
+                <pre>In case anyone is interested I put up a new version of my
+lw-commands.lisp file which both lets you define new colon commands
+for LW and provides a fair slew of them itself.  It's at
+http://www.tfeb.org/lisp/implementation-hax#LW-COLON-COMMANDS.  It's
+completely undocumented, but the most interesting new things it has
+are:
+
+    :&amp; &lt;form&gt -- makes a new process and runs &lt;form&gt in it.
+
+    :require &lt;module&gt -- do elaborate searching for &lt;module&gt.
+
+The :require command is also available as the function
+(org.tfeb.lw-commands:require-module ...), and there is a search list
+and a semi-documented (and probably semi-working!) search algorithm. A
+typical search list might be:
+
+    ((:host "CLEY-LIB"
+      :directory (:absolute "MODULES")
+      :name "*-LOADER"
+      :type "LISP"))
+
+- this is given in this listy form to avoid issues of logical
+hosts not yet existing when images get dumped - CLEY-LIB gets defined
+by our site init. The end result is that something like:
+
+    :require :com.cley.weld
+
+or equivalently
+
+    (org.tfeb.lw-commands:require-module "COM.CLEY.WELD")
+
+will find CLEY-LIB:MODULES;COM;CLEY;WELD;WELD-LOADER and load it,
+expecting that it will provide the "COM.CLEY.WELD" feature.  It will
+also look in a bunch of other places like
+CLEY-LIB:MODULES;COM;CLEY;WELD-LOADER - the search algorithm is fairly
+hairy.
+
+Anyway, maybe it's useful to someone.
+
+The question is: is there any reliable way of loading a system defined
+with DEFSYSTEM, and then forgetting the system definition?  I do this
+like this:
+
+    (let ((systems (scm:all-systems)))
+      ... define and load new systems ...
+      (dolist (new (set-difference (scm:all-systems) systems 
+                                   :key #'scm:module-name))
+        (lw:delete-system new)))
+
+And this works, but if the system browser is open at the point where
+you do this it has a fairly major seizure.
+
+The reason I want to do this is that I have huge things with many
+systems in them, which I'm trying to load as libraries, and I don't
+want to clutter up the system browser with system definitions which
+aren't useful (for instance there are no sources where the library
+came from).
+
+Thanks
+
+--tim
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: A new version of my lw-commands stuff, and a question</h1>
+                 <p>
+                  Unable to parse email body. Email id is 504
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: A new version of my lw-commands stuff, and a question</h1>
+                 <pre>* Kevin Rosenberg wrote:
+
+&gt May I suggest adding :cd (change dir) and :pwd (print dir) to your
+&gt standard commands?
+
+Yes, can you tell me how to do this? I mean: I can implement the
+command, but I'm not sure what I need to change to actually change
+LW's idea of the directory.  It doesn't seem to be
+*DEFAULT-PATHNAME-DEFAULTS*...
+
+Thanks
+
+--tim
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: A new version of my lw-commands stuff, and a question</h1>
+                 <pre>Tim Bradshaw &lt;tfb@cley.com&gt writes:
+
+&gt * Kevin Rosenberg wrote:
+&gt 
+&gt &gt May I suggest adding :cd (change dir) and :pwd (print dir) to your
+&gt &gt standard commands?
+&gt 
+&gt Yes, can you tell me how to do this? I mean: I can implement the
+&gt command, but I'm not sure what I need to change to actually change
+&gt LW's idea of the directory.  It doesn't seem to be
+&gt *DEFAULT-PATHNAME-DEFAULTS*...
+
+HCL:CD perhaps?
+
+Regards,
+-- 
+Nils Goesche
+"Don't ask for whom the &lt;CTRL-G&gt tolls."
+
+PGP key ID 0x42B32FC9
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: A new version of my lw-commands stuff, and a question</h1>
+                 <pre>* Kevin Rosenberg wrote:
+
+&gt hcl:change-directory
+&gt hcl:get-working-directory
+
+OK, there's a new version with :cd, :pwd, :pushd, :popd and :dirs.
+They may even work.  the directory stack is not thread-local as I
+don't think the working directory is (this is as opposed to the
+package stack, which is thread-local).
+
+--tim
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: A new version of my lw-commands stuff, and a question</h1>
+                 <p>
+                  Unable to parse email body. Email id is 512
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: A new version of my lw-commands stuff, and a question</h1>
+                 <p>
+                  Unable to parse email body. Email id is 513
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:57 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

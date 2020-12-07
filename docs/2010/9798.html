@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Errors highlighting pinboard objects with graphics args with redisplay T</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Errors highlighting pinboard objects with graphics args with redisplay T</h1>
+                <pre>
+More problems with highlighting.  When the highlight-style is :invert
+or :standard, and the pinboard-object has :graphics args, providing
+:redisplay t to capi:unhighlight-pinboard-object gives an error about
+non-numeric argument in (ROUND NIL 1).  As before, I'm on LWM6.0,
+Intel.  Am I missing something?  Here's code to reproduce it.
+
+(defun test (&amp;key (redraw-manually nil)
+                  (use-graphics-args t))
+  (let ((p (make-instance 'capi:pinboard-layout
+                          :highlight-style :standard))
+        (b (apply 'make-instance 'capi:rectangle
+                  :x 25 :y 25
+                  :visible-min-width 50
+                  :visible-min-height 50
+                  (if (not use-graphics-args) '()
+                    (list :graphics-args (list :foreground :black
+                                               :background :white))))))
+    (capi:contain p)
+    (capi:manipulate-pinboard p b :add)
+
+    (sleep 2)
+    (capi:apply-in-pane-process
+     p #'capi:highlight-pinboard-object p b :redisplay t)
+
+    (sleep 2)
+    (if redraw-manually
+      (capi:apply-in-pane-process
+       p #'(lambda ()
+             (capi:unhighlight-pinboard-object p b)
+             (capi:redraw-pinboard-object b t)))
+      (capi:apply-in-pane-process
+       p #'capi:unhighlight-pinboard-object p b
+       :redisplay t))))
+
+(test :redraw-manually nil :use-graphics-args nil) ; no error
+(test :redraw-manually nil :use-graphics-args t)   ; error in (round NIL 1)
+(test :redraw-manually t   :use-graphics-args nil) ; no error
+(test :redraw-manually t   :use-graphics-args t)   ; no error
+
+
+Thanks in advance, //JT
+
+
+</pre>
+               </article>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:36 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

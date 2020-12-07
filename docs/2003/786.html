@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Iteration syntax for UncommonSQL</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Iteration syntax for UncommonSQL</h1>
+                <pre>Hi!
+
+(I'm currently using UncommonSQL because I only have a license for LW
+professional but I'm sending a copy to the LW mailing list because I
+guess the answer is indepent of whether it's "Uncommon" or "Common".)
+
+I'm using the OO interface to UncommonSQL and have created a view
+class USER which maps to a database table USERS. Everything works fine
+except for the fact that, in order to loop through all elements of the
+database, I resort to things like
+
+  (dolist (user (sql:select 'user))
+    ..)
+
+which conses up a list that I don't actually need (and which might be
+large).
+
+I'm aware of the iteration constructs described in
+&lt;http://www.lispworks.com/reference/sql-tutorial/index.html#section-4.3&gt
+but I couldn't figure out how to use them with view classes.
+
+Is there something that I'm missing?
+
+Thanks,
+Edi.
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Iteration syntax for UncommonSQL</h1>
+                 <p>
+                  Unable to parse email body. Email id is 787
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Iteration syntax for UncommonSQL</h1>
+                 <pre>Nick Levine &lt;ndl@ravenbrook.com&gt writes:
+
+&gt Edi,
+&gt 
+&gt Take a look at the end of section 5.2 in the same document:
+&gt 
+&gt     Finally, we have at our disposal all the same iteration constructs
+&gt     that we had before (section 4.3). This time the iteration focus is
+&gt     not a record (i.e. a tuple of attributes) but a tuple of
+&gt     instances. For example, returning to the iteration examples we
+&gt     used before:
+&gt 
+&gt        CL-USER 361 &gt (do-query ((my-aardvark) [select 'species-list
+&gt                                                       :where aardvark])
+&gt                                (print my-aardvark))
+&gt 
+&gt        #&lt;db-instance SPECIES-LIST 574209404&gt
+&gt 
+&gt        CL-USER 362 &gt
+&gt 
+&gt I have only tried this with Common SQL. Please let us know if you find
+&gt that UncommonSQL is different.
+
+That was how I hoped it would work. But it doesn't (CMUCL 18e-pre with
+USQL checked out from CVS in December):
+
+  * (sql:select 'user :where [= [fname] "Edi"])
+  (#&lt;USER {4816A08D}&gt)
+  * (describe (car *))
+
+  #&lt;USER {4816A08D}&gt is an instance of class #&lt;View-Metaclass USER {48030F8D}&gt:
+   The following slots have :INSTANCE allocation:
+   EDITING-CONTEXT        NIL
+   VIEW-DATABASE          #&lt;MAISQL-POSTGRESQL:POSTGRESQL-DATABASE {4854FC25}&gt
+   FULL-NAME              "unbound"
+   JACKPOT-DAYS           NIL
+   BULI-POINTS-PER-DAY    #(0 0 0 0 0 ...)
+   BULI-TOTO-PER-DAY      #(0 0 0 0 0 ...)
+   BULI-POINTS            0
+   MAX-MINUTES            60
+   BULI-MAIL-DIFF         4
+   WANT-BULI-MAIL         17
+   FAVORITES              NIL
+   PEUGEOT                NIL
+   DISTRICT               "Hamburg"
+   REGION                 "Nord"
+   EMAIL                  "edi@agharta.de"
+   LNAME                  "Weitz"
+   FNAME                  "Edi"
+   USER-ID                "dodod"
+  * (sql:do-query ((my-user) [select 'user :where [= [fname] "Edi"]]) (print my-user))
+
+  Error in function "DEFMETHOD MAKE-QUERY NIL":  No source tables supplied to select statement.
+
+  Restarts:
+    0: [ABORT] Return to Top-Level.
+
+  Debug  (type H for help)
+
+  ("DEFMETHOD MAKE-QUERY NIL" #&lt;unused-arg&gt #&lt;unused-arg&gt (USER :WHERE #&lt;MAISQL-SYS::SQL-RELATIONAL-EXP (FNAME = 'Edi')&gt))
+  Source: (ERROR "No source tables supplied to select statement.")
+  0] :a
+  * (sql:do-query ((my-user) (sql:select 'user :where [= [fname] "Edi"])) (print my-user))
+
+  Type-error in KERNEL::OBJECT-NOT-TYPE-ERROR-HANDLER:  (#&lt;USER {4819901D}&gt) is not of type (OR SIMPLE-BASE-STRING NULL (ALIEN:ALIEN (* (ALIEN:SIGNED 8))))
+
+  Restarts:
+    0: [ABORT] Return to Top-Level.
+
+  Debug  (type H for help)
+
+  (MAISQL-POSTGRESQL::%PG-QUERY-RESULT-SET #&lt;MAISQL-POSTGRESQL:POSTGRESQL-DATABASE {4854FC25}&gt (#&lt;USER {4819901D}&gt))
+  Source: 
+  ; File: /usr/local/lisp/source/uncommonsql/dbms/postgresql/glue-cmucl.lisp
+  (PQEXEC CONN-PTR QUERY-EXPRESSION)
+  0]  
+
+Hmmm...
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Iteration syntax for UncommonSQL</h1>
+                 <p>
+                  Unable to parse email body. Email id is 789
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Iteration syntax for UncommonSQL</h1>
+                 <p>
+                  Unable to parse email body. Email id is 790
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Iteration syntax for UncommonSQL</h1>
+                 <p>
+                  Unable to parse email body. Email id is 791
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Iteration syntax for UncommonSQL</h1>
+                 <pre>To provide an update to this: I recently updated my CVS version of
+UncommonSQL and it _looks_ like they also support DO-QUERY for view
+class objects now. I can't verify this because the current version
+didn't build for me and at the moment I don't have the time to dig
+around in the sources until it does.
+
+However, it also seems that the implementation of DO-QUERY does
+exactly what I originally wanted to avoid: It first stores the
+complete result of the query and then uses an iteration construct (DO
+in this case) to walk through it. I think/hope that the original
+CommonSQL doesn't do this.
+
+(Please note that these observations are just based on a superficial
+glance at the code. Please correct me if I'm wrong.)
+
+Edi.
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:57 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

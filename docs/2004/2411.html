@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>RE: Weird problems with delivered app</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>RE: Weird problems with delivered app</h1>
+                <pre>The only thing in your message that caught my attention was "it accesses a
+database at build time". We've been told by Xanalys that dumping an image
+once an odbc connection has been initialized is unsupported. Doing so on
+Windows 2000 yields processor faults if the dumped image attempts to open a
+db connection.
+
+I've no idea if this is similar to your situation. You say the db is
+disconnected and "pointers removed" (don't know what this means);
+disconnecting isn't enough apparently, at least for a dumped image.
+
+I hope this was of some use.
+
+Cheers,
+
+--
+------------------------------------------
+David E. Young
+dyoung@bloodhoundinc.com
+http://www.bloodhoundinc.com
+http://lisa.sourceforge.net
+
+"But all the world understands my language."
+  -- Franz Joseph Haydn (1732-1809)
+
+
+
+-----Original Message-----
+From: Espen Vestre [mailto:ev@netfonds.no]
+Sent: Thursday, June 03, 2004 9:29 AM
+To: lisp-hug@xanalys.com
+Cc: larsi@netfonds.no
+Subject: Weird problems with delivered app
+
+
+Hi,
+
+we're experiencing really, really weird problems with a delivered
+application on _two_ machines. These machines runs debian testing
+and unstable but problems persists before and after updates, and 
+on other machines,neither stable nor unstable do not show the same 
+weirdness. Also, different motif versions in combination with 
+LW 4.2.7 or 4.3.7 doesn't seem to help. Sometimes the CWD helps 
+the application running a little longer (!) before it segfaults.
+
+A characteristic feature of this application is that it accesses
+a database at build time. We disconnect the database and remove
+pointers (we think) before actually delivering.
+
+This email message is for the sole use of the intended recipients(s) and may contain confidential and privileged information of Bloodhound Software, Inc.. Any unauthorized review, use, disclosure is prohibited. If you are not the intended recipient, please contact the sender by reply email and destroy all copies of the original message.
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Weird problems with delivered app</h1>
+                 <pre>"Young, David" &lt;deyoung@bloodhoundinc.com&gt writes:
+
+&gt The only thing in your message that caught my attention was "it accesses a
+&gt database at build time". We've been told by Xanalys that dumping an image
+&gt once an odbc connection has been initialized is unsupported. Doing so on
+&gt Windows 2000 yields processor faults if the dumped image attempts to open a
+&gt db connection.
+&gt
+&gt I've no idea if this is similar to your situation. You say the db is
+&gt disconnected and "pointers removed" (don't know what this means);
+&gt disconnecting isn't enough apparently, at least for a dumped image.
+&gt
+&gt I hope this was of some use.
+
+Thanks. Yes, I'm aware that database access at build time _could_ be
+a reason here. However, it drives me nuts that it only very rarely
+(machine-wise) causes problems. We're not using odbc, btw (but
+native oracle-libs).
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Weird problems with delivered app</h1>
+                 <pre>Espen Vestre &lt;ev@netfonds.no&gt writes:
+
+&gt Thanks. Yes, I'm aware that database access at build time _could_ be
+&gt a reason here. However, it drives me nuts that it only very rarely
+&gt (machine-wise) causes problems. We're not using odbc, btw (but
+&gt native oracle-libs).
+
+We have now solved this by a somewhat tricky workaround that does our
+necessary compile time db access, but avoids compiling when
+delivering, and the problems seem to have gone. So it seems like db
+connections durning delivery was indeed the problem. We're still a
+little puzzled, though, since the symptoms only occured on a few
+machines, and since these machines have worked perfectly with the same
+program for several months. So it would be great if Xanalys could
+confirm that db connections during build is indeed a no-no in our case
+too.
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Weird problems with delivered app</h1>
+                 <p>
+                  Unable to parse email body. Email id is 2417
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Weird problems with delivered app</h1>
+                 <pre>davef@xanalys.com writes:
+
+&gt FWIW without knowing the details of your build, I suggest a two-phase
+&gt build where phase one does the database connection and compiling and
+&gt puts the data into a file, and phase two starts Lisp again, loads the
+&gt data from file and calls DELIVER.
+
+yes, in fact we considered making this fully automatic, by setting a
+flag that says "needs rebuild", and before calling deliver, we would
+check this flag and decide whether to start lisp again or do the
+deliver... btw: Is there a built-in way to programmatically 
+discover that lisp is initializing? 
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Weird problems with delivered app</h1>
+                 <p>
+                  Unable to parse email body. Email id is 2425
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Weird problems with delivered app</h1>
+                 <pre>davef@xanalys.com writes:
+
+&gt There's nothing exported. I'm not sure how you'd get to use such an
+&gt API while the system is busy starting up! What's the issue?
+
+I'd like to know that "I'm doing a build", but since there's
+no real difference between normal initializing and initializing
+for a build, it's a bad idea anyway. Better to put it in the
+build scripts...
+
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:52 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

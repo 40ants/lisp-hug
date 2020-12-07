@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>LW 4.2 on Linux, multiprocessing w/ capi</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>LW 4.2 on Linux, multiprocessing w/ capi</h1>
+                <pre>
+
+I have a capi app that receives a stream of UDP packets, each of which
+is "pretty printed" to a separate grid-pane, multiple grid-panes being
+organized under a tab-pane.  There are several tab-panes thus composed,
+the user is able to select which is displayed.  The idea is the user can
+observe the contents of the latest of several kinds of packets from
+several different senders.
+
+The udp packet processor runs as a separate process, updating the
+display via execute-with-interface.  All that works fine.
+
+I need to add a 1 sec timer to form the basis of rate stats.  The timer
+runs OK but when get an error when I update a title-pane with the stats
+(again using execute-with-interface), and the interface happens to be
+busy re-arranging the display (the user having selected a different tab
+&amp; grid to display).  The error seems to be occur only when the interface
+is spending a lot of time recomputing the display (the grid panes are
+each composed of hundreds of rows of title-panes and several grid-panes
+per tab-pane- lots of geometry math).
+
+The error is a "PROCESS-WAIT called when scheduling not allowed"
+condition in the timer routine.  When aborted, the timer does not
+reschedule but the rest of the interface functions normally.  
+
+I've tried manually rescheduling the timer after the
+execute-with-interface returns, does not affect the problem.
+
+I've tried my own with-lock's and execute-without-preemption's around
+the execute-with-interface calls in the timer routine and the packet
+processor, but it does not change the problem.  
+
+Its as if the execute-with-interface call is properly serialized but the
+interface update recomputations occur afterwards in a manner that the
+timer's execute-with-interface is able to disrupt it.  Interestingly
+though, the packet processor does not cause the problem.
+
+At the moment I'm stuck with 4.2, probably will move to 5.x this year...
+
+Thanks,
+
+Greg
+
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LW 4.2 on Linux, multiprocessing w/ capi</h1><!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd">
+<html><head><meta name="qrichtext" content="1" /><style type="text/css">
+p, li { white-space: pre-wrap; }
+</style></head><body style=" font-family:'Sans Serif'; font-size:10pt; font-weight:400; font-style:normal;">
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">On Friday 22 May 2009 1:13:27 pm gregm32768@comcast.net wrote:</p>
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">&gt; </p>
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">&gt; I have a capi app that receives a stream of UDP packets, each of which</p>
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">...</p>
+<p style="-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;"></p>
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">I'm not sure if I understood your problem correctly, but here's a thought:</p>
+<p style="-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;"></p>
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">Use mailboxes and allow the display updater to run "asynchronously" at whatever speed it needs to.  The timer would simply send  a blip to the mailbox, the updater would read the mailbox when it gets a chance.  Here's an incomplete snippet of code from my current project that does this.  The inner loop of updater-process ("dumping") dumps blips on the floor if the updater fell behind and doesn't wish to bother updating stale info - kind of like how Microsoft Word worked in the days of 8086's and 286's (you could type more quickly than it could refresh and text would appear on the screen in lumps).</p>
+<p style="-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;"></p>
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">pt</p>
+<p style="-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;"></p>
+<p style="-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;"></p>
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">(defvar *updater* nil)</p>
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">(defvar *updater-mbox* nil)</p>
+<p style="-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;"></p>
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">(defun start-updater ()</p>
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">  (unless +debug+</p>
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">    (setq *updater-mbox* (mp:make-mailbox))</p>
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">    (setq *updater* (mp:process-run-function "Updater"</p>
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">                                             (list :mailbox *updater-mbox*)</p>
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">                                             #'updater-process</p>
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">                                             *standard-output*))))</p>
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">(defun kill-updater ()</p>
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">  (mp:process-kill *updater*))</p>
+<p style="-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;"></p>
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">(defun updater-process (stream)</p>
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">  (declare (ignorable stream))</p>
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">  (let ((mb (mp:process-mailbox mp:*current-process*)))</p>
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">    (loop</p>
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">     (let ((intf (mp:mailbox-read mb)))</p>
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">       (capi:execute-with-interface intf 'exec-regenerate intf)</p>
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">       (let ((intf (mp:mailbox-peek mb)))</p>
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">         (when intf</p>
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">           (loop until (mp:mailbox-empty-p mb)</p>
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">                 do </p>
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">                 ;(format stream "dumping~%")</p>
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">                 (mp:mailbox-read mb))</p>
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;">           (capi:execute-with-interface intf 'exec-regenerate intf)))))))</p>
+<p style="-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; -qt-user-state:0;"></p></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LW 4.2 on Linux, multiprocessing w/ capi</h1>
+                 <pre>
+
+Many thanks- just after posting I thought of the mailbox approach- I
+think I implemented something analagous to your code below.  What I did
+was have the timer code do only a send to a mailbox, which another lisp
+process was waiting on.  After waking up from the mailbox, the process
+calls execute-with-interface for the stats update to the interface.  Bug
+is now fixed.
+
+It seems like the timer code runs in some kind of privileged condition
+such that its able to bypass execute-with-interface protections or
+somehow otherwise interfere with capi, whereas a regular process cannot.
+
+CAPI is such an efficient way to put together a GUI.  My coworkers are
+implementing a Python/GTK system and are spending weeks getting the
+interface stuff to work right.  CAPI on top of CLOS is just crazy
+powerful...
+
+Regards,
+
+Greg
+
+
+
+Paul Tarvydas writes:
+ &gt On Friday 22 May 2009 1:13:27 pm gregm32768@comcast.net wrote:
+ &gt &gt 
+ &gt &gt I have a capi app that receives a stream of UDP packets, each of which
+ &gt ...
+ &gt 
+ &gt I'm not sure if I understood your problem correctly, but here's a thought:
+ &gt 
+ &gt Use mailboxes and allow the display updater to run "asynchronously"
+ &gt at whatever speed it needs to.  The timer would simply send a blip to
+ &gt the mailbox, the updater would read the mailbox when it gets a
+ &gt chance.  Here's an incomplete snippet of code from my current project
+ &gt that does this.  The inner loop of updater-process ("dumping") dumps
+ &gt blips on the floor if the updater fell behind and doesn't wish to
+ &gt bother updating stale info - kind of like how Microsoft Word worked
+ &gt in the days of 8086's and 286's (you could type more quickly than it
+ &gt could refresh and text would appear on the screen in lumps).
+ &gt 
+ &gt pt
+ &gt 
+ &gt 
+ &gt (defvar *updater* nil)
+ &gt (defvar *updater-mbox* nil)
+ &gt 
+ &gt (defun start-updater ()
+ &gt   (unless +debug+
+ &gt     (setq *updater-mbox* (mp:make-mailbox))
+ &gt     (setq *updater* (mp:process-run-function "Updater"
+ &gt                                              (list :mailbox *updater-mbox*)
+ &gt                                              #'updater-process
+ &gt                                              *standard-output*))))
+ &gt (defun kill-updater ()
+ &gt   (mp:process-kill *updater*))
+ &gt 
+ &gt (defun updater-process (stream)
+ &gt   (declare (ignorable stream))
+ &gt   (let ((mb (mp:process-mailbox mp:*current-process*)))
+ &gt     (loop
+ &gt      (let ((intf (mp:mailbox-read mb)))
+ &gt        (capi:execute-with-interface intf 'exec-regenerate intf)
+ &gt        (let ((intf (mp:mailbox-peek mb)))
+ &gt          (when intf
+ &gt            (loop until (mp:mailbox-empty-p mb)
+ &gt                  do 
+ &gt                  ;(format stream "dumping~%")
+ &gt                  (mp:mailbox-read mb))
+ &gt            (capi:execute-with-interface intf 'exec-regenerate intf)))))))
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:37 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

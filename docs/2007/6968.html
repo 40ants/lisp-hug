@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Tips on coding for performance</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Tips on coding for performance</h1>
+                <pre>
+Hello list,
+
+I have written a prototype for a voice-over-IP-style 
+application. It uses the PortAudio and Intel Performance 
+Primitives (IPP) libraries and UDP sockets and seems to work 
+fairly well. However, the production version will need to be 
+a bit more efficient.
+
+I'm new to Lisp/LispWorks optimisation, and I'm looking for 
+a few pointers to get me started. Which of the following 
+should I be looking at? (I haven't tried the profiler yet, 
+but I will do so; I just wanted to get this email off first.)
+
+* Methods vs. functions: I have used a lot of classes &amp; 
+methods; should I use ordinary functions instead of generic 
+functions when there's only one method? Or indeed structs 
+instead of classes?
+
+My design is based on an implementation of hierarchical 
+state machines where each "state" is a function or a method, 
+so there's quite a bit of invocation of the function bound 
+to a symbol at runtime. My "compiler" could use either 
+classes &amp; methods or functions &amp; structs, depending on 
+whether there's much difference in performance to be had.
+
+* Type declarations: none yet. Are these best near FLI 
+wrappers and/or in tight loops, or should I just go through 
+the whole thing and add them everywhere? How much does the 
+compiler infer itself?
+
+* Pooling resources &amp; memory: is foreign memory much more 
+expensive to allocate &amp; GC than the Lisp heap? Are the MP 
+locks cheap to get &amp; release, or should I have thread-safe &amp; 
+-unsafe pools?
+
+If anyone has any additional advice, I would be very grateful.
+
+Thanks very much,
+
+John :^P
+-- 
+John Pallister
+john@synchromesh.com
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Tips on coding for performance</h1>
+                 <pre>
+
+John Pallister &lt;john@synchromesh.com&gt writes:
+&gt If anyone has any additional advice, I would be very grateful.
+
+The best advice is very simple and almost banal: profile your code and
+improve the slow bits.  All my general advice will just be variations
+on that theme.
+
+The path you're going down of running the profiler is the right thing
+imo.  Once the profiler gives you an idea of where improvements can be
+made, just timing a consistent test case outside of the profiler has
+been very effective for me.
+
+You can also dissemble a function to see if the compiler is doing what
+you expect.
+
+As for your specific questions:
+
+&gt * Methods vs. functions
+
+This is very rarely a performance consideration with my code -- it
+happens but not often.
+
+&gt structs instead of classes?
+
+Class accessors are generally very fast.
+
+&gt My design is based on an implementation of hierarchical state machines
+&gt where each "state" is a function or a method
+
+If you know what to do at compile time using macros to unroll your
+state machine can lead to very good code.  If you only know what your
+state machine should look like at run time a common way to encode a
+state machine is to use a hierarchy of closures.  See SICP (and many
+others; here's another example http://xach.livejournal.com/131456.html)
+
+&gt * Type declarations
+
+Type declarations can dramatically improve some code, but you'll need
+to test if it helps your code.
+
+&gt should I just go through the whole thing and add [types] everywhere?
+
+Don't do that :).  Just add them in the slow parts where they help.
+
+&gt * Pooling resources &amp; memory: is foreign memory much more expensive to
+&gt   allocate &amp; GC than the Lisp heap? Are the MP locks cheap to get &amp;
+&gt   release, or should I have thread-safe &amp; -unsafe pools?
+
+No idea, sorry.  Using less overall memory is a good general principle
+though.  (Some of my slower programs have been ones that allocated
+huge amounts of garbage.)
+
+Good luck!
+
+Cheers,
+Chris Dean
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Tips on coding for performance</h1>
+                 <pre>
+Hello John,
+
+the only thing I would add to the existing fine suggestions is something
+you can do by inspection as well as profiling - try to minimize your
+garbage generation.  Simply put, do you create a lot of lists and throw
+them away?  Or big objects, structures, arrays?  I once speeded up my
+program by two orders of magnitude by creating one large array and re-using
+it rather than making a new one every time and throwing it away.
+
+Ray Laning
+
+
+
+                                                                           
+                                                                           
+             John Pallister                                                
+             &lt;john@synchromesh                                             
+             .com&gt                                                      To 
+             Sent by:                  Lispworks HUG                       
+             owner-lisp-hug@li         &lt;lisp-hug@lispworks.com&gt            
+             spworks.com                                                cc 
+                                                                           
+                                                                   Subject 
+             09/16/2007 11:00          Tips on coding for performance      
+             PM                                                            
+                                                                           
+                                                                           
+             Please respond to                                             
+              John Pallister                                               
+             &lt;john@synchromesh                                             
+                   .com&gt                                                   
+                                                                           
+                                                                           
+                                                                           
+
+
+
+
+
+Hello list,
+
+I have written a prototype for a voice-over-IP-style
+application. It uses the PortAudio and Intel Performance
+Primitives (IPP) libraries and UDP sockets and seems to work
+fairly well. However, the production version will need to be
+a bit more efficient.
+
+I'm new to Lisp/LispWorks optimisation, and I'm looking for
+a few pointers to get me started. Which of the following
+should I be looking at? (I haven't tried the profiler yet,
+but I will do so; I just wanted to get this email off first.)
+
+* Methods vs. functions: I have used a lot of classes &amp;
+methods; should I use ordinary functions instead of generic
+functions when there's only one method? Or indeed structs
+instead of classes?
+
+My design is based on an implementation of hierarchical
+state machines where each "state" is a function or a method,
+so there's quite a bit of invocation of the function bound
+to a symbol at runtime. My "compiler" could use either
+classes &amp; methods or functions &amp; structs, depending on
+whether there's much difference in performance to be had.
+
+* Type declarations: none yet. Are these best near FLI
+wrappers and/or in tight loops, or should I just go through
+the whole thing and add them everywhere? How much does the
+compiler infer itself?
+
+* Pooling resources &amp; memory: is foreign memory much more
+expensive to allocate &amp; GC than the Lisp heap? Are the MP
+locks cheap to get &amp; release, or should I have thread-safe &amp;
+-unsafe pools?
+
+If anyone has any additional advice, I would be very grateful.
+
+Thanks very much,
+
+John :^P
+--
+John Pallister
+john@synchromesh.com
+
+
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: Tips on coding for performance</h1>
+                  <pre>
+On 17 Sep 2007, at 19:54, Raymond C Laning wrote:
+
+&gt the only thing I would add to the existing fine suggestions is  
+&gt something
+&gt you can do by inspection as well as profiling - try to minimize your
+&gt garbage generation.  Simply put, do you create a lot of lists and  
+&gt throw
+&gt them away?  Or big objects, structures, arrays?  I once speeded up my
+&gt program by two orders of magnitude by creating one large array and  
+&gt re-using
+&gt it rather than making a new one every time and throwing it away.
+
+Note that this is not as simple as it seems and depends critically on  
+the GC in use.  For instance, a simple-minded copying GC is actually  
+a live-object-copier and not really a garbage collector at all.  In  
+particular if the GC runs when there are *no* live objects, it has no  
+work to do, while if it runs when there is a lot of live stuff, it  
+has to copy a lot of data which takes time and also may cause bad  
+cache pressure.  Of course pretty much no-one uses such a simple- 
+minded collector, and I think that LW's does some clever trickery  
+with large objects which are allocated in such a way that it will not  
+have to copy them.  I guess what I'm trying to say is that this, like  
+everything, is something you need to measure: don't assume you  
+understand what takes time...
+
+--tim
+
+
+</pre>
+                 </article>
+                </section>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Tips on coding for performance</h1>
+                 <pre>
+Thanks very much to everyone who responded to my questions. 
+I really appreciate you all taking the time to give me your 
+advice.
+
+Cheers,
+
+John :^P
+-- 
+John Pallister
+john@synchromesh.com
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Tips on coding for performance</h1>
+                 <pre>
+John Pallister &lt;john@synchromesh.com&gt writes:
+
+&gt I'm new to Lisp/LispWorks optimisation, and I'm looking for 
+&gt a few pointers to get me started. Which of the following 
+&gt should I be looking at? (I haven't tried the profiler yet, 
+&gt but I will do so; I just wanted to get this email off first.)
+
+I'll chime in too... I think you need to use the profiler asap.  I've
+almost always been surprised when using the profiler on a slow
+application, e.g. I /knew/ I had a frequently used function with a
+stupid, slow implementation, and then the profiler shows me that it
+accounts for just 0.1% of the cpu usage.
+
+&gt * Methods vs. functions: I have used a lot of classes &amp; 
+&gt methods; should I use ordinary functions instead of generic 
+&gt functions when there's only one method? Or indeed structs 
+&gt instead of classes?
+
+Don't do anything with this before you know you have to
+(I don't think you'll end up changing it).
+
+&gt * Type declarations: none yet. Are these best near FLI 
+&gt wrappers and/or in tight loops, or should I just go through 
+&gt the whole thing and add them everywhere? How much does the 
+&gt compiler infer itself?
+
+Not everywhere! Only do this where it really makes sense (e.g. I have
+a server application that has to compute 5 million correlations, each
+based on 2x500-element vectors, within reasonable time, the
+correlation and standard deviation functions are heavily optimised
+with floating-point declarations, but the bulk of the application has
+no declarations).
+
+&gt * Pooling resources &amp; memory: is foreign memory much more 
+&gt expensive to allocate &amp; GC than the Lisp heap? Are the MP 
+&gt locks cheap to get &amp; release, or should I have thread-safe &amp; 
+&gt -unsafe pools?
+
+I don't know how you're going to use the locks, but my experience
+is that they are really cheap to get &amp; release (on linux, both
+with and without pthreads (lw 5 and 4)) (which version and OS
+are you using?)
+
+Other things to look out for:
+
+- Look for excessive consing, and consider if you would be better off
+  using vectors instead of lists 
+- Avoid medium-lived long lists, especially FIFO queues implemented as
+  lists (LW has pushed me on this for a while, finally I'm replacing
+  them with vectors :-)) - they're expensive to handle for the GC.
+- Watch out for slow iteration (maphash/loop) on big hash tables! They get
+  locked, and your application may stall completely!
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>RE: Tips on coding for performance</h1>
+                  <pre>
+I'll second Espen's remarks. The Lispworks profiler is your very dear friend, and you'll probably be surprised where your tuning efforts really need to go.
+
+-- david
+
+-----Original Message-----
+From: owner-lisp-hug@lispworks.com
+[mailto:owner-lisp-hug@lispworks.com]On Behalf Of Espen Vestre
+Sent: Tuesday, September 18, 2007 6:35 AM
+To: John Pallister
+Cc: Lispworks HUG
+Subject: Re: Tips on coding for performance
+
+
+
+John Pallister &lt;john@synchromesh.com&gt writes:
+
+&gt I'm new to Lisp/LispWorks optimisation, and I'm looking for 
+&gt a few pointers to get me started. Which of the following 
+&gt should I be looking at? (I haven't tried the profiler yet, 
+&gt but I will do so; I just wanted to get this email off first.)
+
+I'll chime in too... I think you need to use the profiler asap.  I've
+almost always been surprised when using the profiler on a slow
+application, e.g. I /knew/ I had a frequently used function with a
+stupid, slow implementation, and then the profiler shows me that it
+accounts for just 0.1% of the cpu usage.
+
+
+</pre>
+                 </article>
+                </section>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Tips on coding for performance</h1>
+                 <pre>
+On Sep 16, 2007, at 11:00 PM, John Pallister wrote:
+&gt I have written a prototype for a voice-over-IP-style application.  
+&gt It uses the PortAudio and Intel Performance Primitives (IPP)  
+&gt libraries and UDP sockets and seems to work fairly well. However,  
+&gt the production version will need to be a bit more efficient.
+&gt
+&gt I'm new to Lisp/LispWorks optimisation, and I'm looking for a few  
+&gt pointers to get me started. Which of the following should I be  
+&gt looking at? (I haven't tried the profiler yet, but I will do so; I  
+&gt just wanted to get this email off first.)
+
+Beyond profiling, minimizing (or eliminating!) repeated consing  
+(memory allocation) will likely pay off, particularly for a real-time  
+application like VOIP. Declare selected bindings to have dynamic  
+extent, and use pooling (like you mention below). to reuse temporary  
+objects.
+
+&gt * Pooling resources &amp; memory: is foreign memory much more expensive  
+&gt to allocate &amp; GC than the Lisp heap? Are the MP locks cheap to get  
+&gt &amp; release, or should I have thread-safe &amp; -unsafe pools?
+
+-- Terje Norderhaug
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:41 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

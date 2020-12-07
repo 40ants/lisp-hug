@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Question about compiled forms...</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Question about compiled forms...</h1><html><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space; ">
+At this point I think I need to hear from some Lisp experts...<div><br></div><div>I defined a macro to provide for early binding of functions in forms at compile time:</div><div><br></div><div><div>(defmacro defun-eb (name args &amp;body body)</div><div>  (let ((gform (gensym)))</div><div>    `(progn</div><div>       (defun ,name ,args ,@body)</div><div>       (define-compiler-macro ,name (&amp;whole ,gform ,@args)</div><div>         `(funcall ,(symbol-function (first ,gform)) ,@(rest ,gform))))</div><div>    ))</div><div><br></div><div>Use it like this:</div><div><br></div><div>(defun foo () (list 10)</div><div>(defun bar () (1+ (car (foo))))</div><div><br></div><div>then redefine foo to provide an int instead of a list;</div><div><br></div><div>(defun foo () 10)</div><div><br></div><div>and bar keeps on ticking just like before, until you redefine it as</div><div><br></div><div>(defun bar () (1+ (foo))</div><div><br></div><div>So far this works great!!</div><div><br></div><div>Only problem here is that you can't compile these forms to a file. Lisp complains that these substituted closures in the compiled forms are non-externalizable functions. I have run into this before, and I know that the answer requires pushing these closures in after load time. </div><div><br></div><div>But how does a FASL file do it? It must be loading "non-externalizable functions", compiled to native code, nonetheless...</div><div><br></div><div>Any expert opinions on how to get around this issue? and how FASL files manage to pull it off?</div><div><br></div><div>If we could do this early-binding then we'd have a hybrid in Lisp that mimics some aspects of ML with its immutable bindings. That would be just great for deployed embedded code, where the full generality of Lisp is both costly and unwarranted. Eh?</div><div><br></div><div> <span class="Apple-style-span" style="border-collapse: separate; color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant: normal; font-weight: normal; letter-spacing: normal; line-height: normal; orphans: 2; text-align: auto; text-indent: 0px; text-transform: none; white-space: normal; widows: 2; word-spacing: 0px; -webkit-border-horizontal-spacing: 0px; -webkit-border-vertical-spacing: 0px; -webkit-text-decorations-in-effect: none; -webkit-text-size-adjust: auto; -webkit-text-stroke-width: 0; "><span class="Apple-style-span" style="border-collapse: separate; -webkit-border-horizontal-spacing: 0px; -webkit-border-vertical-spacing: 0px; color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant: normal; font-weight: normal; letter-spacing: normal; line-height: normal; -webkit-text-decorations-in-effect: none; text-indent: 0px; -webkit-text-size-adjust: auto; text-transform: none; orphans: 2; white-space: normal; widows: 2; word-spacing: 0px; "><span class="Apple-style-span" style="border-collapse: separate; -webkit-border-horizontal-spacing: 0px; -webkit-border-vertical-spacing: 0px; color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant: normal; font-weight: normal; letter-spacing: normal; line-height: normal; -webkit-text-decorations-in-effect: none; text-indent: 0px; -webkit-text-size-adjust: auto; text-transform: none; orphans: 2; white-space: normal; widows: 2; word-spacing: 0px; "><span class="Apple-style-span" style="border-collapse: separate; -webkit-border-horizontal-spacing: 0px; -webkit-border-vertical-spacing: 0px; color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant: normal; font-weight: normal; letter-spacing: normal; line-height: normal; -webkit-text-decorations-in-effect: none; text-indent: 0px; -webkit-text-size-adjust: auto; text-transform: none; orphans: 2; white-space: normal; widows: 2; word-spacing: 0px; "><span class="Apple-style-span" style="border-collapse: separate; -webkit-border-horizontal-spacing: 0px; -webkit-border-vertical-spacing: 0px; color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant: normal; font-weight: normal; letter-spacing: normal; line-height: normal; -webkit-text-decorations-in-effect: none; text-indent: 0px; -webkit-text-size-adjust: auto; text-transform: none; orphans: 2; white-space: normal; widows: 2; word-spacing: 0px; "><span class="Apple-style-span" style="border-collapse: separate; -webkit-border-horizontal-spacing: 0px; -webkit-border-vertical-spacing: 0px; color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant: normal; font-weight: normal; letter-spacing: normal; line-height: normal; -webkit-text-decorations-in-effect: none; text-indent: 0px; -webkit-text-size-adjust: auto; text-transform: none; orphans: 2; white-space: normal; widows: 2; word-spacing: 0px; "><div style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; ">Dr. David McClain</div><div style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; ">Chief Technical Officer</div><div style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; ">Refined Audiometrics Laboratory</div><div style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; ">4391 N. Camino Ferreo</div><div style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; ">Tucson, AZ  85750</div><div style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; font: normal normal normal 12px/normal Helvetica; min-height: 14px; "><br></div><div style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; ">email: <a href="mailto:dbm@refined-audiometrics.com">dbm@refined-audiometrics.com</a></div><div style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; ">phone: 1.520.390.3995</div><div style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; ">web: <a href="http://refined-audiometrics.com">http://refined-audiometrics.com</a></div><br class="Apple-interchange-newline"></span><span></span></span></span></span></span></span><br class="Apple-interchange-newline"> </div><br></div></body></html>
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Question about compiled forms...</h1><html><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space; "><div><blockquote type="cite"><div style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space; "><div><div><font class="Apple-style-span" color="#000000"><br></font>But how does a FASL file do it? It must be loading "non-externalizable functions", compiled to native code, nonetheless...</div><div><br></div><div>Any expert opinions on how to get around this issue? and how FASL files manage to pull it off?</div><div><br></div></div></div></blockquote><br></div><div>I'm no expert, but load-time-value is your friend here.</div><div><br></div><div><div>(defmacro defun-eb (name args &amp;body body)</div><div>&nbsp;&nbsp;(let ((gform (gensym)))</div><div>&nbsp;&nbsp; &nbsp;`(progn</div><div>&nbsp;&nbsp; &nbsp; &nbsp; (defun ,name ,args ,@body)</div><div>&nbsp;&nbsp; &nbsp; &nbsp; (define-compiler-macro ,name (&amp;whole ,gform ,@args)</div><div>&nbsp;&nbsp; &nbsp; &nbsp; &nbsp; `(funcall (load-time-value (symbol-function ',(first ,gform))) ,@(rest ,gform))))))</div><div><br></div><div><br></div><div>This isn't portable however as implementations are not required to use the compiler macro.</div><div><br></div><div><br></div><div><br></div><div>Sean.&nbsp;</div></div></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Question about compiled forms...</h1>
+                 <pre>
+On Tue, 26 Aug 2008 17:19:18 -0700, David McClain &lt;dbm@refined-audiometrics.com&gt wrote:
+
+&gt But how does a FASL file do it? It must be loading "non-
+&gt externalizable functions", compiled to native code, nonetheless...
+&gt
+&gt Any expert opinions on how to get around this issue? and how FASL
+&gt files manage to pull it off?
+
+FWIW, Clozure CL can externalize compiled closures, so you might want
+to look at its source (which is available) to see how they do it.
+
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Question about compiled forms...</h1>
+                 <pre>
+[ defun's changed to defun-eb's, and missing #\)'s added ]
+
+On Tue, Aug 26, 2008 at 05:19:18PM -0700, David McClain wrote:
+&gt I defined a macro to provide for early binding of functions in forms
+&gt at compile time:
+&gt 
+&gt (defmacro defun-eb (name args &amp;body body)
+&gt   (let ((gform (gensym)))
+&gt     `(progn
+&gt        (defun ,name ,args ,@body)
+&gt        (define-compiler-macro ,name (&amp;whole ,gform ,@args)
+&gt          `(funcall ,(symbol-function (first ,gform)) ,@(rest ,gform))))
+&gt     ))
+&gt 
+&gt Use it like this:
+&gt 
+&gt (defun-eb foo () (list 10))
+&gt (defun-eb bar () (1+ (car (foo))))
+&gt 
+&gt then redefine foo to provide an int instead of a list;
+&gt 
+&gt (defun-eb foo () 10)
+&gt 
+&gt and bar keeps on ticking just like before, until you redefine it as
+&gt 
+&gt (defun-eb bar () (1+ (foo)))
+&gt 
+&gt So far this works great!!
+&gt 
+&gt Only problem here is that you can't compile these forms to a file.
+&gt Lisp complains that these substituted closures in the compiled forms
+&gt are non-externalizable functions. I have run into this before, and I
+&gt know that the answer requires pushing these closures in after load
+&gt time.
+
+As near as I can tell, you have a problem with stuff in your image
+overlapping with stuff in your compilation environment.  In your
+image, you have a pre-existing interpreted function FOO.  You compile
+the file and it tries to externalize that interpreted function into
+the fasl, and fails.
+
+To illustrate this, if you put defun-eb and foo and bar in a file and
+compile it separately, in a clean image, you get an error when it gets
+around to compiling BAR:
+
+  % lispworks-5-1-0-x86-linux -build =(print '(compile-file "play-hug")')
+  [ or, if you don't use zsh, do that in two steps, as follows ]
+
+  % echo '(compile-file "play-hug.lisp")' &gt compile-file.play-hug.lisp
+  % lispworks-5-1-0-x86-linux -build compile-file.play-hug.lisp
+  LispWorks(R): The Common Lisp Programming Environment
+  [snip]
+  ; Loading text file /home/lmc/lisp/compile-file.play-hug.lisp
+  ;;; Compiling file play-hug.lisp ...
+  [snip]
+  ; (TOP-LEVEL-FORM 0)
+  ; (DEFPACKAGE "HUG")
+  ; (TOP-LEVEL-FORM 2)
+  ; HUG::DEFUN-EB
+  ; HUG::FOO
+  ; (DEFINE-COMPILER-MACRO HUG::FOO)
+
+  **++++ Error in HUG::BAR:
+    Undefined function FOO in form (SYMBOL-FUNCTION FOO).
+  [snip]
+
+&gt But how does a FASL file do it? It must be loading "non-
+&gt externalizable functions", compiled to native code, nonetheless...
+&gt 
+&gt Any expert opinions on how to get around this issue? and how FASL  
+&gt files manage to pull it off?
+
+Fasl files don't store externalized interpreted functions, they store
+compiled functions.  :)
+
+On the other hand, this worked for me: Put this in a file and compile
+it from a clean image.
+
+  (defpackage :hug (:use :cl))
+  (in-package :hug)
+  (defun foo () (list 10))
+  (defparameter *foo* #'foo)
+  (defun bar () (1+ (car (funcall *foo*))))
+  (format t "(foo) is ~S, (bar) is ~S~%" (foo) (bar))
+  (defun foo () 10)
+  (format t "~%(foo) is ~S, (bar) is ~S~%" (foo) (bar))
+
+Then load the file:
+
+  HUG 62 &gt (load "play-hug")
+  ; Loading fasl file /home/lmc/lisp/play-hug.ufasl
+  (foo) is (10), (bar) is 11
+  Warning: FOO defined more than once in /home/lmc/lisp/play-hug.lisp.
+  (foo) is 10, (bar) is 11
+  #P"/home/lmc/lisp/play-hug.ufasl"
+
+Now write a macro to do that.  :)  (But be careful about your
+environment, and think carefully about where the function objects come
+from when you store them.)
+
+As an aside, doing something like this using compiler macros seems
+like a bad idea.  The compiler is allowed to ignore compiler macros,
+and just because it doesn't ignore them in one usage doesn't mean it
+won't ignore them somewhere else.
+
+-- Larry
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Question about compiled forms...</h1>
+                 <pre>
+On Wed, 27 Aug 2008 21:23:17 +0100, Martin Simmons &lt;martin@lispworks.com&gt wrote:
+
+&gt Is it a bug or a feature?
+
+I don't know.  You'll have to ask them... :)
+
+&gt We know how to do it too.  We also know why we don't want to :-)
+
+Would you care to give a short explanation for that?  I honestly have
+no idea why you wouldn't want to.
+
+Thanks,
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Question about compiled forms...</h1>
+                 <p>
+                  Unable to parse email body. Email id is 8606
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:38 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Question for the experts...</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Question for the experts...</h1>
+                <pre>
+During the creation of a C dynamic library for running time critical routines, called from Lisp. I found that whenever I made modifications to the library through the C compiler, I could not coax Lisp to drop what it thinks it knows about the library, and reconnect to the new version.
+
+This work was on Mac OS X so, being Unix-like, there was no problem (unlike a Windows environment) overwriting the active library image from the compiler while it was in use. The active previous image was already in memory and hooked to the running Lisp session, and while its inode may have been orphaned by the overwrite, that’s okay.
+
+I always had the following code for connecting to the library:
+
+(fli:disconnect-module :hsiirlib)
+(fli:register-module :hsiirlib
+                     :real-name
+                     (translate-logical-pathname
+                      #+:MAC   "PROJECTS:DYLIB;libHsIIR.dylib"
+                      #+:WIN32 "PROJECTS:DYLIB;libHsIIR.dll"))
+
+What I tried doing whenever a fresh image of the library had been produced, was to re-execute that DISCONNECT-MODULE and REGISTER-MODULE. Looking at FLI::*CURRENT-MODULES-LIST* with the inspector, or with FLI:PRINT-FOREIGN-MODULES, always showed that the result of this re-execution cleared out the cached entry points established from prior executions of library routines from FLI code. 
+
+But regardless of this cleared cache state, it seems that the system dynloader always opted for what it already had seen before, presumably still in memory cache somewhere. The library in question had only one user — the Lisp code. It was a special purpose library, not used by anything else in the running system.
+
+The only way I could see an indication of Lisp running new library code was to fully quit the Lisp session and begin anew.
+
+Has anyone else figured out how to keep an interactive session alive and also invoking fresh images of dynamic libraries?
+
+- DM
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Question for the experts...</h1>
+                 <pre>
+I vaguely remember having a similar problem some time ago, I think the way  
+it worked properly on W7 was something along these lines (note the  
+keyword):
+
+(fli:disconnect-module  
+"C:/Users/Yuri/Misc/Code/C++/AudioStream/Debug/AudioStream.dll" :remove t)
+(fli:register-module  
+"C:/Users/Yuri/Misc/Code/C++/AudioStream/Debug/AudioStream.dll")
+
+However, if the problem lies within the OS cache that might not help.  
+Also, as far as I can remember, in order to overwrite a library it had to  
+be disconnected first, unfortunately I do not have things set up in order  
+to verify it now.
+
+
+
+On Sat, 01 Aug 2015 20:44:10 +0100, David McClain  
+&lt;dbm@refined-audiometrics.com&gt wrote:
+
+&gt
+&gt During the creation of a C dynamic library for running time critical  
+&gt routines, called from Lisp. I found that whenever I made modifications  
+&gt to the library through the C compiler, I could not coax Lisp to drop  
+&gt what it thinks it knows about the library, and reconnect to the new  
+&gt version.
+&gt
+&gt This work was on Mac OS X so, being Unix-like, there was no problem  
+&gt (unlike a Windows environment) overwriting the active library image from  
+&gt the compiler while it was in use. The active previous image was already  
+&gt in memory and hooked to the running Lisp session, and while its inode  
+&gt may have been orphaned by the overwrite, that’s okay.
+&gt
+&gt I always had the following code for connecting to the library:
+&gt
+&gt (fli:disconnect-module :hsiirlib)
+&gt (fli:register-module :hsiirlib
+&gt                      :real-name
+&gt                      (translate-logical-pathname
+&gt                       #+:MAC   "PROJECTS:DYLIB;libHsIIR.dylib"
+&gt                       #+:WIN32 "PROJECTS:DYLIB;libHsIIR.dll"))
+&gt
+&gt What I tried doing whenever a fresh image of the library had been  
+&gt produced, was to re-execute that DISCONNECT-MODULE and REGISTER-MODULE.  
+&gt Looking at FLI::*CURRENT-MODULES-LIST* with the inspector, or with  
+&gt FLI:PRINT-FOREIGN-MODULES, always showed that the result of this  
+&gt re-execution cleared out the cached entry points established from prior  
+&gt executions of library routines from FLI code.
+&gt
+&gt But regardless of this cleared cache state, it seems that the system  
+&gt dynloader always opted for what it already had seen before, presumably  
+&gt still in memory cache somewhere. The library in question had only one  
+&gt user — the Lisp code. It was a special purpose library, not used by  
+&gt anything else in the running system.
+&gt
+&gt The only way I could see an indication of Lisp running new library code  
+&gt was to fully quit the Lisp session and begin anew.
+&gt
+&gt Has anyone else figured out how to keep an interactive session alive and  
+&gt also invoking fresh images of dynamic libraries?
+&gt
+&gt - DM
+&gt
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+&gt
+
+
+-- 
+Regards,
+
+Yuri
+
+http://www.disclosure.ie
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Question for the experts...</h1>
+                 <pre>
+&gt&gt&gt But regardless of this cleared cache state, it seems that the system dynloader always opted for what it already had seen before, presumably still in memory cache somewhere. The library in question had only one user — the Lisp code. It was a special purpose library, not used by anything else in the running system.
+&gt&gt&gt
+&gt&gt&gt The only way I could see an indication of Lisp running new library code was to fully quit the Lisp session and begin anew.
+&gt&gt&gt
+&gt&gt&gt Has anyone else figured out how to keep an interactive session alive and also invoking fresh images of dynamic libraries?
+&gt&gt&gt
+I don't know about Windows DLLs, but with Linux, you need to dlclose
+and/or to dlopen with RTLD_DEEPBIND (a non-standard extension) so that
+the new versions of the function are not shadowed by the old ones.
+
+Alternatively, if you're generating the code, you could output the
+SHA256 hash of your source code to the C function names, ensuring that
+the linker does no shadowing whatsoever. Can be done with a macro
+#define _(x) x##_12345
+
+—♯ƒ • François-René ÐVB Rideau •Reflection&amp;Cybernethics• http://fare.tunes.org
+Politicians are like diapers: they must be changed often.
+And for the same reasons. [Also, adults don't need either of them. — Faré]
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Question for the experts...</h1><div dir="ltr">&lt;opinion&gt;<div>There is no way it should be all that hard to do.  That is that hard is due to bugs or at least quite nasty code &quot;smells&quot;.    Perhaps something can be learned from scripting languages that do this sort of thing quite a bit?</div><div>&lt;/opinion&gt;</div><img src="http://t.sidekickopen16.com/e1t/o/5/f18dQhb0S7ks8dDMPbW2n0x6l2B9gXrN7sKj6v5dz22W3MPm8v5wvCGHW63BfQs3LvrVvW54FPrn1k1H6H0?si=5796313939050496&amp;pi=08ecf092-2724-475d-9984-25f1831a4238" style="display:none!important" height="1" width="1"></div><div class="gmail_extra"><br><div class="gmail_quote">On Sat, Aug 1, 2015 at 4:15 PM, David McClain <span dir="ltr">&lt;<a href="mailto:dbm@refined-audiometrics.com" target="_blank">dbm@refined-audiometrics.com</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><br>
+Hi Fare,<br>
+<br>
+SHA256 !! — Interesting idea. It seems clear that I don’t appreciate the difficulties involved in foreign linking. I had a lengthy discussion about this some years ago with Duane Rettig. In Allegro there was no possibility for specifying the parent library for a routine. All linking seemed to happen based solely on the name of the function. In Lispworks I had been living under the impression (illusory or not) that I could actually tie the function to each module, thereby allowing for the possibility of inadvertent name clashes without problems.<br>
+<br>
+I’m running on Mac OS X now. And I can see that the Lisp image has loaded my various versions of the library under separate names that I gave each version of the library for these tests. It is also apparent that the libs are never unloaded by OS X. I even moved one of them to the trash and OS X tracked that location change with an updated name for the currently opened library file.<br>
+<br>
+Having to change the names of the functions in the Lisp code is horribly inconvenient. But perhaps that is the only way.<br>
+<span class="HOEnZb"><font color="#888888"><br>
+- DM<br>
+</font></span><div class="HOEnZb"><div class="h5"><br>
+<br>
+&gt; On Aug 1, 2015, at 3:50 PM, Faré &lt;<a href="mailto:fahree@gmail.com">fahree@gmail.com</a>&gt; wrote:<br>
+&gt;<br>
+&gt;&gt;&gt;&gt; But regardless of this cleared cache state, it seems that the system dynloader always opted for what it already had seen before, presumably still in memory cache somewhere. The library in question had only one user — the Lisp code. It was a special purpose library, not used by anything else in the running system.<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; The only way I could see an indication of Lisp running new library code was to fully quit the Lisp session and begin anew.<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; Has anyone else figured out how to keep an interactive session alive and also invoking fresh images of dynamic libraries?<br>
+&gt;&gt;&gt;&gt;<br>
+&gt; I don&#39;t know about Windows DLLs, but with Linux, you need to dlclose<br>
+&gt; and/or to dlopen with RTLD_DEEPBIND (a non-standard extension) so that<br>
+&gt; the new versions of the function are not shadowed by the old ones.<br>
+&gt;<br>
+&gt; Alternatively, if you&#39;re generating the code, you could output the<br>
+&gt; SHA256 hash of your source code to the C function names, ensuring that<br>
+&gt; the linker does no shadowing whatsoever. Can be done with a macro<br>
+&gt; #define _(x) x##_12345<br>
+&gt;<br>
+&gt; —♯ƒ • François-René ÐVB Rideau •Reflection&amp;Cybernethics• <a href="http://fare.tunes.org" rel="noreferrer" target="_blank">http://fare.tunes.org</a><br>
+&gt; Politicians are like diapers: they must be changed often.<br>
+&gt; And for the same reasons. [Also, adults don&#39;t need either of them. — Faré]<br>
+&gt;<br>
+<br>
+<br>
+_______________________________________________<br>
+Lisp Hug - the mailing list for LispWorks users<br>
+<a href="mailto:lisp-hug@lispworks.com">lisp-hug@lispworks.com</a><br>
+<a href="http://www.lispworks.com/support/lisp-hug.html" rel="noreferrer" target="_blank">http://www.lispworks.com/support/lisp-hug.html</a><br>
+<br>
+</div></div></blockquote></div><br></div>
+
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Question for the experts...</h1>
+                 <pre>
+David McClain &lt;dbm@refined-audiometrics.com&gt writes:
+
+&gt I have to agree with Samantha on this. I’m still puzzled by the
+&gt responses I got from Duane Rettig about this, and even back then, I
+&gt had a hard time understanding why the system dynloader should be so
+&gt primitive? Perhaps it is a matter of Unix lore and tradition?
+
+Or more exactly, limitations on some unix implementation of dynamic
+libraries.  If you mostly use GNU/Linux and MacOSX, you might not
+realize how primitive some other unices were.
+
+-- 
+__Pascal Bourguignon__                 http://www.informatimago.com/
+“The factory of the future will have only two employees, a man and a
+dog. The man will be there to feed the dog. The dog will be there to
+keep the man from touching the equipment.” -- Carl Bass CEO Autodesk
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Question for the experts...</h1>
+                 <p>
+                  Unable to parse email body. Email id is 13508
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Question for the experts...</h1>
+                 <p>
+                  Unable to parse email body. Email id is 13519
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Question for the experts...</h1>
+                 <pre>
+David McClain &lt;dbm@refined-audiometrics.com&gt writes:
+
+&gt Nope… once again, tests confirm that the simple way of upgrading external libs does *NOT* work on LWM-7/64 with Mac OS X 10.10.4
+&gt
+&gt So is this a bug? LW??
+
+I can't test LW for now, but here are some links and further information
+that should help you determine what's happening.
+
+
+https://developer.apple.com/library/mac/documentation/DeveloperTools/Conceptual/DynamicLibraries/000-Introduction/Introduction.html
+
+Notice in particular those famous environment variables:
+
+https://developer.apple.com/library/mac/documentation/DeveloperTools/Conceptual/DynamicLibraries/100-Articles/LoggingDynamicLoaderEvents.html#//apple_ref/doc/uid/TP40002077-SW1
+
+(famous, because one of such environment variables allows you to get
+root access ;-))
+
+Anyways, this should help you see what happens on MacOSX when you work
+with dynamic libraries.  Define all those variables in the terminal, and
+launch LW from that terminal; this should log those message either in
+the terminal or in Console.app.
+
+
+https://developer.apple.com/library/mac/documentation/DeveloperTools/Conceptual/DynamicLibraries/100-Articles/UsingDynamicLibraries.html#//apple_ref/doc/uid/TP40002182-SW13
+
+Notice:
+
+https://developer.apple.com/library/mac/documentation/Darwin/Reference/ManPages/man3/dlclose.3.html#//apple_ref/c/func/dlclose
+
+     dlclose() releases a reference to the dynamic library or bundle
+     referenced by handle.  If the reference count drops to 0, the
+     bundle is removed from the address space, and handle is rendered
+     invalid.  Just before removing a dynamic library or bundle in this
+     way, any termination routines in it are called.  handle is the
+     value returned by a previous call to dlopen.
+
+Does the reference count of your library go down to 0?
+(probably)
+
+     Prior to Mac OS X 10.5, only bundles could be unloaded.  Starting
+     in Mac OS X 10.5, dynamic libraries may also be unloaded.  There
+     are a couple of cases in which a dynamic library will never be
+     unloaded: 1) the main executable links against it, 2) An API that
+     does not supoort unloading (e.g. NSAddImage()) was used to load it
+     or some other dynnamic library that depends on it, 3) the dynamic
+     library is in dyld's shared cache.
+
+Is your library in the dyld's shared cache?
+(I don't know how it would get there; probably not.)
+
+https://developer.apple.com/library/prerelease/mac/documentation/Darwin/Reference/ManPages/man1/update_dyld_shared_cache.1.html
+
+
+I had old information, it seems that since 10.5, libraries can also be
+unloaded.  So that should be possible, unless you are using an older
+MacOSX.
+
+
+-- 
+__Pascal Bourguignon__                 http://www.informatimago.com/
+“The factory of the future will have only two employees, a man and a
+dog. The man will be there to feed the dog. The dog will be there to
+keep the man from touching the equipment.” -- Carl Bass CEO Autodesk
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Question for the experts...</h1>
+                 <pre>
+David McClain &lt;dbm@refined-audiometrics.com&gt writes:
+
+&gt Hi Camille,
+&gt
+&gt I just tried a direct experiment here. I wrote a direct FLI interface
+&gt to DLOPEN and DLCLOSE for myself:
+&gt
+&gt
+&gt (fli:define-foreign-function (_dlclose "dlclose" :source)
+&gt     ((handle :long))
+&gt   :result-type :long
+&gt   :language :ansi-c)
+&gt
+&gt (fli:define-foreign-function (_dlopen "dlopen" :source)
+&gt     ((path (:reference-pass (:ef-mb-string :null-terminated-p t)))
+&gt      (flags :long))
+&gt   :result-type :long
+&gt   :language :ansi-c)
+&gt
+&gt Then I looked at the list of modules that Lisp had opened, via the
+&gt Mac Activity Monitor. Then I looked for a junk library that I wrote
+&gt that had not yet been loaded. In my case, I had one laying around
+&gt called /usr/local/lib64/libLispFDStuff.dylib.
+&gt
+&gt So here is the interaction:
+&gt
+&gt CL-USER 5 &gt (setf x (_dlopen "/usr/local/lib64/
+&gt libLispFDFileStuff.dylib" 0))
+&gt 105553117454144
+&gt
+&gt Now verify that the Activity Monitor shows that library as currently
+&gt opened in the Lisp image…. Yes, it does. So try to close it and see
+&gt what happens…
+&gt
+&gt CL-USER 6 &gt (_dlclose x)
+&gt 0
+&gt
+&gt Now see what the Activity Monitor shows…. Hmmm…. Interesting… It’s
+&gt gone!!
+
+Ok. Now try actually using some symbol, call _dlsym.
+
+-- 
+__Pascal Bourguignon__                 http://www.informatimago.com/
+“The factory of the future will have only two employees, a man and a
+dog. The man will be there to feed the dog. The dog will be there to
+keep the man from touching the equipment.” -- Carl Bass CEO Autodesk
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Question for the experts...</h1>
+                 <pre>
+
+&gt On Aug 4, 2015, at 8:07 PM, David McClain &lt;dbm@refined-audiometrics.com&gt wrote:
+&gt 
+&gt I just looked at the man page for DLOPEN… I wonder if this flag got set along the way??
+&gt 
+&gt RTLD_NODELETE   The specified image is tagged so that will never be removed from the address space,
+&gt                      even after all clients have released it via 
+&gt dlclose
+&gt ()
+
+Note that there are various things that can cause a dynamic library never to be unloaded on OSX. Some are listed in the man page for dlclose:
+
+https://developer.apple.com/library/prerelease/mac/documentation/Darwin/Reference/ManPages/man3/dlclose.3.html
+
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Question for the experts...</h1>
+                 <pre>
+David McClain &lt;dbm@refined-audiometrics.com&gt writes:
+
+&gt I just looked at the man page for DLOPEN… I wonder if this flag got
+&gt set along the way??
+&gt
+&gt
+&gt RTLD_NODELETE   The specified image is tagged so that will never be removed from the address space,
+&gt                      even after all clients have released it via dlclose()
+
+This most certainly is an option you don't want to set for your use
+case.
+
+But notice that if you have defined FFI functions using the result of
+dlsym, (and therefore storing it in a closure or some other place), then
+you will have lisp objects ("foreign function" objects), that will refer
+to the address of the dynamically loaded symbol.  If you dlclose it, and
+it gets removed from the address space, then this address will be
+"dangling", and calling this foreign function will crash.
+
+So you must keep track of any result of dlsym you've stored in the lisp
+image, and disable it before calling dlclose.
+
+For your test, it won't matter, because you won't store the result of
+dlsym or try to call it after dlclose.
+
+The point here, is whether the FFI of lispworks takes care of this.  If
+not, that would be a reason to use the RTLD_NODELETE option.
+
+But it seems you can set the :dlopen-flags from the register-module
+call. You just need to pass a fixnum with the right flag value.
+
+http://www.lispworks.com/documentation/lw70/FLI/html/fli-111.htm#marker-1609192
+
+    The keyword values of dlopen-flags correspond to combinations of
+    RTLD_* constants (see /usr/include/dlfcn.h). The value t means the
+    same as :local-lazy. The value nil means the same as t except on
+    Darwin. On Darwin the value nil means do not use dlopen, and use the
+    older interfaces instead.
+
+-- 
+__Pascal Bourguignon__                 http://www.informatimago.com/
+“The factory of the future will have only two employees, a man and a
+dog. The man will be there to feed the dog. The dog will be there to
+keep the man from touching the equipment.” -- Carl Bass CEO Autodesk
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Question for the experts...</h1>
+                 <pre>
+David McClain &lt;dbm@refined-audiometrics.com&gt writes:
+
+&gt Hi Pascal,
+&gt
+&gt I don’t think I want to use that flag… I was suggesting that perhaps
+&gt Lipspworks might be using that flag, since I cannot unload the library
+&gt that I originally loaded. I don’t know what to think about this.
+
+Yes, I mean the same.
+
+dlopen-flags
+
+    Controls use of dlopen on Unix-based systems. One of t, nil,
+    :local-now, :global-now, :global-lazy, :local-lazy, or a fixnum. The
+    default value is nil on Darwin, and t on other platforms.
+
+The point here is that most probably the option you currently use
+implies including RTDL_NODELETE, or, if you leave the default value on
+darwin it is nil and means to not use dlopen but some other older API.
+
+Reading some more of the doc on the same page:
+
+lifetime
+
+    A keyword specifying the lifetime of the connection. One of
+    :indefinite or :session. The default value is :indefinite.
+
+I wouldn't be surprised if having a lifetime :indefinite might also have
+an influence on the dlopen-flag and add automatically RTDL_NODELETE.  So
+I would rather use explicitely :lifetime :session.  
+
+You may test the behavior, but if you do not have the source of the
+implementation, how can you be sure that the behavior won't change in
+some other circumstance and nullify your test?
+
+
+
+&gt&gt On Aug 4, 2015, at 7:08 PM, Pascal J. Bourguignon &lt;pjb@informatimago.com&gt wrote:
+&gt&gt 
+&gt&gt But it seems you can set the :dlopen-flags from the register-module
+&gt&gt call. You just need to pass a fixnum with the right flag value.
+&gt&gt 
+&gt&gt http://www.lispworks.com/documentation/lw70/FLI/html/fli-111.htm#marker-1609192
+&gt&gt 
+&gt&gt    The keyword values of dlopen-flags correspond to combinations of
+&gt&gt    RTLD_* constants (see /usr/include/dlfcn.h). The value t means the
+&gt&gt    same as :local-lazy. The value nil means the same as t except on
+&gt&gt    Darwin. On Darwin the value nil means do not use dlopen, and use the
+&gt&gt    older interfaces instead.
+
+-- 
+__Pascal Bourguignon__                 http://www.informatimago.com/
+“The factory of the future will have only two employees, a man and a
+dog. The man will be there to feed the dog. The dog will be there to
+keep the man from touching the equipment.” -- Carl Bass CEO Autodesk
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Question for the experts...</h1>
+                 <pre>
+David McClain &lt;dbm@refined-audiometrics.com&gt writes:
+
+&gt Here’s a stab at a Q&amp;D implementation of dynlib management for LWM on
+&gt Mac OS X 10.10.4 and LWM 7.0.0/64. YMMV
+&gt […]
+&gt This really does give the answer 42!  Feel free to improve and pass
+&gt along your improvements to me and others.
+
+Sounds good.
+
+-- 
+__Pascal Bourguignon__                 http://www.informatimago.com/
+“The factory of the future will have only two employees, a man and a
+dog. The man will be there to feed the dog. The dog will be there to
+keep the man from touching the equipment.” -- Carl Bass CEO Autodesk
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Question for the experts...</h1>
+                 <pre>
+&gt&gt&gt&gt&gt On Wed, 05 Aug 2015 04:34:40 +0200, Pascal J Bourguignon said:
+&gt 
+&gt David McClain &lt;dbm@refined-audiometrics.com&gt writes:
+&gt 
+&gt &gt Hi Pascal,
+&gt &gt
+&gt &gt I don’t think I want to use that flag… I was suggesting that perhaps
+&gt &gt Lipspworks might be using that flag, since I cannot unload the library
+&gt &gt that I originally loaded. I don’t know what to think about this.
+&gt 
+&gt Yes, I mean the same.
+&gt 
+&gt dlopen-flags
+&gt 
+&gt     Controls use of dlopen on Unix-based systems. One of t, nil,
+&gt     :local-now, :global-now, :global-lazy, :local-lazy, or a fixnum. The
+&gt     default value is nil on Darwin, and t on other platforms.
+
+Yes, that is the key to it.
+
+There were problems using dlopen on the Mac for some libraries, so we continue
+to use the older Mac-specific APIs that don't support unloading.  If you want
+unloading, then you need :dlopen-flags t (or one of the other non-nil values).
+
+
+&gt Reading some more of the doc on the same page:
+&gt 
+&gt lifetime
+&gt 
+&gt     A keyword specifying the lifetime of the connection. One of
+&gt     :indefinite or :session. The default value is :indefinite.
+&gt 
+&gt I wouldn't be surprised if having a lifetime :indefinite might also have
+&gt an influence on the dlopen-flag and add automatically RTDL_NODELETE.  So
+&gt I would rather use explicitely :lifetime :session.  
+
+Using lifetime :indefinite doesn't affect dlopen-flags.
+
+The lifetime keyword controls what happens if you call register-module
+followed by save-image (or deliver).  With :indefinite, the module remains
+registered when you start the saved image, but with :session it is removed
+(useful if you want to reload it from a different path for example).  In
+general though we recommend loading module in an initialization function
+rather than before saving the image because it allows better error reporting
+if loading fails.
+
+-- 
+Martin Simmons
+LispWorks Ltd
+http://www.lispworks.com/
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:28 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

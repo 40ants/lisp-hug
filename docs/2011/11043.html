@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>REPL output.</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>REPL output.</h1>
+                <pre>
+Hi,
+
+Is there away to limit (customize) the output (printing) of large
+objects (i.e: big strings, lists, sequences) during the Print part of
+REPL in the Listener.
+
+In other words, rather than printing the whole sequnce, just print a
+*default-printing-length* and then print '....' indicating that there
+are extra elements in the sequence, not displayed. (where I can use
+the Inspector If needed)
+
+Regards,
+
+Ala'a
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: REPL output.</h1><div>Ala&#39;a,</div><div><br></div><div>Please see the parameter values listed for PRINT in the CLHS.</div><div><br></div><div><a href="http://www.lispworks.com/documentation/HyperSpec/Body/f_wr_pr.htm">http://www.lispworks.com/documentation/HyperSpec/Body/f_wr_pr.htm</a></div>
+<div><br></div><div>Regards,</div><div><br></div><div>Tom</div>----------------------------------------------------------------<br>Thomas M. Hermann<br>Odonata Research LLC<br><a href="http://www.odonata-research.com/">http://www.odonata-research.com/</a><br>
+<a href="http://www.linkedin.com/in/thomasmhermann">http://www.linkedin.com/in/thomasmhermann</a><br>
+<br><br><div class="gmail_quote">On Thu, Jun 2, 2011 at 12:35 PM, Ala&#39;a Mohammad <span dir="ltr">&lt;<a href="mailto:amalawi@gmail.com">amalawi@gmail.com</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex;">
+<br>
+Hi,<br>
+<br>
+Is there away to limit (customize) the output (printing) of large<br>
+objects (i.e: big strings, lists, sequences) during the Print part of<br>
+REPL in the Listener.<br>
+<br>
+In other words, rather than printing the whole sequnce, just print a<br>
+*default-printing-length* and then print &#39;....&#39; indicating that there<br>
+are extra elements in the sequence, not displayed. (where I can use<br>
+the Inspector If needed)<br>
+<br>
+Regards,<br>
+<font color="#888888"><br>
+Ala&#39;a<br>
+<br>
+</font></blockquote></div><br>
+
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: REPL output.</h1>
+                 <pre>
+Thanks.
+
+With *print-string*, the following will do it in the moment (taking
+care to evaluate them in order, since we are playing with a system
+call):
+
+(defparameter *abbreviate-long-strings* nil)
+
+(defparameter *max-length-printed-for-strings* 100)
+
+(defadvice
+    ((method print-object (string t))
+     before-print-object-for-string :before)
+    (obj stream)
+  (if (&gt (length obj) *max-length-printed-for-strings*)
+    (setf *abbreviate-long-strings* *print-string*
+           *print-string* *max-length-printed-for-strings*)))
+
+(defadvice
+    ((method print-object (string t))
+     after-print-object-for-string :after)
+    (obj stream)
+  (if *abbreviate-long-strings*
+    (setf *print-string* *abbreviate-long-strings*
+           *abbreviate-long-strings* nil)))
+
+Thanks again,
+
+Regards,
+
+Ala'a.
+
+On Fri, Jun 3, 2011 at 3:18 PM, Martin Simmons &lt;martin@lispworks.com&gt wrote:
+&gt
+&gt&gt&gt&gt&gt&gt On Fri, 3 Jun 2011 14:36:21 +0400, Ala'a Mohammad said:
+&gt&gt
+&gt&gt Thanks for the pointer.
+&gt&gt
+&gt&gt *print-length* does not limit the size of a printed string.
+&gt&gt *print-array* applies to non-string array
+&gt&gt
+&gt&gt Currently I need something like *print-length but which applies to
+&gt&gt strings (or sequences in general).
+&gt
+&gt There is a currently undocumented variable hcl:*print-string* that controls
+&gt whether the printer uses an abbreviated form for strings when *print-escape*
+&gt is true.
+&gt
+&gt If *print-string* is t (the default), then strings are printed in full as
+&gt specified by ANSI Common Lisp.
+&gt
+&gt If *print-string* is nil, then strings are printed as an unreadable object
+&gt with no specific information about the string.
+&gt
+&gt If *print-string* is an integer, then strings longer than *print-string* are
+&gt printed as unreadable objects that include the type, length and first
+&gt *print-string* characters.
+&gt
+&gt We will add this to the documentation.
+&gt
+&gt --
+&gt Martin Simmons
+&gt LispWorks Ltd
+&gt http://www.lispworks.com/
+&gt
+&gt
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: REPL output.</h1>
+                 <p>
+                  Unable to parse email body. Email id is 11049
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:33 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

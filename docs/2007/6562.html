@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>partitioning keyword arguments</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>partitioning keyword arguments</h1>
+                <pre>
+Hello all,
+
+This is a slightly more general Lisp oriented question, so perhaps I
+should have sent it off to c.l.l, but all my examples are going to be
+CAPI based, and I bet someone here has had to deal with these issues
+before.
+
+There is a macro capi:with-dialog-results which allows for (on OS X)
+dialogs which are modal per window (and not for the whole
+application.) For instance,
+
+(capi:with-dialog-results (str okp)
+    (capi:prompt-for-string "Enter a string")
+  (when okp
+    (print str)))
+
+Now this is just syntactic sugar for (essentially) the following:
+
+(capi:prompt-for-string
+  "Enter a string"
+  :continuation
+  #'(lambda (str okp)
+        (when okp
+           (print string))))
+
+so the point to notice is that the prompting function accepts a
+:continuation keyword argument. Now prompt-for-string also accepts a
+:text keyword argument specifiying initial-text for the prompt.
+
+Now I'm trying to do something similar. Let's say I have
+username/password prompt (i.e., an interface with text-input-panes for
+username/password). I can display a prompt using capi:popup-confirmer,
+like this:
+
+(capi:popup-confirmer
+   (make-instance
+    'password-prompt
+    :username username
+    :password password)
+    "Enter username and password:"
+    :value-function #'combine-username-password))
+
+and I'd like to wrap this up in a function, e.g.,
+
+(defun prompt-for-username-and-password (&amp;key username password)
+  (capi:popup-confirmer
+     (make-instance
+      'password-prompt
+      :username username
+      :password password)
+      "Enter username and password:"
+      :value-function #'combine-username-password)))
+
+but I'd also like to be able to use it in capi:with-dialog-results,
+and so I need to have a continuation keyword:
+
+(defun prompt-for-username-and-password (&amp;key username password continuation)
+  (capi:popup-confirmer
+     (make-instance
+      'password-prompt
+      :username username
+      :password password)
+      "Enter username and password:"
+      :value-function #'combine-username-password)
+   :continuation continuation))
+
+but at this point, it's clear that there a number of the
+popup-confirmer args that I might want to use (e.g., owner, to make
+sure that the popup is on the correct window.) Ideally I'd like to
+have all these args mixed together, so as to be able to write
+
+(defun prompt-for-username-and-password (&amp;rest initargs &amp;key username password)
+  (apply #'capi:popup-confirmer
+     (make-instance
+      'password-prompt
+      :username username
+      :password password)
+      "Enter username and password:"
+      :value-function #'combine-username-password)
+  initargs-w/o-username-and-password))
+
+That is, I'd like to grab a few keyword arguments myself, and then to
+send the rest of them on to the popup-confirmer. I need this behavior
+so that my prompting functions can be used in a consistent manner as
+the standard capi prompts.
+
+Now, I realize that although capi:prompt-for-string has a
+:continuation argument, there is still :popup-args (and
+popup-confirmer /also/ accepts a :continuation argument) so things
+like this can be written:
+
+(capi:prompt-for-string
+ "enter a string"
+ :continuation #'(lambda (&amp;rest args)
+                   (print (cons 'prompt-for-string args)))
+ :popup-args (list :continuation #'(lambda (&amp;rest args)
+                                     (print (cons 'popup-confirmer args)))))
+
+and the result is that the continuation mentioning prompt-for-string
+is invoked. So perhaps the best choice is provide :popup-args and
+:continuation for my prompting functions and to hope for the best?
+
+Thanks in advance!
+
+-- 
+=====================
+Joshua Taylor
+tayloj@rpi.edu
+
+"A lot of good things went down one time,
+     back in the goodle days."
+               John Hartford
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: partitioning keyword arguments</h1>
+                 <pre>
+On 4/7/07, Taylor, Joshua &lt;tayloj@rpi.edu&gt wrote:
+&gt Hello all,
+&gt
+&gt This is a slightly more general Lisp oriented question, so perhaps I
+&gt should have sent it off to c.l.l, but all my examples are going to be
+&gt CAPI based, and I bet someone here has had to deal with these issues
+&gt before.
+&gt
+&gt There is a macro capi:with-dialog-results which allows for (on OS X)
+&gt dialogs which are modal per window (and not for the whole
+&gt application.) For instance,
+&gt
+&gt (capi:with-dialog-results (str okp)
+&gt     (capi:prompt-for-string "Enter a string")
+&gt   (when okp
+&gt     (print str)))
+&gt
+&gt Now this is just syntactic sugar for (essentially) the following:
+&gt
+&gt (capi:prompt-for-string
+&gt   "Enter a string"
+&gt   :continuation
+&gt   #'(lambda (str okp)
+&gt         (when okp
+&gt            (print string))))
+&gt
+&gt so the point to notice is that the prompting function accepts a
+&gt :continuation keyword argument. Now prompt-for-string also accepts a
+&gt :text keyword argument specifiying initial-text for the prompt.
+&gt
+&gt Now I'm trying to do something similar. Let's say I have
+&gt username/password prompt (i.e., an interface with text-input-panes for
+&gt username/password). I can display a prompt using capi:popup-confirmer,
+&gt like this:
+&gt
+&gt (capi:popup-confirmer
+&gt    (make-instance
+&gt     'password-prompt
+&gt     :username username
+&gt     :password password)
+&gt     "Enter username and password:"
+&gt     :value-function #'combine-username-password))
+&gt
+&gt and I'd like to wrap this up in a function, e.g.,
+&gt
+&gt (defun prompt-for-username-and-password (&amp;key username password)
+&gt   (capi:popup-confirmer
+&gt      (make-instance
+&gt       'password-prompt
+&gt       :username username
+&gt       :password password)
+&gt       "Enter username and password:"
+&gt       :value-function #'combine-username-password)))
+&gt
+&gt but I'd also like to be able to use it in capi:with-dialog-results,
+&gt and so I need to have a continuation keyword:
+&gt
+&gt (defun prompt-for-username-and-password (&amp;key username password continuation)
+&gt   (capi:popup-confirmer
+&gt      (make-instance
+&gt       'password-prompt
+&gt       :username username
+&gt       :password password)
+&gt       "Enter username and password:"
+&gt       :value-function #'combine-username-password)
+&gt    :continuation continuation))
+&gt
+&gt but at this point, it's clear that there a number of the
+&gt popup-confirmer args that I might want to use (e.g., owner, to make
+&gt sure that the popup is on the correct window.) Ideally I'd like to
+&gt have all these args mixed together, so as to be able to write
+&gt
+&gt (defun prompt-for-username-and-password (&amp;rest initargs &amp;key username password)
+&gt   (apply #'capi:popup-confirmer
+&gt      (make-instance
+&gt       'password-prompt
+&gt       :username username
+&gt       :password password)
+&gt       "Enter username and password:"
+&gt       :value-function #'combine-username-password)
+&gt   initargs-w/o-username-and-password))
+&gt
+&gt That is, I'd like to grab a few keyword arguments myself, and then to
+&gt send the rest of them on to the popup-confirmer. I need this behavior
+&gt so that my prompting functions can be used in a consistent manner as
+&gt the standard capi prompts.
+&gt
+&gt Now, I realize that although capi:prompt-for-string has a
+&gt :continuation argument, there is still :popup-args (and
+&gt popup-confirmer /also/ accepts a :continuation argument) so things
+&gt like this can be written:
+&gt
+&gt (capi:prompt-for-string
+&gt  "enter a string"
+&gt  :continuation #'(lambda (&amp;rest args)
+&gt                    (print (cons 'prompt-for-string args)))
+&gt  :popup-args (list :continuation #'(lambda (&amp;rest args)
+&gt                                      (print (cons 'popup-confirmer args)))))
+&gt
+&gt and the result is that the continuation mentioning prompt-for-string
+&gt is invoked. So perhaps the best choice is provide :popup-args and
+&gt :continuation for my prompting functions and to hope for the best?
+
+I should have clarified here what I mean to provide both. I would do
+the following:
+
+(defun prompt-for-username-and-password
+       (&amp;key username password continuation popup-args)
+  (apply #'capi:popup-confirmer
+         (make-instance
+          'password-prompt
+          :username username
+          :password password)
+         "Enter username and password:"
+         :value-function #'combine-username-password
+         :continuation continuation
+         popup-args))
+
+So that the keyword argument continuation appears before any
+continuation present in the popup-args (I'll have to check to make
+sure that the earlier keywords are taken before later ones in the
+event of duplicates.) and I get the behavior I want, I think.
+
+&gt Thanks in advance!
+
+
+-- 
+=====================
+Joshua Taylor
+tayloj@rpi.edu
+
+"A lot of good things went down one time,
+     back in the goodle days."
+               John Hartford
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: partitioning keyword arguments</h1>
+                 <pre>
+On 7 Apr 2007, at 21:18, Taylor, Joshua wrote:
+
+&gt
+&gt That is, I'd like to grab a few keyword arguments myself, and then to
+&gt send the rest of them on to the popup-confirmer. I need this behavior
+&gt so that my prompting functions can be used in a consistent manner as
+&gt the standard capi prompts.
+
+I'm not sure if it's a complete solution, but you can usually invent  
+what you need based on using &amp;allow-other-keys and &amp;rest arguments.   
+The combination lets you pick off keywords you care about while also  
+getting the whole lot of args which you can pass on to other people.   
+If you have to call things which don't allow extra keywords you may  
+need a wrapper to select the good ones.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: partitioning keyword arguments</h1>
+                 <pre>
+On 4/8/07, Tim Bradshaw &lt;tfb@cley.com&gt wrote:
+&gt On 7 Apr 2007, at 21:18, Taylor, Joshua wrote:
+&gt
+&gt &gt That is, I'd like to grab a few keyword arguments myself, and then to
+&gt &gt send the rest of them on to the popup-confirmer. I need this behavior
+&gt &gt so that my prompting functions can be used in a consistent manner as
+&gt &gt the standard capi prompts.
+&gt
+&gt I'm not sure if it's a complete solution, but you can usually invent
+&gt what you need based on using &amp;allow-other-keys and &amp;rest arguments.
+&gt The combination lets you pick off keywords you care about while also
+&gt getting the whole lot of args which you can pass on to other people.
+&gt If you have to call things which don't allow extra keywords you may
+&gt need a wrapper to select the good ones.
+
+Ah, your mention of &amp;allow-other-keys caused me to investigate, and
+I've learned something very interesting:
+
+CL-USER 7 &gt (defun foo (&amp;key x)
+              x)
+Foo
+
+CL-USER 8 &gt (foo :x 7)
+7
+
+CL-USER 9 &gt (foo :x 7 :y 8)
+
+Error: Unexpected keyword :Y which is not one of (:X).
+  1 (continue) Ignore the unknown keyword :Y.
+  2 (abort) Return to level 0.
+  3 Return to top loop level 0.
+
+Type :b for backtrace, :c &lt;option number&gt to proceed,  or :? for other options
+
+CL-USER 10 : 1 &gt :a
+
+CL-USER 11 &gt (foo :x 7 :y 8 :allow-other-keys t)
+7
+
+CL-USER 12 &gt (foo :allow-other-keys t :x 7 :y 8)
+7
+
+Now, this allows me to do exactly what I want to do, but I have to
+wonder whether this is considered poor style. I can see that if
+misused, the possibilities for obfuscation are huge, but perhaps used
+carefully this is just such a case as it was designed for? I think I'd
+end up writing something like:
+
+(defun prompt-for-password
+       (&amp;rest args &amp;key (username "") (password "") &amp;allow-other-keys)
+  (apply #'capi:popup-confirmer
+         (make-instance 'password-prompt
+                        :username username
+                        :password password)
+         "message"
+         :allow-other-keys t
+         args))
+
+which would make my prompt-for-password compatible with with the
+capi:with-dialog-results as the continuation would be passed
+correctly, and all would work correctly, so long as none of my keyword
+arguments conflict with those that capi:popup-confirmer accepts.
+
+Any thoughts on style, or a better way to do this?
+
+Thanks!
+
+-- 
+=====================
+Joshua Taylor
+tayloj@rpi.edu
+
+"A lot of good things went down one time,
+     back in the goodle days."
+               John Hartford
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: partitioning keyword arguments</h1>
+                 <pre>
+Ah, great! Now I can do what works /and/ do it in good conscience!
+
+Thanks!
+
+On 4/8/07, Brian Downing &lt;bdowning@lavos.net&gt wrote:
+&gt On Sun, Apr 08, 2007 at 05:49:08PM -0400, Taylor, Joshua wrote:
+&gt &gt Now, this allows me to do exactly what I want to do, but I have to
+&gt &gt wonder whether this is considered poor style. I can see that if
+&gt &gt misused, the possibilities for obfuscation are huge, but perhaps used
+&gt &gt carefully this is just such a case as it was designed for? I think I'd
+&gt &gt end up writing something like:
+&gt &gt
+&gt &gt (defun prompt-for-password
+&gt &gt       (&amp;rest args &amp;key (username "") (password "") &amp;allow-other-keys)
+&gt &gt  (apply #'capi:popup-confirmer
+&gt &gt         (make-instance 'password-prompt
+&gt &gt                        :username username
+&gt &gt                        :password password)
+&gt &gt         "message"
+&gt &gt         :allow-other-keys t
+&gt &gt         args))
+&gt &gt
+&gt &gt which would make my prompt-for-password compatible with with the
+&gt &gt capi:with-dialog-results as the continuation would be passed
+&gt &gt correctly, and all would work correctly, so long as none of my keyword
+&gt &gt arguments conflict with those that capi:popup-confirmer accepts.
+&gt &gt
+&gt &gt Any thoughts on style, or a better way to do this?
+&gt
+&gt I believe this usage is exactly why the :ALLOW-OTHER-KEYS T behavior
+&gt was placed in the language, and the CLHS would seem to corroborate this:
+&gt
+&gt http://www.lispworks.com/documentation/HyperSpec/Body/03_daf.htm
+&gt
+&gt | As an example of the use of &amp;allow-other-keys and :allow-other-keys,
+&gt | consider a function that takes two named arguments of its own and also
+&gt | accepts additional named arguments to be passed to make-array:
+&gt |
+&gt | (defun array-of-strings (str dims &amp;rest named-pairs
+&gt |                          &amp;key (start 0) end &amp;allow-other-keys)
+&gt |   (apply #'make-array dims
+&gt |          :initial-element (subseq str start end)
+&gt |          :allow-other-keys t
+&gt |          named-pairs))
+&gt |
+&gt | This function takes a string and dimensioning information and returns
+&gt | an array of the specified dimensions, each of whose elements is the
+&gt | specified string. However, :start and :end named arguments may be used
+&gt | to specify that a substring of the given string should be used. In
+&gt | addition, the presence of &amp;allow-other-keys in the lambda list
+&gt | indicates that the caller may supply additional named arguments; the
+&gt | rest parameter provides access to them. These additional named
+&gt | arguments are passed to make-array. The function make-array normally
+&gt | does not allow the named arguments :start and :end to be used, and an
+&gt | error should be signaled if such named arguments are supplied to
+&gt | make-array. However, the presence in the call to make-array of the
+&gt | named argument :allow-other-keys with a true value causes any
+&gt | extraneous named arguments, including :start and :end, to be acceptable
+&gt | and ignored.
+&gt
+&gt -bcd
+&gt
+
+
+-- 
+=====================
+Joshua Taylor
+tayloj@rpi.edu
+
+"A lot of good things went down one time,
+     back in the goodle days."
+               John Hartford
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:42 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

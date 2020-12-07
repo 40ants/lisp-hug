@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>How to keep row-layout adjustment when inside column-layout?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>How to keep row-layout adjustment when inside column-layout?</h1>
+                <pre>
+Hello,
+
+It seems that when row-layout is contained in column-layout it loses
+the adjustments. Does anybody know why?
+
+There is sample code below.
+
+(Using LispWorks Personal 5.02 Intel on OS X)
+
+Best regards,
+
+Mikko Ahonen
+
+(defun make-row ()
+       (make-instance
+        'capi:row-layout
+        :visible-min-width 300
+        :adjust '(:left :right)
+        :description
+        (list
+         (make-instance 'capi:title-pane :text "foo")
+         (make-instance 'capi:option-pane :visible-max-width 100
+:items '(1 2 3)))))
+
+; this works as expected
+(capi:contain (make-row))
+
+; here adjustment  loses adjustment (and size?)
+(capi:contain
+ (make-instance
+  'capi:column-layout
+  :description (list (make-row))))
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: How to keep row-layout adjustment when inside column-layout?</h1>
+                 <pre>
+I'm not sure, but what it does doesn't violate any of the constraints 
+you specified.  In both cases option-pane is 100 or less in width. So it 
+looks like by itself the row-layout extends the last element to its 
+maximum, but when used in a column-layout the row-layout sets the last 
+element to its minimum.
+
+Adding a nil element to the row-layout makes them both behave the same 
+as does specifying a min width for option-pane.
+
+(defun make-row ()
+        (make-instance
+         'capi:row-layout
+         :visible-min-width 300
+         :adjust '(:left :right)
+         :description
+         (list
+          (make-instance 'capi:title-pane :text "foo")
+          (make-instance 'capi:option-pane :visible-max-width 100
+		:items '(1 2 3)) nil)))
+
+OR
+
+(defun make-row ()
+        (make-instance
+         'capi:row-layout
+         :visible-min-width 300
+         :adjust '(:left :right)
+         :description
+         (list
+          (make-instance 'capi:title-pane :text "foo")
+          (make-instance 'capi:option-pane :visible-min-width 100 
+:visible-max-width t
+:items '(1 2 3)))))
+
+
+Mikko Ahonen wrote:
+&gt Hello,
+&gt 
+&gt It seems that when row-layout is contained in column-layout it loses
+&gt the adjustments. Does anybody know why?
+&gt 
+&gt There is sample code below.
+&gt 
+&gt (Using LispWorks Personal 5.02 Intel on OS X)
+&gt 
+&gt Best regards,
+&gt 
+&gt Mikko Ahonen
+&gt 
+&gt (defun make-row ()
+&gt        (make-instance
+&gt         'capi:row-layout
+&gt         :visible-min-width 300
+&gt         :adjust '(:left :right)
+&gt         :description
+&gt         (list
+&gt          (make-instance 'capi:title-pane :text "foo")
+&gt          (make-instance 'capi:option-pane :visible-max-width 100
+&gt :items '(1 2 3)))))
+&gt 
+&gt ; this works as expected
+&gt (capi:contain (make-row))
+&gt 
+&gt ; here adjustment  loses adjustment (and size?)
+&gt (capi:contain
+&gt  (make-instance
+&gt   'capi:column-layout
+&gt   :description (list (make-row))))
+&gt 
+&gt 
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: How to keep row-layout adjustment when inside column-layout?</h1>
+                 <pre>
+Hello,
+
+Thanks for the switft reply.
+
+My problem is actually not the size of the button (although the change
+was also surprising) but that :adjust keyword parameter seems to
+somehow get ignored, i.e. both fields are adjusted left.
+
+It seems that at least on my platform both your examples for both of
+my original calls to capi:contain ignore :adjust. With my original
+version of make-row first one did not, but the second one did.
+
+Best regards,
+
+Mikko Ahonen
+
+On Sun, Apr 20, 2008 at 11:54 PM, Mitch Berkson &lt;mitch@bermita.com&gt wrote:
+&gt I'm not sure, but what it does doesn't violate any of the constraints you
+&gt specified.  In both cases option-pane is 100 or less in width. So it looks
+&gt like by itself the row-layout extends the last element to its maximum, but
+&gt when used in a column-layout the row-layout sets the last element to its
+&gt minimum.
+&gt
+&gt  Adding a nil element to the row-layout makes them both behave the same as
+&gt does specifying a min width for option-pane.
+&gt
+&gt
+&gt  (defun make-row ()
+&gt        (make-instance
+&gt         'capi:row-layout
+&gt         :visible-min-width 300
+&gt         :adjust '(:left :right)
+&gt         :description
+&gt         (list
+&gt          (make-instance 'capi:title-pane :text "foo")
+&gt          (make-instance 'capi:option-pane :visible-max-width 100
+&gt                 :items '(1 2 3)) nil)))
+&gt
+&gt  OR
+&gt
+&gt
+&gt  (defun make-row ()
+&gt        (make-instance
+&gt         'capi:row-layout
+&gt         :visible-min-width 300
+&gt         :adjust '(:left :right)
+&gt         :description
+&gt         (list
+&gt          (make-instance 'capi:title-pane :text "foo")
+&gt          (make-instance 'capi:option-pane :visible-min-width 100
+&gt :visible-max-width t
+&gt  :items '(1 2 3)))))
+&gt
+&gt
+&gt
+&gt
+&gt  Mikko Ahonen wrote:
+&gt
+&gt &gt Hello,
+&gt &gt
+&gt &gt It seems that when row-layout is contained in column-layout it loses
+&gt &gt the adjustments. Does anybody know why?
+&gt &gt
+&gt &gt There is sample code below.
+&gt &gt
+&gt &gt (Using LispWorks Personal 5.02 Intel on OS X)
+&gt &gt
+&gt &gt Best regards,
+&gt &gt
+&gt &gt Mikko Ahonen
+&gt &gt
+&gt &gt (defun make-row ()
+&gt &gt       (make-instance
+&gt &gt        'capi:row-layout
+&gt &gt        :visible-min-width 300
+&gt &gt        :adjust '(:left :right)
+&gt &gt        :description
+&gt &gt        (list
+&gt &gt         (make-instance 'capi:title-pane :text "foo")
+&gt &gt         (make-instance 'capi:option-pane :visible-max-width 100
+&gt &gt :items '(1 2 3)))))
+&gt &gt
+&gt &gt ; this works as expected
+&gt &gt (capi:contain (make-row))
+&gt &gt
+&gt &gt ; here adjustment  loses adjustment (and size?)
+&gt &gt (capi:contain
+&gt &gt  (make-instance
+&gt &gt  'capi:column-layout
+&gt &gt  :description (list (make-row))))
+&gt &gt
+&gt &gt
+&gt &gt
+&gt
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: How to keep row-layout adjustment when inside column-layout?</h1>
+                 <pre>
+Hello Mikko,
+
+| It seems that when row-layout is contained in column-layout it loses
+| the adjustments. Does anybody know why?
+| 
+| There is sample code below.
+| 
+| (Using LispWorks Personal 5.02 Intel on OS X)
+| 
+| Best regards,
+| 
+| Mikko Ahonen
+| 
+| (defun make-row ()
+|        (make-instance
+|         'capi:row-layout
+|         :visible-min-width 300
+|         :adjust '(:left :right)
+|         :description
+|         (list
+|          (make-instance 'capi:title-pane :text "foo")
+|          (make-instance 'capi:option-pane :visible-max-width 100
+| :items '(1 2 3)))))
+
+As Mitch has noted, the :adjust initarg specifies vertical adjustment for
+row-layout children. But it should be one of :top, :bottom, or :center, not
+a list. All the children are adjusted the same.
+--
+Sincerely,
+Dmitriy Ivanov
+lisp.ystok.ru
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: How to keep row-layout adjustment when inside column-layout?</h1>
+                 <pre>
+Thanks for the help Dmitry and Mitch,
+
+Seems like I mis-interpreted the documentation.
+
+Best regards,
+
+Mikko Ahonen
+
+On Mon, Apr 21, 2008 at 8:40 AM, Dmitriy Ivanov &lt;divanov@aha.ru&gt wrote:
+&gt Hello Mikko,
+&gt
+&gt
+&gt  | It seems that when row-layout is contained in column-layout it loses
+&gt  | the adjustments. Does anybody know why?
+&gt  |
+&gt  | There is sample code below.
+&gt  |
+&gt  | (Using LispWorks Personal 5.02 Intel on OS X)
+&gt  |
+&gt  | Best regards,
+&gt  |
+&gt  | Mikko Ahonen
+&gt  |
+&gt  | (defun make-row ()
+&gt  |        (make-instance
+&gt  |         'capi:row-layout
+&gt  |         :visible-min-width 300
+&gt  |         :adjust '(:left :right)
+&gt  |         :description
+&gt  |         (list
+&gt  |          (make-instance 'capi:title-pane :text "foo")
+&gt  |          (make-instance 'capi:option-pane :visible-max-width 100
+&gt  | :items '(1 2 3)))))
+&gt
+&gt  As Mitch has noted, the :adjust initarg specifies vertical adjustment for
+&gt  row-layout children. But it should be one of :top, :bottom, or :center, not
+&gt  a list. All the children are adjusted the same.
+&gt  --
+&gt  Sincerely,
+&gt  Dmitriy Ivanov
+&gt  lisp.ystok.ru
+&gt
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: How to keep row-layout adjustment when inside column-layout?</h1>
+                 <pre>
+On Tue, 22 Apr 2008 18:03:53 +0300, "Mikko Ahonen" &lt;mikko.ahonen@iki.fi&gt wrote:
+
+&gt Seems like I mis-interpreted the documentation.
+
+FWIW, I made the same mistake some time ago.  From the documentation,
+one can conclude that :ADJUST should also accept a list, but for
+ROW-LAYOUT and COLUMN-LAYOUT this makes no sense given how they work.
+It is only meaningful for GRID-LAYOUT.
+
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: How to keep row-layout adjustment when inside column-layout?</h1>
+                 <p>
+                  Unable to parse email body. Email id is 8007
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:39 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

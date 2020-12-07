@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Optimizing aref</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Optimizing aref</h1>
+                <pre>I have a function which looks something like this:
+
+(defun xxx (x)
+        (declare (optimize (debug 0) (float 0) (safety 0) (space 0) (speed 
+3)))
+        ...
+        (let ((a (get-some-array x)))
+                (declare (type (simple-array double-float 10) a))
+                ...
+                (let ((d (aref a 0)))
+                        (declare (type double-float d))
+                        ...)))
+
+Looking through the disassembled code I can see that xxx is still calling 
+"aref." I would have thought that aref would have been inlined as a simple 
+offset calculation? Is that not possible in LispWorks--or am I doing 
+something wrong?
+
+(Btw, I also tried &lt;gasp!&gt "(declare (inline aref))" and "(the 
+double-float (aref a 0))".)
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>
+                  Unable to render article 2023 because of ":DEFAULT stream decoding error on 
+                  #&lt;SB-SYS:FD-STREAM for \"socket 192.168.43.216:53376, peer: 
+                  116.202.254.214:119\" {1002260AD3}&gt: the octet sequence #(246 115 99 104) 
+                  cannot be decoded." error</h1>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: Optimizing aref</h1>
+<br><font size=2><tt>cartan@darkstar.cartan.de wrote on 03/13/2004 08:50:51
+PM:<br>
+<br>
+&gt; MichaelL@frogware.com writes:<br>
+&gt; <br>
+&gt; &gt; I have a function which looks something like this:<br>
+&gt; &gt; <br>
+&gt; &gt; (defun xxx (x)<br>
+&gt; &gt; &nbsp; &nbsp; &nbsp; &nbsp; (declare (optimize (debug 0) (float
+0) (safety 0) <br>
+&gt; (space 0) (speed <br>
+&gt; &gt; 3)))<br>
+&gt; &gt; &nbsp; &nbsp; &nbsp; &nbsp; ...<br>
+&gt; &gt; &nbsp; &nbsp; &nbsp; &nbsp; (let ((a (get-some-array x)))<br>
+&gt; &gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (declare
+(type (simple-array double-float 10) a))<br>
+&gt; <br>
+&gt; Try (simple-array double-float (10))...<br>
+</tt></font>
+<br><font size=2><tt>No change. (Btw, the double-floats aren't being boxed/unboxed,
+so the type declaration is definitely working. I was just wondering if
+I could avoid a function call when de-referencing an array element.)</tt></font>
+
+                 </article>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>
+                    Unable to render article 2025 because of ":DEFAULT stream decoding error on 
+                    #&lt;SB-SYS:FD-STREAM for \"socket 192.168.43.216:53378, peer: 
+                    116.202.254.214:119\" {1006C50AF3}&gt: the octet sequence #(246 115 99 104) 
+                    cannot be decoded." error</h1>
+                  </article>
+                  <section class=tree>
+                   <article class=email>
+                    <h1>Re: Optimizing aref</h1>
+                    <pre>cartan@darkstar.cartan.de wrote on 03/13/2004 10:19:28 PM:
+
+&gt MichaelL@frogware.com writes:
+&gt 
+&gt &gt cartan@darkstar.cartan.de wrote on 03/13/2004 08:50:51 PM:
+&gt &gt 
+&gt &gt &gt MichaelL@frogware.com writes:
+&gt &gt &gt 
+&gt &gt &gt &gt I have a function which looks something like this:
+&gt &gt &gt &gt 
+&gt &gt &gt &gt (defun xxx (x)
+&gt &gt &gt &gt         (declare (optimize (debug 0) (float 0) (safety 0) 
+&gt &gt &gt (space 0) (speed 
+&gt &gt &gt &gt 3)))
+&gt &gt &gt &gt         ...
+&gt &gt &gt &gt         (let ((a (get-some-array x)))
+&gt &gt &gt &gt                 (declare (type (simple-array double-float 10) a))
+&gt &gt &gt 
+&gt &gt &gt Try (simple-array double-float (10))...
+&gt &gt 
+&gt &gt No change. (Btw, the double-floats aren't being boxed/unboxed, so
+&gt &gt the type declaration is definitely working. I was just wondering if
+&gt &gt I could avoid a function call when de-referencing an array element.)
+&gt 
+&gt You're doing something wrong, then.  Try
+&gt 
+&gt CL-USER 15 &gt (compile (defun blark (a)
+&gt                        (declare ((simple-array double-float (10)) a)
+&gt                                 (optimize speed (safety 0) (float 0)))
+&gt                        (incf (aref a 3) 1.0)
+&gt                        a))
+&gt BLARK
+&gt NIL
+&gt NIL
+&gt 
+&gt CL-USER 16 &gt (disassemble 'blark)
+&gt 20714D82:
+&gt        0:      55               push  ebp
+&gt        1:      89E5             move  ebp, esp
+&gt        3:      83EC14           sub   esp, 14
+&gt        6:      C7042445140000   move  [esp], 1445
+&gt       13:      DD402C           fldl  [eax+2C]
+&gt       16:      DD05A8A47020     fldl  [2070A4A8]       ; 1.0
+&gt       22:      DEC1             faddp st(1), st
+&gt       24:      DD582C           fstpl [eax+2C]
+&gt       27:      FD               std 
+&gt       28:      C9               leave 
+&gt       29:      C3               ret 
+&gt NIL
+&gt 
+&gt for instance.
+
+Yes, and (as you said originally) leaving the parens off the "10" makes a 
+difference:
+
+CL-USER 75 &gt (compile (defun blark (a)
+                       (declare ((simple-array double-float 10) a)
+                                (optimize speed (safety 0) (float 0)))
+                       (incf (aref a 3) 1.0)
+                       a))
+BLARK
+NIL
+NIL
+
+CL-USER 76 &gt (disassemble 'blark)
+20669EF2:
+       0:      55               push  ebp
+       1:      89E5             move  ebp, esp
+       3:      83EC14           sub   esp, 14
+       6:      C7042445140000   move  [esp], 1445
+      13:      50               push  eax
+      14:      FF75E8           push  [ebp-18]
+      17:      B502             moveb ch, 2
+      19:      B800030000       move  eax, 300
+      24:      FF15B8490020     call  [200049B8]       ; AREF
+      30:      DD4004           fldl  [eax+4]
+      33:      DD05201D6A20     fldl  [206A1D20]       ; 1.0
+      39:      DEC1             faddp st(1), st
+      41:      DD5DF8           fstpl [ebp-8]
+      44:      83EC0C           sub   esp, C
+      47:      C70424450C0000   move  [esp], C45
+      54:      DD45F8           fldl  [ebp-8]
+      57:      DD5C2404         fstpl [esp+4]
+      61:      B501             moveb ch, 1
+      63:      FF1530671120     call  [20116730]       ; 
+SYSTEM::RAW-FAST-BOX-DOUBLE
+      69:      50               push  eax
+      70:      FF75E8           push  [ebp-18]
+      73:      B503             moveb ch, 3
+      75:      B800030000       move  eax, 300
+      80:      FF15285B1120     call  [20115B28]       ; 
+SETF::\"COMMON-LISP\"\ \"AREF\"
+      86:      8B45E8           move  eax, [ebp-18]
+      89:      FD               std 
+      90:      C9               leave 
+      91:      C3               ret 
+      92:      90               nop 
+      93:      90               nop 
+NIL
+
+I think I figured out went wrong when I tried it, though. My optimizations 
+are declared in my defsystem through a semi-documented keyword. When I 
+compile-system those optimizations are honored--but when I use the System 
+Browser tool to compile they aren't...
+
+Ah.
+
+Thanks for the help!
+
+
+</pre>
+                   </article>
+                   <section class=tree>
+                    <article class=email>
+                     <h1>Re: Optimizing aref</h1>
+                     <p>
+                      Unable to parse email body. Email id is 2036
+                    </article>
+                    <section class=tree>
+                     <article class=email>
+                      <h1>Re: Optimizing aref</h1>
+                      <pre>davef@xanalys.com wrote on 03/15/2004 01:56:17 PM:
+
+&gt If you're saying that Systems &gt Compile did not honor your system's
+&gt optimization setting, that sounds like a bug.
+&gt 
+&gt However, File &gt Compile in the System Browser simply does
+&gt COMPILE-FILE, not COMPILE-SYSTEM.
+
+I'm using the :optimize keyword in defsystem. If I compile-system, the 
+keyword is honored; if I Systems &gt Compile or Execute Events it isn't. (Of 
+course, it isn't really a *documented* keyword, but it is quite handy...)
+
+
+</pre>
+                     </article>
+                     <section class=tree>
+                      <article class=email>
+                       <h1>Re: Optimizing aref</h1>
+                       <p>
+                        Unable to parse email body. Email id is 2087
+                      </article>
+                     </section>
+                    </section>
+                   </section>
+                  </section>
+                 </section>
+                </section>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:53 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

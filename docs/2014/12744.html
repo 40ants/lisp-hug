@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>FLI question: Attempted to dereference a pointer to aggregate type... 
+             [structs/unions in structs/unions]</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>FLI question: Attempted to dereference a pointer to aggregate type... 
+                 [structs/unions in structs/unions]</h1>
+                <pre>
+Hi everybody,
+
+I'm trying to translate something like this from C to Lisp:
+
+  typedef struct {
+    int one;
+    int two;
+    struct {
+      int three;
+      int four;
+    } bar;
+  } foo;
+
+I first tried this:
+
+  (define-c-struct foo
+    (one :int)
+    (two :int)
+    (bar (:struct (three :int)
+                  (four :int))))
+
+Then this:
+
+  (define-c-struct bar
+    (three :int)
+    (four :int))
+
+  (define-c-struct foo
+    (one :int)
+    (two :int)
+    (bar bar))
+
+And then this:
+
+  (define-c-typedef bar-struct (:struct bar))
+
+  (define-c-struct foo
+    (one :int)
+    (two :int)
+    (bar bar-struct))
+
+All three definitions are accepted by LispWorks, but in none of
+these cases am I able to access the slots THREE and FOUR - I
+always get:
+
+  "Attempted to dereference a pointer to aggregate type..."
+
+What is the right idiom to do this?
+
+And, actually, the real problem is even more complicated as I
+have to deal with a struct which contains a union of two other
+structs.  But I think the short example above demonstrates where
+I can't proceed.
+
+Thanks in advance for your help,
+Edi.
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: FLI question: Attempted to dereference a pointer to aggregate type... 
+                  [structs/unions in structs/unions]</h1>
+                 <pre>
+Ah, wait!  Just after I sent this I came across FOREIGN-SLOT-POINTER
+which seems to do what I want.
+
+(Still, even if this hopefully solves my problem I'd suggest to add a
+couple more examples with complicated C structs and unions and how to
+access them to the FLI docs.)
+
+On Thu, Jan 16, 2014 at 7:45 PM, Edi Weitz &lt;edi@weitz.de&gt wrote:
+&gt Hi everybody,
+&gt
+&gt I'm trying to translate something like this from C to Lisp:
+&gt
+&gt   typedef struct {
+&gt     int one;
+&gt     int two;
+&gt     struct {
+&gt       int three;
+&gt       int four;
+&gt     } bar;
+&gt   } foo;
+&gt
+&gt I first tried this:
+&gt
+&gt   (define-c-struct foo
+&gt     (one :int)
+&gt     (two :int)
+&gt     (bar (:struct (three :int)
+&gt                   (four :int))))
+&gt
+&gt Then this:
+&gt
+&gt   (define-c-struct bar
+&gt     (three :int)
+&gt     (four :int))
+&gt
+&gt   (define-c-struct foo
+&gt     (one :int)
+&gt     (two :int)
+&gt     (bar bar))
+&gt
+&gt And then this:
+&gt
+&gt   (define-c-typedef bar-struct (:struct bar))
+&gt
+&gt   (define-c-struct foo
+&gt     (one :int)
+&gt     (two :int)
+&gt     (bar bar-struct))
+&gt
+&gt All three definitions are accepted by LispWorks, but in none of
+&gt these cases am I able to access the slots THREE and FOUR - I
+&gt always get:
+&gt
+&gt   "Attempted to dereference a pointer to aggregate type..."
+&gt
+&gt What is the right idiom to do this?
+&gt
+&gt And, actually, the real problem is even more complicated as I
+&gt have to deal with a struct which contains a union of two other
+&gt structs.  But I think the short example above demonstrates where
+&gt I can't proceed.
+&gt
+&gt Thanks in advance for your help,
+&gt Edi.
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: FLI question: Attempted to dereference a pointer to aggregate type... 
+                  [structs/unions in structs/unions]</h1>
+                 <pre>
+Edi this is documented behavior
+
+Check FLI:DEREFERENCE keyword args AFAIR
+
+For later, try to FOREIGN-PARSER the header to get clues about how to
+translate to FLI
+
+Sent from my iPad
+
+&gt On 16 Jan 2014, at 22:51, Edi Weitz &lt;edi@weitz.de&gt wrote:
+&gt
+&gt
+&gt Ah, wait!  Just after I sent this I came across FOREIGN-SLOT-POINTER
+&gt which seems to do what I want.
+&gt
+&gt (Still, even if this hopefully solves my problem I'd suggest to add a
+&gt couple more examples with complicated C structs and unions and how to
+&gt access them to the FLI docs.)
+&gt
+&gt&gt On Thu, Jan 16, 2014 at 7:45 PM, Edi Weitz &lt;edi@weitz.de&gt wrote:
+&gt&gt Hi everybody,
+&gt&gt
+&gt&gt I'm trying to translate something like this from C to Lisp:
+&gt&gt
+&gt&gt  typedef struct {
+&gt&gt    int one;
+&gt&gt    int two;
+&gt&gt    struct {
+&gt&gt      int three;
+&gt&gt      int four;
+&gt&gt    } bar;
+&gt&gt  } foo;
+&gt&gt
+&gt&gt I first tried this:
+&gt&gt
+&gt&gt  (define-c-struct foo
+&gt&gt    (one :int)
+&gt&gt    (two :int)
+&gt&gt    (bar (:struct (three :int)
+&gt&gt                  (four :int))))
+&gt&gt
+&gt&gt Then this:
+&gt&gt
+&gt&gt  (define-c-struct bar
+&gt&gt    (three :int)
+&gt&gt    (four :int))
+&gt&gt
+&gt&gt  (define-c-struct foo
+&gt&gt    (one :int)
+&gt&gt    (two :int)
+&gt&gt    (bar bar))
+&gt&gt
+&gt&gt And then this:
+&gt&gt
+&gt&gt  (define-c-typedef bar-struct (:struct bar))
+&gt&gt
+&gt&gt  (define-c-struct foo
+&gt&gt    (one :int)
+&gt&gt    (two :int)
+&gt&gt    (bar bar-struct))
+&gt&gt
+&gt&gt All three definitions are accepted by LispWorks, but in none of
+&gt&gt these cases am I able to access the slots THREE and FOUR - I
+&gt&gt always get:
+&gt&gt
+&gt&gt  "Attempted to dereference a pointer to aggregate type..."
+&gt&gt
+&gt&gt What is the right idiom to do this?
+&gt&gt
+&gt&gt And, actually, the real problem is even more complicated as I
+&gt&gt have to deal with a struct which contains a union of two other
+&gt&gt structs.  But I think the short example above demonstrates where
+&gt&gt I can't proceed.
+&gt&gt
+&gt&gt Thanks in advance for your help,
+&gt&gt Edi.
+&gt
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+&gt
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: FLI question: Attempted to dereference a pointer to aggregate type... 
+                  [structs/unions in structs/unions]</h1>
+                 <pre>
+On Thu, Jan 16, 2014 at 10:23 PM, Raymond C Laning
+&lt;rclaning@raytheon.com&gt wrote:
+&gt
+&gt (foreign-slot-value foreignfoo '(bar three))
+
+Raymond, thanks a lot.  I had never used lists as slot names before,
+but I now see that they are documented and that there's even an
+example with nested structs in the documentation entry for
+FOREIGN-SLOT-VALUE.  Shame on me...
+
+Thanks,
+Edi.
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:30 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

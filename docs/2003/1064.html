@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Knowledgework - Lisp Symbiosis</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Knowledgework - Lisp Symbiosis</h1>
+                <pre>
+Hi all,
+
+
+I have a little problem when trying to call a lisp expression inside a 
+KW expression.
+
+This is a class I've implemented:
+
+(kw:def-kb-class facet ()
+   ((name :accessor name)))
+
+and this is a function to get instances of facet by comparing the value 
+of the instance variable "name".
+
+(defun get-facet-obj (fct)
+   (kw:findall '?obj '(and (facet ?obj)
+                           (equal (name ?obj) fct))))
+
+I've solved the problem like iut's written below, but of course it's not 
+  the best solution (it's to get all the object of "facet" and then 
+iterate with dolist and compare the instance variable with the argument 
+given to the function).
+
+(defun get-facet-object (fct)
+   (let ((current-facet nil)
+         (facets-list  (kw:findall '?obj '(facet ?obj))))
+     (dolist (current-facet facets-list nil)
+       (if (equal (name current-facet) fct)
+           (return current-facet)))))
+
+I believe that the problem is that the call to (name ?obj) in the 
+get-facet-obj function does not call "name", but instead it tries to 
+equalize fct with the "structure" (the functor) (name ?obj) ! Of course 
+I'm not sure of this.
+
+Anyone has any idea of what's happening?
+
+thanks,
+Miro.
+
+
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Knowledgework - Lisp Symbiosis</h1>
+                 <pre>&gt&gt&gt&gt&gt On Mon, 05 May 2003 14:10:48 +0200, Miro Casanova &lt;mcasanov@vub.ac.be&gt said:
+
+    Miro&gt I have a little problem when trying to call a lisp expression inside a
+    Miro&gt KW expression.
+
+    Miro&gt This is a class I've implemented:
+
+    Miro&gt (kw:def-kb-class facet ()
+    Miro&gt    ((name :accessor name)))
+
+    Miro&gt and this is a function to get instances of facet by comparing the
+    Miro&gt value of the instance variable "name".
+
+    Miro&gt (defun get-facet-obj (fct)
+    Miro&gt    (kw:findall '?obj '(and (facet ?obj)
+    Miro&gt                            (equal (name ?obj) fct))))
+
+    Miro&gt I've solved the problem like iut's written below, but of course it's
+    Miro&gt not the best solution (it's to get all the object of "facet" and then
+    Miro&gt iterate with dolist and compare the instance variable with the
+    Miro&gt argument given to the function).
+
+    Miro&gt (defun get-facet-object (fct)
+    Miro&gt    (let ((current-facet nil)
+    Miro&gt          (facets-list  (kw:findall '?obj '(facet ?obj))))
+    Miro&gt      (dolist (current-facet facets-list nil)
+    Miro&gt        (if (equal (name current-facet) fct)
+    Miro&gt            (return current-facet)))))
+
+    Miro&gt I believe that the problem is that the call to (name ?obj) in the
+    Miro&gt get-facet-obj function does not call "name", but instead it tries to
+    Miro&gt equalize fct with the "structure" (the functor) (name ?obj) ! Of
+    Miro&gt course I'm not sure of this.
+
+    Miro&gt Anyone has any idea of what's happening?
+
+I think you have more or less explained it to yourself. KnowledgeWorks
+uses Prolog-style unification so you need to write your code something
+like:
+
+;;; untested
+(defun get-facet-obj (fct)
+   (kw:findall '?obj '(facet ?obj name ,fct)))
+
+That is you can just pattern-match on the object.
+
+;;; or more long-winded (also untested)
+(defun get-facet-obj (fct)
+   (kw:findall '?obj '(and (facet ?obj name ?name)
+                           (= ?name ,fct))))
+
+HTH
+
+__Jason
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:56 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

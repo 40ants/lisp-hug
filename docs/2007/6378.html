@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Drag-n-drop + CAPI + OS X</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Drag-n-drop + CAPI + OS X</h1>
+                <pre>
+I'm writing a CAPI application that will mostly be used on OS X.  I'd
+really like to enable drag-and-drop support, since most OS X users expect
+to be able to drag and drop things around.
+
+I have no problem getting drag-n-drop to work in a pure Objective-C application,
+but when I try to apply the same principles to my CAPI application, it simply
+doesn't work.  I've discussed this a little with LispWorks support, but
+drag-n-drop continues to elude me.
+
+In an Objective-C application, I can write:
+
+    [textField registerForDraggedTypes:
+           [NSArray arrayWithObjects: NSStringPboardType,
+    NSFilenamesPboardType, nil]];
+
+and that text field will then accept strings and dropped files.  I
+tried to do the equivalent operation in CAPI:
+
+    ;; from Raffael Cavallaro
+    (defmacro @ (&amp;body body) `(objc:invoke ,@body))
+
+    (let* ((pane (contain (make-instance 'text-input-pane)))
+           (representation (slot-value (capi-internals:representation
+    pane) 'cc-lib::main-view)))
+     (@ representation "registerForDraggedTypes:"
+       (@ "NSArray" "arrayWithObject:" (cocoa:ns-string-pboard-type)))
+     representation)
+
+but the text-input-pane displayed doesn't accept text or filenames.
+Also, as soon as any object is dragged over the window, it starts
+to lag a little as I move it around.  But in any case, the
+text-input-pane doesn't accept the text or show the little drag icon
+like the Cocoa field in the snippet above.  (as a side-question, does
+anyone  have an example of LispWorks
+code calling arrayWithObjects: ?  Passing each object as an argument
+doesn't work,
+nor does passing a list of the objects as one argument).
+
+I also tried a slightly more complicated approach, but got the same
+results as above (lag while dragging, no icon displayed, item slides
+back to its source when I release the mouse).  The code is below.
+
+I also tried delivering all of these code snippets, thinking that
+maybe the IDE was doing something to affect dropping; I got the same
+behavior.
+
+I realize I'm sort of breaking the rules by dealing with CAPI
+representations directly, but if there is some simple thing I could do
+to get this started (some Cocoa setting that LispWorks changes, for
+example), I think I'd be able to fill in the rest.
+
+Here is the code I mentioned above:
+
+------
+(defpackage :drag-n-drop (:use :cl :capi))
+(in-package :drag-n-drop)
+
+(defmacro @ (&amp;body body) `(objc:invoke ,@body))
+
+(defvar *bang* nil)
+
+(defconstant +ns-dragging-operation-copy+ 2)
+
+(objc:define-objc-method ("draggingEntered:" (:unsigned :int))
+   ((self capi-cocoa-library::output-pane-representation)
+    (sender objc:objc-object-pointer))
+ (declare (ignore sender))
+ (push 'dragging-entered *bang*)
+ +ns-dragging-operation-copy+)
+
+(let* ((pane (contain (make-instance 'output-pane)))
+       (representation (slot-value (capi-internals:representation
+pane) 'cc-lib::main-view)))
+  (@ representation "registerForDraggedTypes:"
+     (@ "NSArray" "arrayWithObject:" (cocoa:ns-string-pboard-type)))
+     representation)
+
+------
+
+When this code runs, I get the behavior described above, and the
+value of *BANG* never changes from its initial NIL (so the draggingEntered:
+message is never sent).
+
+As another data point, this last snippet exhibits the same behavior as the
+examples above (that is, *bang* doesn't change, the image lags as it's
+dragged through the window, the drag icon doesn't change to a + sign,
+and the dragged item slides back to its source if the mouse is
+released).
+
+------
+(objc:define-objc-class foo ()
+ ()
+ (:objc-class-name "FooView")
+ (:objc-superclass-name "NSView"))
+
+(objc:define-objc-method ("draggingEntered:" (:unsigned :int))
+   ((self foo)
+    (sender objc:objc-object-pointer))
+ (declare (ignore sender))
+ (push *bang* 'dragging-entered)
+ +ns-dragging-operation-copy+)
+
+(let* ((pane (contain (make-instance 'cocoa-view-pane :view-class "FooView")))
+      (representation (slot-value (capi-internals:representation
+pane) 'cc-lib::main-view)))
+ (@ representation "registerForDraggedTypes:"
+   (@ "NSArray" "arrayWithObject:" (cocoa:ns-string-pboard-type)))
+ representation)
+------
+
+I would appreciate any help at all in getting this to work.  Drag and drop
+is essential to this application, and if I can't get it to work I'll have
+to resort to something painful and drastic like writing a pure-Cocoa
+application.
+
+Bill Atkins
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Drag-n-drop + CAPI + OS X</h1>
+                 <pre>
+
+On Jan 29, 2007, at 1:10 AM, Bill Atkins wrote:
+
+&gt In an Objective-C application, I can write:
+&gt
+&gt    [textField registerForDraggedTypes:
+&gt           [NSArray arrayWithObjects: NSStringPboardType,
+&gt    NSFilenamesPboardType, nil]];
+&gt
+&gt and that text field will then accept strings and dropped files.  I
+&gt tried to do the equivalent operation in CAPI:
+&gt
+&gt    ;; from Raffael Cavallaro
+&gt    (defmacro @ (&amp;body body) `(objc:invoke ,@body))
+&gt
+&gt    (let* ((pane (contain (make-instance 'text-input-pane)))
+&gt           (representation (slot-value (capi-internals:representation
+&gt    pane) 'cc-lib::main-view)))
+&gt     (@ representation "registerForDraggedTypes:"
+&gt       (@ "NSArray" "arrayWithObject:" (cocoa:ns-string-pboard-type)))
+&gt     representation)
+&gt
+&gt but the text-input-pane displayed doesn't accept text or filenames.
+
+Sorry to be so long in replying to this - I put is aside when I was  
+busy and never got back to it. My tests indicate that this is an  
+issue with CAPI.
+
+If I:
+1. code up a simple capi:cocoa-view-pane with an NSTextView as its  
+view-class,
+2. call registerForDraggedTypes on its parent window from lispworks,
+  it doesn't accept text drags.
+
+However, if I:
+1. load a nib that has an NSTextView in lispworks,
+2. call registerForDraggedTypes on its parent window from lispworks,
+it accepts text drags from both within the window and from other  
+applications.
+
+I think that if you want other cocoa functionality that is not  
+included in CAPI by default, you may need to load your interfaces  
+from nibs.
+
+regards,
+
+Ralph
+
+Raffael Cavallaro, Ph.D.
+raffaelcavallaro@mac.com
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:43 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

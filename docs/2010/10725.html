@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>LW 5 vs 6 performance</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>LW 5 vs 6 performance</h1>
+                <pre>
+Hi there,
+
+have a look at this function which is supposed give the CPU some load (I  
+used it for SMP testing):
+
+(defun test nil
+   (loop repeat 1000 do (dotimes (x 2000000) (* 10 10))))
+
+Nothing strange, right?
+
+Not so. After compilation in LW5 the timing function produced the  
+following result:
+
+CL-USER 93 &gt (time (test))
+Timing the evaluation of (TEST)
+
+User time    =        1.294
+System time  =        0.000
+Elapsed time =        1.310
+Allocation   = 6112 bytes
+0 Page faults
+NIL
+
+
+
+The compiler output for the function looks like this:
+
+;;; Safety = 3, Speed = 1, Space = 1, Float = 1, Interruptible = 0
+;;; Compilation speed = 1, Debug = 2, Fixnum safety = 3
+;;; Source level debugging is on
+;;; Source file recording is  on
+;;; Cross referencing is on
+; (TOP-LEVEL-FORM 1)
+; TEST
+
+---- Press space to continue ----
+
+
+
+
+Yet for the LW6 the same compiled function appears to be a lot slower:
+
+CL-USER 22 &gt (time (test))
+Timing the evaluation of (TEST)
+
+User time    =        7.612
+System time  =        0.000
+Elapsed time =        7.620
+Allocation   = 58676 bytes
+0 Page faults
+NIL
+
+
+This is the compiler output on LW6. The difference is the INTERRUPTIBLE  
+parameter is set to 1, however I was unable to force it to switch to 0 by  
+using DECLARE.
+
+;;; Safety = 3, Speed = 1, Space = 1, Float = 1, Interruptible = 1
+;;; Compilation speed = 1, Debug = 2, Fixnum safety = 3
+;;; Source level debugging is on
+;;; Source file recording is  on
+;;; Cross referencing is on
+; TEST
+
+---- Press Space to continue ----
+
+
+Both of the functions seem to perform at comparable speeds when  
+interpreted, only the fifth reports more allocation. Where do I look?
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LW 5 vs 6 performance</h1>
+                 <pre>
+
+&gt Both of the functions seem to perform at comparable speeds when  
+&gt interpreted, only the fifth reports more allocation. Where do I look?
+
+You should probably try plugging this line into the both versions of your  
+functions:
+
+   (declare (optimize (speed 3) (compilation-speed 0) (safety 0) (debug 0)))
+
+In this case LW6 performs even slightly faster.
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:34 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

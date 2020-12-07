@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>objc and applescript</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>objc and applescript</h1>
+                <pre>
+I want to call AppleScript from LW Objective-C.
+
+What I have to do is about (from 
+https://developer.apple.com/library/mac/technotes/tn2084/_index.html):
+
+- (IBAction)addLoginItem:(id)sender
+{
+     NSDictionary* errorDict;
+     NSAppleEventDescriptor* returnDescriptor = NULL;
+
+     NSAppleScript* scriptObject = [[NSAppleScript alloc] initWithSource:
+                 @"\
+                 set app_path to path to me\n\
+                 tell application \"System Events\"\n\
+                 if \"AddLoginItem\" is not in (name of every login 
+item) then\n\
+                 make login item at end with properties {hidden:false, 
+path:app_path}\n\
+                 end if\n\
+                 end tell"];
+
+     returnDescriptor = [scriptObject executeAndReturnError: &amp;errorDict];
+     [scriptObject release];
+
+     if (returnDescriptor != NULL)
+     {
+         // successful execution
+         if (kAENullEvent != [returnDescriptor descriptorType])
+         {
+             // script returned an AppleScript result
+             if (cAEList == [returnDescriptor descriptorType])
+             {
+                  // result is a list of other descriptors
+             }
+             else
+             {
+                 // coerce the result to the appropriate ObjC type
+             }
+         }
+     }
+     else
+     {
+         // no script result, handle error here
+     }
+}
+
+My function looks like this
+
+(defun applescript (text)
+   (let (err
+         (nsas (objc:invoke (objc:invoke "NSAppleScript" "alloc") 
+"initWithSource:" text)))
+     (objc:invoke nsas "executeAndReturnError:" err)
+     (objc:release nsas)
+     err))
+
+and it works. I can execute AppleScript code. But I get no error 
+information back. I tried:
+
+
+(defun applescript (text)
+   (let ((err (objc:invoke (objc:invoke "NSDictionary" "alloc") "init"))
+         (nsas (objc:invoke (objc:invoke "NSAppleScript" "alloc") 
+"initWithSource:" text)))
+     (objc:invoke nsas "executeAndReturnError:" err)
+     (objc:release nsas)
+     err))
+
+But I get an error
+
+Error: #&lt;Pointer: OBJC:OBJC-OBJECT-POINTER = #x0015D400&gt cannot be 
+converted to foreign type (:POINTER OBJC:OBJC-OBJECT-POINTER).
+
+This makes no sense to me.
+
+[In a former life I tried to learn C and never completely grasped this 
+pointer stuff. In my later lisp life I am very happy that there are no 
+pointers at all.]
+
+Thanks for enlightment.
+
+~jens
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: objc and applescript</h1><html><head>
+<meta content="text/html; charset=ISO-8859-15" http-equiv="Content-Type">
+</head><body bgcolor="#FFFFFF" text="#000000">In the obj-c code you have
+ this:<br>
+<br>
+<span>NSDictionary* errorDict; 
+</span><br>
+<span>[scriptObject executeAndReturnError: &amp;errorDict]; 
+</span><br>
+<br>
+Notice that you are passing a pointer to the local stack address where a
+ pointer (*errorDict) is held; you are passing a pointer to a pointer.<br>
+<br>
+When you do:<br>
+<br>
+<span>(objc:invoke nsas "executeAndReturnError:" err)<br>
+  <br>
+Your 'err' variable is set to nil. While this is a valid 
+objc-object-pointer (it points to the obj-c value nil), it isn't a valid
+ pointer to one. And hence you get your error:<br>
+  <br>
+</span><span>#&lt;Pointer: OBJC:OBJC-OBJECT-POINTER = #x0015D400&gt; 
+cannot be 
+converted to foreign type (:POINTER OBJC:OBJC-OBJECT-POINTER). 
+  <br>
+  <br>
+What you need to do is create a pointer to an objc-object-pointer with 
+FLI:MAKE-POINTER first, and pass *that* to your function. Try something 
+like this:<br>
+  <br>
+(let ((err (fli:make-pointer :address 0 :type 
+'objc:objc-object-pointer)))<br>
+  (when (fli:null-pointer-p (objc:invoke nsas "executeAndReturnError:" 
+err))   ; check for error<br>
+    (let ((dict (fli:dereference err)<br>
+      (unwind-protect<br>
+          ;; dict is now an NSDictionary you can look at...<br>
+        (objc:release dict)))))<br>
+  <br>
+The above is untested as I'm not at my Mac to ensure that it works, but 
+if it doesn't it's on the right track and someone here will likely 
+correct me quickly. ;-)<br>
+  <br>
+Jeff M.<br>
+</span><br>
+<blockquote style="border: 0px none;" 
+cite="mid:53230D56.2010705@jensteich.de" type="cite">
+  <div style="margin:30px 25px 10px 25px;" class="__pbConvHr"><div 
+style="display:table;width:100%;border-top:1px solid 
+#EDEEF0;padding-top:5px"> 	<div 
+style="display:table-cell;vertical-align:middle;padding-right:6px;"><img
+ photoaddress="info@jensteich.de" photoname="Jens Teich" 
+src="cid:part1.02060600.05020007@gmail.com" 
+name="compose-unknown-contact.jpg" height="25px" width="25px"></div>   <div
+ 
+style="display:table-cell;white-space:nowrap;vertical-align:middle;width:100%">
+   	<a moz-do-not-send="true" href="mailto:info@jensteich.de" 
+style="color:#737F92 
+!important;padding-right:6px;font-weight:bold;text-decoration:none 
+!important;">Jens Teich</a></div>   <div 
+style="display:table-cell;white-space:nowrap;vertical-align:middle;">   
+  <font color="#9FA2A5"><span style="padding-left:6px">Friday, March 14,
+ 2014 9:08 AM</span></font></div></div></div>
+  <div style="color:#888888;margin-left:24px;margin-right:24px;" 
+__pbrmquotes="true" class="__pbConvBody">
+<br>I want to call AppleScript from LW Objective-C.
+<br>
+<br>What I have to do is about (from 
+<a class="moz-txt-link-freetext" href="https://developer.apple.com/library/mac/technotes/tn2084/_index.html">https://developer.apple.com/library/mac/technotes/tn2084/_index.html</a>):
+<br>
+<br>- (IBAction)addLoginItem:(id)sender
+<br>{
+<br>    NSDictionary* errorDict;
+<br>    NSAppleEventDescriptor* returnDescriptor = NULL;
+<br>
+<br>    NSAppleScript* scriptObject = [[NSAppleScript alloc] 
+initWithSource:
+<br>                @"\
+<br>                set app_path to path to me\n\
+<br>                tell application \"System Events\"\n\
+<br>                if \"AddLoginItem\" is not in (name of every login 
+item) then\n\
+<br>                make login item at end with properties 
+{hidden:false, 
+path:app_path}\n\
+<br>                end if\n\
+<br>                end tell"];
+<br>
+<br>    returnDescriptor = [scriptObject executeAndReturnError: 
+&amp;errorDict];
+<br>    [scriptObject release];
+<br>
+<br>    if (returnDescriptor != NULL)
+<br>    {
+<br>        // successful execution
+<br>        if (kAENullEvent != [returnDescriptor descriptorType])
+<br>        {
+<br>            // script returned an AppleScript result
+<br>            if (cAEList == [returnDescriptor descriptorType])
+<br>            {
+<br>                 // result is a list of other descriptors
+<br>            }
+<br>            else
+<br>            {
+<br>                // coerce the result to the appropriate ObjC type
+<br>            }
+<br>        }
+<br>    }
+<br>    else
+<br>    {
+<br>        // no script result, handle error here
+<br>    }
+<br>}
+<br>
+<br>My function looks like this
+<br>
+<br>(defun applescript (text)
+<br>  (let (err
+<br>        (nsas (objc:invoke (objc:invoke "NSAppleScript" "alloc") 
+"initWithSource:" text)))
+<br>    (objc:invoke nsas "executeAndReturnError:" err)
+<br>    (objc:release nsas)
+<br>    err))
+<br>
+<br>and it works. I can execute AppleScript code. But I get no error 
+information back. I tried:
+<br>
+<br>
+<br>(defun applescript (text)
+<br>  (let ((err (objc:invoke (objc:invoke "NSDictionary" "alloc") 
+"init"))
+<br>        (nsas (objc:invoke (objc:invoke "NSAppleScript" "alloc") 
+"initWithSource:" text)))
+<br>    (objc:invoke nsas "executeAndReturnError:" err)
+<br>    (objc:release nsas)
+<br>    err))
+<br>
+<br>But I get an error
+<br>
+<br>Error: #&lt;Pointer: OBJC:OBJC-OBJECT-POINTER = #x0015D400&gt; 
+cannot be 
+converted to foreign type (:POINTER OBJC:OBJC-OBJECT-POINTER).
+<br>
+<br>This makes no sense to me.
+<br>
+<br>[In a former life I tried to learn C and never completely grasped 
+this 
+pointer stuff. In my later lisp life I am very happy that there are no 
+pointers at all.]
+<br>
+<br>Thanks for enlightment.
+<br>
+<br>~jens
+<br>
+<br>_______________________________________________
+<br>Lisp Hug - the mailing list for LispWorks users
+<br><a class="moz-txt-link-abbreviated" href="mailto:lisp-hug@lispworks.com">lisp-hug@lispworks.com</a>
+<br><a class="moz-txt-link-freetext" href="http://www.lispworks.com/support/lisp-hug.html">http://www.lispworks.com/support/lisp-hug.html</a>
+<br>
+<br></div>
+</blockquote>
+</body></html>
+
+
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:30 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

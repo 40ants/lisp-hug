@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>What do we expect this to do?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>What do we expect this to do?</h1>
+                <p>
+                 Unable to parse email body. Email id is 11160
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: What do we expect this to do?</h1>
+                 <pre>
+Am 09.08.2011 um 16:05 schrieb Nick Levine &lt;ndl@ravenbrook.com&gt:
+
+&gt 
+&gt (with-open-file (out "~/tmp.txt" 
+&gt                     :direction :output 
+&gt                     :if-exists :supersede)
+&gt  (close out :abort t))
+&gt 
+
+1) In the name of simplicity:
+The original file content would be lost leaving just an empty file. It's open to the implementation, if this is a delete followed by a creation or if the original file gets truncated to zero.
+
+2) In the name of safety:
+W-O-F would Be like a transaction. If it is aborted there will be some kind of rollback which restores the original file. The result should be as if nothing happened. This could be done using some backup file concept.
+
+I personally am in favor of the simple option because it is closer to what most OSes offer and I think more complicated setups could also be defined on top of that.
+
+ciao,
+Jochen
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: What do we expect this to do?</h1>
+                 <pre>
+On 9 Aug 2011, at 15:05, Nick Levine wrote:
+
+&gt 
+&gt (with-open-file (out "~/tmp.txt" 
+&gt                     :direction :output 
+&gt                     :if-exists :supersede)
+&gt  (close out :abort t))
+&gt 
+
+
+If the filesystem supports it, the old file should still exist (or no file should exist if there was no old file), based on "The existing file is superseded; that is, a new file with the same name as the old one is created. If possible, the implementation should not destroy the old file until the new stream is closed." and the spec for CLOSE.
+
+If not, then I think that if there was no old file there should still (or again) be no file, and if there was then I'm not sure but I think that it probably should exist but the contents probably are not well-defined.
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: What do we expect this to do?</h1>
+                 <pre>Hello,
+
+
+On 9 août 2011, at 16:05, Nick Levine wrote:
+
+&gt (with-open-file (out "~/tmp.txt" 
+&gt                     :direction :output 
+&gt                     :if-exists :supersede)
+&gt  (close out :abort t))
+
+
+Has the close statement a real purpose?
+I thought that W-O-F would close the stream whenever control leaves the form.
+
+
+Camille
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>RE: What do we expect this to do?</h1>
+                 <pre>
+My first reaction was similar to your simplicity comment: "whether a prior file named ~/tmp.txt exists or not, only a zero content file ~/tmp.txt is left behind".
+
+However, the ":abort t" in the close got me thinking a bit more - maybe too much :) - about this.
+
+So, my second, possibly way incorrect, reaction is now: "whether a prior file ~/tmp.txt exists or not, nothing is left behind - if a prior file existed, it is removed."
+
+So, the function acts like a file delete.
+
+Might be a bit too harsh an interpretation for safety!  :)
+
+Z
+
+-----Original Message-----
+From: owner-lisp-hug@lispworks.com [mailto:owner-lisp-hug@lispworks.com] On Behalf Of Jochen Schmidt
+Sent: Tuesday, August 09, 2011 7:35 AM
+To: Nick Levine
+Cc: lisp-hug@lispworks.com
+Subject: Re: What do we expect this to do?
+
+
+Am 09.08.2011 um 16:05 schrieb Nick Levine &lt;ndl@ravenbrook.com&gt:
+
+&gt 
+&gt (with-open-file (out "~/tmp.txt" 
+&gt                     :direction :output 
+&gt                     :if-exists :supersede)  (close out :abort t))
+&gt 
+
+1) In the name of simplicity:
+The original file content would be lost leaving just an empty file. It's open to the implementation, if this is a delete followed by a creation or if the original file gets truncated to zero.
+
+2) In the name of safety:
+W-O-F would Be like a transaction. If it is aborted there will be some kind of rollback which restores the original file. The result should be as if nothing happened. This could be done using some backup file concept.
+
+I personally am in favor of the simple option because it is closer to what most OSes offer and I think more complicated setups could also be defined on top of that.
+
+ciao,
+Jochen
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: What do we expect this to do?</h1>
+                 <p>
+                  Unable to parse email body. Email id is 11165
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>RE: What do we expect this to do?</h1>
+                 <pre>
+&gt So by my reckoning, LW (LWW 6.0.1) gets this wrong.
+
+What does LWW 6.0.1 do specifically? With and without the prior existence of the file?
+
+Z
+
+-----Original Message-----
+From: owner-lisp-hug@lispworks.com [mailto:owner-lisp-hug@lispworks.com] On Behalf Of Nick Levine
+Sent: Tuesday, August 09, 2011 7:57 AM
+To: Nick Levine
+Cc: lisp-hug@lispworks.com
+Subject: Re: What do we expect this to do?
+
+
+&gt Date: Tue, 9 Aug 2011 15:05:11 +0100 (BST)
+&gt From: Nick Levine &lt;ndl@ravenbrook.com&gt
+&gt 
+&gt (with-open-file (out "~/tmp.txt" 
+&gt                      :direction :output 
+&gt                      :if-exists :supersede)
+&gt   (close out :abort t))
+
+Interesting range of answers. 
+
+The spec for close reads: "If abort is true, an attempt is made to clean up any side effects of having created stream. If stream performs output to a file that was created when the stream was created, the file is deleted and any previously existing file is not superseded."
+
+Although the last sentence is not optimally punctuated I think the meaning is clear: if the file didn't exist before it shouldn't exist after; if it did exist before it should not be superseded. So by my reckoning, LW (LWW 6.0.1) gets this wrong.
+
+(Fwiw, I found two other lisps to try this out on. ECL did the same thing as LW, and if the file pre-existed then CCL hit an error on the outer close.)
+
+- n
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: What do we expect this to do?</h1>
+                 <p>
+                  Unable to parse email body. Email id is 11168
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>RE: What do we expect this to do?</h1>
+                 <pre>
+Thanks!
+
+Z
+
+-----Original Message-----
+From: Nick Levine [mailto:ndl@ravenbrook.com] 
+Sent: Tuesday, August 09, 2011 1:19 PM
+To: Syed Zaeem Hosain (Syed.Hosain@aeris.net)
+Cc: lisp-hug@lispworks.com
+Subject: Re: What do we expect this to do?
+
+&gt What does LWW 6.0.1 do specifically? With and without the prior existence of the file?
+
+It ignores the :abort t.
+
+- n
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>RE: What do we expect this to do?</h1>
+                 <pre>
+Sounds like it is somewhat implementation dependent then. I always get concerned about those differences ... :(
+
+Some of my confused questions about the requirement(?) to keep the original file intact (if it exists) when :abort t is used:
+
+	1. What if there had been some output to that file before the close? Does this go into a buffer (memory?, file?) somewhere? What happens if that buffer (if in memory) overflows?
+
+	2. What happens if there had been *lots* of output to that file before the close? Large enough to avoid having it in a memory buffer for file I/O?
+
+	3. If any pre-existing file is not "written over" till a close occurs (even if I use :if-exists :supersede in the with-open-file), what happens if the program exits/crashes before the close (regardless of :abort t) executes? Does this mean that the output is in some unknown location? In a memory buffer? Or is it expected that the OS must clean up and remove a file that was not "properly" closed?
+
+Programs write [temporary] files for good reason. If you all will pardon my use of C analogies here in a Lisp mailing list, I have used fflush() to get output flushed from buffers so that I can examine what is happening *during* execution. And there are darn good reasons for the existence of tmpnam(....) and tmpfile(void) for example! :)
+
+So, I may be wrong, but I think simplicity is best. Hence, my expectation is:
+
+	1. If the file already exists, then it is going to be over-written when with-open-file is called and the file is opened for write - *regardless* of whether the :abort t is used (or not) with a later close.
+
+	2. If the close has an :abort t, then the file is removed - regardless of *any* intervening output to it. An alternative (not as good, imho) would be to truncate the file to zero bytes - regardless of any output to it.
+
+Then it is my responsibility to not over-write existing files if I want them to hang around - regardless of whether I use an :abort t or not.
+
+In situations where I want the new file to not over-write any original file till finally closed, it is also my responsibility to the process of writing to a temporary file, closing it and then copying over to any pre-existing original.
+
+On the whole, I guess I simply do not like how :abort t is "supposed" to work. :)
+
+Z
+
+-----Original Message-----
+From: owner-lisp-hug@lispworks.com [mailto:owner-lisp-hug@lispworks.com] On Behalf Of Chris Riesbeck
+Sent: Wednesday, August 10, 2011 7:27 AM
+To: lisp-hug@lispworks.com
+Subject: Re: What do we expect this to do?
+
+
+On 8/9/2011 9:57 AM, Nick Levine wrote:
+&gt&gt Date: Tue, 9 Aug 2011 15:05:11 +0100 (BST)
+&gt&gt From: Nick Levine&lt;ndl@ravenbrook.com&gt
+&gt&gt
+&gt&gt (with-open-file (out "~/tmp.txt"
+&gt&gt                       :direction :output
+&gt&gt                       :if-exists :supersede)
+&gt&gt    (close out :abort t))
+&gt
+&gt (Fwiw, I found two other lisps to try this out on. ECL did the same 
+&gt thing as LW, and if the file pre-existed then CCL hit an error on the 
+&gt outer close.)
+&gt
+Allegro 8.0 creates an empty tmp.txt if none existed and replaces a non-empty one with an empty tmp.txt. if one does exist.
+
+--
+Chris Riesbeck
+
+Home page: http://www.cs.northwestern.edu/~riesbeck/
+Calendar: http://calendar.yahoo.com/criesbeck
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>RE: What do we expect this to do?</h1>
+                 <pre>
+Hi, Tim.
+
+&gt On 10 Aug 2011, at 19:03, Syed Zaeem Hosain (Syed.Hosain@aeris.net) wrote:
+&gt &gt Some of my confused questions about the requirement(?) to keep the original file intact (if it exists) when :abort t is used:
+
+Tim Bradshaw wrote:
+&gt I'm fairly sure that the intent of the specification was that some filesystems may support this kind of behaviour natively.  Not all filesystems are as simple-minded as the traditional Unix semantics (not even all Unix filesystems, in fact).
+
+Understood and I guess I do agree - to a point. :)
+
+I guess my problem is that system-specific behavior in one OS/environment (to which the developers code to) might cause portability problems to others.. This may not cause problems immediately, but has the usual longer-term support issues - when the original developers are no longer on the code and the app needs to be migrated to another environment, or bugs fixed, etc., etc., etc.
+
+Then, implementation-specific or system-specific behavior has a tendency to cause support issues.
+
+But, if portability is not required for a particular application, then my comments are not valid - however, after 33+ years of watching marketing requirements change, I get leery of support issues easily! :)
+
+Perhaps I should ask a different set of curiosity questions (particularly to Nick, who I think originally sent this topic):
+
+	1. What are your _actual deployed_ use cases where the "keep the original file intact when I use :abort t" is a good feature to have?
+
+	2. Have you (or others) found this to be a useful capability in applications that you have deployed?
+
+Thanks much for bearing with my opinionated comments here, btw!
+
+Z
+
+-----Original Message-----
+From: Tim Bradshaw [mailto:tfb@cley.com] 
+Sent: Wednesday, August 10, 2011 1:50 PM
+To: Syed Zaeem Hosain (Syed.Hosain@aeris.net)
+Cc: Chris Riesbeck; lisp-hug@lispworks.com
+Subject: Re: What do we expect this to do?
+
+On 10 Aug 2011, at 19:03, Syed Zaeem Hosain (Syed.Hosain@aeris.net) wrote:
+
+&gt Some of my confused questions about the requirement(?) to keep the original file intact (if it exists) when :abort t is used:
+&gt [...]
+
+I'm fairly sure that the intent of the specification was that some filesystems may support this kind of behaviour natively.  Not all filesystems are as simple-minded as the traditional Unix semantics (not even all Unix filesystems, in fact).
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: What do we expect this to do?</h1>
+                 <p>
+                  Unable to parse email body. Email id is 11174
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:33 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

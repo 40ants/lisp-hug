@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>comm:open-tcp-socket returning nil</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>comm:open-tcp-socket returning nil</h1>
+                <pre>
+On OS X I'm getting a situation where open-tcp-socket is returning nil 
+when (I assume) I try and open too many sockets at once in parallel 
+processes. Is there a limit that's built into LW? I can mitigate this by 
+using a semaphore and limiting the number of open sockets to - say - 
+20-ish, but this is terrible and not even close to the ulimit set by the 
+file system for open handles.
+
+So, I'm curious as to whether or not there is a hard-limit of # sockets 
+that can be opened at once in LW? If so, what is that limit (and can I 
+increase it)? If not, what could be causing open-tcp-socket to return 
+nil? Note that I've ruled out a bad server/host; if I set the semaphore 
+count to something super small (like 10) then all connections eventually 
+work once they can grab hold of it.
+
+Jeff M.
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: comm:open-tcp-socket returning nil</h1>
+                 <pre>
+Hi Jeff,
+
+On 22 nov. 2013, at 14:38, Jeffrey Massung &lt;massung@gmail.com&gt wrote:
+
+&gt On OS X I'm getting a situation where open-tcp-socket is returning nil when (I assume) I try and open too many sockets at once in parallel processes. Is there a limit that's built into LW? I can mitigate this by using a semaphore and limiting the number of open sockets to - say - 20-ish, but this is terrible and not even close to the ulimit set by the file system for open handles.
+&gt 
+&gt So, I'm curious as to whether or not there is a hard-limit of # sockets that can be opened at once in LW? If so, what is that limit (and can I increase it)? If not, what could be causing open-tcp-socket to return nil? Note that I've ruled out a bad server/host; if I set the semaphore count to something super small (like 10) then all connections eventually work once they can grab hold of it.
+
+As you said, this seems well under OS X’s limits.
+I’d be surprised if LispWorks had such a low limit too!
+
+Have you had a look at the previous sockets state? (lsof -i)
+There is an interesting article about this here:
+http://superuser.com/questions/145989/does-mac-os-x-throttle-the-rate-of-socket-creation
+
+
+Best,
+Cam
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: comm:open-tcp-socket returning nil</h1>
+                 <pre>
+On 22 Nov 2013, at 13:38, Jeffrey Massung wrote:
+
+&gt On OS X I'm getting a situation where open-tcp-socket is returning nil when (I assume) I try and open too many sockets at once in parallel processes. Is there a limit that's built into LW? I can mitigate this by using a semaphore and limiting the number of open sockets to - say - 20-ish, but this is terrible and not even close to the ulimit set by the file system for open handles.
+
+I presume you mean open-tcp-stream?
+
+If so, are you opening a lot of connections to the same port on the same machine rather quickly?  You may be overwhelming its listen backlog in that case which will cause connections to be dropped.  The maximum backlog you can have is 128 on OSX I think.  if the server is written in LW then I can't see how to control the backlog at all, so presumably you get whatever is hardwired (or I am missing something in the documentation, which is quite likely).
+
+--tim
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: comm:open-tcp-socket returning nil</h1>
+                 <pre>
+
+* Tim Bradshaw &lt;8181E842-6456-41A5-84FB-AD13C71A57FA@cley.com&gt :
+Wrote on Sat, 23 Nov 2013 17:49:21 +0000:
+
+| The maximum backlog you can have is 128 on OSX I think.  if the server
+| is written in LW then I can't see how to control the backlog at all,
+| so presumably you get whatever is hardwired (or I am missing something
+| in the documentation, which is quite likely).
+
+I think this is a concern in both the COMM and MP[1] packages.  A lot of
+important often crucial functionality is available only in unexported
+symbols for which there is no open documentation.  However one would
+have assumed that they were just not available; unless one gives credit
+to LW and then reasons from there that these are basic issues and must
+have been solved at some point.  Perhaps there is an alternative way of
+discovering these functions.
+
+[Of course these are necessarily platform/OS dependenet issues, and no
+ doubt the devs havd good reasons for `deprecating' them and disclaiming
+ support.  ---Madhu
+
+[1] maybe to a lesser extent now as the OS/hardware landscape
+converges..
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: comm:open-tcp-socket returning nil</h1>
+                 <p>
+                  Unable to parse email body. Email id is 12645
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:30 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

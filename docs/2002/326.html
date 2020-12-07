@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>graphs with labelled edges</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>graphs with labelled edges</h1>
+                <pre>I would like to be able to draw graphs which have labels on their
+edges.  There are two problems I don't know how to solve:
+
+1. Is there any easy way using CAPI:GRAPH-PANE to label edges in the
+   graph?  I guess I need to do something with :EDGE-PINBOARD-CLASS,
+   but I'm not sure what!
+
+2. Is there any way to make it be so that if there are two edges
+   between a pair of nodes (so the same node appears twice in the
+   children) that two edges are drawn?  This seems to me to be very
+   hard as they need to avoid each other, and I can live without this
+   by preprocessing the graph to make there just be one child with a
+   the edge having label which is all the labels combined.
+
+Is there any other grapher anyone knows of which could do (2)?
+
+Thanks
+
+--tim
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: graphs with labelled edges</h1>
+                 <pre>&gt From: "Tim Bradshaw" &lt;tfb@cley.com&gt
+&gt Sent: Tuesday, April 30, 2002 10:54 PM
+&gt Subject: graphs with labelled edges
+&gt
+&gt I would like to be able to draw graphs which have labels on their
+&gt edges.  There are two problems I don't know how to solve:
+&gt
+&gt 1. Is there any easy way using CAPI:GRAPH-PANE to label edges in the
+&gt    graph?  I guess I need to do something with :EDGE-PINBOARD-CLASS,
+&gt    but I'm not sure what!
+
+Since the labels may extend beyond the bounding rectangle of the
+edge, I think you need to create a separate pinboard object for
+the label.
+
+The following code might get you started:
+
+_________________________________________________________________
+
+(defun node-children (node)
+  (when (&lt; node 16)
+    (list (* node 2)
+          (1+ (* node 2)))))
+
+(defvar *edges*) ; a list of triplets of the form
+                 ; (from-data to-data line-pinboard-object)
+
+(defun my-make-edge (pinboard from to)
+  (let* ((edge (make-instance 'capi:line-pinboard-object)))
+    (push (list from to edge) *edges*)
+    edge))
+
+(defun make-labelled-graph ()
+  (let* ((*edges* '())
+         (graph (capi:contain
+                 (make-instance 'capi:graph-pane
+                                :roots '(1)
+                                :edge-pane-function 'my-make-edge
+                                :children-function 'node-children)
+                 :best-width 300
+                 :best-height 400
+                 :process nil ; so that dynamic binding of *edges* is
+not lost
+                 )))
+    (loop for x in *edges*
+          do (let* ((label (capi:with-geometry (third x)
+                             (make-instance
+                              'capi:item-pinboard-object
+                              :text (format nil "~S-~S"
+                                            (first x)
+                                            (second x))
+                              :x (+ capi:%x%
+                                    (/ capi:%width% 2))
+                              :y (+ capi:%y%
+                                    (/ capi:%height% 2))))))
+               (capi:manipulate-pinboard graph
+                                         label
+                                         :add-top)))))
+
+(make-labelled-graph)
+
+_________________________________________________________________
+
+
+&gt 2. Is there any way to make it be so that if there are two edges
+&gt    between a pair of nodes (so the same node appears twice in the
+&gt    children) that two edges are drawn?  This seems to me to be very
+&gt    hard as they need to avoid each other, and I can live without
+&gt    this
+&gt    by preprocessing the graph to make there just be one child with a
+&gt    the edge having label which is all the labels combined.
+&gt
+&gt Is there any other grapher anyone knows of which could do (2)?
+
+No ideas here.
+
+&gt
+&gt Thanks
+&gt
+&gt --tim
+
+Simon.
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:58 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

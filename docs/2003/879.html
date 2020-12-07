@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>WIN32 Registry anyone?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>WIN32 Registry anyone?</h1>
+                <pre>Hi!
+
+Could somebody out there provide some sample code for accessing Windows 
+registry keys with LWW? I see a couple of relevant functions exported 
+from the WIN32 package but haven't yet figured out how to use them.
+
+Thanks,
+Edi.
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: WIN32 Registry anyone?</h1>
+                 <pre>I wrote:
+
+&gt Could somebody out there provide some sample code for accessing Windows 
+&gt registry keys with LWW? I see a couple of relevant functions exported 
+&gt from the WIN32 package but haven't yet figured out how to use them.
+
+OK, here are some things I've found out by playing in the listener. Of
+course, this comes without any warranty and you shouldn't try this at
+home. However, until Xanalys is going to release more documentation -
+probably in the next release -, you might save a few minutes by
+reading this.
+
+This was tested with LispWorks 4.2.7 pro on Windows XP pro.
+
+The following registry-related symbols are exported from the WIN32
+package. WITH-REGISTRY-KEY is a macro, the other ones are functions.
+
+   close-registry-key
+   collect-registry-subkeys
+   create-registry-key
+   delete-registry-key
+   enum-registry-value
+   open-registry-key
+   query-registry-key-info
+   query-registry-value
+   registry-value
+   set-registry-value
+   with-registry-key
+
+All of this seems to be a thin wrapper around FLI calls which is
+exemplified by the fact that the first value of, e.g., calling
+OPEN-REGISTRY-KEY is a fixnum. It certainly helps if you know a thing
+or two about the WIN32 registry C API.
+
+To simply read a key's value from the registry you can use
+QUERY-REGISTRY-VALUE:
+
+   CL-USER 211 &gt (win32:query-registry-value 
+"Software\\Xanalys\\LispWorks\\4\\2\\Environment\\LISPWORKS-TOOLS\\GLOBAL-DEFAULTS\\" 
+"Init Filename")
+   "\"C:\\\\cygwin\\\\home\\\\edi\\\\.lispworks\""
+   T
+
+The first argument is a path to the key starting from the root key
+(see below), the second one is the name of the key.
+
+The function accepts a keyword argument :ROOT which describes where
+the path will start from. This can be an already open key or it can be
+a symbol from the keyword package denoting one of the root keys. By
+trial and error I found out that the following keyword symbols are
+acceptable:
+
+   :ROOT for HKEY_CLASSES_ROOT
+   :USER for HKEY_CURRENT_USER
+   :LOCAL-MACHINE for HKEY_LOCAL_MACHINE
+   :USERS for HKEY_USERS
+
+No idea if there are others. :USER seems to be the default value.
+
+Here's an example on how to use an already open key which also
+showcases the WITH-REGISTRY-KEY macro:
+
+   CL-USER 212 &gt (win32:with-registry-key (system-key 
+"HARDWARE\\DESCRIPTION\\System\\" :root :local-machine)
+                   (win32:query-registry-value "CentralProcessor\\0\\" 
+"ProcessorNameString" :root system-key))
+   "Intel(R) Pentium(R) III Mobile CPU      1200MHz"
+   T
+
+Use NIL as the path if the root key is already where you wanted to go:
+
+   CL-USER 218 &gt (win32:with-registry-key (processor-key 
+"HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0\\" :root :local-machine)
+                   (win32:query-registry-value nil "ProcessorNameString" 
+:root processor-key))
+   "Intel(R) Pentium(R) III Mobile CPU      1200MHz"
+   T
+
+Use NIL as the key's name if you want to get at the default value:
+
+   CL-USER 219 &gt (win32:query-registry-value ".html" nil :root :root)
+   "MozillaHTML"
+   T
+
+As you might have expected this is all case-insensitive:
+
+   CL-USER 213 &gt (win32:query-registry-value 
+"HARDWARE\\DESCRIPTION\\SYSTEM\\CentralProcessor\\0\\" 
+"PROCESSORNAMESTRING" :root :local-machine)
+   "Intel(R) Pentium(R) III Mobile CPU      1200MHz"
+   T
+
+Another keyword argument is ERRORP the use of which should be obvious:
+
+   CL-USER 223 &gt (win32:query-registry-value ".htmlx" nil :root :root)
+
+   Error: Failed to open registry subkey .htmlx (type ROOT) - Win32 
+Error #x2.
+     1 (abort) Return to level 0.
+     2 Return to top loop level 0.
+
+   Type :b for backtrace, :c &lt;option number&gt to proceed,  or :? for 
+other options
+
+   CL-USER 224 : 1 &gt :a
+
+   CL-USER 225 &gt (win32:query-registry-value ".htmlx" nil :root :root 
+:errorp nil)
+   NIL
+
+COLLECT-REGISTRY-SUBKEYS will allow you to descend into the registry
+tree:
+
+   CL-USER 226 &gt (win32:collect-registry-subkeys ".html" :root :root)
+   ("OpenWithList" "PersistentHandler")
+
+OPEN-REGISTRY-KEY basically accepts the same arguments as
+QUERY-REGISTRY-VALUE except for the key's name. This function has its
+counterpart in CLOSE-REGISTRY-KEY.
+
+   CL-USER 231 &gt (win32:open-registry-key ".html" :root :root)
+   310
+   T
+
+   CL-USER 232 &gt (win32:close-registry-key 310)
+   0
+
+It's probably wiser to use the WITH-REGISTRY-KEY macro. If you
+macroexpand this macro you'll also get a hint at what the second
+return value of OPEN-REGISTRY-KEY is supposed to mean:
+
+   CL-USER 240 &gt (pprint (macroexpand-1 '(win32:with-registry-key 
+(my-key ".html" :root :root) my-body)))
+
+   (MULTIPLE-VALUE-BIND (MY-KEY #:CLOSEP612)
+       (WIN32:OPEN-REGISTRY-KEY ".html" :ROOT :ROOT :ERRORP T)
+     (WHEN MY-KEY (UNWIND-PROTECT (PROGN MY-BODY) (WHEN #:CLOSEP612 
+(WIN32::REG-CLOSE-KEY MY-KEY)))))
+
+Now, if you want to go wild and create, change and delete registry
+entries, here are some more examples:
+
+   CL-USER 241 &gt (win32:create-registry-key "Foo" :root :user)
+   312
+   :CREATED-NEW-KEY
+
+   CL-USER 242 &gt (win32:create-registry-key "Foo" :root :user)
+   308
+   :OPEND-EXISTING-KEY ;;; sic!
+
+   CL-USER 243 &gt (setf (win32:registry-value "Foo" "Bar" :root :user 
+:expected-type :integer) 42)
+   0
+
+   CL-USER 244 &gt (setf (win32:registry-value "Foo" "Baz" :root :user 
+:expected-type :string) "Frob")
+   0
+
+   CL-USER 245 &gt (win32:registry-value "Foo" "Bar" :root :user 
+:expected-type :integer)
+   42
+   T
+
+   CL-USER 246 &gt (win32:enum-registry-value "Foo" 0 :root :user)
+   "Bar"
+   :INTEGER
+   42
+
+   CL-USER 247 &gt (win32:registry-value "Foo" "Bar" :root :user)
+   42
+   T
+
+   CL-USER 248 &gt (win32:delete-registry-key "Foo" :root :user)
+   T
+
+For the EXPECTED-TYPE keyword above the following list might come in
+handy.
+
+   CL-USER 252 &gt (pprint win32::*registry-type-values*)
+
+   ((:NONE . 0)
+    (:STRING . 1)
+    (:ENVIRONMENT-STRING . 2)
+    (:BINARY . 3)
+    (:INTEGER . 4)
+    (:LITTLE-ENDIAN-INTEGER . 4)
+    (:BIG-ENDIAN-INTEGER . 5)
+    (:SYMBOLIC-LINK . 6)
+    (:STRING-ARRAY . 7)
+    (:RESOURCE-LIST . 8)
+    (:HARDWARE-RESOURCE-LIST . 9))
+
+That's it for now. I can only repeat what you already know: Playing
+with the Windows Registry is _very_ dangerous and you shouldn't rely
+on anything I've written here. I'd be happy if someone who knows more
+about this would chime in.
+
+Cheers,
+Edi.
+
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: WIN32 Registry anyone?</h1>
+                  <p>
+                   Unable to parse email body. Email id is 882
+                 </article>
+                </section>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: WIN32 Registry anyone?</h1>
+                 <pre>[ Edi Weitz ]
+
+&gt Could somebody out there provide some sample code for accessing
+&gt Windows registry keys with LWW? I see a couple of relevant functions
+&gt exported from the WIN32 package but haven't yet figured out how to use
+&gt them.
+
+I use win32::registry-value for registry access like this:
+
+    (win32::registry-value
+     *register*
+     *key-name*
+     :expected-type :lisp-object
+     :errorp nil)
+
+If *register* is "SOFTWARE\\Foo\\Bar" (according to other keys I think
+Foo should be vendor name and Bar program name, or somesuch) and
+*key-name* is "Gazonk" this ends up in the current user part of
+registry in the key Foo\Bar\Gazonk.
+
+This function is setf-able, which is how I store things.
+
+
+Martin
+-- 
+"An ideal world is left as an exercise to the reader."
+                                                 -Paul Graham, On Lisp
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:56 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

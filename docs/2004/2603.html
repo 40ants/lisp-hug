@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>COM:MIDL problems</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>COM:MIDL problems</h1>
+                <pre>Hi
+
+I am trying to compile the an IDL file for the Adobe SVG Viewer (the 
+file is attached, I found it on the net at 
+http://www.svg.org/wiki/index.php/AsvIDL)
+
+However I get the following error:
+
+&gt CL-USER 9 &gt (midl "ASVGViewer.idl" :depth 1)
+&gt ;;; Processing ASVGViewer.idl
+&gt 
+&gt Error: [z:\lang\cl\ASVGViewerLW\ASVGViewer.idl:44]: Unexpected symbol "IDispatch"
+&gt Skipping rest of statement.
+&gt 
+&gt **++++ Error between functions:
+&gt   :ERROR is not of type CONS.
+&gt ; *** 1 error detected, no fasl file produced.
+&gt NIL
+&gt ((NIL #&lt;TYPE-ERROR 205EA1A4&gt))
+&gt T
+
+This is for LWW 4.2.7.
+
+Does anybody have an idea about what is going wrong?
+
+Thanks
+
+--
+Marco Antoniotti
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: COM:MIDL problems</h1>
+                 <p>
+                  Unable to parse email body. Email id is 2604
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: COM:MIDL problems</h1>
+                 <pre>Hi Marco,
+
+I can get you further and maybe some of what I show
+you will help you get the rest of the way. 
+
+At the top of the file:
+
+import "ocidl.idl";
+
+There may be a much better import file to use. That's
+one I needed before and it clears up a lot of issues
+for your file but may be overkill, or may still be
+missing something you need. I say that because to
+continue "making progress", you can comment out lines
+in the idl file, including all lines with 'single':
+
+//        HRESULT DefaultFontSize([out, retval]
+single* pVal);
+
+Two lines with 'custom' at the top:
+
+//  custom(DE77BA64-517C-11D1-A2DA-0000F8773CE9,
+83951780),
+//  custom(DE77BA63-517C-11D1-A2DA-0000F8773CE9,
+1004130005)
+
+That gets you as far as:
+
+....
+;; Typedef LPSPECIFYPROPERTYPAGES as
+LPSPECIFYPROPERTYPAGES
+;; Struct tagCAUUID as TAG-CAUUID
+;;   Struct field cElems as C-ELEMS
+;;   Struct field pElems as P-ELEMS
+;; Typedef CAUUID as CAUUID
+;; Typedef LPCAUUID as LPCAUUID
+;; Interface ISpecifyPropertyPages as
+I-SPECIFY-PROPERTY-PAGES
+;;   method GetPages as GET-PAGES
+;; Typedef LPPERSISTMEMORY as LPPERSISTMEMORY
+
+
+
+**++++ Error between functions:
+  Unknown parent interface I-PERSIST.
+; *** 1 error detected, no fasl file produced.
+NIL
+((NIL #&lt;SIMPLE-ERROR 2067716C&gt) ((SUBFUNCTION (DEFUN
+|COM Member : (I-ENUM-CONNECTIONS NEXT) wrapper|)
+(SUBFUNCTION |COM Member : (I-ENUM-CONNECTIONS NEXT)
+wrap...
+
+I would search in the Visual C include directory for
+I-PERSIST, or search in directories with IDL files, to
+do additional imports, or determine if I really need
+whatever is referring to I-PERSIST and remove it if I
+don't need it. 
+
+I've also done copy/paste to manually do the 'include'
+or 'import'. Lispworks seems to choke sometimes. I
+have seen IDL files with a lot of syntax in them that
+Lispworks didn't like but which wasn't related to what
+I needed, so making my own copy and removing the
+unneeded syntax was a workaround.
+
+I hope this helps. I am very interested, if you make
+further progress, to know what you learn. I hope you,
+or anyone else working with COM in LWW, don't mind
+posting a bit about tips, techniques, or even a
+working sample or two.
+
+Jeff
+
+
+
+--- Marco Antoniotti &lt;marcoxa@cs.nyu.edu&gt wrote:
+&gt Hi
+&gt 
+&gt I am trying to compile the an IDL file for the Adobe
+&gt SVG Viewer (the 
+&gt file is attached, I found it on the net at 
+&gt http://www.svg.org/wiki/index.php/AsvIDL)
+&gt 
+&gt However I get the following error:
+&gt 
+&gt &gt CL-USER 9 &gt (midl "ASVGViewer.idl" :depth 1)
+&gt &gt ;;; Processing ASVGViewer.idl
+&gt &gt 
+&gt &gt Error:
+&gt [z:\lang\cl\ASVGViewerLW\ASVGViewer.idl:44]:
+&gt Unexpected symbol "IDispatch"
+&gt &gt Skipping rest of statement.
+&gt &gt 
+&gt &gt **++++ Error between functions:
+&gt &gt   :ERROR is not of type CONS.
+&gt &gt ; *** 1 error detected, no fasl file produced.
+&gt &gt NIL
+&gt &gt ((NIL #&lt;TYPE-ERROR 205EA1A4&gt))
+&gt &gt T
+&gt 
+&gt This is for LWW 4.2.7.
+&gt 
+&gt Does anybody have an idea about what is going wrong?
+&gt 
+&gt Thanks
+&gt 
+&gt --
+&gt Marco Antoniotti
+&gt &gt // typelib filename: NPSVG3.dll
+&gt 
+&gt [
+&gt   uuid(8415B62C-3C1B-416E-B5D7-40D983A9FA50),
+&gt   version(3.0),
+&gt   helpstring("SVGActiveX 3.0 Type Library"),
+&gt   custom(DE77BA64-517C-11D1-A2DA-0000F8773CE9,
+&gt 83951780),
+&gt   custom(DE77BA63-517C-11D1-A2DA-0000F8773CE9,
+&gt 1004130005)
+&gt 
+&gt ]
+&gt library SVGACTIVEXLib
+&gt {
+&gt     // TLib :     // TLib : OLE Automation :
+&gt {00020430-0000-0000-C000-000000000046}
+&gt     importlib("Stdole2.tlb");
+&gt 
+&gt     // Forward declare all types defined in this
+&gt typelib
+&gt     dispinterface _ISVGControlEvents;
+&gt     interface ISVGControl;
+&gt 
+&gt     [
+&gt       uuid(BD719F6D-BC21-4435-9BA1-AFD2F73E22B2),
+&gt       helpstring("_ISVGControlEvents Interface")
+&gt     ]
+&gt     dispinterface _ISVGControlEvents {
+&gt         properties:
+&gt         methods:
+&gt     };
+&gt 
+&gt     [
+&gt       uuid(377B5106-3B4E-4A2D-8520-8767590CAC86),
+&gt       helpstring("SVGCtl Class")
+&gt     ]
+&gt     coclass SVGCtl {
+&gt         [default] interface ISVGControl;
+&gt     };
+&gt 
+&gt     [
+&gt       odl,
+&gt       uuid(41066AF3-53A3-4C67-83AC-14688B13B31E),
+&gt       helpstring("ISVGControl Interface"),
+&gt       dual,
+&gt       oleautomation
+&gt     ]
+&gt     interface ISVGControl : IDispatch {
+&gt         [id(0x00000014), propget,
+&gt helpstring("property SRC")]
+&gt         HRESULT SRC([out, retval] BSTR* pVal);
+&gt         [id(0x00000014), propput,
+&gt helpstring("property SRC")]
+&gt         HRESULT SRC([in] BSTR pVal);
+&gt         [id(0x60020002), helpstring("gets the src")]
+&gt         HRESULT getSrc([out, retval] BSTR* pVal);
+&gt         [id(0x60020003), helpstring("sets the src")]
+&gt         HRESULT setSrc([in] BSTR newVal);
+&gt         [id(0xfffffdf3), propget, helpstring("Stock
+&gt property ReadyState")]
+&gt         HRESULT ReadyState([out, retval] long*
+&gt pnReadyState);
+&gt         [id(0x00000065), helpstring("method
+&gt reload")]
+&gt         HRESULT reload();
+&gt         [id(0x00000002), propget,
+&gt helpstring("property DefaultFontFamily")]
+&gt         HRESULT DefaultFontFamily([out, retval]
+&gt BSTR* pVal);
+&gt         [id(0x00000002), propput,
+&gt helpstring("property DefaultFontFamily")]
+&gt         HRESULT DefaultFontFamily([in] BSTR pVal);
+&gt         [id(0x60020008),
+&gt helpstring("getDefaultFontFamily")]
+&gt         HRESULT getDefaultFontFamily([out, retval]
+&gt BSTR* pVal);
+&gt         [id(0x60020009),
+&gt helpstring("setDefaultFontFamily")]
+&gt         HRESULT setDefaultFontFamily([in] BSTR
+&gt newVal);
+&gt         [id(0x00000003), propget,
+&gt helpstring("property DefaultFontSize")]
+&gt         HRESULT DefaultFontSize([out, retval]
+&gt single* pVal);
+&gt         [id(0x00000003), propput,
+&gt helpstring("property DefaultFontSize")]
+&gt         HRESULT DefaultFontSize([in] single pVal);
+&gt         [id(0x6002000c),
+&gt helpstring("getDefaultFontSize")]
+&gt         HRESULT getDefaultFontSize([out, retval]
+&gt single* pVal);
+&gt         [id(0x6002000d),
+&gt helpstring("setDefaultFontSize")]
+&gt         HRESULT setDefaultFontSize([in] single
+&gt newVal);
+&gt         [id(0x00000004), propget,
+&gt helpstring("property DefaultAntialias")]
+&gt         HRESULT DefaultAntialias([out, retval] long*
+&gt pVal);
+&gt         [id(0x00000004), propput,
+&gt helpstring("property DefaultAntialias")]
+&gt         HRESULT DefaultAntialias([in] long pVal);
+&gt         [id(0x60020010),
+&gt helpstring("getDefaultAntialias")]
+&gt         HRESULT getDefaultAntialias([out, retval]
+&gt long* pVal);
+&gt         [id(0x60020011),
+&gt helpstring("setDefaultAntialias")]
+&gt         HRESULT setDefaultAntialias([in] long
+&gt newVal);
+&gt         [id(0x00000012), propget,
+&gt helpstring("property FULLSCREEN")]
+&gt         HRESULT FULLSCREEN([out, retval] BSTR*
+&gt pVal);
+&gt         [id(0x00000012), propput,
+&gt helpstring("property FULLSCREEN")]
+&gt         HRESULT FULLSCREEN([in] BSTR pVal);
+&gt         [id(0x00000013), propget,
+&gt helpstring("property USE_SVGZ")]
+&gt         HRESULT USE_SVGZ([out, retval] BSTR* pVal);
+&gt         [id(0x00000013), propput,
+&gt helpstring("property USE_SVGZ")]
+&gt         HRESULT USE_SVGZ([in] BSTR pVal);
+&gt         [id(0x00000015), propget,
+&gt helpstring("property WMODE")]
+&gt         HRESULT WMODE([out, retval] BSTR* pVal);
+&gt         [id(0x00000015), propput,
+&gt helpstring("property WMODE")]
+&gt         HRESULT WMODE([in] BSTR pVal);
+&gt         [id(0x00000017), propget,
+&gt helpstring("property INTERNALID")]
+&gt         HRESULT INTERNALID([out, retval] BSTR*
+&gt pVal);
+&gt         [id(0x00000017), propput,
+&gt helpstring("property INTERNALID")]
+&gt         HRESULT INTERNALID([in] BSTR pVal);
+&gt         [id(0x00000016), propget,
+&gt helpstring("property window")]
+&gt         HRESULT window([out, retval] IDispatch**
+&gt pVal);
+&gt         [id(0x0000006d), helpstring("getWindow")]
+&gt         HRESULT getWindow([out, retval] IDispatch**
+&gt pVal);
+&gt         [id(0x0000006b), helpstring("method
+&gt getSVGDocument")]
+&gt         HRESULT getSVGDocument([out, retval]
+&gt IDispatch** ppSVGDocument);
+&gt         [id(0x0000006a), helpstring("method
+&gt getSVGViewerVersion")]
+&gt         HRESULT getSVGViewerVersion([out, retval]
+&gt BSTR* pVersion);
+&gt         [id(0x0000006c), helpstring("method
+&gt disableAutoUpdate")]
+&gt         HRESULT disableAutoUpdate();
+&gt     };
+&gt 
+&gt     [
+&gt       uuid(78156A80-C6A1-4BBF-8E6A-3CD390EEB4E2),
+&gt       helpstring("SVG Behavior Factory Class")
+&gt     ]
+&gt     coclass SVGBehaviorFactory {
+&gt         [default] interface IDispatch;
+&gt     };
+&gt 
+&gt     [
+&gt       uuid(ABD2F8EA-F1D9-4704-BDC3-A07741F967A2),
+&gt       helpstring("SVG Scriptable Renderer Class")
+&gt     ]
+&gt     coclass SVGRenderer {
+&gt         [default] interface IDispatch;
+&gt     };
+&gt };
+
+
+__________________________________________________
+Do You Yahoo!?
+Tired of spam?  Yahoo! Mail has the best spam protection around 
+http://mail.yahoo.com 
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:51 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

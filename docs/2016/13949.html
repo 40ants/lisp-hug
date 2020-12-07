@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Find if the symbol is a type</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Find if the symbol is a type</h1>
+                <pre>
+Hi,
+
+How to determine if particular symbol is a type? i.e. 'fixnum, or
+graphics-ports:transform?
+
+For example in SBCL we have sb-ext:valid-type-specifier-p
+
+-- 
+Br,
+/Alexey
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Find if the symbol is a type</h1>
+                 <pre>
+Alexey Veretennikov &lt;txm.fourier@gmail.com&gt wrote:
+
+&gt How to determine if particular symbol is a type? i.e. 'fixnum, or
+&gt graphics-ports:transform?
+&gt
+&gt For example in SBCL we have sb-ext:valid-type-specifier-p
+
+I guess you could do
+
+   (ignore-errors (subtypep symbol t))
+
+Arthur
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Find if the symbol is a type</h1>
+                 <pre>
+Pascal Costanza provided this snippet on usenet on 18 March 2012:
+
+(defun valid-type-specifier-p (thing)
+  (ignore-errors (subtypep thing 't)))
+
+Interestingly, the lispworks swank implementation takes a different
+approach, and also supports non-symbol type specifiers:
+
+https://github.com/slime/slime/blob/master/swank/lispworks.lisp#L306
+
+
+On 11 June 2016 at 04:37, Alexey Veretennikov &lt;txm.fourier@gmail.com&gt wrote:
+&gt
+&gt Hi,
+&gt
+&gt How to determine if particular symbol is a type? i.e. 'fixnum, or
+&gt graphics-ports:transform?
+&gt
+&gt For example in SBCL we have sb-ext:valid-type-specifier-p
+&gt
+&gt --
+&gt Br,
+&gt /Alexey
+&gt
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+&gt
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Find if the symbol is a type</h1>
+                 <pre>
+Nick Levine &lt;nick@nicklevine.org&gt writes:
+
+&gt I've been thinking about (subtype thing t) vs (subtype nil thing). The
+&gt tests are equivalent, right? But there's something more expressive
+&gt about the second one, that I can't quite lay a finger on.
+
+You're feeling there's something more expressive about the second
+one, because you've got the impression that there could still be
+something outside of the totallity.  Nope.  as types, T and NIL are
+perfect complements, and there's nothing outside of them (and since
+there's nothing inside NIL, there's nothing outside of T).  By
+definition.
+
+As for them to be equivalent, in the abstract way, of course;  but I
+could imagine an implementation giving different results.  Happily, sbcl
+is consistent there, but given that it assumes any unknown symbol is a
+type, I would not have been surprised if it had returned T for (subtypep
+'foo 't) but NIL for (subtypep 'nil 'foo).
+
+Ie. in (subtypep u k), the unknown is u (what you are usually testing),
+while the known is k and is expected to be a type. Which makes me feel
+(subtypep a-type 't) safer than (subtypep 'nil a-type).
+
+But the specification eventually resolves on the term "membership" in
+this glossary entry:
+
+     subtype n. a type whose membership is the same as or a proper
+     subset of the membership of another type, called a
+     supertype. (Every type is a subtype of itself.)
+
+and it's not defined, therefore we can take it to mean the usual
+mathematical membership, and it can be read both ways.
+
+            A ⊆ B ⇔ B ⊇ A
+
+
+-- 
+__Pascal Bourguignon__                 http://www.informatimago.com/
+“The factory of the future will have only two employees, a man and a
+dog. The man will be there to feed the dog. The dog will be there to
+keep the man from touching the equipment.” -- Carl Bass CEO Autodesk
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Find if the symbol is a type</h1>
+                 <pre>
+Thanks guys! Works perfectly.
+
+Andrew Kirkpatrick &lt;ubermonk@gmail.com&gt writes:
+
+&gt Pascal Costanza provided this snippet on usenet on 18 March 2012:
+&gt
+&gt (defun valid-type-specifier-p (thing)
+&gt   (ignore-errors (subtypep thing 't)))
+&gt
+&gt Interestingly, the lispworks swank implementation takes a different
+&gt approach, and also supports non-symbol type specifiers:
+&gt
+&gt https://github.com/slime/slime/blob/master/swank/lispworks.lisp#L306
+&gt
+&gt
+&gt On 11 June 2016 at 04:37, Alexey Veretennikov &lt;txm.fourier@gmail.com&gt wrote:
+&gt&gt
+&gt&gt Hi,
+&gt&gt
+&gt&gt How to determine if particular symbol is a type? i.e. 'fixnum, or
+&gt&gt graphics-ports:transform?
+&gt&gt
+&gt&gt For example in SBCL we have sb-ext:valid-type-specifier-p
+&gt&gt
+&gt&gt --
+&gt&gt Br,
+&gt&gt /Alexey
+&gt&gt
+&gt&gt _______________________________________________
+&gt&gt Lisp Hug - the mailing list for LispWorks users
+&gt&gt lisp-hug@lispworks.com
+&gt&gt http://www.lispworks.com/support/lisp-hug.html
+&gt&gt
+
+-- 
+Br,
+/Alexey
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:27 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

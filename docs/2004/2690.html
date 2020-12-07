@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>KW issue: doing hash-table queries from TEST predicates</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>KW issue: doing hash-table queries from TEST predicates</h1>
+                <pre>Greetings. I'd like clarification on a KW issue we're having. The doc says:
+
+"Lisp tests, and any functions invoked by them, should not depend on any
+dynamic global data structures, as changing such structures (and hence the
+instantiations of the rule) will be invisible to the inference engine."
+
+I read this as saying I should not write a rule like this, where *COUNTER*
+can be modified outside of the inference engine:
+
+(defvar *counter* 0)
+
+(defrule busted-rule
+  :forward
+  (some-fact ? count ?count)
+  (test (&gt ?count *counter*))
+  --&gt
+  ...)
+
+Makes sense to me. However, what about hash table lookups?
+
+(defvar *table* (make-hash-table))
+
+(defun key-present-p (key)
+  (gethash key *table*))
+
+(defrule frodo
+  :forward
+  (some-fact ?fact key-value ?value)
+  (test (not key-present-p ?value))
+  --&gt
+  ((add-this-fact-to-table ?fact ?value)))
+
+To me, this should work just fine.
+
+If the latter scenario is allowed, then we've probably found a bug in KW. If
+it isn't, then I don't understand why it isn't. And if it isn't, what is the
+proper way to implement scenarios like this?
+
+Thanks and Regards,
+
+David E. Young
+Bloodhound Software, Inc.
+http://bloodhoundinc.com
+
+"For wisdom is more precious than rubies,
+and nothing you desire can compare with her."
+  -- Prov. 8:11
+
+"But all the world understands my language."
+  -- Franz Joseph Haydn (1732-1809)
+
+
+This email message is for the sole use of the intended recipients(s) and may contain confidential and privileged information of Bloodhound Software, Inc.. Any unauthorized review, use, disclosure is prohibited. If you are not the intended recipient, please contact the sender by reply email and destroy all copies of the original message.
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: KW issue: doing hash-table queries from TEST predicates</h1>
+                 <pre>Young, David wrote:
+
+&gtGreetings. I'd like clarification on a KW issue we're having. The doc says:
+&gt
+&gt"Lisp tests, and any functions invoked by them, should not depend on any
+&gtdynamic global data structures, as changing such structures (and hence the
+&gtinstantiations of the rule) will be invisible to the inference engine."
+&gt
+&gtI read this as saying I should not write a rule like this, where *COUNTER*
+&gtcan be modified outside of the inference engine:
+&gt
+&gt(defvar *counter* 0)
+&gt
+&gt(defrule busted-rule
+&gt  :forward
+&gt  (some-fact ? count ?count)
+&gt  (test (&gt ?count *counter*))
+&gt  --&gt
+&gt  ...)
+&gt
+&gtMakes sense to me. However, what about hash table lookups?
+&gt
+&gt(defvar *table* (make-hash-table))
+&gt
+&gt(defun key-present-p (key)
+&gt  (gethash key *table*))
+&gt
+&gt(defrule frodo
+&gt  :forward
+&gt  (some-fact ?fact key-value ?value)
+&gt  (test (not key-present-p ?value))
+&gt  --&gt
+&gt  ((add-this-fact-to-table ?fact ?value)))
+&gt
+&gtTo me, this should work just fine.
+&gt
+&gtIf the latter scenario is allowed, then we've probably found a bug in KW. If
+&gtit isn't, then I don't understand why it isn't. And if it isn't, what is the
+&gtproper way to implement scenarios like this?
+&gt
+&gt  
+&gt
+Hi,
+
+If you modify the hash table during execution then you have invalidated 
+the conditions under which the rule engine works. If the hash table 
+contents are fixed by the time you start the rule engine then everything 
+should be okay.
+
+ From the example code fragment above (I'm guessing some parens are 
+missing from around the key-present-p call) it looks as if you are 
+modifiying the table. This is not-allowed.
+
+The reason that it is not allowed is that the LHS tests are compiled 
+into a RETE network which always maintains a complete idea of which 
+conditions are satisfied and therefore which rules are eligible to fire. 
+When a rule fires it generally either creates a new managed object or 
+modifies the slot of a managed object. The RETE network uses this 
+knowledge to incrementally and efficiently determine which conditions 
+are now satisfied and which rules are next eligible to fire. By modifing 
+effectively unmanaged state you are breaking the assumptions of the RETE 
+network.
+
+The simplest transformation that will let you do what you want to do is 
+to move the test out of the static LHS of the rule and into the dynamic 
+RHS of the rule:
+
+(defrule frodo
+  :forward
+  (some-fact ?fact key-value ?value)
+  --&gt
+  ((test (not (key-present-p ?value))))
+  ((add-this-fact-to-table ?fact ?value)))
+
+The RHS does not have the restriction that you quote. The RHS is not 
+part of the RETE network and so any tests can be done there and they are 
+done in a completely normal way. BTW this is untested code. Your number 
+of parens may vary... :-j
+
+In fact you could transform it further by combining the two parts of the 
+RHS:
+
+(defrule frodo
+  :forward
+  (some-fact ?fact key-value ?value)
+  --&gt
+  ((add-this-fact-to-table-if-not-there ?fact ?value)))
+
+Furthermore, if you know the table does not contain any of the current 
+facts by the time the inference engine is started then you can omit the 
+check since KW will not fire a rule twice for the same fact unless you 
+set up a rule context that allows that:
+
+(defrule frodo
+  :forward
+  (some-fact ?fact key-value ?value)
+  --&gt
+  ((add-this-fact-to-table ?fact ?value)))
+
+HTH
+
+__Jason
+
+
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:51 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

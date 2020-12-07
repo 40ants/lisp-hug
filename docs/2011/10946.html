@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Preferred language on MacOSX</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Preferred language on MacOSX</h1>
+                <pre>
+Hi,
+
+How can I retrieve the preferred language (locale) on Cocoa?
+
+
+As a side note, calling
+(sys:call-system-showing-output "/usr/bin/locale")
+
+yields only
+
+; LANG=
+; LC_COLLATE="C"
+; LC_CTYPE="C"
+; LC_MESSAGES="C"
+; LC_MONETARY="C"
+; LC_NUMERIC="C"
+; LC_TIME="C"
+; LC_ALL=
+0
+
+so the environment seems to be of no use in this matter.
+
+Regards
+Erik
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Preferred language on MacOSX</h1>
+                 <pre>
+
+On Apr 23, 2011, at 6:12 AM, Erik Ronström wrote:
+
+&gt How can I retrieve the preferred language (locale) on Cocoa?
+
+(defun default-language ()
+  (objc:invoke-into
+   'string
+   (objc:invoke
+    (objc:invoke "NSUserDefaults" "standardUserDefaults")
+    "objectForKey:" "AppleLanguages")
+   "objectAtIndex:" 0))
+
+CL-USER 60 &gt (default-language)
+"en"
+
+
+
+&gt As a side note, calling
+&gt (sys:call-system-showing-output "/usr/bin/locale")
+
+CL-USER 61 &gt (sys:call-system-showing-output "defaults read NSGlobalDomain AppleLanguages")
+; defaults read NSGlobalDomain AppleLanguages
+; (
+;     en,
+;     fr,
+;     es,
+;     de,
+;     it,
+;     nl,
+;     da,
+;     pt,
+;     sv,
+;     nb,
+;     fi,
+;     ja,
+;     "zh-Hans",
+;     "zh-Hant",
+;     ko,
+;     pl,
+;     "pt-PT",
+;     ru
+; )
+0
+
+BTW, I had no idea how to do this until you asked, but googling:
+ "cocoa preferred locale language site:developer.apple.com"
+got me the answer in less than 5 minutes.
+
+IOW, using google's site:yada.yada.tld narrows down searches of this sort to useful results.
+
+warmest regards,
+
+Ralph
+
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Preferred language on MacOSX</h1>
+                 <pre>
+
+On Apr 23, 2011, at 1:00 PM, Erik Ronström wrote:
+
+&gt The main problem for me is that I'm quite new to both LW (and Lisp in general) and Cocoa, so even when I do find the right objective c classes in the Cocoa documentation, I have a hard time figuring out how to call it the right way from LW. But now that I begun to collect some examples, things will get easier.
+
+Yes, everybody goes through this learning phase, I remember it well - in fact, for many things, I'm still learning!
+
+Whenever possible, try to use the example code of others, especially the example code from Apple's documentation.
+
+To take your question as an example:
+
+1. Search google for "cocoa preferred locale language site:developer.apple.com"
+(note the restriction in the search to apple's developer site.)
+
+2. The first hit is:
+&lt;http://developer.apple.com/library/ios/#documentation/MacOSX/Conceptual/BPInternational/Articles/ChoosingLocalizations.html&gt
+
+at the bottom of this page is the following example code which the docs describe thus:
+"The following example shows you to get the list of preferred languages from the defaults database using Cocoa. The returned array contains the languages associated with the AppleLanguages key in the user's preferred order. Thus, in most cases, you would simply want to get the first object in the array."
+
+and the code:
+
+NSUserDefaults* defs = [NSUserDefaults standardUserDefaults];
+NSArray* languages = [defs objectForKey:@"AppleLanguages"];
+NSString* preferredLang = [languages objectAtIndex:0];
+
+3. Note that this objective-c code uses three temporary variables which are completely unnecessary. IOW, the code could be written as:
+
+[[[NSUserDefaults standardUserDefaults] objectForKey:@"AppleLanguages"] objectAtIndex:0]
+
+which is much lispier, since each objective-c call returns a value, usually an NSObject of some sort, just as each lisp form returns a value, and these can just be chained - no need for intermediate variables.
+
+Translating objective-c calls is usually a matter of converting each left square brace [ into a call of the form:
+
+(objc:invoke
+
+or, if you want to return a specific type of lisp object rather than the normal objective-c return value which is usually some sort of NSObject or a raw C value, use:
+
+(objc:invoke-into
+
+In the case  of our example, the final call (i.e., for the call to objectAtIndex:) which messages an NSArray and asks for the object at a particular index, returns an NSString, since the objectForKey:@"AppleLanguages" is an NSArray of NSStrings. So we want to use:
+
+(objc:invoke-into 'string
+
+
+
+To make all of this easier for myself, I use the following macros:
+
+(defmacro @ (&amp;body body) `(objc:invoke ,@body))
+(defmacro @into (&amp;body body) `(objc:invoke-into ,@body))
+
+Using these, the default-language function would look like this:
+
+(defun default-language ()
+  (@into 'string
+    (@ (@ "NSUserDefaults" "standardUserDefaults") "objectForKey:" "AppleLanguages")
+    "objectAtIndex:" 0))
+
+which is a bit easier to type.
+
+&gt 
+&gt Thanks again!
+
+
+You're very welcome, and best of luck with LispWorks and Cocoa!
+
+warmest regards,
+
+Ralph
+
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:34 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

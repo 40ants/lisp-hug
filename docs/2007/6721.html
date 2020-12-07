@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>bug in 'function-lambda-list'</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>bug in 'function-lambda-list'</h1>
+                <pre>
+Hi,
+
+Our project depends on the LW function 'function-lambda-list'
+that has the following documantation:
+
+Documentation for (DEFUN FUNCTION-LAMBDA-LIST):
+Arguments: (X &amp;OPTIONAL (ERRORP T))
+Given a function, return its lambda list.  If given a symbol, use the
+symbol-function.
+
+
+
+There are, however, some cases where 'function-lambda-list' returns
+':dont-know'.
+
+For instance when running this test in ':cl-user' I get the following
+result (even for some very commonly used functions as 'length' and  
+'numerp'):
+
+(do-symbols (x :cl-user)
+   (when (and (fboundp x) (eq (function-lambda-list x) :dont-know))
+     (print (list x (function-lambda-list x)))))
+
+(GET-PROPERTIES :DONT-KNOW)
+(NUMBERP :DONT-KNOW)
+(COPY-SYMBOL :DONT-KNOW)
+(RPLACD :DONT-KNOW)
+(LENGTH :DONT-KNOW)
+(SXHASH :DONT-KNOW)
+(ENDP :DONT-KNOW)
+(ARRAYP :DONT-KNOW)
+(RPLACA :DONT-KNOW)
+(MAKUNBOUND :DONT-KNOW)
+(GETF :DONT-KNOW)
+(SET :DONT-KNOW)
+(REMPROP :DONT-KNOW)
+(SYMBOL-VALUE :DONT-KNOW)
+(FBOUNDP :DONT-KNOW)
+(GET :DONT-KNOW)
+(GENTEMP :DONT-KNOW)
+(MAKE-SYMBOL :DONT-KNOW)
+(GENSYM :DONT-KNOW)
+(FMAKUNBOUND :DONT-KNOW)
+(TOTAL-ALLOCATION :DONT-KNOW)
+(GC-ALL :DONT-KNOW)
+(COLLECT-HIGHEST-GENERATION :DONT-KNOW)
+(SWITCH-STATIC-ALLOCATION :DONT-KNOW)
+(CLEAN-GENERATION-0 :DONT-KNOW)
+(CLEAN-DOWN :DONT-KNOW)
+(GET-DEFAULT-GENERATION :DONT-KNOW)
+(COLLECT-GENERATION-2 :DONT-KNOW)
+(NORMAL-GC :DONT-KNOW)
+(AVOID-GC :DONT-KNOW)
+(EXPAND-GENERATION-1 :DONT-KNOW)
+(SET-DEFAULT-GENERATION :DONT-KNOW)
+(TRY-MOVE-IN-GENERATION :DONT-KNOW)
+(SET-MINIMUM-FREE-SPACE :DONT-KNOW)
+(SET-PROMOTION-COUNT :DONT-KNOW)
+(MAKE-SG :DONT-KNOW)
+(FIND-OBJECT-SIZE :DONT-KNOW)
+(ENLARGE-GENERATION :DONT-KNOW)
+(SWEEP-ALL-OBJECTS :DONT-KNOW)
+(SG-INITIALISE :DONT-KNOW)
+(CALL-SG :DONT-KNOW)
+(CHECK-FRAGMENTATION :DONT-KNOW)
+(SG-RESUME :DONT-KNOW)
+(SG-RETURN :DONT-KNOW)
+(TRY-COMPACT-IN-GENERATION :DONT-KNOW)
+(GC-GENERATION :DONT-KNOW)
+(MARK-AND-SWEEP :DONT-KNOW)
+(CALL-COUNTER :DONT-KNOW)
+(GC-IF-NEEDED :DONT-KNOW)
+(GET-UNIX-ERROR :DONT-KNOW)
+(ERRNO-VALUE :DONT-KNOW)
+
+
+Is this a LW bug?
+
+Mikael
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: bug in 'function-lambda-list'</h1>
+                 <pre>
+What version of Lispworks are you using?
+
+I'm on LWM 5.0.2 and get
+
+;; the form you posted
+CL-USER 1 &gt (do-symbols (x :cl-user)
+  (when (and (fboundp x) (eq (function-lambda-list x) :dont-know))
+    (print (list x (function-lambda-list x)))))
+Nil
+
+;; trying with :cl, just in case
+CL-USER 2 &gt (do-symbols (x :cl)
+  (when (and (fboundp x) (eq (function-lambda-list x) :dont-know))
+    (print (list x (function-lambda-list x)))))
+Nil
+
+;; one of the symbols that yielded :dont-know for you
+CL-USER 3 &gt (function-lambda-list 'get-properties)
+(System::Plist System::Indicator-List)
+
+
+On 5/30/07, Mikael Laurson &lt;laurson@siba.fi&gt wrote:
+&gt
+&gt Hi,
+&gt
+&gt Our project depends on the LW function 'function-lambda-list'
+&gt that has the following documantation:
+&gt
+&gt Documentation for (DEFUN FUNCTION-LAMBDA-LIST):
+&gt Arguments: (X &amp;OPTIONAL (ERRORP T))
+&gt Given a function, return its lambda list.  If given a symbol, use the
+&gt symbol-function.
+&gt
+&gt
+&gt
+&gt There are, however, some cases where 'function-lambda-list' returns
+&gt ':dont-know'.
+&gt
+&gt For instance when running this test in ':cl-user' I get the following
+&gt result (even for some very commonly used functions as 'length' and
+&gt 'numerp'):
+&gt
+&gt (do-symbols (x :cl-user)
+&gt    (when (and (fboundp x) (eq (function-lambda-list x) :dont-know))
+&gt      (print (list x (function-lambda-list x)))))
+&gt
+&gt (GET-PROPERTIES :DONT-KNOW)
+&gt (NUMBERP :DONT-KNOW)
+&gt (COPY-SYMBOL :DONT-KNOW)
+&gt (RPLACD :DONT-KNOW)
+&gt (LENGTH :DONT-KNOW)
+&gt (SXHASH :DONT-KNOW)
+&gt (ENDP :DONT-KNOW)
+&gt (ARRAYP :DONT-KNOW)
+&gt (RPLACA :DONT-KNOW)
+&gt (MAKUNBOUND :DONT-KNOW)
+&gt (GETF :DONT-KNOW)
+&gt (SET :DONT-KNOW)
+&gt (REMPROP :DONT-KNOW)
+&gt (SYMBOL-VALUE :DONT-KNOW)
+&gt (FBOUNDP :DONT-KNOW)
+&gt (GET :DONT-KNOW)
+&gt (GENTEMP :DONT-KNOW)
+&gt (MAKE-SYMBOL :DONT-KNOW)
+&gt (GENSYM :DONT-KNOW)
+&gt (FMAKUNBOUND :DONT-KNOW)
+&gt (TOTAL-ALLOCATION :DONT-KNOW)
+&gt (GC-ALL :DONT-KNOW)
+&gt (COLLECT-HIGHEST-GENERATION :DONT-KNOW)
+&gt (SWITCH-STATIC-ALLOCATION :DONT-KNOW)
+&gt (CLEAN-GENERATION-0 :DONT-KNOW)
+&gt (CLEAN-DOWN :DONT-KNOW)
+&gt (GET-DEFAULT-GENERATION :DONT-KNOW)
+&gt (COLLECT-GENERATION-2 :DONT-KNOW)
+&gt (NORMAL-GC :DONT-KNOW)
+&gt (AVOID-GC :DONT-KNOW)
+&gt (EXPAND-GENERATION-1 :DONT-KNOW)
+&gt (SET-DEFAULT-GENERATION :DONT-KNOW)
+&gt (TRY-MOVE-IN-GENERATION :DONT-KNOW)
+&gt (SET-MINIMUM-FREE-SPACE :DONT-KNOW)
+&gt (SET-PROMOTION-COUNT :DONT-KNOW)
+&gt (MAKE-SG :DONT-KNOW)
+&gt (FIND-OBJECT-SIZE :DONT-KNOW)
+&gt (ENLARGE-GENERATION :DONT-KNOW)
+&gt (SWEEP-ALL-OBJECTS :DONT-KNOW)
+&gt (SG-INITIALISE :DONT-KNOW)
+&gt (CALL-SG :DONT-KNOW)
+&gt (CHECK-FRAGMENTATION :DONT-KNOW)
+&gt (SG-RESUME :DONT-KNOW)
+&gt (SG-RETURN :DONT-KNOW)
+&gt (TRY-COMPACT-IN-GENERATION :DONT-KNOW)
+&gt (GC-GENERATION :DONT-KNOW)
+&gt (MARK-AND-SWEEP :DONT-KNOW)
+&gt (CALL-COUNTER :DONT-KNOW)
+&gt (GC-IF-NEEDED :DONT-KNOW)
+&gt (GET-UNIX-ERROR :DONT-KNOW)
+&gt (ERRNO-VALUE :DONT-KNOW)
+&gt
+&gt
+&gt Is this a LW bug?
+&gt
+&gt Mikael
+&gt
+&gt
+
+
+-- 
+=====================
+Joshua Taylor
+tayloj@rpi.edu
+
+"A lot of good things went down one time,
+     back in the goodle days."
+               John Hartford
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:42 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

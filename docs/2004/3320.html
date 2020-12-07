@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>LWM running non-mp safe code after mp is started</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>LWM running non-mp safe code after mp is started</h1>
+                <pre>Is there a general way to execute arbitrary code in the context of the 
+initial thread of a LispWorks image after mutliprocessing has been 
+enabled and the REPL is running in its own thread?
+
+Said another way, I'd like to be able to send the initial thread (via a 
+mailbox or something) an arbitrary form to run after the LispWorks 
+environment is fully started (is the initial thread the "The idle 
+process" Priority -536870912 State "Running (preempted)" process?).
+
+The context is a foreign function interface for the CoreMIDI library on 
+Mac OS X (10.3.7). The problem I have run into is that calling 
+CoreMIDI's MIDIRestart() function to initialize the sytem fails if 
+multiprocessing has already been started (which is that case for the 
+default LispWorks.app image).
+
+The error I get is:
+
+CoreMIDI: timeout waiting for MIDIServer to start
+-10839
+
+However if I use an image which does not start multiprocessing by 
+default calling MIDIRestart() succeeds. Once the CoreMIDI library is 
+initialized then enabling multiprocessing does not cause any problems. 
+What I suspect is happening is that when multiprocessing is enabled the 
+handshake between the CoreMIDI library and the external MIDIServer 
+process is failing because the MIDIServer is responding (via a Mach IPC 
+message) to the wrong thread (again I'm just speculating).
+
+The current hack I have which works for a tty based image involves 
+building a special image which calls MIDIRestart() on startup using an 
+action. While this basically works I would like to avoid the additional 
+1-2 seconds of startup time and avoid the need to maintain a special 
+image. Using the following to create the image:
+
+=======================================
+(load-all-patches)
+(defvar *midi-server-status* nil)
+(fli:define-foreign-function (midi-restart "MIDIRestart" :source)
+                              nil
+                              :result-type :long
+                              :language :ansi-c)
+(defun midi-startup ()
+   (format t "Starting MIDIServer...")
+   (fli:register-module 
+"/System/Library/Frameworks/CoreMIDI.framework/CoreMIDI")
+   (setf *midi-server-status* (midi-restart))
+   (format t " done.~%"))
+
+(define-action "When starting image" "MIDI Startup" 'midi-startup 
+:after "System starup completed")
+(save-image "./lispworks-midi" :environment nil :multiprocessing t)
+(quit)
+=========================================
+
+Results in:
+
+% ./lispworks-midi
+Starting MIDIServer... done.
+LispWorks(R): The Common Lisp Programming Environment
+Copyright (C) 1987-2004 Xanalys Inc.  All rights reserved.
+Version 4.4.0
+Saved by greg as lispworks-midi, at 29 Dec 2004 16:15
+User greg on evasion.local
+; Loading text file /Applications/LispWorks 
+4.4/Library/lib/4-4-0-0/config/siteinit.lisp
+;  Loading text file /Applications/LispWorks 
+4.4/Library/lib/4-4-0-0/private-patches/load.lisp
+
+CL-USER 1 &gt *midi-server-status*
+0             ;; &lt;- this means the startup was successful
+
+
+
+Any help/advice would be greatly appreciated.
+
+Thanks
+
+-greg
+
+_______________________________________________________
+Greg Wuller                             greg@wuller.com
+_______________________________________________________
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LWM running non-mp safe code after mp is started</h1>
+                 <pre>
+On Dec 29, 2004, at 8:18 PM, Greg Wuller wrote:
+
+&gt Said another way, I'd like to be able to send the initial thread (via 
+&gt a mailbox or something) an arbitrary form to run after the LispWorks 
+&gt environment is fully started (is the initial thread the "The idle 
+&gt process" Priority -536870912 State "Running (preempted)" process?).
+
+Did you try to define your action on "Initialize LispWorks Tools", 
+something like:
+
+(lw:define-action "Initialize LispWorks Tools" "create compilation 
+conditions browser" 'cc-browser)
+
+Best,
+
+John DeSoi, Ph.D.
+http://pgedit.com/
+Power Tools for PostgreSQL
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:50 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

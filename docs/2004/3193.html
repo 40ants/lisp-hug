@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Delivery and MM::RECOVER-NAME-FROM-FILE</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Delivery and MM::RECOVER-NAME-FROM-FILE</h1>
+                <pre>Hi!
+
+I have an application which works fine at delivery level 4 but which
+gets the dreaded "Undefined function #:foo ..." message at level 5.  I
+found the Knowledgebase entry
+
+  &lt;http://www1.xanalys.com/support/lisp/kbase.nsf/0/a96aefbabbc097cb8025675a00488e8e?OpenDocument&gt
+
+but to me it looks a little cryptic.  How exactly is
+MM::RECOVER-NAME-FROM-FILE supposed to be used?  What are its
+arguments?  I tried something like this
+
+  (defun run ()
+    (handler-case
+      (progn
+        (init-my-app)
+        (run-my-app)
+        0)
+      (error (e)
+        (print (mm::recover-name-from-file (slot-value e 'conditions::name) "test.syms")))))
+
+  (compile 'run)
+
+  (deliver #'run "test"
+           4
+           :compact t
+           :redefine-compiler-p nil
+           :symbol-names-action :dump
+           :keep-symbol-names '(rdnzl::LispCallback rdnzl::ReleaseDelegateAdapter)
+           :console :io)
+
+but that doesn't seem to help.  How is it supposed to work?
+
+Thanks,
+Edi.
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Delivery and MM::RECOVER-NAME-FROM-FILE</h1>
+                 <p>
+                  Unable to parse email body. Email id is 3201
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Delivery and MM::RECOVER-NAME-FROM-FILE</h1>
+                 <pre>Hi Nick!
+
+On Fri, 10 Dec 2004 09:40:34 GMT, Nick Levine &lt;ndl@ravenbrook.com&gt wrote:
+
+&gt It looks like :symbol-names-action doesn't do anything on level 4.
+
+Yes, sorry, that was just a typo.  I should have copied my original
+delivery file.
+
+&gt Also, mm::recover-name-from-file only takes one argument - the
+&gt symbol.
+
+OK, that helped - a bit.  See below.
+
+&gt Try the following:
+&gt
+&gt [...]
+
+I now have this:
+
+  (defun run ()
+      (handler-case
+        (progn
+          (init-my-app)
+          (run-my-app)
+          0)
+        (error (e)
+          (with-open-file (s "error.txt"
+                             :direction :output
+                             :if-exists :supersede)
+            (format s "Error message: ~A~%Symbol: ~S~%" e
+                    (mm::recover-name-from-file (slot-value e 'conditions::name)))))))
+
+  (deliver #'run "test"
+           5
+           :compact t
+           :redefine-compiler-p nil
+           :keep-symbol-names '(rdnzl::LispCallback rdnzl::ReleaseDelegateAdapter conditions::name)
+           :symbol-names-action :dump
+           :keep-lisp-reader t
+           :console :input)
+
+After starting my program I get this in error.txt:
+
+  Error message: Undefined function SYSTEM::|%!/{-4-!a:| called with arguments (#S(#:!/{)).
+  Symbol : "%!/{-4-!a:"
+
+That's, cough, not much more helpful than the original message... :)
+
+Any other ideas?
+
+Thanks,
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Delivery and MM::RECOVER-NAME-FROM-FILE</h1>
+                 <p>
+                  Unable to parse email body. Email id is 3203
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Delivery and MM::RECOVER-NAME-FROM-FILE</h1>
+                 <p>
+                  Unable to parse email body. Email id is 3206
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Delivery and MM::RECOVER-NAME-FROM-FILE</h1>
+                 <pre>On Fri, 10 Dec 2004 11:28:01 GMT, Nick Levine &lt;ndl@ravenbrook.com&gt wrote:
+
+&gt I noticed that - according to your email - you hadn't compiled the
+&gt function run.
+
+No, it was compiled.  I once again "censored" my email in an attempt
+to be brief.  Sorry for that.
+
+&gt After running it, error.txt contained:
+&gt
+&gt     Error message: Undefined function #:!\"\" called with arguments ().
+&gt     Symbol: "INIT-MY-APP"
+
+That was what I hoped to see but I didn't.  However, if I use your
+example it does work for me as well.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Delivery and MM::RECOVER-NAME-FROM-FILE</h1>
+                 <pre>On Fri, 10 Dec 2004 11:33:19 GMT, Nick Levine &lt;ndl@ravenbrook.com&gt wrote:
+
+&gt a) turn off :symbol-names-action until you've fixed all other
+&gt problems
+
+Yes.  I think I have fixed all other problems.  The app works fine at
+delivery level 4, I just want it to be smaller.
+
+&gt b) if there's a problem associated with :symbol-names-action but
+&gt it's slow work writing handlers all over the place to call
+&gt recover-name-from-file, then it's not too hard to access the symbols
+&gt file from a development image and use it to convert three-character
+&gt codes into real symbol names.
+
+I had thought about ways to access the .syms file because it's
+unreadable in a text editor.  But how would you do that?
+RECOVER-NAME-FROM-FILE isn't even there in a normal image (or do I
+have to require some module for it)?  And how does the function know
+which .syms file I want it to look at?
+
+Thanks,
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Delivery and MM::RECOVER-NAME-FROM-FILE</h1>
+                 <p>
+                  Unable to parse email body. Email id is 3209
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Delivery and MM::RECOVER-NAME-FROM-FILE</h1>
+                 <pre>On Fri, 10 Dec 2004 13:06:16 GMT, Nick Levine &lt;ndl@ravenbrook.com&gt wrote:
+
+&gt CL-USER 1 &gt (require "delivery")
+&gt ;; [output from the load]
+&gt T
+&gt
+&gt CL-USER 2 &gt (setf mm::*symbols-file* "c:/Program Files/Xanalys/LispWorks/test.syms")
+&gt "c:/Program Files/Xanalys/LispWorks/test.syms"
+&gt
+&gt CL-USER 3 &gt (mm::recover-name-from-file "!\"\"")
+&gt "INIT-MY-APP"
+
+Great, thanks!  However, it still doesn't work for the particular
+symbol my app is complaining about.  If I take the completely
+unrelated symbol from /your/ example it works (I guess because all
+three-character symbols are used) but it doesn't work for the crappy
+symbol I want to know more about:
+
+  CL-USER 1 &gt (require "delivery")
+  ; [blablabla]
+  T
+
+  CL-USER 2 &gt (setf mm::*symbols-file* "c:/Documents and Settings/edi/Desktop/RDNZL Eliza 2/Eliza.syms")
+  "c:/Documents and Settings/edi/Desktop/RDNZL Eliza 2/Eliza.syms"
+
+  CL-USER 3 &gt (mm::recover-name-from-file "!\"\"")
+  "FOREIGN-ARRAY-PTR-TESTED-VALUE"
+
+  CL-USER 4 &gt (mm::recover-name-from-file "%!/{-4-!a:")
+  "%!/{-4-!a:"
+
+  CL-USER 5 &gt (mm::recover-name-from-file 'SYSTEM::|%!/{-4-!a:|)
+  "%!/{-4-!a:"
+
+Argh!
+
+Further guessing: I'm using the FFI, could that be the reason for this
+behaviour?  Maybe it's a gensym that's created by the compiler?  I
+noticed that my app can only be delivered if I set
+:REDEFINE-COMPILER-P to NIL, probably because of
+FLI:DEFINE-FOREIGN-CALLABLE.
+
+Thanks,
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Delivery and MM::RECOVER-NAME-FROM-FILE</h1>
+                 <p>
+                  Unable to parse email body. Email id is 3211
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Delivery and MM::RECOVER-NAME-FROM-FILE</h1>
+                 <pre>On Fri, 10 Dec 2004 13:36:46 GMT, Nick Levine &lt;ndl@ravenbrook.com&gt wrote:
+
+&gt Note that the symbol-name lookup through the symbols file works only
+&gt for symbols with 3-character names. I think that if you give
+&gt recover-name-from-file a symbol it can't find in the file (and
+&gt anything longer than 3 chars will fit this description) then it
+&gt simply returns the name it was given.
+&gt
+&gt Can you pursuade the compiler to compile your foreign callables
+&gt before delivery?
+
+It does that.  I only call FLI:MAKE-POINTER at runtime which is needed
+because I have to tell the DLL I'm loading where the callback is
+located.  It seems that for this step the compiler must be there?
+
+&gt The symbol name you gave above looks rather long for a gensym. I
+&gt don't think it's a result of a 3-character name mangling (because it's
+&gt &gt3 chars long). I don't remember name mangling taking place post
+&gt delivery (but it's - uhm - 8 years since this code was written and
+&gt it may have changed several times since then). So I'm fresh out of
+&gt ideas.
+
+Ah, but I've now found the culprit!  I played around a little bit more
+and realized that I had a call to LW:DEFINE-ACTION at runtime which
+wasn't needed.  I have removed it and now it works.  Yeah!
+
+Thanks for your help!
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Delivery and MM::RECOVER-NAME-FROM-FILE</h1>
+                 <p>
+                  Unable to parse email body. Email id is 3214
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Delivery and MM::RECOVER-NAME-FROM-FILE</h1>
+                 <p>
+                  Unable to parse email body. Email id is 3216
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Delivery and MM::RECOVER-NAME-FROM-FILE</h1>
+                 <pre>On Fri, 10 Dec 2004 14:16:38 GMT, Nick Levine &lt;ndl@ravenbrook.com&gt wrote:
+
+&gt    It does that.  I only call FLI:MAKE-POINTER at runtime which is
+&gt    needed because I have to tell the DLL I'm loading where the
+&gt    callback is located.  It seems that for this step the compiler
+&gt    must be there?
+&gt
+&gt I'm unsure about the need for this. We have a couple of applications
+&gt (only delivered at level 0, mind) in which external code quite
+&gt happily invokes foreign-callables by name:
+&gt
+&gt     (fli:define-foreign-callable ("StartLisp" :calling-convention :cdecl)
+&gt       ...)
+&gt
+&gt The lisp is a dll, and the invocation looks a bit like this:
+&gt
+&gt     [...]
+&gt
+&gt Not a make-pointer in sight. (Maybe your app is different in some
+&gt other &amp; significant way.)
+
+I guess so.  The Lisp app is a .exe file which loads a DLL and the DLL
+is supposed to call into Lisp.  I'm using the technique described here:
+
+  &lt;http://www1.xanalys.com/support/lisp/kbase.nsf/51fe6e1cdfe748a180256639005a2ba9/404d1bad7fe771f3802568c400540b50?OpenDocument&gt
+
+Is there a better way than computing and providing the pointer at run
+time?  My intuition was that the result of MAKE-POINTER before
+delivery wouldn't be the same as at run time.
+
+&gt Hmm. Well, define-action does all sorts of name-mangling of its own
+&gt (try inspecting sys::*all-action-lists*). Although I _think_ your
+&gt names are on the short side (!) to look like fallout from that, it's
+&gt well possible as the implementation is rather ugly.
+
+Hmmm, the only thing I'm sure of is that removing the call to
+DEFINE-ACTION and leaving everything else as is made the problem with
+the strange symbol go away.
+
+Cheers,
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:50 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

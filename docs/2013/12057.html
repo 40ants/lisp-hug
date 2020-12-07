@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>stepper-friendly macros</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>stepper-friendly macros</h1>
+                <pre>
+Good time of day List,
+  I have noticed that sometimes I can set stepper breakpoint at some
+points of my code containing macros, sometimes I can't. In one
+example, I can only set a breakpoint if macroexpander function
+modifies contents of original &amp;whole source instead of consing fresh
+code. IMO source code is a literal data so one should not modify it.
+Is there a way to inform IDE on correspondance between conses in
+original and macroexpanded code so that I could set up breakpoints
+there?
+  As an example, I would like to be able to set brekpoint at the
+beginning of "for" clause in "iterate".
+Thanks for attention,
+Budden
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: stepper-friendly macros</h1>
+                 <pre>
+Hi list!
+
+There is nice discussion about replacing C++. Modern C++ IDEs support stepping
+through loops. Lispworks can't step through (loop :for i :from 1 to 10 :collect
+(f i)). 
+
+The only place one cat put stepper breakpoint to is a call to f. 
+This is an issue I would like to address, but no one seem to care...
+
+I've (seemingly) succeeded in making points in my macros "breakpointable".
+
+Requirements for that are: 
+- i) macroexpander function should "smash" original code so that steppizer would
+be able to set up the correspondence between a point on the screen and a
+breakpointable point in an expanded code. I think this is an unsafe practice,
+but it looks like this is the only simple way. 
+- ii) some fix to stepper info should be done. I do not understand completely
+what I have done, but this seems to work. To be steppable, point must have
+steppable (and visible) parent. So, I fix stepper info with the following code: 
+
+
+(defun point-is-in-macro-call (point macro-name)
+  "If point is in a subtree of macro-name, returns predecessor point"
+  (let (parent)
+    (setf parent (slot-value point 'lispworks-tools::parent))
+    (cond
+     ((null parent) nil)
+     ((not (typep parent 'LISPWORKS-TOOLS::stepable-point)) nil)
+     ((eq (slot-value parent 'lispworks-tools::operator) macro-name)
+        parent
+        )
+     (t (point-is-in-macro-call parent macro-name)))))
+
+(defun fix-parents-for-macro-in-context (context macro-name)
+  "Updates parents for points in macro so that one can set breakpoints at them"
+  (let (points grand-macro)
+    (setf points
+          (slot-value context 'lispworks-tools::stepable-points))
+    (dolist (point points)
+      (setf grand-macro
+            (point-is-in-macro-call point macro-name))
+      (when grand-macro
+        (setf (slot-value point 'lispworks-tools::parent)
+              grand-macro)))
+  ))
+
+(cl-user::defadvice (lispworks-tools::stepize fix-parents-for-perga-advice
+:after :documentation "Makes perga clauses breakpointable")
+    (context form)
+  (declare (ignore form))
+  (fix-parents-for-macro-in-context context 'perga))
+
+
+Here "perga" is a name of my macro which I have made steppable. 
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:31 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

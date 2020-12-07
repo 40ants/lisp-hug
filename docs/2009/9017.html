@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>dspec can't find source with define-condition alias?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>dspec can't find source with define-condition alias?</h1>
+                <pre>
+Hi all,
+
+Say I've got the following code in file, dspec-bug.lisp:
+
+=====================================================
+(defmacro defcondition (&amp;rest args)
+  `(define-condition ,@args))
+
+(dspec:define-form-parser (defcondition (:alias define-condition)))
+
+(defmacro deffunction (&amp;rest args)
+  `(defun ,@args))
+
+(dspec:define-form-parser (deffunction (:alias defun)))
+
+(defcondition some-condition () ())
+
+(deffunction some-function ())
+=====================================================
+
+After compiling and loading, trying to find the source of
+some-function works, but finding the source of some-condition does not
+(though the correct file, dspec-bug.lisp, is known. I'm on LWM 5.1.2
+(PPC). You can see the behavior at:
+
+http://www.cs.rpi.edu/~tayloj/DOCS/dspec-bug.mov
+
+Is find source not supported for conditions, or is this a bug (in
+which case I'll file a bug report).
+
+Thanks,
+
+-- 
+=====================
+Joshua Taylor
+tayloj@cs.rpi.edu, jtaylor@alum.rpi.edu
+
+"A lot of good things went down one time,
+  back in the goodle days."
+    John Hartford
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: dspec can't find source with define-condition alias?</h1>
+                 <pre>
+On Sat, Mar 7, 2009 at 4:21 PM, Joshua TAYLOR &lt;tayloj@cs.rpi.edu&gt wrote:
+&gt Hi all,
+&gt
+&gt Say I've got the following code in file, dspec-bug.lisp:
+&gt
+&gt =====================================================
+&gt (defmacro defcondition (&amp;rest args)
+&gt &nbsp;`(define-condition ,@args))
+&gt
+&gt (dspec:define-form-parser (defcondition (:alias define-condition)))
+&gt
+&gt (defmacro deffunction (&amp;rest args)
+&gt &nbsp;`(defun ,@args))
+&gt
+&gt (dspec:define-form-parser (deffunction (:alias defun)))
+&gt
+&gt (defcondition some-condition () ())
+&gt
+&gt (deffunction some-function ())
+&gt =====================================================
+&gt
+&gt After compiling and loading, trying to find the source of
+&gt some-function works, but finding the source of some-condition does not
+&gt (though the correct file, dspec-bug.lisp, is known. I'm on LWM 5.1.2
+&gt (PPC). You can see the behavior at:
+&gt
+&gt http://www.cs.rpi.edu/~tayloj/DOCS/dspec-bug.mov
+&gt
+&gt Is find source not supported for conditions, or is this a bug (in
+&gt which case I'll file a bug report).
+&gt
+&gt Thanks,
+&gt
+&gt --
+&gt =====================
+&gt Joshua Taylor
+&gt tayloj@cs.rpi.edu, jtaylor@alum.rpi.edu
+&gt
+&gt "A lot of good things went down one time,
+&gt &nbsp;back in the goodle days."
+&gt &nbsp; &nbsp;John Hartford
+&gt
+
+
+As a little bit of followup, I noticed now that the doc for
+DEFINE-FORM-PARSER [1] has:
+
+"LispWorks contains pre-defined form parser functions for the Common
+Lisp definers defun , defmethod , defgeneric , defvar , defparameter ,
+defconstant , defstruct , defclass , defmacro  and deftype  and for
+LispWorks definers such as fli:define-foreign-type  and
+dspec:define-form-parser  itself."
+
+So I guess define-condition isn't one of the supported ones. (It would
+be nice if it were.) That in mind, the next logical choice for an
+alias for defcondition would be, it would seem to me, defclass. But
+defclass aliases don't seem to work either (and the following code
+demonstrates it).
+
+==============================================
+;;; Functions
+
+(defmacro define-function (&amp;rest args)
+  `(defun ,@args))
+
+(dspec:define-form-parser (define-function (:alias defun)))
+
+(defun function1 ())
+(define-function function2 ())
+
+;; function1      &lt;= find source works
+;; function2      &lt;= find source works
+
+;;; Conditions
+
+(defmacro defcondition (&amp;rest args)
+  `(define-condition ,@args))
+
+(dspec:define-form-parser (defcondition (:alias defclass)))
+
+(define-condition condition1 () ())
+(defcondition condition2 () ())
+
+;; condition1    &lt;= find source works
+;; condition2    &lt;= find source doesn't work
+
+;;; Classes
+
+(defmacro define-class (&amp;rest args)
+  `(defclass ,@args))
+
+(dspec:define-form-parser (define-class (:alias defclass)))
+
+(defclass class1 () ())
+(define-class class2 () ())
+
+;; class1     &lt;= find source works
+;; class2     &lt;= find source doesn't work
+==============================================
+
+Thanks in advance,
+//JT
+
+[1] http://www.lispworks.com/documentation/lw51/LWRM/html/lwref-135.htm
+
+-- 
+=====================
+Joshua Taylor
+tayloj@cs.rpi.edu, jtaylor@alum.rpi.edu
+
+"A lot of good things went down one time,
+  back in the goodle days."
+    John Hartford
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: dspec can't find source with define-condition alias?</h1>
+                 <pre>
+On Mon, Mar 9, 2009 at 2:38 PM, Martin Simmons &lt;martin@lispworks.com&gt wrote:
+&gt&gt&gt&gt&gt&gt On Sat, 7 Mar 2009 16:44:12 -0500, Joshua TAYLOR said:
+&gt&gt
+&gt&gt On Sat, Mar 7, 2009 at 4:21 PM, Joshua TAYLOR &lt;tayloj@cs.rpi.edu&gt wrote:
+&gt&gt &gt Hi all,
+&gt&gt &gt
+&gt&gt &gt Say I've got the following code in file, dspec-bug.lisp:
+&gt&gt &gt
+&gt&gt &gt =====================================================
+&gt&gt &gt (defmacro defcondition (&amp;rest args)
+&gt&gt &gt &nbsp;`(define-condition ,@args))
+&gt&gt &gt
+&gt&gt &gt (dspec:define-form-parser (defcondition (:alias define-condition)))
+&gt&gt &gt
+&gt&gt &gt (defmacro deffunction (&amp;rest args)
+&gt&gt &gt &nbsp;`(defun ,@args))
+&gt&gt &gt
+&gt&gt &gt (dspec:define-form-parser (deffunction (:alias defun)))
+&gt&gt &gt
+&gt&gt &gt (defcondition some-condition () ())
+&gt&gt &gt
+&gt&gt &gt (deffunction some-function ())
+&gt&gt &gt =====================================================
+&gt&gt &gt
+&gt&gt &gt After compiling and loading, trying to find the source of
+&gt&gt &gt some-function works, but finding the source of some-condition does not
+&gt&gt &gt (though the correct file, dspec-bug.lisp, is known. I'm on LWM 5.1.2
+&gt&gt &gt (PPC). You can see the behavior at:
+&gt&gt &gt
+&gt&gt &gt http://www.cs.rpi.edu/~tayloj/DOCS/dspec-bug.mov
+&gt&gt &gt
+&gt&gt &gt Is find source not supported for conditions, or is this a bug (in
+&gt&gt &gt which case I'll file a bug report).
+&gt&gt &gt
+&gt&gt &gt Thanks,
+&gt&gt &gt
+&gt&gt &gt --
+&gt&gt &gt =====================
+&gt&gt &gt Joshua Taylor
+&gt&gt
+&gt&gt As a little bit of followup, I noticed now that the doc for
+&gt&gt DEFINE-FORM-PARSER [1] has:
+&gt&gt
+&gt&gt "LispWorks contains pre-defined form parser functions for the Common
+&gt&gt Lisp definers defun , defmethod , defgeneric , defvar , defparameter ,
+&gt&gt defconstant , defstruct , defclass , defmacro &nbsp;and deftype &nbsp;and for
+&gt&gt LispWorks definers such as fli:define-foreign-type &nbsp;and
+&gt&gt dspec:define-form-parser &nbsp;itself."
+&gt&gt
+&gt&gt So I guess define-condition isn't one of the supported ones. (It would
+&gt&gt be nice if it were.) That in mind, the next logical choice for an
+&gt&gt alias for defcondition would be, it would seem to me, defclass. But
+&gt&gt defclass aliases don't seem to work either (and the following code
+&gt&gt demonstrates it).
+&gt
+&gt It is OK to use (:alias define-condition) as a form parser.
+&gt
+&gt To fix the problem, you need to add an alias dspec:
+&gt
+&gt (dspec:define-dspec-alias defcondition (name)
+&gt &nbsp;`(define-condition ,name))
+&gt
+&gt Without that, it won't know that (defcondition some-condition) is the same as
+&gt (define-condition some-condition), which is the dspec recorded when the
+&gt define-condition macro is evaluated.
+&gt
+&gt --
+&gt Martin Simmons
+&gt LispWorks Ltd
+&gt http://www.lispworks.com/
+
+Is there a particular reason that things /do/ work with the function
+example? Is that a behavior that I shouldn't depend on? (I.e., In
+terms of the example I used above, ought I be doing
+(dspec:define-dspec-alias deffunction …) as well?)
+
+Thanks,
+-- 
+=====================
+Joshua Taylor
+tayloj@cs.rpi.edu, jtaylor@alum.rpi.edu
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: dspec can't find source with define-condition alias?</h1>
+                 <pre>
+&gt&gt&gt&gt&gt On Mon, 9 Mar 2009 16:25:09 -0400, Joshua TAYLOR said:
+&gt 
+&gt On Mon, Mar 9, 2009 at 2:38 PM, Martin Simmons &lt;martin@lispworks.com&gt wrote:
+&gt &gt&gt&gt&gt&gt&gt On Sat, 7 Mar 2009 16:44:12 -0500, Joshua TAYLOR said:
+&gt &gt&gt
+&gt &gt&gt On Sat, Mar 7, 2009 at 4:21 PM, Joshua TAYLOR &lt;tayloj@cs.rpi.edu&gt wrote:
+&gt &gt&gt &gt Hi all,
+&gt &gt&gt &gt
+&gt &gt&gt &gt Say I've got the following code in file, dspec-bug.lisp:
+&gt &gt&gt &gt
+&gt &gt&gt &gt =====================================================
+&gt &gt&gt &gt (defmacro defcondition (&amp;rest args)
+&gt &gt&gt &gt &nbsp;`(define-condition ,@args))
+&gt &gt&gt &gt
+&gt &gt&gt &gt (dspec:define-form-parser (defcondition (:alias define-condition)))
+&gt &gt&gt &gt
+&gt &gt&gt &gt (defmacro deffunction (&amp;rest args)
+&gt &gt&gt &gt &nbsp;`(defun ,@args))
+&gt &gt&gt &gt
+&gt &gt&gt &gt (dspec:define-form-parser (deffunction (:alias defun)))
+&gt &gt&gt &gt
+&gt &gt&gt &gt (defcondition some-condition () ())
+&gt &gt&gt &gt
+&gt &gt&gt &gt (deffunction some-function ())
+&gt &gt&gt &gt =====================================================
+&gt &gt&gt &gt
+&gt &gt&gt &gt After compiling and loading, trying to find the source of
+&gt &gt&gt &gt some-function works, but finding the source of some-condition does not
+&gt &gt&gt &gt (though the correct file, dspec-bug.lisp, is known. I'm on LWM 5.1..2
+&gt &gt&gt &gt (PPC). You can see the behavior at:
+&gt &gt&gt &gt
+&gt &gt&gt &gt http://www.cs.rpi.edu/~tayloj/DOCS/dspec-bug.mov
+&gt &gt&gt &gt
+&gt &gt&gt &gt Is find source not supported for conditions, or is this a bug (in
+&gt &gt&gt &gt which case I'll file a bug report).
+&gt &gt&gt &gt
+&gt &gt&gt &gt Thanks,
+&gt &gt&gt &gt
+&gt &gt&gt &gt --
+&gt &gt&gt &gt =====================
+&gt &gt&gt &gt Joshua Taylor
+&gt &gt&gt
+&gt &gt&gt As a little bit of followup, I noticed now that the doc for
+&gt &gt&gt DEFINE-FORM-PARSER [1] has:
+&gt &gt&gt
+&gt &gt&gt "LispWorks contains pre-defined form parser functions for the Common
+&gt &gt&gt Lisp definers defun , defmethod , defgeneric , defvar , defparameter ,
+&gt &gt&gt defconstant , defstruct , defclass , defmacro &nbsp;and deftype &nbsp;and for
+&gt &gt&gt LispWorks definers such as fli:define-foreign-type &nbsp;and
+&gt &gt&gt dspec:define-form-parser &nbsp;itself."
+&gt &gt&gt
+&gt &gt&gt So I guess define-condition isn't one of the supported ones. (It would
+&gt &gt&gt be nice if it were.) That in mind, the next logical choice for an
+&gt &gt&gt alias for defcondition would be, it would seem to me, defclass. But
+&gt &gt&gt defclass aliases don't seem to work either (and the following code
+&gt &gt&gt demonstrates it).
+&gt &gt
+&gt &gt It is OK to use (:alias define-condition) as a form parser.
+&gt &gt
+&gt &gt To fix the problem, you need to add an alias dspec:
+&gt &gt
+&gt &gt (dspec:define-dspec-alias defcondition (name)
+&gt &gt &nbsp;`(define-condition ,name))
+&gt &gt
+&gt &gt Without that, it won't know that (defcondition some-condition) is the same as
+&gt &gt (define-condition some-condition), which is the dspec recorded when the
+&gt &gt define-condition macro is evaluated.
+&gt &gt
+&gt &gt --
+&gt &gt Martin Simmons
+&gt &gt LispWorks Ltd
+&gt &gt http://www.lispworks.com/
+&gt 
+&gt Is there a particular reason that things /do/ work with the function
+&gt example? Is that a behavior that I shouldn't depend on? (I.e., In
+&gt terms of the example I used above, ought I be doing
+&gt (dspec:define-dspec-alias deffunction …) as well?)
+
+It works for functions because the form parser for defun returns the function
+name some-condition rather than the full dspec list (defun some-condition).
+Normally a form parser returns a dspec containing the defining macro's name,
+which makes them non-equal for different defining forms unless a dspec alias
+is defined.
+
+-- 
+Martin Simmons
+LispWorks Ltd
+http://www.lispworks.com/
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:37 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

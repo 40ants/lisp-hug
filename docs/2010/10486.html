@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>externalize-image</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>externalize-image</h1>
+                <pre>
+I'm trying to use externalize-image to move an image between windows.
+I have the following test:
+
+(defun externalize-test (file)
+  (let* ((b (capi:contain (make-instance 'capi:pinboard-layout)))
+         (orig (gp:load-image b file :editable :with-alpha)))
+    (capi:manipulate-pinboard
+     b
+     (make-instance 'capi:image-pinboard-object
+         :image orig :x 10 :y 10)
+     :add-top)
+    (let* ((ext (gp:externalize-image b orig))
+           (copy (gp:load-image b ext :editable :with-alpha)))
+      (capi:manipulate-pinboard
+       b
+       (make-instance 'capi:image-pinboard-object
+           :image copy :x 100 :y (gp:image-height orig))
+       :add-top))))
+
+
+If I call this with a .jpg file, it works as expected, showing two
+identical copies of the image from the file.  But if I call it with a
+..png file, the second copy gets a black background.  What am I doing
+wrong?
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: externalize-image</h1>
+                 <pre>
+
+On Aug 23, 2010, at 10:25 PM, Gail Zacharias wrote:
+
+&gt  But if I call it with a
+&gt .png file, the second copy gets a black background.  What am I doing
+&gt wrong?
+
+I get funky drawing (i.e., a blank background - did you mean "black" or "blank?") even with a jpeg unless I call gp:invalidate-rectangle on the pinboard-layout (i.e., b) after the second call to capi:manipulate-pinboard, though this may not be the underlying issue.
+
+warmest regards,
+
+Ralph
+
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: externalize-image</h1>
+                 <p>
+                  Unable to parse email body. Email id is 10488
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: externalize-image</h1>
+                 <pre>
+On Tue, Aug 24, 2010 at 12:25 AM, Raffael Cavallaro
+&lt;raffaelcavallaro@mac.com&gt wrote:
+&gt
+&gt On Aug 23, 2010, at 10:25 PM, Gail Zacharias wrote:
+&gt
+&gt&gt &nbsp;But if I call it with a
+&gt&gt .png file, the second copy gets a black background. &nbsp;What am I doing
+&gt&gt wrong?
+&gt
+&gt I get funky drawing (i.e., a blank background - did you mean "black" or "blank?") even with a jpeg unless I call gp:invalidate-rectangle on the pinboard-layout (i.e., b) after the second call to capi:manipulate-pinboard, though this may not be the underlying issue.
+
+I meant black, at least that's what happens with the images I have.
+
+It seems to have something to do with transparency.  If I set the
+pinboard background to green so I can see which bits in the original
+image are transparent and which are just white, I notice that the
+round trip through externalize-image turns the transparent bits to
+black.  In my jpg images  the background was plain white, and that
+worked fine through the round trip.
+
+So maybe externalize-image doesn't preserve the alpha values?  Is
+there any way to make it do so?
+
+&gt
+&gt warmest regards,
+&gt
+&gt Ralph
+&gt
+&gt
+&gt Raffael Cavallaro
+&gt raffaelcavallaro@me.com
+&gt
+&gt
+&gt
+&gt
+&gt
+&gt
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: externalize-image</h1>
+                 <pre>
+&gt&gt&gt&gt&gt On Tue, 24 Aug 2010 11:21:16 -0400, Gail Zacharias said:
+&gt 
+&gt On Tue, Aug 24, 2010 at 12:25 AM, Raffael Cavallaro
+&gt &lt;raffaelcavallaro@mac.com&gt wrote:
+&gt &gt
+&gt &gt On Aug 23, 2010, at 10:25 PM, Gail Zacharias wrote:
+&gt &gt
+&gt &gt&gt &nbsp;But if I call it with a
+&gt &gt&gt .png file, the second copy gets a black background. &nbsp;What am I doing
+&gt &gt&gt wrong?
+&gt &gt
+&gt &gt I get funky drawing (i.e., a blank background - did you mean "black" or
+&gt &gt "blank?") even with a jpeg unless I call gp:invalidate-rectangle on the
+&gt &gt pinboard-layout (i.e., b) after the second call to
+&gt &gt capi:manipulate-pinboard, though this may not be the underlying issue.
+&gt 
+&gt I meant black, at least that's what happens with the images I have.
+&gt 
+&gt It seems to have something to do with transparency.  If I set the
+&gt pinboard background to green so I can see which bits in the original
+&gt image are transparent and which are just white, I notice that the
+&gt round trip through externalize-image turns the transparent bits to
+&gt black.  In my jpg images  the background was plain white, and that
+&gt worked fine through the round trip.
+&gt 
+&gt So maybe externalize-image doesn't preserve the alpha values?  Is
+&gt there any way to make it do so?
+
+Yes, that's the problem.  Externalize-image always generates a bmp file, but
+there is no standard definition for bmp files with transparency.
+
+Can you use the image access APIs (in particular,
+gp:image-access-pixels-from-bgra, gp:image-access-pixels-to-bgra and
+gp:make-image) instead of externalize-image?
+
+-- 
+Martin Simmons
+LispWorks Ltd
+http://www.lispworks.com/
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: externalize-image</h1>
+                 <pre>
+On Tue, Aug 24, 2010 at 11:38 AM, Martin Simmons &lt;martin@lispworks.com&gt wrote:
+&gt&gt&gt&gt&gt&gt On Tue, 24 Aug 2010 11:21:16 -0400, Gail Zacharias said:
+&gt&gt
+&gt&gt On Tue, Aug 24, 2010 at 12:25 AM, Raffael Cavallaro
+&gt&gt &lt;raffaelcavallaro@mac.com&gt wrote:
+&gt&gt &gt
+&gt&gt &gt On Aug 23, 2010, at 10:25 PM, Gail Zacharias wrote:
+&gt&gt &gt
+&gt&gt &gt&gt &nbsp;But if I call it with a
+&gt&gt &gt&gt .png file, the second copy gets a black background. &nbsp;What am I doing
+&gt&gt &gt&gt wrong?
+&gt&gt &gt
+&gt&gt &gt I get funky drawing (i.e., a blank background - did you mean "black" or
+&gt&gt &gt "blank?") even with a jpeg unless I call gp:invalidate-rectangle on the
+&gt&gt &gt pinboard-layout (i.e., b) after the second call to
+&gt&gt &gt capi:manipulate-pinboard, though this may not be the underlying issue.
+&gt&gt
+&gt&gt I meant black, at least that's what happens with the images I have.
+&gt&gt
+&gt&gt It seems to have something to do with transparency. &nbsp;If I set the
+&gt&gt pinboard background to green so I can see which bits in the original
+&gt&gt image are transparent and which are just white, I notice that the
+&gt&gt round trip through externalize-image turns the transparent bits to
+&gt&gt black. &nbsp;In my jpg images &nbsp;the background was plain white, and that
+&gt&gt worked fine through the round trip.
+&gt&gt
+&gt&gt So maybe externalize-image doesn't preserve the alpha values? &nbsp;Is
+&gt&gt there any way to make it do so?
+&gt
+&gt Yes, that's the problem. &nbsp;Externalize-image always generates a bmp file, but
+&gt there is no standard definition for bmp files with transparency.
+&gt
+&gt Can you use the image access APIs (in particular,
+&gt gp:image-access-pixels-from-bgra, gp:image-access-pixels-to-bgra and
+&gt gp:make-image) instead of externalize-image?
+
+I'll give it a try.  Thanks.
+
+&gt
+&gt --
+&gt Martin Simmons
+&gt LispWorks Ltd
+&gt http://www.lispworks.com/
+&gt
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: externalize-image</h1>
+                 <pre>I was able to get this to work, but then I got a new set of images
+from the client and it doesn't work with them.   I've attached a
+sample image file.  I may be misunderstanding something about
+gp:load-image.  How can I load an image that works with
+make-image-access?
+
+CL-USER 7 &gt (setq b (capi:contain (make-instance 'capi:output-pane)))
+#&lt;CAPI:OUTPUT-PANE  200E1B87&gt
+
+CL-USER 8 &gt (setq im (gp:load-image b "around_small.png" :editable :with-alpha))
+#&lt;GRAPHICS-PORTS:IMAGE 200FC0D3&gt
+
+CL-USER 9 &gt (gp:make-image-access b im)
+
+Error: MAKE-IMAGE-ACCESS called on a non-editable image :
+#&lt;GRAPHICS-PORTS:IMAGE 200FC0D3&gt
+
+
+On Tue, Aug 24, 2010 at 11:41 AM, Gail Zacharias &lt;gz@clozure.com&gt wrote:
+&gt On Tue, Aug 24, 2010 at 11:38 AM, Martin Simmons &lt;martin@lispworks.com&gt wrote:
+&gt&gt&gt&gt&gt&gt&gt On Tue, 24 Aug 2010 11:21:16 -0400, Gail Zacharias said:
+&gt&gt&gt
+&gt&gt&gt On Tue, Aug 24, 2010 at 12:25 AM, Raffael Cavallaro
+&gt&gt&gt &lt;raffaelcavallaro@mac.com&gt wrote:
+&gt&gt&gt &gt
+&gt&gt&gt &gt On Aug 23, 2010, at 10:25 PM, Gail Zacharias wrote:
+&gt&gt&gt &gt
+&gt&gt&gt &gt&gt &nbsp;But if I call it with a
+&gt&gt&gt &gt&gt .png file, the second copy gets a black background. &nbsp;What am I doing
+&gt&gt&gt &gt&gt wrong?
+&gt&gt&gt &gt
+&gt&gt&gt &gt I get funky drawing (i.e., a blank background - did you mean "black" or
+&gt&gt&gt &gt "blank?") even with a jpeg unless I call gp:invalidate-rectangle on the
+&gt&gt&gt &gt pinboard-layout (i.e., b) after the second call to
+&gt&gt&gt &gt capi:manipulate-pinboard, though this may not be the underlying issue..
+&gt&gt&gt
+&gt&gt&gt I meant black, at least that's what happens with the images I have.
+&gt&gt&gt
+&gt&gt&gt It seems to have something to do with transparency. &nbsp;If I set the
+&gt&gt&gt pinboard background to green so I can see which bits in the original
+&gt&gt&gt image are transparent and which are just white, I notice that the
+&gt&gt&gt round trip through externalize-image turns the transparent bits to
+&gt&gt&gt black. &nbsp;In my jpg images &nbsp;the background was plain white, and that
+&gt&gt&gt worked fine through the round trip.
+&gt&gt&gt
+&gt&gt&gt So maybe externalize-image doesn't preserve the alpha values? &nbsp;Is
+&gt&gt&gt there any way to make it do so?
+&gt&gt
+&gt&gt Yes, that's the problem. &nbsp;Externalize-image always generates a bmp file, but
+&gt&gt there is no standard definition for bmp files with transparency.
+&gt&gt
+&gt&gt Can you use the image access APIs (in particular,
+&gt&gt gp:image-access-pixels-from-bgra, gp:image-access-pixels-to-bgra and
+&gt&gt gp:make-image) instead of externalize-image?
+&gt
+&gt I'll give it a try. &nbsp;Thanks.
+&gt
+&gt&gt
+&gt&gt --
+&gt&gt Martin Simmons
+&gt&gt LispWorks Ltd
+&gt&gt http://www.lispworks.com/
+&gt&gt
+&gt
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>(unknown)</h1>
+                  <p>
+                   Unable to parse email body. Email id is 10593
+                 </article>
+                </section>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: externalize-image</h1>
+                 <pre>
+
+On Sep 23, 2010, at 1:40 PM, Gail Zacharias wrote:
+
+&gt I was able to get this to work, but then I got a new set of images
+&gt from the client and it doesn't work with them.   I've attached a
+&gt sample image file.  I may be misunderstanding something about
+&gt gp:load-image.  How can I load an image that works with
+&gt make-image-access?
+&gt 
+&gt CL-USER 7 &gt (setq b (capi:contain (make-instance 'capi:output-pane)))
+&gt #&lt;CAPI:OUTPUT-PANE  200E1B87&gt
+&gt 
+&gt CL-USER 8 &gt (setq im (gp:load-image b "around_small.png" :editable :with-alpha))
+&gt #&lt;GRAPHICS-PORTS:IMAGE 200FC0D3&gt
+
+Does "around_small.png" actually have an alpha channel? Does (gp:load-image b "around_small.png" :editable t) work?
+
+warmest regards,
+
+Ralph
+
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: externalize-image</h1>
+                 <pre>
+
+On Sep 23, 2010, at 2:51 PM, Raffael Cavallaro wrote:
+
+&gt Does "around_small.png" actually have an alpha channel?
+
+Didn't realize you'd attached it. It appears not to have an alpha cannel. I don't think :editable :with-alpha will work unless the image already has an alpha channel.
+
+Just add an alpha channel with an image editor (I did it with GraphicConverter - Picture:Alpha Channel:Add Alpha Channel) and then it works.
+
+warmest regards,
+
+Ralph
+
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: externalize-image</h1>
+                 <pre>
+On Thu, Sep 23, 2010 at 3:15 PM, Raffael Cavallaro
+&lt;raffaelcavallaro@mac.com&gt wrote:
+&gt
+&gt On Sep 23, 2010, at 2:51 PM, Raffael Cavallaro wrote:
+&gt
+&gt&gt Does "around_small.png" actually have an alpha channel?
+&gt
+&gt Didn't realize you'd attached it. It appears not to have an alpha cannel. I don't think :editable :with-alpha will work unless the image already has an alpha channel.
+
+How can I know whether it has an alpha channel or not before I open
+it?  I do want the alpha channel if the image has one.  I am going to
+be opening arbitrary image files selected by the user.
+
+
+&gt Just add an alpha channel with an image editor (I did it with GraphicConverter - Picture:Alpha Channel:Add Alpha Channel) and then it works.
+&gt
+&gt warmest regards,
+&gt
+&gt Ralph
+&gt
+&gt
+&gt Raffael Cavallaro
+&gt raffaelcavallaro@me.com
+&gt
+&gt
+&gt
+&gt
+&gt
+&gt
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: externalize-image</h1>
+                 <pre>
+
+On Sep 23, 2010, at 3:53 PM, Gail Zacharias wrote:
+
+&gt How can I know whether it has an alpha channel or not before I open
+&gt it?
+
+(defun image-has-alpha-p (path)
+  #+mac (objc:with-autorelease-pool ()
+          (objc:invoke-bool
+           (objc:invoke "NSBitmapImageRep"
+                        "imageRepWithData:"
+                        (objc:invoke "NSData" "dataWithContentsOfFile:"
+                                     (objc:invoke
+                                      (objc:string-to-ns-string path)
+                                      "stringByStandardizingPath")))
+           "hasAlpha"))
+  #+windows :no-idea)
+
+:)
+
+warmest regards,
+
+Ralph
+
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: externalize-image</h1>
+                 <p>
+                  Unable to parse email body. Email id is 10594
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:35 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

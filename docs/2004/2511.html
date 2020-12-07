@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Foreign Function Calls to Java</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Foreign Function Calls to Java</h1>
+                <pre>What provisions does LispWorks make for calling Java functions?
+
+What solutions have people found useful and effective?
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Foreign Function Calls to Java</h1>
+                 <pre>John C. Mallery wrote:
+
+&gtWhat provisions does LispWorks make for calling Java functions?
+&gt
+&gtWhat solutions have people found useful and effective?
+&gt
+&gt  
+&gt
+Two theoretical paths are:
+
+(1) Java JNI -&gt LispWorks FLI (ie via C). You use javah to generate 
+..c/.h files that define the Java interface and then use the LispWorks 
+FLI generator to convert those into definitions you can call from Lisp. 
+You probably have to write some extra glue code too. You have to load 
+the JVM into LispWorks.
+
+(2) Java-to-IDL -&gt IDL-to-Lisp (ie via CORBA). Unlike all other 
+languages with a CORBA binding, Java has a reverse mapping to IDL 
+(normally the mapping are from IDL to the language). So you could 
+generate the IDL description of your Java interfaces and then use the 
+IDL to generate Lisp code that will call that. You may also need to 
+write some extra glue code.
+
+PROs and CONs
+
+(1) is more efficient
+
+(2) would enable you to dynamically choose whether to load the JVM 
+runtime into LispWorks or run it as a separate executable
+(2) would enable you to run the processes remotely from each other on 
+different machines
+(2) would enable you to change the implementation language of either end 
+more easily
+
+__Jason
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>RE: Foreign Function Calls to Java</h1>
+                 <pre>I am nearing completion of jfli - a fairly extensive interface to Java from
+LispWorks, which I intend to release as open source under the Common Public
+License.
+
+The approach I took was to embed a JVM instance in the Lisp process using
+JNI. I was able to do this using LispWorks' own FLI and no C (or Java! *)
+code, which is a tribute to the LW FLI. On top of the JNI layer (essentially
+a wrapper around the entire JNI API), I built the user-level API using Java
+reflection.
+
+My objective was to provide comprehensive, safe, dynamic and Lisp-y access
+to Java and Java libraries as if they were Lisp libraries, for use in Lisp
+programs, i.e. an emphasis on working in Lisp rather than in Java.
+
+jfli ("jay fly") provides:
+
+Automatic function generation for constructors, fields and methods, either
+by named class, or entire package (sub)trees given a jar file.
+
+Java -&gt Lisp package and name mapping with an eye towards lack of surprise,
+lack of conflict, and useful completion
+
+setf-able setter generation for fields as well as for methods that follow
+the JavaBeans property protocol
+
+Java array creation and aref-like access to Java arrays
+
+A 'new' macro that allows for keyword-style field and property
+initialization.
+
+Typed references to Java objects with an inheritance hierarchy on the Lisp
+side mirroring that on the Java side - allowing for Lisp methods specialized
+on Java class and interface types.
+
+Implementation of arbitrary Java interfaces in Lisp, and callbacks from Java
+to Lisp via those interfaces. (* this required a single 5-line dummy Java
+proxy stub, provided with jfli)
+
+Automatic lifetime maintenance of Lisp-referenced Java objects,
+boxing/unboxing of primitive args/returns, string conversions, Java
+exception handling, overload resolution etc.
+
+I built jfli using LWM and LWW (using Apple's and Sun's JVMs respectively),
+and it works fine on both. Should be a trivial port to other LispWorks, and
+a possible port to any Common Lisp with a robust FLI. Should also work with
+any JVM with a conformant JNI implementation. 
+
+
+
+-----Original Message-----
+From: owner-lisp-hug@xanalys.com [mailto:owner-lisp-hug@xanalys.com] On
+Behalf Of John C. Mallery
+Sent: Wednesday, June 23, 2004 6:55 AM
+To: lisp-hug@xanalys.com
+Subject: Foreign Function Calls to Java
+
+What provisions does LispWorks make for calling Java functions?
+
+What solutions have people found useful and effective?
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: Foreign Function Calls to Java</h1>
+                  <pre>On Wed, 23 Jun 2004 09:50:45 -0400, "Rich Hickey" &lt;rich@richhickey.com&gt wrote:
+
+&gt I am nearing completion of jfli - a fairly extensive interface to
+&gt Java from LispWorks, which I intend to release as open source under
+&gt the Common Public License.
+&gt
+&gt The approach I took was to embed a JVM instance in the Lisp process
+&gt using JNI. I was able to do this using LispWorks' own FLI and no C
+&gt (or Java! *) code, which is a tribute to the LW FLI. On top of the
+&gt JNI layer (essentially a wrapper around the entire JNI API), I built
+&gt the user-level API using Java reflection.
+&gt
+&gt My objective was to provide comprehensive, safe, dynamic and Lisp-y
+&gt access to Java and Java libraries as if they were Lisp libraries,
+&gt for use in Lisp programs, i.e. an emphasis on working in Lisp rather
+&gt than in Java.
+&gt
+&gt jfli ("jay fly") provides:
+&gt
+&gt Automatic function generation for constructors, fields and methods,
+&gt either by named class, or entire package (sub)trees given a jar
+&gt file.
+&gt
+&gt Java -&gt Lisp package and name mapping with an eye towards lack of
+&gt surprise, lack of conflict, and useful completion
+&gt
+&gt setf-able setter generation for fields as well as for methods that
+&gt follow the JavaBeans property protocol
+&gt
+&gt Java array creation and aref-like access to Java arrays
+&gt
+&gt A 'new' macro that allows for keyword-style field and property
+&gt initialization.
+&gt
+&gt Typed references to Java objects with an inheritance hierarchy on
+&gt the Lisp side mirroring that on the Java side - allowing for Lisp
+&gt methods specialized on Java class and interface types.
+&gt
+&gt Implementation of arbitrary Java interfaces in Lisp, and callbacks
+&gt from Java to Lisp via those interfaces. (* this required a single
+&gt 5-line dummy Java proxy stub, provided with jfli)
+&gt
+&gt Automatic lifetime maintenance of Lisp-referenced Java objects,
+&gt boxing/unboxing of primitive args/returns, string conversions, Java
+&gt exception handling, overload resolution etc.
+&gt
+&gt I built jfli using LWM and LWW (using Apple's and Sun's JVMs
+&gt respectively), and it works fine on both. Should be a trivial port
+&gt to other LispWorks, and a possible port to any Common Lisp with a
+&gt robust FLI. Should also work with any JVM with a conformant JNI
+&gt implementation.
+
+Wow, that sounds cool! I'm looking forward to that.
+
+Edi.
+
+
+</pre>
+                 </article>
+                </section>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: Foreign Function Calls to Java</h1>
+                  <pre>
+On Jun 23, 2004, at 9:50 AM, Rich Hickey wrote:
+
+&gt I am nearing completion of jfli - a fairly extensive interface to Java 
+&gt from
+&gt LispWorks, which I intend to release as open source under the Common 
+&gt Public
+&gt License.
+&gt
+
+This sounds really good. Sorry, but I have to ask... What do you think 
+the timing is on this?
+
+Do I understand what you are saying properly? LW using jfli starts a 
+jvm, can create a bunch of objects, call methods on those objects, 
+implement Java interfaces so can set up lisp handlers for callbacks in 
+a gui say, or a web application, which themselves can call back into 
+Java. What happens across invocations of the LW program -- lisp has an 
+image which can be re-started, Java doesn't? Let me tell you, I'd be 
+happy to have such problems :-)
+
+I'm also curious what your intended use is for this... what problem are 
+you trying to solve?
+
+Cheers,
+Bob
+
+
+</pre>
+                 </article>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>RE: Foreign Function Calls to Java</h1>
+                   <pre>I hope to have a beta up on SourceForge within a month.
+
+Yep, Lisp starts the JVM, you create objects, can fire up a GUI and receive
+events. I've successfully called JDBC and SWT (some Mac hiccups, Windows OK)
+so far. It can load any classes, as normally done in Java, so is not limited
+to the core Java API.
+
+Extending the Lisp image notion to Java is beyond the initial scope of the
+project. For all the dynamism of Java class loading etc, the VM loading
+support in JNI is fairly rigid (one JVM instance, no unloads, no restarts
+etc). So Java is inferior to Lisp in that regard, but still useful.
+
+What I'm trying to do is increase the practicality of Lisp (for me,
+personally, I know it's quite powerful on its own), for a wide variety of
+projects. I'm interested in SWT as a portable UI for Lisp (no slight to
+CAPI, a very nice library); better integration with the outside world;
+access to vast libraries of stuff I'd rather not roll on my own. 
+
+I want to do more real-world work in Lisp and not spend a lot of time
+wheel-reinventing while doing so. With jfli, Lisp will always have a library
+that is a superset of Java's, and everyone working on libraries for Java is
+working on libraries for Lisp.
+
+-----Original Message-----
+From: owner-lisp-hug@xanalys.com [mailto:owner-lisp-hug@xanalys.com] On
+Behalf Of Bob Hutchison
+Sent: Thursday, June 24, 2004 6:40 AM
+To: Rich Hickey
+Cc: lisp-hug@xanalys.com; Bob Hutchison
+Subject: Re: Foreign Function Calls to Java
+
+
+On Jun 23, 2004, at 9:50 AM, Rich Hickey wrote:
+
+&gt I am nearing completion of jfli - a fairly extensive interface to Java 
+&gt from
+&gt LispWorks, which I intend to release as open source under the Common 
+&gt Public
+&gt License.
+&gt
+
+This sounds really good. Sorry, but I have to ask... What do you think 
+the timing is on this?
+
+Do I understand what you are saying properly? LW using jfli starts a 
+jvm, can create a bunch of objects, call methods on those objects, 
+implement Java interfaces so can set up lisp handlers for callbacks in 
+a gui say, or a web application, which themselves can call back into 
+Java. What happens across invocations of the LW program -- lisp has an 
+image which can be re-started, Java doesn't? Let me tell you, I'd be 
+happy to have such problems :-)
+
+I'm also curious what your intended use is for this... what problem are 
+you trying to solve?
+
+Cheers,
+Bob
+
+
+</pre>
+                  </article>
+                  <section class=tree>
+                   <article class=email>
+                    <h1>Re: Foreign Function Calls to Java</h1>
+                    <pre>On Jun 24, 2004, at 8:16 AM, Rich Hickey wrote:
+
+&gt I hope to have a beta up on SourceForge within a month.
+
+This sounds wonderful! Have you considered applying for hosting at 
+common-lisp.net? I'm sure they'd be interested in this project. CL.net 
+is a great place to host CL code and offers more flexible VCS options 
+(CVS, Arch, Darcs, etc).
+--
+Brian Mastenbrook
+bmastenb@cs.indiana.edu
+http://cs.indiana.edu/~bmastenb/
+
+
+</pre>
+                   </article>
+                  </section>
+                  <section class=tree>
+                   <article class=email>
+                    <h1>Re: Foreign Function Calls to Java</h1>
+                    <pre>
+On Jun 24, 2004, at 9:16 AM, Rich Hickey wrote:
+
+&gt I hope to have a beta up on SourceForge within a month.
+
+Wonderful!
+
+&gt
+&gt What I'm trying to do is increase the practicality of Lisp (for me,
+&gt personally, I know it's quite powerful on its own), for a wide variety 
+&gt of
+&gt projects. I'm interested in SWT as a portable UI for Lisp (no slight to
+&gt CAPI, a very nice library); better integration with the outside world;
+&gt access to vast libraries of stuff I'd rather not roll on my own.
+
+This is similar to the situation I'm in. For the foreseeable future I 
+can only consider a mixed Java and lisp environment -- my company has a 
+quite large java code base that we cannot ignore. Jfli looks as though 
+we could start using LW where it makes sense.
+
+Any thoughts as to how to make lisp programs appear to java? For 
+example, it might be interesting to dress up a lisp program as a 
+servlet, or a bunch of servlets. Or simply to wrap it in a java class.
+
+Dave (Fox), what do you and others at Xanalys think of this project? 
+What about some of the lisp projects out there -- some of these would 
+be more than a little interesting to the java community (personally, 
+I'm thinking of Marc Battyani's cl-typesetting and cl-pdf).
+
+Cheers,
+Bob
+
+
+</pre>
+                   </article>
+                   <section class=tree>
+                    <article class=email>
+                     <h1>RE: Foreign Function Calls to Java</h1>
+                     <pre>To the extent LispWorks can create dynamic libraries on the desired platform
+(I haven't used that feature myself yet) it should be very possible to call
+Lisp from Java programs, i.e. where the JVM is started outside of jfli/Lisp.
+One could create a Lisp DLL that implements a native Java method (jfli does
+this to implement interface proxies). In this method you could (with an
+as-yet-unwritten-but-trivial function) bind jfli to the JVM that called the
+method. At that point all of jfli's functionality would become available to
+the Lisp code. If the method returned an implementation of some sort of
+factory interface, one could continue to use that from Java to create
+Lisp-implemented objects. That's just one scenario.
+
+If you wanted an out-of-proc connection I guess there's RMI as well as
+XML-RPC and SOAP.
+
+-----Original Message-----
+From: owner-lisp-hug@xanalys.com [mailto:owner-lisp-hug@xanalys.com] On
+Behalf Of Bob Hutchison
+Sent: Friday, June 25, 2004 7:11 AM
+To: Rich Hickey
+Cc: &lt;lisp-hug@xanalys.com&gt; Bob Hutchison; davef@xanalys.com
+Subject: Re: Foreign Function Calls to Java
+
+....
+
+Any thoughts as to how to make lisp programs appear to java? For 
+example, it might be interesting to dress up a lisp program as a 
+servlet, or a bunch of servlets. Or simply to wrap it in a java class.
+
+....
+
+
+</pre>
+                    </article>
+                   </section>
+                  </section>
+                 </section>
+                </section>
+                <section class=tree>
+                 <article class=email>
+                  <h1>
+                   Unable to render article 2524 because of ":DEFAULT stream decoding error on 
+                   #&lt;SB-SYS:FD-STREAM for \"socket 192.168.43.216:53305, peer: 
+                   116.202.254.214:119\" {10067F45C3}&gt: the octet sequence #(233 13 10) cannot be 
+                   decoded." error</h1>
+                 </article>
+                </section>
+                <section class=tree>
+                 <article class=email>
+                  <h1>RE: Foreign Function Calls to Java</h1>
+                  <pre>On 2004/06/23, Rich Hickey announced the pending
+release of jfli, a comprehensive Lisp-y interface to
+the Java Native Interface (JNI). Rich estimated jfli
+will be in beta in a month. Thanks, Rich!
+
+I need to commit to a direction before then, so I
+wrote a minimal test bed to prove to myself that I can
+meet my promises even if jfli is delayed for any
+reason. This testbed is not a substitute for jfli in
+any manner. I look forward eagerly to jfli's release.
+
+If anyone is interested in a "sneak peek" at Java-Lisp
+integration, you may download the code from:
+
+http://199.234.154.207/jni-lisp.html
+
+The code is tested in Lispworks for Windows. The Lisp
+and Java code is portable. The C code, in c2lisp.c, is
+Windows-specific but should easily be portable. The C
+code is minimal. Only functions FillVMArgs and
+Java_Lisp_callVoidPtrJstring are required. FillVMArgs
+could be replaced with FLI calls from Lispworks.
+Except for 3 lines of debug code,
+Java_Lisp_callVoidPtrJstring is a 4-line function
+enabling callbacks to Lisp from Java.
+
+Jeff
+
+
+		
+__________________________________
+Do you Yahoo!?
+New and Improved Yahoo! Mail - Send 10MB messages!
+http://promotions.yahoo.com/new_mail 
+
+
+</pre>
+                 </article>
+                </section>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:52 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

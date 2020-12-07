@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Help tracking down a memory leak</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Help tracking down a memory leak</h1>
+                <pre>
+Can anyone suggest some tools/techniques for tracking down a memory 
+leak?  We've identified that a leak is happening, repeating an operation 
+that shouldn't grow the heap after the first invocation is steadily 
+growing memory size.  There is a small amount of expected leakage - it 
+interns new symbols each time for some aspect of processing - but I 
+don't think that accounts for the growth we're seeing.
+
+Thanks
+Guy
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Help tracking down a memory leak</h1>
+                 <p>
+                  Unable to parse email body. Email id is 10771
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Help tracking down a memory leak</h1>
+                 <pre>
+On Nov 26, 2010, at 18:44 , Guy Footring wrote:
+
+&gt 
+&gt Can anyone suggest some tools/techniques for tracking down a memory leak?  We've identified that a leak is happening, repeating an operation that shouldn't grow the heap after the first invocation is steadily growing memory size.  There is a small amount of expected leakage - it interns new symbols each time for some aspect of processing - but I don't think that accounts for the growth we're seeing.
+
+I was in a similar situation earlier this year, where I saw that the memory usage was increasing over time. It turned out that this was caused by a bug in Lispworks, where console output was being accumulated in the image. The solution for this was to periodically set win32::*console-outputs* to nil. 
+
+I wrote some code to investigate the memory usage, including some functions for scanning through all objects in memory and counting the number of allocated objects of each type. This was trivial, given that I could use hcl:sweep-all-objects, but I'd be happy to share even this trivial code if you want something to start from.
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Help tracking down a memory leak</h1>
+                 <pre>
+On Sun, Nov 28, 2010 at 6:06 PM, Guy Footring &lt;Guy@footring.demon.co.uk&gt wrote:
+&gt In message &lt;44884C84-072D-4708-87C9-902AC04667D1@gmail.com&gt, Raymond Wiker
+&gt &lt;rwiker@gmail.com&gt writes
+&gt&gt
+&gt&gt I was in a similar situation earlier this year, where I saw that the
+&gt&gt memory usage was increasing over time. It turned out that this was caused by
+&gt&gt a bug in Lispworks, where console output was being accumulated in the image.
+&gt&gt The solution for this was to periodically set win32::*console-outputs* to
+&gt&gt nil.
+&gt&gt
+&gt&gt I wrote some code to investigate the memory usage, including some
+&gt&gt functions for scanning through all objects in memory and counting the number
+&gt&gt of allocated objects of each type. This was trivial, given that I could use
+&gt&gt hcl:sweep-all-objects, but I'd be happy to share even this trivial code if
+&gt&gt you want something to start from.
+&gt
+&gt Hi Raymond.
+&gt I've been playing around with sweep-all-objects, but I'd be interested to
+&gt see what you have to see how it compares with my quick first-cut approach of
+&gt doing a gc, then sticking everything found into hashtable and then seeing
+&gt what's new after running the operation. &nbsp;I'm seeing all sorts of stuff that
+&gt I wasn't expecting to see, making me wonder if objects will get found
+&gt correctly in a hash table if GC has moved them...
+
+Interference from other threads, maybe?
+
+3 simple functions; the first lists the number of internal and
+external symbols in each package, sorted by total symbol count per
+package. The second lists the number of allocated objects per
+class/type, while the third dumps all simple-strings to a file (which
+I did because I noticed that the allocation of simple-strings appeared
+to be growing more than I expected it to).
+
+(defun package-sizes (&amp;optional (stream t))
+  (dolist (package (sort (list-all-packages)
+                         #'&gt
+                         :key (lambda (p)
+                                (+ (slot-value p
+'system::internal-symbols-count)
+                                   (slot-value p
+'system::external-symbols-count)))))
+    (with-slots (system::name system::internal-symbols-count
+system::external-symbols-count)
+        package
+      (format stream "~&amp;~40a: internal: ~5,' d, external: ~5,' d~%"
+              system::name
+              system::internal-symbols-count
+              system::external-symbols-count))))
+
+(defun type-counts (&amp;optional (stream t))
+  (let ((typemap (make-hash-table :test #'eq)))
+    (system:with-other-threads-disabled
+      (hcl:sweep-all-objects (lambda (o)
+                               (incf (gethash (class-name (class-of
+o)) typemap 0)))))
+    (let ((types-and-counts nil))
+      (maphash (lambda (k v)
+                 (push (cons k v) types-and-counts))
+               typemap)
+      (dolist (type-and-count (sort types-and-counts #'&gt :key #'cdr))
+        (format stream "~&amp;~80a: ~10d~%"
+                (concatenate 'string
+                             (package-name (symbol-package (car
+type-and-count)))
+                             ":"
+                             (symbol-name (car type-and-count)))
+                (cdr type-and-count))))))
+
+(defun dump-simple-strings (&amp;optional (stream t))
+  (flet ((emit-char (c)
+           (if (and (typep c 'base-char) (graphic-char-p c) (not (char= c #\\)))
+             (format stream "~c" c)
+             (format stream "\\~4,'0X" (char-code c)))))
+    (system:with-other-threads-disabled
+      (hcl:sweep-all-objects
+       (lambda (o)
+         (when (eq (class-name (class-of o)) 'common-lisp:simple-string)
+           (let ((string-length (length o)))
+             (format stream "~&amp;Length: ~7d; Value = " (length o))
+             (if (&lt; (length o) 128)
+               (loop for c across o
+                     do (emit-char c))
+               (progn
+                 (loop for c across o
+                       for i below 60
+                       do (emit-char c))
+                 (format stream " ... ")
+                 (loop for i from (- string-length 60) below string-length
+                       do (emit-char (char o i)))))
+             (terpri stream))))))))
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:34 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>READ-SEQUENCE and FILE-LENGTH (LWW 4.2.7)</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>READ-SEQUENCE and FILE-LENGTH (LWW 4.2.7)</h1>
+                <pre>Hi
+
+I have the following test function on LWW 4.2.7
+
+(defun test-rs (filename)
+   (with-open-file (s filename :direction :input)
+     (let ((buffer (make-array (file-length s)
+                               :element-type (stream-element-type s)))
+           (chars-read 0)
+           )
+       (format t "Trying to READ-SEQUENCE on stream ~S of length ~D.~%"
+               s
+               (file-length s))
+       (setf chars-read (read-sequence buffer s))
+       (cond ((&lt; chars-read (file-length s))
+              (format t "Read only ~D chars instead of ~D~%"
+                      chars-read
+                      (file-length s))
+              (subseq buffer 0 chars-read))
+             (t
+              buffer)))))
+
+
+turns out that it appears that the FILE-LENGTH is greater than the 
+actual file contents.
+
+Has anybody observed this effect?
+
+Cheers
+--
+Marco
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>RE: READ-SEQUENCE and FILE-LENGTH (LWW 4.2.7)</h1>
+                 <pre>Could it be something like a UTF8-encoded file containing non-ASCII
+characters? See
+
+ 
+&lt;http://www.google.com/groups?selm=8765gs6qve.fsf%40bird.agharta.de&amp;oe=UTF-8
+&amp;output=gplain&gt
+
+Edi.
+
+&gt -----Original Message-----
+&gt From: owner-lisp-hug@xanalys.com 
+&gt [mailto:owner-lisp-hug@xanalys.com] On Behalf Of Marco Antoniotti
+&gt Sent: Montag, 10. Mai 2004 22:08
+&gt To: lisp-hug@xanalys.com
+&gt Subject: READ-SEQUENCE and FILE-LENGTH (LWW 4.2.7)
+&gt 
+&gt 
+&gt Hi
+&gt 
+&gt I have the following test function on LWW 4.2.7
+&gt 
+&gt (defun test-rs (filename)
+&gt    (with-open-file (s filename :direction :input)
+&gt      (let ((buffer (make-array (file-length s)
+&gt                                :element-type (stream-element-type s)))
+&gt            (chars-read 0)
+&gt            )
+&gt        (format t "Trying to READ-SEQUENCE on stream ~S of 
+&gt length ~D.~%"
+&gt                s
+&gt                (file-length s))
+&gt        (setf chars-read (read-sequence buffer s))
+&gt        (cond ((&lt; chars-read (file-length s))
+&gt               (format t "Read only ~D chars instead of ~D~%"
+&gt                       chars-read
+&gt                       (file-length s))
+&gt               (subseq buffer 0 chars-read))
+&gt              (t
+&gt               buffer)))))
+&gt 
+&gt 
+&gt turns out that it appears that the FILE-LENGTH is greater than the 
+&gt actual file contents.
+&gt 
+&gt Has anybody observed this effect?
+&gt 
+&gt Cheers
+&gt --
+&gt Marco
+&gt 
+&gt 
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: READ-SEQUENCE and FILE-LENGTH (LWW 4.2.7)</h1>
+                  <pre>Well,  I thought so.  But I am unsure that is the case.  The file I am  
+testing was edited with LWW itself.
+
+Now,  checking with 'wc' on a Linux box shows that the difference  
+between the file length and the number of chars read is suspiciously  
+close to the number of lines in the file.  The file is a DOS file.   
+Maybe an end of line mismatch?
+
+As an aside, this is a show stopper for 'albert' and LW(W)
+
+Cheers
+
+Marco
+
+
+
+
+On Monday, May 10, 2004, at 16:31 America/New_York, Edi Weitz wrote:
+
+&gt Could it be something like a UTF8-encoded file containing non-ASCII
+&gt characters? See
+&gt
+&gt
+&gt &lt;http://www.google.com/ 
+&gt groups?selm=8765gs6qve.fsf%40bird.agharta.de&amp;oe=UTF-8
+&gt &amp;output=gplain&gt
+&gt
+&gt Edi.
+&gt
+&gt&gt -----Original Message-----
+&gt&gt From: owner-lisp-hug@xanalys.com
+&gt&gt [mailto:owner-lisp-hug@xanalys.com] On Behalf Of Marco Antoniotti
+&gt&gt Sent: Montag, 10. Mai 2004 22:08
+&gt&gt To: lisp-hug@xanalys.com
+&gt&gt Subject: READ-SEQUENCE and FILE-LENGTH (LWW 4.2.7)
+&gt&gt
+&gt&gt
+&gt&gt Hi
+&gt&gt
+&gt&gt I have the following test function on LWW 4.2.7
+&gt&gt
+&gt&gt (defun test-rs (filename)
+&gt&gt    (with-open-file (s filename :direction :input)
+&gt&gt      (let ((buffer (make-array (file-length s)
+&gt&gt                                :element-type (stream-element-type s)))
+&gt&gt            (chars-read 0)
+&gt&gt            )
+&gt&gt        (format t "Trying to READ-SEQUENCE on stream ~S of
+&gt&gt length ~D.~%"
+&gt&gt                s
+&gt&gt                (file-length s))
+&gt&gt        (setf chars-read (read-sequence buffer s))
+&gt&gt        (cond ((&lt; chars-read (file-length s))
+&gt&gt               (format t "Read only ~D chars instead of ~D~%"
+&gt&gt                       chars-read
+&gt&gt                       (file-length s))
+&gt&gt               (subseq buffer 0 chars-read))
+&gt&gt              (t
+&gt&gt               buffer)))))
+&gt&gt
+&gt&gt
+&gt&gt turns out that it appears that the FILE-LENGTH is greater than the
+&gt&gt actual file contents.
+&gt&gt
+&gt&gt Has anybody observed this effect?
+&gt&gt
+&gt&gt Cheers
+&gt&gt --
+&gt&gt Marco
+&gt&gt
+&gt&gt
+&gt&gt
+--
+Marco Antoniotti					http://bioinformatics.nyu.edu
+NYU Courant Bioinformatics Group		tel. +1 - 212 - 998 3488
+715 Broadway 10th FL				fax. +1 - 212 - 998 3484
+New York, NY, 10003, U.S.A.
+
+
+</pre>
+                 </article>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>Re: READ-SEQUENCE and FILE-LENGTH (LWW 4.2.7)</h1>
+                   <p>
+                    Unable to parse email body. Email id is 2304
+                  </article>
+                  <section class=tree>
+                   <article class=email>
+                    <h1>Re: READ-SEQUENCE and FILE-LENGTH (LWW 4.2.7)</h1>
+                    <pre>Thanks to all who responded.  The problem seems indeed one of DOS/UNIX 
+linefeed mismatch.
+
+For the case at hand (trying to get 'albert' to work), returning the 
+subsequence (memory costly operation) appears to work.
+
+I'll investigate the external encoding feature for future cases.
+
+However, I am not sure that the semantics of READ-SEQUENCE warrants the 
+linefeed translation.  Oh well.
+
+Cheers
+
+marco
+
+
+
+
+On Tuesday, May 11, 2004, at 08:29 America/New_York, davef@xanalys.com 
+wrote:
+
+&gt
+&gt    Well,  I thought so.  But I am unsure that is the case.  The file I 
+&gt am
+&gt    testing was edited with LWW itself.
+&gt
+&gt LispWorks is capable of editing and creating files with different
+&gt encodings. See the Editor User Guide for details.
+&gt
+&gt    Now,  checking with 'wc' on a Linux box shows that the difference
+&gt    between the file length and the number of chars read is suspiciously
+&gt    close to the number of lines in the file.
+&gt
+&gt Is that difference exactly equal to the number of lines?
+&gt
+&gt                                             The file is a DOS file.
+&gt    Maybe an end of line mismatch?
+&gt
+&gt I guess that you have a CRLF-line-terminated file. OPEN detects this
+&gt and creates a file stream with an appropriate external format. The
+&gt Lisp line terminator is LF, so when that file is read into Lisp the
+&gt external-format maps each CRLF pair to LF.
+&gt
+&gt You can check the stream's external format by STREAM-EXTERNAL-FORMAT.
+&gt
+&gt LispWorks FILE-LENGTH does not take account of the external format,
+&gt because in general it would need to read the entire file to achieve
+&gt that. Perhaps it should return NIL rather than the file's byte-length
+&gt in such cases. In any case, your code needs to allow for FILE-LENGTH
+&gt returning NIL.
+&gt
+&gt    As an aside, this is a show stopper for 'albert' and LW(W)
+&gt
+&gt Perhaps you can simply call the LispWorks function FILE-STRING, which
+&gt does do external formats. Alternately you could hack it by specifying
+&gt a no-conversion external format or even use a binary stream - you'll
+&gt need to think about whether you want to see those Control-M characters
+&gt in your Lisp strings if you take this route.
+&gt
+&gt
+&gt    Cheers
+&gt
+&gt    Marco
+&gt
+&gt
+&gt
+&gt
+&gt    On Monday, May 10, 2004, at 16:31 America/New_York, Edi Weitz wrote:
+&gt
+&gt&gt Could it be something like a UTF8-encoded file containing non-ASCII
+&gt&gt characters? See
+&gt&gt
+&gt&gt
+&gt&gt &lt;http://www.google.com/
+&gt&gt groups?selm=8765gs6qve.fsf%40bird.agharta.de&amp;oe=UTF-8
+&gt&gt &amp;output=gplain&gt
+&gt&gt
+&gt&gt Edi.
+&gt&gt
+&gt&gt&gt -----Original Message-----
+&gt&gt&gt From: owner-lisp-hug@xanalys.com
+&gt&gt&gt [mailto:owner-lisp-hug@xanalys.com] On Behalf Of Marco Antoniotti
+&gt&gt&gt Sent: Montag, 10. Mai 2004 22:08
+&gt&gt&gt To: lisp-hug@xanalys.com
+&gt&gt&gt Subject: READ-SEQUENCE and FILE-LENGTH (LWW 4.2.7)
+&gt&gt&gt
+&gt&gt&gt
+&gt&gt&gt Hi
+&gt&gt&gt
+&gt&gt&gt I have the following test function on LWW 4.2.7
+&gt&gt&gt
+&gt&gt&gt (defun test-rs (filename)
+&gt&gt&gt    (with-open-file (s filename :direction :input)
+&gt&gt&gt      (let ((buffer (make-array (file-length s)
+&gt&gt&gt                                :element-type (stream-element-type 
+&gt&gt&gt s)))
+&gt&gt&gt            (chars-read 0)
+&gt&gt&gt            )
+&gt&gt&gt        (format t "Trying to READ-SEQUENCE on stream ~S of
+&gt&gt&gt length ~D.~%"
+&gt&gt&gt                s
+&gt&gt&gt                (file-length s))
+&gt&gt&gt        (setf chars-read (read-sequence buffer s))
+&gt&gt&gt        (cond ((&lt; chars-read (file-length s))
+&gt&gt&gt               (format t "Read only ~D chars instead of ~D~%"
+&gt&gt&gt                       chars-read
+&gt&gt&gt                       (file-length s))
+&gt&gt&gt               (subseq buffer 0 chars-read))
+&gt&gt&gt              (t
+&gt&gt&gt               buffer)))))
+&gt&gt&gt
+&gt&gt&gt
+&gt&gt&gt turns out that it appears that the FILE-LENGTH is greater than the
+&gt&gt&gt actual file contents.
+&gt&gt&gt
+&gt&gt&gt Has anybody observed this effect?
+&gt&gt&gt
+&gt&gt&gt Cheers
+&gt&gt&gt --
+&gt&gt&gt Marco
+&gt&gt&gt
+&gt&gt&gt
+&gt&gt&gt
+&gt    --
+&gt    Marco Antoniotti					http://bioinformatics.nyu.edu
+&gt    NYU Courant Bioinformatics Group		tel. +1 - 212 - 998 3488
+&gt    715 Broadway 10th FL				fax. +1 - 212 - 998 3484
+&gt    New York, NY, 10003, U.S.A.
+&gt
+&gt --
+&gt Dave Fox			
+&gt
+&gt Xanalys                 http://www.lispworks.com
+&gt Compass House
+&gt Vision Park, Chivers Way
+&gt Histon
+&gt Cambridge, CB4 9AD
+&gt England
+&gt
+--
+Marco Antoniotti					http://bioinformatics.nyu.edu
+NYU Courant Bioinformatics Group		tel. +1 - 212 - 998 3488
+715 Broadway 10th FL				fax. +1 - 212 - 998 3484
+New York, NY, 10003, U.S.A.
+
+
+</pre>
+                   </article>
+                   <section class=tree>
+                    <article class=email>
+                     <h1>Re: READ-SEQUENCE and FILE-LENGTH (LWW 4.2.7)</h1>
+                     <p>
+                      Unable to parse email body. Email id is 2308
+                    </article>
+                    <section class=tree>
+                     <article class=email>
+                      <h1>Re: READ-SEQUENCE and FILE-LENGTH (LWW 4.2.7)</h1>
+                      <pre>Ok.  However,  if you say that the translation "happens in the stream",  
+than, I could counter that FILE-LENGTH should take that into account as  
+well.
+
+Isn't interpreting the CLHS fun? :)
+
+Cheers
+--
+Marco
+
+
+
+On Tuesday, May 11, 2004, at 11:03 America/New_York, davef@xanalys.com  
+wrote:
+
+&gt
+&gt    Thanks to all who responded.  The problem seems indeed one of  
+&gt DOS/UNIX
+&gt    linefeed mismatch.
+&gt
+&gt    For the case at hand (trying to get 'albert' to work), returning the
+&gt    subsequence (memory costly operation) appears to work.
+&gt
+&gt    I'll investigate the external encoding feature for future cases.
+&gt
+&gt    However, I am not sure that the semantics of READ-SEQUENCE warrants  
+&gt the
+&gt    linefeed translation.  Oh well.
+&gt
+&gt I'm sure that it does warrant the linefeed translation. The
+&gt translation is in the stream, not the particular input function.
+&gt
+&gt Note this in the ANSI Common Lisp specification at
+&gt http://www.lispworks.com/reference/HyperSpec/Body/f_rd_seq.htm#read- 
+&gt sequence:
+&gt
+&gt  read-sequence is identical in effect to iterating over the indicated
+&gt  subsequence and reading one element at a time from stream and storing
+&gt  it into sequence, but may be more efficient than the equivalent
+&gt  loop. An efficient implementation is more likely to exist for the
+&gt  case where the sequence is a vector with the same element type as the
+&gt  stream.
+&gt
+&gt
+&gt --
+&gt Dave Fox			
+&gt
+&gt Xanalys                 http://www.lispworks.com
+&gt Compass House
+&gt Vision Park, Chivers Way
+&gt Histon
+&gt Cambridge, CB4 9AD
+&gt England
+&gt
+--
+Marco Antoniotti					http://bioinformatics.nyu.edu
+NYU Courant Bioinformatics Group		tel. +1 - 212 - 998 3488
+715 Broadway 10th FL				fax. +1 - 212 - 998 3484
+New York, NY, 10003, U.S.A.
+
+
+</pre>
+                     </article>
+                     <section class=tree>
+                      <article class=email>
+                       <h1>
+                        Unable to render article 2311 because of ":DEFAULT stream decoding error on 
+                        #&lt;SB-SYS:FD-STREAM for \"socket 192.168.43.216:53338, peer: 
+                        116.202.254.214:119\" {1002A94A63}&gt: the octet sequence #(246 115 99 104) 
+                        cannot be decoded." error</h1>
+                      </article>
+                      <section class=tree>
+                       <article class=email>
+                        <h1>
+                         Unable to render article 2312 because of ":DEFAULT stream decoding error on 
+                         #&lt;SB-SYS:FD-STREAM for \"socket 192.168.43.216:53340, peer: 
+                         116.202.254.214:119\" {10035A0AD3}&gt: the octet sequence #(246 115 99 104) 
+                         cannot be decoded." error</h1>
+                       </article>
+                      </section>
+                     </section>
+                     <section class=tree>
+                      <article class=email>
+                       <h1>Re: READ-SEQUENCE and FILE-LENGTH (LWW 4.2.7)</h1>
+                       <p>
+                        Unable to parse email body. Email id is 2313
+                      </article>
+                     </section>
+                    </section>
+                   </section>
+                  </section>
+                 </section>
+                </section>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: READ-SEQUENCE and FILE-LENGTH (LWW 4.2.7)</h1>
+                 <pre>Marco Antoniotti wrote:
+
+ (defun test-rs (filename)
+   (with-open-file (s filename :direction :input)
+     (let ((buffer (make-array (file-length s)
+                               :element-type (stream-element-type s)))
+           (chars-read 0))
+       (format t "Trying to READ-SEQUENCE on stream ~S of length ~D.~%"
+               s
+               (file-length s))
+       (setf chars-read (read-sequence buffer s))
+       (cond ((&lt; chars-read (file-length s))
+              (format t "Read only ~D chars instead of ~D~%"
+                      chars-read
+                      (file-length s))
+              (subseq buffer 0 chars-read))
+             (t buffer)))))
+
+&gt turns out that it appears that the FILE-LENGTH is greater than the actual
+&gt file contents.
+
+Yes, this is the classical problem with the DOS CR-LF end-of-line encoding.
+Each line end is encoded with two characters: a 'carriage return' (#\return,
+character code 13) and a 'line feed' (#\linefeed, character code 10).
+
+FILE-LENGTH apparently returns the number of bytes in the file as reported
+by the operating system. But READ-SEQUENCE translates each CR-LF pair to
+a single #\linefeed (or is it #\newline?) character. So your buffer will
+contain fewer characters than the reported file length.
+
+There are several solutions ('workarounds' is probably a better word here):
+  1. Don't worry about it, and just return the subsequence of the buffer
+     that's actually filled. That's what you do in your example, and I
+     think that's a perfectly decent solution.
+  2. Specify something like
+      :EXTERNAL-FORMAT '(:LATIN-1 :EOL-STYLE :LF)
+     as a parameter for with-open-file.
+     In that case, the CR-LF pairs won't get translated to a single
+     character, and you'll get a superfluous #\return (or a superfluous
+     #\linefeed, depending on your point of view ;-) character for each
+     line in your buffer.
+  3. You could write a version of FILE-LENGTH that scans the whole file
+     and only counts 1 character for each CR-LF pair. This feels like
+     overkill to me.
+  4. Don't use the READ-SEQUENCE trick, and just read each line with
+     READ-LINE. This also solves another problem with your code: it
+     won't work for files with a length greater than array-total-size-limit
+     (which is 1048448 in my version of Lispworks). I think this is the
+     best solution, but it probably means that you'll have to rewrite
+     other parts of your program.
+
+I hope this helps.
+
+Regards,
+
+Arthur Lemmens
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: READ-SEQUENCE and FILE-LENGTH (LWW 4.2.7)</h1>
+                 <pre>* Marco Antoniotti wrote:
+&gt Hi
+&gt I have the following test function on LWW 4.2.7
+
+&gt (defun test-rs (filename)
+&gt    (with-open-file (s filename :direction :input)
+&gt      (let ((buffer (make-array (file-length s)
+&gt                                :element-type (stream-element-type s)))
+&gt            (chars-read 0)
+&gt            )
+&gt        (format t "Trying to READ-SEQUENCE on stream ~S of length ~D.~%"
+&gt                s
+&gt                (file-length s))
+&gt        (setf chars-read (read-sequence buffer s))
+&gt        (cond ((&lt; chars-read (file-length s))
+&gt               (format t "Read only ~D chars instead of ~D~%"
+&gt                       chars-read
+&gt                       (file-length s))
+&gt               (subseq buffer 0 chars-read))
+&gt              (t
+&gt               buffer)))))
+
+This is the classic Unix/ascii mistake.  If you want to know how many
+characters are in a file you either need an OS that keeps track of
+this for you, or you need to decode the file to find out.  Windows and
+Unix only know the number of *octets* in the file.  If you're working
+in ASCII, *and* if you're on a Unix machine using its native line-end
+encoding, then this happens to be the same thing, and so lots of
+Unix/ASCII applications assume this will work in general, which it
+won't.
+
+In your case (from a later message), it looks like you have a file
+with Windows/DOS line-ends (CR/LF), which are being translated to
+Lisp's #\Newline on read.  So the octet-length of the file is longer
+than the character length.
+
+--tim
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:52 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

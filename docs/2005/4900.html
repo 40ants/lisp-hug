@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Launching tcl app</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Launching tcl app</h1>
+                <pre>I use system:call-system to launch "exe" apps, but it doesn't work for 
+"tcl":
+
+
+CL-USER 1 &gt (system:call-system "taskmgr.exe" :wait nil)
+T
+
+CL-USER 2 &gt (system:call-system "c:\\Program Files\\Leaf\\server.tcl" :wait 
+nil)
+
+Error: System Call WIN32-CREATE-PROCESS failed: 193 (unknown error code)
+command: c:\Program Files\Leaf\server.tcl
+  1 (abort) Return to level 0.
+  2 Return to top loop level 0.
+
+Type :b for backtrace, :c &lt;option number&gt to proceed,  or :? for other 
+options
+
+CL-USER 3 : 1 &gt
+
+
+I can launch "sever.tcl" just by clicking on it - so Windows must know what 
+to do with it.  I also have a shortcut to it on my desktop that launches it. 
+Is there a way to have Lisp (LWWPE 4.4.6) launch it?
+
+Thanks in advance!
+
+Bruce.
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Launching tcl app</h1>
+                 <pre>On Sun, 4 Dec 2005 11:12:19 -0800, "Bruce J. Weimer, MD" &lt;bjweimer@charter.net&gt wrote:
+
+&gt I use system:call-system to launch "exe" apps, but it doesn't work
+&gt for "tcl":
+&gt
+&gt CL-USER 1 &gt (system:call-system "taskmgr.exe" :wait nil)
+&gt T
+&gt
+&gt CL-USER 2 &gt (system:call-system "c:\\Program Files\\Leaf\\server.tcl"
+&gt :wait nil)
+&gt
+&gt Error: System Call WIN32-CREATE-PROCESS failed: 193 (unknown error code)
+&gt command: c:\Program Files\Leaf\server.tcl
+&gt   1 (abort) Return to level 0.
+&gt   2 Return to top loop level 0.
+&gt
+&gt Type :b for backtrace, :c &lt;option number&gt to proceed,  or :? for other
+&gt options
+&gt
+&gt CL-USER 3 : 1 &gt
+&gt
+&gt I can launch "sever.tcl" just by clicking on it - so Windows must
+&gt know what to do with it.  I also have a shortcut to it on my desktop
+&gt that launches it. Is there a way to have Lisp (LWWPE 4.4.6) launch
+&gt it?
+
+We had this a couple of days ago:
+
+  &lt;http://article.gmane.org/gmane.lisp.lispworks.general/4863&gt
+
+Cheers,
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Launching tcl app</h1>
+                 <pre>At 20:18 04/12/2005, Edi Weitz wrote:
+&gtOn Sun, 4 Dec 2005 11:12:19 -0800, "Bruce J. Weimer, MD" 
+&gt&lt;bjweimer@charter.net&gt wrote:
+&gt
+&gt &gt I use system:call-system to launch "exe" apps, but it doesn't work
+&gt &gt for "tcl":
+&gt &gt
+&gt &gt CL-USER 1 &gt (system:call-system "taskmgr.exe" :wait nil)
+&gt &gt T
+&gt &gt
+&gt &gt CL-USER 2 &gt (system:call-system "c:\\Program Files\\Leaf\\server.tcl"
+&gt &gt :wait nil)
+&gt &gt
+&gt &gt Error: System Call WIN32-CREATE-PROCESS failed: 193 (unknown error code)
+&gt &gt command: c:\Program Files\Leaf\server.tcl
+&gt &gt   1 (abort) Return to level 0.
+&gt &gt   2 Return to top loop level 0.
+&gt &gt
+&gt &gt Type :b for backtrace, :c &lt;option number&gt to proceed,  or :? for other
+&gt &gt options
+&gt &gt
+&gt &gt CL-USER 3 : 1 &gt
+&gt &gt
+&gt &gt I can launch "sever.tcl" just by clicking on it - so Windows must
+&gt &gt know what to do with it.  I also have a shortcut to it on my desktop
+&gt &gt that launches it. Is there a way to have Lisp (LWWPE 4.4.6) launch
+&gt &gt it?
+&gt
+&gtWe had this a couple of days ago:
+&gt
+&gt   &lt;http://article.gmane.org/gmane.lisp.lispworks.general/4863&gt
+&gt
+&gtCheers,
+&gtEdi.
+
+There is also win32:shell-execute (which might have more chance of becoming 
+a documented feature ;-)
+e.g. code below opens your default browser.
+
+CL-USER 4 &gt (win32:shell-execute 0                      ; parent window
+                        "open"                           ; operative verb
+                        "www.xanalys.com/support.html"   ; program filename
+                        nil                              ; parameter string
+                        nil                              ; default directory
+                        1                                ; showminimized-2 
+showmaximized-3
+                        )
+42
+
+
+CL-USER 5 &gt
+
+cheers
+
+paulm
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Launching tcl app</h1>
+                 <pre>Actually I had to adjust the parameters a little to get it running.
+This is probably because I'm still using an older LW version.
+
+I noticed that the first parameter needs to an interface, and the last
+parameter just some number, anything seems to be working.
+
+But it didn't run with a hidden interface.
+
+(capi-win32-lib:shell-open *some-interface* full-path-from-the-root 1)
+
+And works!
+
+Pekka
+
+
+At 22:53 4.12.2005, you wrote:
+&gtEdi,
+&gt
+&gtI'm sorry - I somehow didn't see that post....  the 
+&gtcapi-win32-lib:shell-open function is exactly what I was looking 
+&gtfor!  Thank you!!
+&gt
+&gtBruce.
+&gt
+&gt----- Original Message ----- From: "Edi Weitz" &lt;edi@agharta.de&gt
+&gtTo: "Bruce J. Weimer, MD" &lt;bjweimer@charter.net&gt
+&gtCc: &lt;lisp-hug@lispworks.com&gt
+&gtSent: Sunday, December 04, 2005 12:18 PM
+&gtSubject: Re: Launching tcl app
+&gt
+&gt
+&gt&gtOn Sun, 4 Dec 2005 11:12:19 -0800, "Bruce J. Weimer, MD" 
+&gt&gt&lt;bjweimer@charter.net&gt wrote:
+&gt&gt
+&gt&gt&gtI use system:call-system to launch "exe" apps, but it doesn't work
+&gt&gt&gtfor "tcl":
+&gt&gt&gt
+&gt&gt&gtIs there a way to have Lisp (LWWPE 4.4.6) launch
+&gt&gt
+&gt&gt
+&gt&gtWe had this a couple of days ago:
+&gt&gt
+&gt&gt  &lt;http://article.gmane.org/gmane.lisp.lispworks.general/4863&gt
+&gt&gt
+&gt&gtCheers,
+&gt&gtEdi.
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:46 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

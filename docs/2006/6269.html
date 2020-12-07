@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>SLOT-VALUE bug?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>SLOT-VALUE bug?</h1>
+                <pre>
+[LWW 5.0.1]
+
+If I compile and load the code at the end of this email, I get this:
+
+  CL-USER 1 &gt (quux (make-instance 'a))
+  BAR
+
+My gut feeling tells me that this is a bug in SLOT-VALUE and I'm
+seeing some kind of optimization which doesn't work.  But maybe I'm
+wrong and what I'm doing is against the (ANSI) law.  Any thoughts?
+
+FWIW, AllegroCL, CMUCL, SBCL, and CLISP all return 'FOO which is what
+I expected.
+
+Cheers,
+Edi.
+
+
+
+  (in-package :cl-user)
+
+  (defclass a ()
+    ((foo :initform 'foo)))
+
+  (defclass mixin ()
+    ((bar :initform 'bar)))
+
+  (defclass b (a mixin)
+    ())
+
+  (defmethod quux ((thing a))
+    (change-class thing 'b)
+    (slot-value thing 'foo))
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Fwd: SLOT-VALUE bug?</h1><span class="gmail_quote"><br></span>My bad.&nbsp; I should have read more closely.<br>Yes, I now get &#39;BAR when I just compile an edit buffer with your earlier code and<br>(pprint (quux (make-instance &#39;a))).<br><br>If it matters for cross reference, here are the optimize settings (default) used when compiling the buffer:
+<br>;;; Safety = 3, Speed = 1, Space = 1, Float = 1, Interruptible = 0<br>;;; Compilation speed = 1, Debug = 2, Fixnum safety = 3<br><br>Cheers,<br>Chris<div><span class="e" id="q_10fbd1d787fc1052_1"><br><br><div><span class="gmail_quote">
+On 12/26/06, <b class="gmail_sendername">
+Edi Weitz</b> &lt;<a href="mailto:edi@agharta.de" target="_blank" onclick="return top.js.OpenExtLink(window,event,this)">edi@agharta.de</a>&gt; wrote:</span><blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+On Mon, 25 Dec 2006 20:33:57 +0200, &quot;Christopher Brown&quot; &lt;
+<a href="mailto:cjbrown102@gmail.com" target="_blank" onclick="return top.js.OpenExtLink(window,event,this)">cjbrown102@gmail.com</a>&gt; wrote:<br><br>&gt; Not sure what&#39;s up, but I just tried this on LW pro, 5.0.1, Mac,
+<br>&gt; Intel and get &#39;FOO<br><br>Yes, I get the same in LWW if I do it in the REPL.&nbsp;&nbsp;That&#39;s why I said
+<br>you should compile and load the code (from a file).&nbsp;&nbsp;Do you still get<br>&#39;FOO in this case?&nbsp;&nbsp;(I don&#39;t expect interpreted slot access to be<br>optimized.)<br><br>Cheers,<br>Edi.<br></blockquote></div><br>
+
+</span></div>
+
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: SLOT-VALUE bug?</h1>
+                 <pre>
+Hello Edi,
+
+| [LWW 5.0.1]
+|
+| If I compile and load the code at the end of this email, I get this:
+|
+|   CL-USER 1 &gt (quux (make-instance 'a))
+|   BAR
+|
+| My gut feeling tells me that this is a bug in SLOT-VALUE and I'm
+| seeing some kind of optimization which doesn't work.  But maybe I'm
+| wrong and what I'm doing is against the (ANSI) law.  Any thoughts?
+
+Misfunctions the same on LWW 4.4.6. Setting :optimize-slot-access to NIL
+does help, i.e.
+
+(defclass a ()
+  ((foo :initform 'foo))
+  (:optimize-slot-access nil))
+
+BTW, defining a reader and getting a slot value via it works in any case,
+e.g.
+
+(defclass a ()
+  ((foo :initform 'foo :reader foo)))
+....
+(defmethod quux ((thing a))
+  (change-class thing 'b)
+  (list (slot-value thing 'foo) (foo thing)))
+
+&gt (quux (make-instance 'a)) =&gt (BAR FOO)
+--
+Sincerely,
+Dmitriy Ivanov
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: SLOT-VALUE bug?</h1>
+                 <pre>
+
+On 25 Dec 2006, at 18:31, Edi Weitz wrote:
+
+&gt
+&gt [LWW 5.0.1]
+&gt
+&gt If I compile and load the code at the end of this email, I get this:
+&gt
+&gt   CL-USER 1 &gt (quux (make-instance 'a))
+&gt   BAR
+&gt
+&gt My gut feeling tells me that this is a bug in SLOT-VALUE and I'm
+&gt seeing some kind of optimization which doesn't work.  But maybe I'm
+&gt wrong and what I'm doing is against the (ANSI) law.  Any thoughts?
+
+Yes, you committing crimes against the laws of ANSI. ;)
+
+See the notes section about change-class: "The generic function  
+change-class has several semantic difficulties. First, it performs a  
+destructive operation that can be invoked within a method on an  
+instance that was used to select that method. When multiple methods  
+are involved because methods are being combined, the methods  
+currently executing or about to be executed may no longer be  
+applicable. Second, some implementations might use compiler  
+optimizations of slot access, and when the class of an instance is  
+changed the assumptions the compiler made might be violated. This  
+implies that a programmer must not use change-class inside a method  
+if any methods for that generic function access any slots, or the  
+results are undefined."
+
+
+Some think that this wording is still too optimistic... :}
+
+
+Pascal
+
+-- 
+Pascal Costanza, mailto:pc@p-cos.net, http://p-cos.net
+Vrije Universiteit Brussel, Programming Technology Lab
+Pleinlaan 2, B-1050 Brussel, Belgium
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: SLOT-VALUE bug?</h1>
+                 <pre>
+Pascal Costanza &lt;pc@p-cos.net&gt writes:
+
+&gt This implies that a programmer must not use change-class inside a
+&gt method if any methods for that generic function access any slots, or
+&gt the results are undefined.
+
+Wow! Thanks for pointing out that. I think I have to grep through my
+source files for change-class...
+
+(And Edi's example indeed returns FOO if the method is replaced by an
+ ordinary function)
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: SLOT-VALUE bug?</h1>
+                 <pre>
+On Tue, 26 Dec 2006 22:39:18 +0100, Pascal Costanza &lt;pc@p-cos.net&gt wrote:
+
+&gt Yes, you committing crimes against the laws of ANSI. ;)
+
+Ah, bummer!  Thanks for the explanation.
+
+&gt Some think that this wording is still too optimistic... :}
+
+And I thought Common Lisp was a flexible language... :)
+
+Thanks,
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:43 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

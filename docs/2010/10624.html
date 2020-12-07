@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>objective-c bridge question</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>objective-c bridge question</h1>
+                <pre>
+Here's some code from an app I'm working on that has an NSTableView in a CAPI interface. I imagine I'm misusing the objective-c interface in some way, because I'm not seeing the results that I expect. 
+
+The Objective-C class data-source here is intended to serve as a data source for the NSTableView:
+
+
+(define-objc-class data-source ()
+ ((model :accessor model :initarg :model :initform nil))
+ (:objc-class-name "DataSource"))
+
+The following function is passed as the :init-function for the NSScrollView that contains the NSTableView. Here we created the NSTableView and set it up. It's easy enough to see that it get created and set up mostly properly, because I can see that the NSTableView is properly drawing its alternating bands of color in the resulting NSScrollView.
+
+(defun init-row-pane (pane view)
+ (let* ((table-view (alloc-init-object "NSTableView"))
+        (view (invoke view "init"))
+        (source (retain (alloc-init-object "DataSource"))))
+   (invoke table-view "setUsesAlternatingRowBackgroundColors:" t)
+   (invoke view "setDocumentView:" table-view)
+   (invoke table-view "setDataSource:" source)
+   view))
+
+Furthermore, I can examine the NSTableView and see that, indeed, its data source is the DataSource instance created above. However, the following methods never get called, although they are supposed to when an NSTableView has a data source:
+
+(define-objc-method ("numberOfRowsInTableView:" (:unsigned :long))
+   ((self data-source)
+    (table-view objc-object-pointer))
+ 5)
+
+(define-objc-method ("tableView:objectValueForTableColumn:row:" objc-object-pointer)
+   ((self data-source)
+    (table-view objc-object-pointer)
+    (column objc-object-pointer)
+    (row (:unsigned :long)))
+ (string-to-ns-string "Hello"))
+
+Moreover, if I fish the data-source out and manually invoke the method "numberOfRowsInTableView:", Lispworks complains that no such method is defined on DataSource.
+
+What am I missing?
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: objective-c bridge question</h1>
+                 <pre>
+
+On Oct 12, 2010, at 2:07 AM, mikel evins wrote:
+
+&gt Here's some code from an app I'm working on that has an NSTableView in a CAPI interface. I imagine I'm misusing the objective-c interface in some way, because I'm not seeing the results that I expect. 
+
+numberOfRowsInTableView: is part of the the Objective-C formal protocol NSTableViewDataSource Protocol . I don't have much experience using these, but I think LispWorks requires that you declare that a class (in your case data-source) conforms to an existing Objective-C formal protocol. The docs on this topic start here (and you should have a local version as well):
+
+&lt;http://www.lispworks.com/documentation/lw60/OBJC/html/objc-32.htm#marker-892595&gt
+
+So possibly your define-objc-class should look something like this (untested):
+
+(define-objc-class data-source ()
+((model :accessor model :initarg :model :initform nil))
+(:objc-class-name "DataSource")
+(:objc-protocols "NSTableViewDataSource")
+
+Since LispWorks only has 10.4 and earlier protocols predefined, and the NSTableViewDataSource Protocol is 10.6 and later, you'll have to declare the formal protocol using the define-objc-protocol macro: &lt;http://www.lispworks.com/documentation/lw60/OBJC/html/objc-43.htm#13205&gt
+
+something like:
+(define-objc-protocol "NSTableViewDataSource" :instance-methods ("numberOfRowsInTableView:" ...
+
+
+
+hth,
+
+warmest regards,
+
+Ralph
+
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: objective-c bridge question</h1>
+                 <pre>
+
+On Oct 12, 2010, at 7:26 AM, Raffael Cavallaro wrote:
+
+&gt 
+&gt 
+&gt On Oct 12, 2010, at 2:07 AM, mikel evins wrote:
+&gt 
+&gt&gt Here's some code from an app I'm working on that has an NSTableView in a CAPI interface. I imagine I'm misusing the objective-c interface in some way, because I'm not seeing the results that I expect. 
+&gt 
+&gt numberOfRowsInTableView: is part of the the Objective-C formal protocol NSTableViewDataSource Protocol . I don't have much experience using these, but I think LispWorks requires that you declare that a class (in your case data-source) conforms to an existing Objective-C formal protocol. The docs on this topic start here (and you should have a local version as well):
+
+Interesting point; I hadn't thought of that. It's certainly not my first time using the NSTableViewDataSource protocol, but it *is* my first time using it from Lispworks. I'll look into your suggestions, and, with luck, be off an running.
+
+Incidentally, I ended up here in the course of experimenting to see how hard or easy it would be to port an app to Lispworks that I originally wrote in a mix of Objective-C and Gambit-Scheme. I started out trying to do it in pure CAPI, without dipping into the Objective-C bridge at all. I found that things were either a piece of cake or (apparently) totally impossible. That's maybe not a surprise, considering that CAPI is intended to be an easy-to-use cross-platform framework; we should perhaps expect that exact result.
+
+Of course, it's entirely possible that I've missed ways to do certain things (my experience with CAPI, as with Lispworks generally, is that information tends to be present in the documentation and examples, but is often hard to find). 
+
+For reference, here's a short list of things I couldn't see how to do in CAPI, and so needed to drop down to the Objective-C API to reproduce (these are all features inherited from the Gambit-Scheme/Objective-C version of my app):
+
+- make a window with the standard disclosure lozenge at the top right (for showing and hiding a toolbar)
+
+- make unbordered buttons with transparent backgrounds
+
+- make an NSSearchField element
+
+- make a multi-column-list-panel that draws itself with alternating background colors
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: objective-c bridge question</h1>
+                 <pre>
+
+On Oct 12, 2010, at 11:13 AM, Sven Emtell wrote:
+
+&gt If you mean a show/hide toolbar control, it is available in LWM6
+
+Nice to know. One more reason to upgrade when the bank balance permits.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: objective-c bridge question</h1>
+                 <pre>
+
+On Oct 12, 2010, at 7:26 AM, Raffael Cavallaro wrote:
+
+&gt numberOfRowsInTableView: is part of the the Objective-C formal protocol NSTableViewDataSource Protocol
+
+Score! Thanks for the tip; the UI is working as expected.
+
+--me
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: objective-c bridge question</h1>
+                 <pre>
+
+On Oct 12, 2010, at 1:40 PM, mikel evins wrote:
+
+&gt On Oct 12, 2010, at 7:26 AM, Raffael Cavallaro wrote:
+&gt 
+&gt&gt numberOfRowsInTableView: is part of the the Objective-C formal protocol NSTableViewDataSource Protocol
+&gt 
+&gt Score! Thanks for the tip; the UI is working as expected.
+
+Great! Glad to hear it! You've always been so generous to me with your work I thought it was the least I could do to try to help you if I could. Besides, it's always nice when you can get something to work just by remembering something from the docs! I vaguely recalled from reading the objc-cocoa LW docs that if I ever needed to write a formal protocol method on one of my classes, I'd need an extra step or two and made a mental note of it. Now, thanks to your issue, I know exactly what to do when I need to cross that particular bridge.
+
+warmest regards,
+
+Ralph
+
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: objective-c bridge question</h1>
+                 <p>
+                  Unable to parse email body. Email id is 10634
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: objective-c bridge question</h1>
+                 <pre>
+
+On Oct 14, 2010, at 10:50 AM, Dave Fox wrote:
+
+&gt 
+&gt 
+&gt&gt For reference, here's a short list of things I couldn't see how to
+&gt&gt do in CAPI, and so needed to drop down to the Objective-C API to
+&gt&gt reproduce (these are all features inherited from the
+&gt&gt Gambit-Scheme/Objective-C version of my app):
+&gt&gt 
+&gt&gt - make a window with the standard disclosure lozenge at the top
+&gt&gt right (for showing and hiding a toolbar)
+&gt 
+&gt As Sven already mentioned, this is supported in LispWorks 6.0.
+
+I really need to upgrade. Real Soon Now, after I've driven the wolf a few steps farther from my door.
+
+&gt 
+&gt&gt - make unbordered buttons with transparent backgrounds
+&gt 
+&gt Please could you clarify what you mean here? What is actually drawn on
+&gt screen and how are they different when pressed or disabled? Which
+&gt Objective-C API did you use?
+
+I have two cases, both of which use PNG images with transparent backgrounds as the button image. As one example, consider the Trash Can image used in the Mac OS X dock. Imagine a button that shows its empty image when there are no currently-deleted items, and which shows its full image when there are currently-deleted items. With a well-designed icon like that one, the image itself is quite sufficient for use as a control; no additional button decorations are needed; indeed, adding them just makes the button look bulky and clumsy.
+
+In order to get the effect I want for the buttons in question, I use code like the following.
+
+In one case, for a button that responds to a click, with a transient highlighted state as long as the mouse button is held down on the button:
+
+  (invoke view "setBordered:" nil)
+  (invoke view "setTitle:" label)
+  (invoke view "setImagePosition:" $NSImageAbove)
+  (invoke view "setButtonType:" $NSMomentaryChangeButton)
+  (invoke view "setImage:" $unhighlighted-image)
+  (invoke view "setAlternateImage:" $highlighted-image)
+
+The second case is identical, except that the button acts as a toggle, so instead of a button Type of $NSMomentaryChangeButton, I use $NSToggleButton. (I didn't notice these Cocoa constants being predefined in Lispworks as they are with CCL when using the Cocoa headers, so I manually defined them. I may, of course, simply have overlooked them.)
+
+&gt 
+&gt&gt - make an NSSearchField element
+&gt 
+&gt This will be in the next LispWorks product release. (There's no date
+&gt set for that yet.)
+
+Great!
+
+
+&gt&gt - make a multi-column-list-panel that draws itself with alternating
+&gt&gt background colors
+&gt 
+&gt We will consider adding that.
+
+As Jochen Schmidt mentioned, when using an NSTableView I get that effect by doing:
+
+(invoke table-view "setUsesAlternatingRowBackgroundColors:" t)
+
+Of course, using NSTableView rather than multi-column-list-panel carries with it the cost of considerably more use of the Cocoa APIs--I have to define an implementation of NSDataSource and the appropriate methods for it, and that means defined its protocol first, and so forth.
+
+It does, however, work, so thanks!
+
+--me
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: objective-c bridge question</h1>
+                 <pre>
+
+On Oct 14, 2010, at 12:45 PM, Jochen Schmidt wrote:
+
+&gt 
+&gt Am 14.10.2010 um 19:51 schrieb mikel evins:
+&gt&gt&gt 
+&gt&gt 
+&gt&gt As Jochen Schmidt mentioned, when using an NSTableView I get that effect by doing:
+&gt&gt 
+&gt&gt (invoke table-view "setUsesAlternatingRowBackgroundColors:" t)
+&gt&gt 
+&gt&gt Of course, using NSTableView rather than multi-column-list-panel carries with it the cost of considerably more use of the Cocoa APIs--I have to define an implementation of NSDataSource and the appropriate methods for it, and that means defined its protocol first, and so forth.
+&gt 
+&gt 
+&gt Well - multi-column-list-panel actually is based on NSTableView on LispWorks for Mac. I mentioned it to give a hint, that it might not be very difficult to add to multi-column-list-panel.
+
+Nice.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: objective-c bridge question</h1>
+                 <pre>
+
+On Oct 14, 2010, at 12:45 PM, Jochen Schmidt wrote:
+
+&gt 
+&gt Am 14.10.2010 um 19:51 schrieb mikel evins:
+&gt&gt&gt 
+&gt&gt 
+&gt&gt As Jochen Schmidt mentioned, when using an NSTableView I get that effect by doing:
+&gt&gt 
+&gt&gt (invoke table-view "setUsesAlternatingRowBackgroundColors:" t)
+&gt&gt 
+&gt&gt Of course, using NSTableView rather than multi-column-list-panel carries with it the cost of considerably more use of the Cocoa APIs--I have to define an implementation of NSDataSource and the appropriate methods for it, and that means defined its protocol first, and so forth.
+&gt 
+&gt 
+&gt Well - multi-column-list-panel actually is based on NSTableView on LispWorks for Mac. I mentioned it to give a hint, that it might not be very difficult to add to multi-column-list-panel.
+&gt 
+&gt Just a cheap sketch:
+&gt 
+&gt (defclass alternating-row-mcl-panel (capi:multi-column-list-panel)
+&gt  ())
+&gt 
+&gt (defclass alternating-row-mcl-panel-representation
+&gt          (capi-cocoa-library::list-panel-representation) 
+&gt  ())
+&gt 
+&gt (defmethod capi-library:create-representation
+&gt           ((panel alternating-row-mcl-panel)(representation capi-cocoa-library::cocoa-representation))
+&gt  (capi-cocoa-library::make-view-representation
+&gt   'alternating-row-mcl-panel-representation panel
+&gt   (capi::find-parent-representation panel)))
+&gt 
+&gt (defmethod capi-cocoa-library::create-main-view
+&gt           ((representation alternating-row-mcl-panel-representation) pane parent-view)
+&gt  (let ((main-view (call-next-method)))
+&gt    (objc:invoke main-view "setUsesAlternatingRowBackgroundColors:" t)
+&gt    main-view))
+&gt 
+&gt And as you can see by the double colon references - this makes use of LW internals which makes this unsupported code.
+
+In fact, I can do this is little more simply, just by grabbing the representation out of the multi-column-list-panel and invoking the Objective-C method on it. Sure, that's rummaging around under the covers in an unsupported manner, but as long as I'm throwing caution to the wind anyway, I may as well do it in the simplest possible manner.
+
+Next issue: does SCROLL work with multi-column-list-panel? It appears not to in my copy of Lispworks 5.1. At least, every combination of arguments I've tried yields an error message complaining that CAPI-LIBRARY:REPRESENTATION-SCROLL doesn't have a method for that.
+
+--me
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: objective-c bridge question</h1>
+                 <pre>
+
+On Nov 30, 2010, at 9:35 PM, mikel evins wrote:
+
+&gt Next issue: does SCROLL work with multi-column-list-panel? It appears not to in my copy of Lispworks 5.1. At least, every combination of arguments I've tried yields an error message complaining that CAPI-LIBRARY:REPRESENTATION-SCROLL doesn't have a method for that.
+
+
+Woops! Read the manual, mikel. MULTI-COLUMN-LIST-PANEL is not a subclass of OUTPUT-PANE or LAYOUT.
+
+Back to the drawing board.
+
+--me
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: objective-c bridge question</h1>
+                 <pre>
+
+On Dec 1, 2010, at 9:49 AM, mikel evins wrote:
+&gt 
+&gt On Nov 30, 2010, at 9:35 PM, mikel evins wrote:
+&gt 
+&gt&gt Next issue: does SCROLL work with multi-column-list-panel? It appears not to in my copy of Lispworks 5.1. At least, every combination of arguments I've tried yields an error message complaining that CAPI-LIBRARY:REPRESENTATION-SCROLL doesn't have a method for that.
+&gt 
+&gt 
+&gt Woops! Read the manual, mikel. MULTI-COLUMN-LIST-PANEL is not a subclass of OUTPUT-PANE or LAYOUT.
+&gt 
+&gt Back to the drawing board.
+
+I take it all back. 
+
+MULTI-COLUMN-LIST-PANEL is a subclass of LIST-PANEL. The CAPI ref at:
+
+  http://www.lispworks.com/documentation/lw51/CAPRM/html/capiref-194.htm#pgfId-899047 
+
+says this:
+
+"To scroll a list-panel , call scroll with scroll-operation :move ."
+
+The page for SCROLL gives this example of the API:
+
+(capi:scroll pane :pan :move (list x y))
+
+Okay, so suppose I have this list-panel on Mac OS X:
+
+#&lt;LIST-PANEL [43191 items] 22038BC3&gt is a LIST-PANEL
+
+
+And I call SCROLL like so, following the example from the docs:
+
+(apply-in-pane-process $list-pane 'capi:scroll $list-pane :pan :move (list 0 100))
+
+What I see is this:
+
+No applicable methods for #&lt;funcallable 20D343DA&gt with args (#&lt;CAPI-COCOA-LIBRARY::LIST-PANEL-REPRESENTATION for #&lt;CAPI:LIST-PANEL [43191 items] 22038BC3&gt 22038F2F&gt
+                                                             :PAN
+                                                             :MOVE
+                                                             (0
+                                                              100))
+   [Condition of type SIMPLE-ERROR]
+
+That definitely looks like behavior that varies from what the documentation predicts. I've tried initializing the pane in question with various combinations of values for :vertical-scroll and :horizontal-scroll; no dice. Is it a bug? Is there a known workaround? (There's always the option of writing my own pane, of course...)
+
+I know, I know; I should upgrade to 6.0. Remind me again after I get this app shipped.
+
+Anyone ever succeed in programmatically scrolling a list-panel or a multi-column-list-panel? If so, can I see a code snippet that accomplishes it? Thanks for your patience.
+
+--me
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:34 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

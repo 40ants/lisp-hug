@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>fli:free-foreign-object</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>fli:free-foreign-object</h1>
+                <pre>
+Hi all,
+
+I have a problem with fli:free-foreign-object and can't see my error. The
+error seems to appear randomly. 
+
+I use the following definition:
+
+(fli:define-c-typedef SQLINTEGER   (:long))
+
+Here is my debug session when I run my app. I have no idea, what maybe
+wrong?
+
+Any hints appreciated.
+
+Andreas
+
+P.S. Using LWW 4.4.6.0
+
+*** EXCEPTION DATA ***
+code c0000005  flags 00000000 address 7c920c3f
+EIP 7c920c3f  ESP 0012fbcc  EBP 0012fbd8
+
+Error: ** Processor Fault #xC0000005 at #x7C920C3F.
+  1 (abort) Return to level 0.
+  2 Return to top loop level 0.
+
+Type :b for backtrace, :c &lt;option number&gt to proceed,  or :? for other
+options
+
+CL-USER 4 : 1 &gt :b
+
+Call to IO::FAULT-HANDLER-AUX
+Call to FLI::FOREIGN-CALLABLE-ENTRY-POINT-AUX-NESTED
+Call to FLI::QUICK-FREE
+Call to FLI:FREE-FOREIGN-OBJECT
+Call to ODBC::CLEAN-COMMAND
+Call to TRANSFER
+Call to DO-TABLE
+Call to RUN
+Call to SPECIAL::%EVAL-NOHOOK
+Call to IV:PROCESS-TOP-LEVEL
+Call to COMMON-LISP::MAIN
+Call to MEMORY-MANAGER::INIT-WORLD
+
+CL-USER 5 : 1 &gt :n
+
+Call to FLI::FOREIGN-CALLABLE-ENTRY-POINT-AUX-NESTED
+
+CL-USER 6 : 1 &gt :n
+
+Call to FLI::QUICK-FREE
+
+CL-USER 7 : 1 &gt :n
+
+Call to FLI:FREE-FOREIGN-OBJECT
+
+CL-USER 8 : 1 &gt fli::pointer ;; I guess the argument to free-foreign-object
+
+#&lt;Pointer to type ODBC::SQLINTEGER = #x00327C60&gt ;; looks good, I'd think
+
+CL-USER 9 : 1 &gt (fli:dereference fli::pointer) ;; inspection looks good
+either
+
+-3
+
+CL-USER 10 : 1 &gt (fli:pointer-address fli::pointer)
+
+3308640
+
+CL-USER 11 : 1 &gt (setf my-p fli::pointer)
+
+#&lt;Pointer to type ODBC::SQLINTEGER = #x00327C60&gt
+
+CL-USER 12 : 1 &gt :a
+
+
+CL-USER 13 &gt my-p
+
+#&lt;Pointer to type ODBC::SQLINTEGER = #x00327C60&gt
+
+CL-USER 14 &gt (fli:free my-p) ;; should be possible to free a long (or not ?)
+
+*** EXCEPTION DATA ***
+code c0000005  flags 00000000 address 7c920c3f
+EIP 7c920c3f  ESP 0012f928  EBP 0012f934
+
+Error: ** Processor Fault #xC0000005 at #x7C920C3F.
+  1 (abort) Return to level 0.
+  2 Return to top loop level 0.
+
+Type :b for backtrace, :c &lt;option number&gt to proceed,  or :? for other
+options
+
+CL-USER 15 : 1 &gt
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: fli:free-foreign-object</h1>
+                 <pre>
+On Tue, 3 Oct 2006 01:19:13 +0200, "Andreas Thiele" &lt;andreas@atp-media.de&gt wrote:
+
+&gt CL-USER 14 &gt (fli:free my-p) ;; should be possible to free a long (or not ?)
+
+Just to double-check: This is something you yourself allocated with
+ALLOCATE-FOREIGN-OBJECT, right?
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>AW: fli:free-foreign-object</h1>
+                  <pre>
+ 
+&gt -----Ursprüngliche Nachricht-----
+&gt Von: owner-lisp-hug@lispworks.com 
+&gt [mailto:owner-lisp-hug@lispworks.com] Im Auftrag von Edi Weitz
+&gt Gesendet: Dienstag, 3. Oktober 2006 02:13
+&gt An: Andreas Thiele
+&gt Cc: lisp-hug@lispworks.com
+&gt Betreff: Re: fli:free-foreign-object
+&gt 
+&gt 
+&gt On Tue, 3 Oct 2006 01:19:13 +0200, "Andreas Thiele" 
+&gt &lt;andreas@atp-media.de&gt wrote:
+&gt 
+&gt &gt CL-USER 14 &gt (fli:free my-p) ;; should be possible to free 
+&gt a long (or 
+&gt &gt not ?)
+&gt 
+&gt Just to double-check: This is something you yourself 
+&gt allocated with ALLOCATE-FOREIGN-OBJECT, right?
+&gt 
+
+Hi Edi,
+
+thanks for the very quick response. I guess I just tracked the error down.
+It was my mistake. I did a
+
+(fli:with-dynamic-foreign-objects ()
+  (fli:replace-foreign-object 
+    old-object         
+    (fli:convert-to-foreign-string v :external-format :latin-1 :allocation
+:dynamic) 
+    :nelems (length v)))
+
+without checking the length of the old-object and definitely wrote longer
+strings into prior allocated shorter ones. Thus I guess, my programm
+destroyed adjacent fli structures which had consequences - very bad and
+difficult to find :))
+
+It seems to run stable now (I will see in a few hours).
+
+
+Andreas
+
+
+
+
+</pre>
+                 </article>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>Can text-input-range text be right justified?</h1>
+                   <pre>
+Is there a way to right-justify the numbers in a text-input-range?
+
+Mitch
+
+
+</pre>
+                  </article>
+                 </section>
+                </section>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:44 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

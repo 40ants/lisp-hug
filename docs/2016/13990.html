@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Synchronization with system:make-directory</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Synchronization with system:make-directory</h1>
+                <pre>
+Hi!
+
+I was fighting to synchronize two instances of LW-based applications
+under Windows so that they would do some kind of activity sequentially
+rather than in parallel.
+
+I tried to create temporary "lock files", but I found that open seem
+to be non-atomic. This reason or another, I could not make it work.
+
+But I found there is an undocumented system:make-directory. I used the
+following "mutex" imitation: "lock" function tries to make a
+directory. If it succeedes we agree that it acquired a "mutex". If it
+fails we assume some other process is holding the lock.
+
+To unlock, we just delete-directory.
+
+The question to LW team is the following: is it safe to use this
+technique under Windows? If yes, I think it would worth documenting.
+
+Otherwise I would need either to create FLI bindings to CreateMutex
+and its neighbours or find some other approaches to achieve a
+synchronization.
+
+Maybe my problem have some other solution, but I didn't find one.
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Synchronization with system:make-directory</h1>
+                 <pre>
+73budden . wrote on Wed, 6 Jul 2016 00:13:17 +0300 00:13:
+
+| I was fighting to synchronize two instances of LW-based applications
+| under Windows so that they would do some kind of activity sequentially
+| rather than in parallel.
+
+Have you tried DDE?
+--
+Sincerely,
+Dmitry Ivanov
+lisp.ystok.ru
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Synchronization with system:make-directory</h1>
+                 <p>
+                  Unable to parse email body. Email id is 13993
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Synchronization with system:make-directory</h1>
+                 <pre>
+Thanks Martin!
+
+2016-07-06 15:00 GMT+03:00, Martin Simmons &lt;martin@lispworks.com&gt:
+&gt
+&gt&gt&gt&gt&gt&gt On Wed, 6 Jul 2016 00:13:17 +0300, 73budden  said:
+&gt&gt
+&gt&gt Hi!
+&gt&gt
+&gt&gt I was fighting to synchronize two instances of LW-based applications
+&gt&gt under Windows so that they would do some kind of activity sequentially
+&gt&gt rather than in parallel.
+&gt&gt
+&gt&gt I tried to create temporary "lock files", but I found that open seem
+&gt&gt to be non-atomic. This reason or another, I could not make it work.
+&gt&gt
+&gt&gt But I found there is an undocumented system:make-directory. I used the
+&gt&gt following "mutex" imitation: "lock" function tries to make a
+&gt&gt directory. If it succeedes we agree that it acquired a "mutex". If it
+&gt&gt fails we assume some other process is holding the lock.
+&gt&gt
+&gt&gt To unlock, we just delete-directory.
+&gt&gt
+&gt&gt The question to LW team is the following: is it safe to use this
+&gt&gt technique under Windows? If yes, I think it would worth documenting.
+&gt
+&gt The current implementation of system:make-directory is an almost direct
+&gt call
+&gt to the Win32 function CreateDirectory.  That is probably atomic, but I
+&gt wouldn't like to guarantee it.
+&gt
+&gt
+&gt&gt Otherwise I would need either to create FLI bindings to CreateMutex
+&gt&gt and its neighbours or find some other approaches to achieve a
+&gt&gt synchronization.
+&gt
+&gt I think CreateMutex is the safest approach.
+&gt
+&gt --
+&gt Martin Simmons
+&gt LispWorks Ltd
+&gt http://www.lispworks.com/
+&gt
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+&gt
+&gt
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Synchronization with system:make-directory</h1><div dir="ltr">Hi,<div><br></div><div>depending on what you are trying to achieve, it might be an overkill, but have you considered those two application talking to each other? Like zero-mq, or lparallel (actualy maybe lfarm - <a href="https://lparallel.org/">https://lparallel.org/</a> <a href="https://github.com/lmj/lfarm/blob/master/README.md">https://github.com/lmj/lfarm/blob/master/README.md</a>)</div><div><br></div><div>alternativelly, you can try to listen on specific port (and it should allow only one instance of app to listen on port) and then use something like zeroMQ to distribute messages (and effectively you can end up with one really small instance that will orchestrate others).</div><div><br></div><div>in past, i have had many chances to see locking as pain in the ass, that can be resolved by queuing, and the &quot;locking&quot; is replaced by trying to get message, and only one worker succeeds. </div><div><br></div><div><br></div><div>good luck</div><div><br></div><div>laci</div></div><div class="gmail_extra"><br><div class="gmail_quote">On Thu, Jul 7, 2016 at 10:17 PM, 73budden . <span dir="ltr">&lt;<a href="mailto:budden73@gmail.com" target="_blank">budden73@gmail.com</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><br>
+Thanks Martin!<br>
+<div class="HOEnZb"><div class="h5"><br>
+2016-07-06 15:00 GMT+03:00, Martin Simmons &lt;<a href="mailto:martin@lispworks.com">martin@lispworks.com</a>&gt;:<br>
+&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt; On Wed, 6 Jul 2016 00:13:17 +0300, 73budden  said:<br>
+&gt;&gt;<br>
+&gt;&gt; Hi!<br>
+&gt;&gt;<br>
+&gt;&gt; I was fighting to synchronize two instances of LW-based applications<br>
+&gt;&gt; under Windows so that they would do some kind of activity sequentially<br>
+&gt;&gt; rather than in parallel.<br>
+&gt;&gt;<br>
+&gt;&gt; I tried to create temporary &quot;lock files&quot;, but I found that open seem<br>
+&gt;&gt; to be non-atomic. This reason or another, I could not make it work..<br>
+&gt;&gt;<br>
+&gt;&gt; But I found there is an undocumented system:make-directory. I used the<br>
+&gt;&gt; following &quot;mutex&quot; imitation: &quot;lock&quot; function tries to make a<br>
+&gt;&gt; directory. If it succeedes we agree that it acquired a &quot;mutex&quot;. If it<br>
+&gt;&gt; fails we assume some other process is holding the lock.<br>
+&gt;&gt;<br>
+&gt;&gt; To unlock, we just delete-directory.<br>
+&gt;&gt;<br>
+&gt;&gt; The question to LW team is the following: is it safe to use this<br>
+&gt;&gt; technique under Windows? If yes, I think it would worth documenting.<br>
+&gt;<br>
+&gt; The current implementation of system:make-directory is an almost direct<br>
+&gt; call<br>
+&gt; to the Win32 function CreateDirectory.  That is probably atomic, but I<br>
+&gt; wouldn&#39;t like to guarantee it.<br>
+&gt;<br>
+&gt;<br>
+&gt;&gt; Otherwise I would need either to create FLI bindings to CreateMutex<br>
+&gt;&gt; and its neighbours or find some other approaches to achieve a<br>
+&gt;&gt; synchronization.<br>
+&gt;<br>
+&gt; I think CreateMutex is the safest approach.<br>
+&gt;<br>
+&gt; --<br>
+&gt; Martin Simmons<br>
+&gt; LispWorks Ltd<br>
+&gt; <a href="http://www.lispworks.com/" rel="noreferrer" target="_blank">http://www.lispworks.com/</a><br>
+&gt;<br>
+&gt; _______________________________________________<br>
+&gt; Lisp Hug - the mailing list for LispWorks users<br>
+&gt; <a href="mailto:lisp-hug@lispworks.com">lisp-hug@lispworks.com</a><br>
+&gt; <a href="http://www.lispworks.com/support/lisp-hug.html" rel="noreferrer" target="_blank">http://www.lispworks.com/support/lisp-hug.html</a><br>
+&gt;<br>
+&gt;<br>
+<br>
+_______________________________________________<br>
+Lisp Hug - the mailing list for LispWorks users<br>
+<a href="mailto:lisp-hug@lispworks.com">lisp-hug@lispworks.com</a><br>
+<a href="http://www.lispworks.com/support/lisp-hug.html" rel="noreferrer" target="_blank">http://www.lispworks.com/support/lisp-hug.html</a><br>
+<br>
+</div></div></blockquote></div><br></div>
+
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Synchronization with system:make-directory</h1>
+                 <pre>
+Thanks Ladislav. But what I do is simply a build script and that
+directory thing works so far.
+
+2016-08-03 18:48 GMT+03:00, Ladislav Koščo &lt;laci.kosco@gmail.com&gt:
+&gt Hi,
+&gt
+&gt depending on what you are trying to achieve, it might be an overkill, but
+&gt have you considered those two application talking to each other? Like
+&gt zero-mq, or lparallel (actualy maybe lfarm - https://lparallel.org/
+&gt https://github.com/lmj/lfarm/blob/master/README.md)
+&gt
+&gt alternativelly, you can try to listen on specific port (and it should allow
+&gt only one instance of app to listen on port) and then use something like
+&gt zeroMQ to distribute messages (and effectively you can end up with one
+&gt really small instance that will orchestrate others).
+&gt
+&gt in past, i have had many chances to see locking as pain in the ass, that
+&gt can be resolved by queuing, and the "locking" is replaced by trying to get
+&gt message, and only one worker succeeds.
+&gt
+&gt
+&gt good luck
+&gt
+&gt laci
+&gt
+&gt On Thu, Jul 7, 2016 at 10:17 PM, 73budden . &lt;budden73@gmail.com&gt wrote:
+&gt
+&gt&gt
+&gt&gt Thanks Martin!
+&gt&gt
+&gt&gt 2016-07-06 15:00 GMT+03:00, Martin Simmons &lt;martin@lispworks.com&gt:
+&gt&gt &gt
+&gt&gt &gt&gt&gt&gt&gt&gt On Wed, 6 Jul 2016 00:13:17 +0300, 73budden  said:
+&gt&gt &gt&gt
+&gt&gt &gt&gt Hi!
+&gt&gt &gt&gt
+&gt&gt &gt&gt I was fighting to synchronize two instances of LW-based applications
+&gt&gt &gt&gt under Windows so that they would do some kind of activity sequentially
+&gt&gt &gt&gt rather than in parallel.
+&gt&gt &gt&gt
+&gt&gt &gt&gt I tried to create temporary "lock files", but I found that open seem
+&gt&gt &gt&gt to be non-atomic. This reason or another, I could not make it work.
+&gt&gt &gt&gt
+&gt&gt &gt&gt But I found there is an undocumented system:make-directory. I used the
+&gt&gt &gt&gt following "mutex" imitation: "lock" function tries to make a
+&gt&gt &gt&gt directory. If it succeedes we agree that it acquired a "mutex". If it
+&gt&gt &gt&gt fails we assume some other process is holding the lock.
+&gt&gt &gt&gt
+&gt&gt &gt&gt To unlock, we just delete-directory.
+&gt&gt &gt&gt
+&gt&gt &gt&gt The question to LW team is the following: is it safe to use this
+&gt&gt &gt&gt technique under Windows? If yes, I think it would worth documenting.
+&gt&gt &gt
+&gt&gt &gt The current implementation of system:make-directory is an almost direct
+&gt&gt &gt call
+&gt&gt &gt to the Win32 function CreateDirectory.  That is probably atomic, but I
+&gt&gt &gt wouldn't like to guarantee it.
+&gt&gt &gt
+&gt&gt &gt
+&gt&gt &gt&gt Otherwise I would need either to create FLI bindings to CreateMutex
+&gt&gt &gt&gt and its neighbours or find some other approaches to achieve a
+&gt&gt &gt&gt synchronization.
+&gt&gt &gt
+&gt&gt &gt I think CreateMutex is the safest approach.
+&gt&gt &gt
+&gt&gt &gt --
+&gt&gt &gt Martin Simmons
+&gt&gt &gt LispWorks Ltd
+&gt&gt &gt http://www.lispworks.com/
+&gt&gt &gt
+&gt&gt &gt _______________________________________________
+&gt&gt &gt Lisp Hug - the mailing list for LispWorks users
+&gt&gt &gt lisp-hug@lispworks.com
+&gt&gt &gt http://www.lispworks.com/support/lisp-hug.html
+&gt&gt &gt
+&gt&gt &gt
+&gt&gt
+&gt&gt _______________________________________________
+&gt&gt Lisp Hug - the mailing list for LispWorks users
+&gt&gt lisp-hug@lispworks.com
+&gt&gt http://www.lispworks.com/support/lisp-hug.html
+&gt&gt
+&gt&gt
+&gt
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:27 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

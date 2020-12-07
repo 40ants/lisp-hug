@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>FLI pointers</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>FLI pointers</h1>
+                <pre>
+Hi
+
+I am confused about whether FLI pointers types (the pointer type itself, 
+not that what the pointer points to) are immediate or aggregate types. 
+The Lispworks documentation specifies it as both:
+immediate: 
+http://www.lispworks.com/documentation/lw50/FLI/html/fli-17.htm#pgfId-888612
+aggregate:
+http://www.lispworks.com/documentation/lw50/FLI/html/fli-23.htm#pgfId-886654
+(first sentence)
+
+Also, section 3.4 of the FLI User Guide says:
+"When a pointer is created, using make-pointer, or due to the allocation 
+of a foreign object, memory is put aside to store the details of the 
+pointer. However, if a pointer is only needed within the scope of a 
+particular section of code, there is an FLI macro, with-coerced-pointer, 
+which can be used to create a temporary pointer which is automatically 
+deallocated at the end of the code." Does this mean that the following 
+are more or less equivalent?
+
+(fli:with-coerced-pointer (temp) array-obj
+   ...)
+
+(let ((temp (fli:copy-pointer array-obj)))
+   ...)
+
+If not, please answer the following:
+
+(setf array-obj
+       (fli:allocate-foreign-object :type :int
+                   :nelems 10
+                   :initial-contents '(0 1 2 3 4 5 6 7 8 9)))
+
+(fli:with-coerced-pointer (temp) array-obj
+   (dotimes (x 10)
+     (print (fli:dereference temp))
+     (fli:incf-pointer temp)))
+
+Can I now still use array-obj after these expressions have been 
+evaluated or has it's memory been freed? with-coerced-pointer does not 
+create a copy of what is being pointed to (I have tested this), does it?
+
+Or does the documentation for with-coerced-pointer apply to the pointer 
+and not what the pointer points to? E.g.:
+
+(setq point1 (fli:allocate-foreign-object :type :char))
+(setq point2 (fli:copy-pointer point1))
+(fli:free-foreign-object point1)
+
+Does point2 now still consume memory that have to be freed (as 
+with-coerced-pointer would have automatically freed it)? If so, how do I 
+free it as free-foreign-object frees what is being pointed to, not the 
+pointer, which I suspect is an immediate type and automatically freed by 
+GC, right?
+
+Thanks.
+Nico
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: FLI pointers</h1>
+                 <pre>
+On Wednesday 23 May 2007 8:41 am, Nico de Jager wrote:
+&gt Hi
+&gt
+&gt I am confused about whether FLI pointers types (the pointer type itself,
+&gt not that what the pointer points to) are immediate or aggregate types.
+
+No one else has answered thus far, so I will give you my guess - but it is 
+only a guess.
+
+Maybe you can figure out how to test my guess...
+
+&gt (setq point1 (fli:allocate-foreign-object :type :char))
+&gt (setq point2 (fli:copy-pointer point1))
+&gt (fli:free-foreign-object point1)
+
+I tried something like this, but I added another pointer - point3 which is 
+a '(:pointer :char) - a pointer to a pointer to a char.
+
+I used (setf (fli:dereference point3) point1).
+
+I used the inspector to look at point3.
+
+Then I deallocated point3 and looked at it with the inspector.  Point3 still 
+existed, but its fields were cleared.
+
+So, I conclude that pointers are immediate types.  The mis-wording in the docs 
+is trying to say that if a pointer points to an aggregate type, then the 
+thing pointed to by the pointer is indeed an aggregate type.
+
+This is all exacerbated by C's squishy semantics - esp. arrays vs. structs 
+passed as parameters - and Lispworks' desire to make the FLI interface 
+easy-to-use.
+
+&gt (fli:with-coerced-pointer (temp) array-obj
+&gt    ...)
+&gt
+&gt (let ((temp (fli:copy-pointer array-obj)))
+&gt    ...)
+
+With-coerced-pointer is a C "cast".  FLI pointers are objects that carry the 
+target type around inside them.  To get C's "cast" behaviour, you have to 
+temporarily change the pointer's idea of what it's target type is.  C does 
+this at compile time.  FLI creates actual run-time objects, so you need to 
+tinker with their idea of type - the best choice is to clone the pointer and 
+futz with the cloned pointer's type field.
+
+&gt
+&gt If not, please answer the following:
+&gt
+&gt (setf array-obj
+&gt        (fli:allocate-foreign-object :type :int
+&gt
+&gt                    :nelems 10
+&gt                    :initial-contents '(0 1 2 3 4 5 6 7 8 9)))
+&gt
+&gt (fli:with-coerced-pointer (temp) array-obj
+&gt    (dotimes (x 10)
+&gt      (print (fli:dereference temp))
+&gt      (fli:incf-pointer temp)))
+&gt
+&gt Can I now still use array-obj after these expressions have been
+&gt evaluated or has it's memory been freed? with-coerced-pointer does not
+&gt create a copy of what is being pointed to (I have tested this), does it?
+
+Correct.  Array-obj is an object (struct / whatever).  
+FLI:allocate-foreign-object creates two objects - the foreign object and the 
+pointer object.
+
+FLI:with-coerced-pointer creates a copy of the pointer object (and changes its 
+type field).  
+
+At this point, there are two pointer objects (temp and array-obj) and one 
+array object (unnamed).
+
+When the temp object disappears, the array-obj pointer object remains and so 
+does the actual 10-element unnamed array object.
+
+Simply try out the code you've written.  Use the inspector.
+
+&gt
+&gt Or does the documentation for with-coerced-pointer apply to the pointer
+&gt and not what the pointer points to? E.g.:
+&gt
+&gt (setq point1 (fli:allocate-foreign-object :type :char))
+&gt (setq point2 (fli:copy-pointer point1))
+&gt (fli:free-foreign-object point1)
+&gt
+&gt Does point2 now still consume memory that have to be freed (as
+&gt with-coerced-pointer would have automatically freed it)? If so, how do I
+&gt free it as free-foreign-object frees what is being pointed to, not the
+&gt pointer, which I suspect is an immediate type and automatically freed by
+&gt GC, right?
+
+Yes, that's my guess, too.  The "memory" consumed by a pointer object is 
+memory within GC-able space.  The "memory" consumed by aggregate objects is 
+not in GC space.  Deep voodoo magic within FLI tracks whether the objects are 
+in GC space or non-GC space.  If you deallocate a GC space object - i.e. an 
+immediate object - FLI simply clears the pointer's fields, then lets the GC 
+clean up some time in the future.
+
+If my guess turns out to be wrong - let me know!
+
+pt
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:42 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

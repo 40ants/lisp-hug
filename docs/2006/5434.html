@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Found bug in truncating floats to integers ???</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Found bug in truncating floats to integers ???</h1><!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML><HEAD>
+<META http-equiv=Content-Type content="text/html; charset=koi8-r">
+<META content="MSHTML 6.00.2900.2180" name=GENERATOR>
+<STYLE></STYLE>
+</HEAD>
+<BODY bgColor=#ffffff>
+<DIV><FONT face=Arial>
+<DIV><FONT face=Arial>Hi</FONT></DIV>
+<DIV><FONT face=Arial></FONT>&nbsp;</DIV>
+<DIV><FONT face=Arial>I've found how to simply reproduce that case when result 
+is float despite of TRUNCATE call.</FONT></DIV>
+<DIV><FONT face=Arial></FONT>&nbsp;</DIV>
+<DIV><FONT face=Arial>(defun test-bug (value fn)<BR>&nbsp; (let ((pseudo-fixnum 
+5))<BR>&nbsp;&nbsp;&nbsp; (declare (fixnum pseudo-fixnum))<BR>&nbsp;&nbsp;&nbsp; 
+(setf pseudo-fixnum (+ value pseudo-fixnum))<BR>&nbsp;&nbsp;&nbsp; (funcall fn 
+(truncate pseudo-fixnum))))<BR>&nbsp;&nbsp;&nbsp; </FONT></DIV>
+<DIV><FONT face=Arial></FONT>&nbsp;</DIV>
+<DIV><FONT face=Arial>(defun bug-raise (fixnum-value)<BR>&nbsp; (declare (fixnum 
+fixnum-value))<BR>&nbsp; (format t "Value = ~D~%" fixnum-value))</FONT></DIV>
+<DIV><FONT face=Arial></FONT>&nbsp;</DIV>
+<DIV><FONT face=Arial>(test-bug 5.0 #'bug-raise)</FONT></DIV>
+<DIV><FONT face=Arial></FONT>&nbsp;</DIV>
+<DIV><FONT face=Arial>You should see in output window that "Value = 10.0" 
+instead of expected "Value = 10" (because it should be converted to integer by 
+TRUNCATE function).</FONT></DIV>
+<DIV><FONT face=Arial></FONT>&nbsp;</DIV>
+<DIV><FONT face=Arial>I know that it is wrong using of declarations, but this 
+makes possible to pass</FONT></DIV>
+<DIV><FONT face=Arial>float instead of integer even if argument variable is 
+declared fixnum and&nbsp;truncated before passing to another function, and root 
+of this error is comparatively hard to detect.</FONT></DIV>
+<DIV>&nbsp;</DIV>
+<DIV><FONT face=Arial>Regards</FONT></DIV>
+<DIV><FONT face=Arial>Lisper</FONT></DIV></FONT></DIV></BODY></HTML>
+
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Found bug in truncating floats to integers ???</h1>
+                 <pre>
+Hello lisptracker,
+
+| I've found how to simply reproduce that case when result is float
+| despite of TRUNCATE call.
+|
+| (defun test-bug (value fn)
+|   (let ((pseudo-fixnum 5))
+|     (declare (fixnum pseudo-fixnum))
+|     (setf pseudo-fixnum (+ value pseudo-fixnum))
+|     (funcall fn (truncate pseudo-fixnum))))
+|
+|
+| (defun bug-raise (fixnum-value)
+|   (declare (fixnum fixnum-value))
+|   (format t "Value = ~D~%" fixnum-value))
+|
+| (test-bug 5.0 #'bug-raise)
+|
+| You should see in output window that "Value = 10.0" instead of expected
+| "Value = 10" (because it should be converted to integer by TRUNCATE
+| function).
+|
+| I know that it is wrong using of declarations, but this makes possible
+| to pass float instead of integer even if argument variable is declared
+| fixnum and truncated before passing to another function, and root of
+| this error is comparatively hard to detect.
+
+This is not a bug - this is you to blame. Below is the excerpt from CLHS.
+
+A type declaration is valid in all declarations. The interpretation of a
+type declaration is as follows:
+
+  1. During the execution of any reference to the declared variable within
+the scope of the declaration, the consequences are undefined if the value of
+the declared variable is not of the declared type.
+
+  2. During the execution of any setq of the declared variable within the
+scope of the declaration, the consequences are undefined if the newly
+assigned value of the declared variable is not of the declared type.
+
+  3. At the moment the scope of the declaration is entered, the consequences
+are undefined if the value of the declared variable is not of the declared
+type.
+--
+Sincerely,
+Dmitriy Ivanov
+lisp.ystok.ru
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Found bug in truncating floats to integers ???</h1>
+                 <p>
+                  Unable to parse email body. Email id is 5436
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:45 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Delivery and type-of</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Delivery and type-of</h1>
+                <pre>
+Hello,
+
+The delivery manual tells :
+
+"If you use typep , typecase , and subtypep to discriminate between types,
+Delivery is forced to keep additional information in the delivered image."
+(Delivery User Guide 3.2.6)
+
+Anybody knows if 'type-of' shares the same restriction (or other delivery
+restrictions) ?
+
+Thanks
+
+Denis
+
+
+-------------------------------------------------------
+Denis Pousseur
+70 rue de Wansijn
+1180 Bruxelles, Belgique
+
+Tel : 32 (0)2 219 31 09
+Mail :  denis.pousseur@gmail.com
+-------------------------------------------------------
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Delivery and type-of</h1>
+                 <pre>
+Hello Denis,
+
+| The delivery manual tells :
+|
+| "If you use typep , typecase , and subtypep to discriminate between
+| types, Delivery is forced to keep additional information in the
+| delivered image." (Delivery User Guide 3.2.6)
+|
+| Anybody knows if 'type-of' shares the same restriction (or other
+| delivery restrictions) ?
+
+I consider type-of to be a dangerous replacement. I am not sure if it result
+in a smaller code but is definitely more error-prone. If generic function do
+not suit you, you can hardly dispense with typep and typecase.
+--
+Sincerely,
+Dmitriy Ivanov
+lisp.ystok.ru
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Delivery and type-of</h1>
+                 <p>
+                  Unable to parse email body. Email id is 7187
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: Delivery and type-of</h1>
+                  <pre>
+Hi Dimitry, Hi Martin,
+
+I thought that something like
+
+(defun myclass-p (thing) (eq (type-of thing) 'myclass))
+
+Is less expansive than
+
+(defmethod myclass-p ((self myclass)) t)
+(defmethod myclass-p ((self t)) nil)
+
+Because there is no need of a generic function and 2 methods...
+
+It is in a environment where the classes are *certainly* used and, to this
+point of view, delivery can't do anything for me. But, maybe, there is some
+other good reasons to use methods rather than calls to type-of (for example
+the necessity for the system to keep the class name symbols ?). In this case
+I will replace my functions.
+
+Thanks
+
+Denis
+
+
+
+
+Le 20/11/07 17:45, «&nbsp;[NOM]&nbsp;» &lt;[ADRESSE]&gt a écrit&nbsp;:
+
+&gt 
+&gt&gt&gt&gt&gt&gt On Tue, 20 Nov 2007 16:20:54 +0100, Denis Pousseur said:
+&gt&gt 
+&gt&gt Hello,
+&gt&gt 
+&gt&gt The delivery manual tells :
+&gt&gt 
+&gt&gt "If you use typep , typecase , and subtypep to discriminate between types,
+&gt&gt Delivery is forced to keep additional information in the delivered image.."
+&gt&gt (Delivery User Guide 3.2.6)
+&gt&gt 
+&gt&gt Anybody knows if 'type-of' shares the same restriction (or other delivery
+&gt&gt restrictions) ?
+&gt 
+&gt It depends on what you do with the result.
+&gt 
+&gt Also, I think the manual might be misleading here, because there are no large
+&gt functions or tables within the implementation of these functions.
+&gt 
+&gt The problem is more general: referencing the name of a type (i.e. a symbol) in
+&gt code means that delivery cannot remove that type even if it is never used
+&gt anywhere else.  E.g. if you have code like this:
+&gt 
+&gt (cond ((typep x 'class1) ...)
+&gt       ((typep x 'class2) ...)
+&gt       ...
+&gt       ((typep x 'class1000) ...))
+&gt 
+&gt then delivery would keep all of the classes class1,...,class100 even if
+&gt nothing else references them.  This could also happen with type-of if you did
+&gt something like this:
+&gt 
+&gt (let ((type (type-of x)))
+&gt   (cond ((eq type 'class1) ...)
+&gt         ((eq type 'class2) ...)
+&gt         ...
+&gt         ((eq type 'class1000) ...)))
+&gt 
+&gt Rewriting the cond by defining a method specialized for each class would allow
+&gt any unused classes to be removed because each method is a separate function.
+
+-------------------------------------------------------
+Denis Pousseur
+70 rue de Wansijn
+1180 Bruxelles, Belgique
+
+Tel : 32 (0)2 219 31 09
+Mail :  denis.pousseur@gmail.com
+-------------------------------------------------------
+
+
+
+</pre>
+                 </article>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>Re: Delivery and type-of</h1>
+                   <pre>
+&gt&gt&gt&gt&gt On Tue, 20 Nov 2007 18:20:39 +0100, Denis Pousseur said:
+&gt 
+&gt Hi Dimitry, Hi Martin,
+&gt 
+&gt I thought that something like
+&gt 
+&gt (defun myclass-p (thing) (eq (type-of thing) 'myclass))
+&gt 
+&gt Is less expansive than
+&gt 
+&gt (defmethod myclass-p ((self myclass)) t)
+&gt (defmethod myclass-p ((self t)) nil)
+&gt 
+&gt Because there is no need of a generic function and 2 methods...
+
+Yes, the defun would be slightly smaller...but I suspect you would need 1000's
+of classes for it to make much difference overall.
+
+
+&gt It is in a environment where the classes are *certainly* used and, to this
+&gt point of view, delivery can't do anything for me. But, maybe, there is some
+&gt other good reasons to use methods rather than calls to type-of (for example
+&gt the necessity for the system to keep the class name symbols ?). In this case
+&gt I will replace my functions.
+
+The symbol will not make any difference here because the system always keeps
+the class name symbols if the class is kept.
+
+Note that the defun using type-of code would be wrong if you define
+
+(defclass mysubclass (myclass) ...)
+
+That might be one of the "error-prone" cases that Dmitriy was thinking about.
+
+__Martin
+
+
+&gt 
+&gt Thanks
+&gt 
+&gt Denis
+&gt 
+&gt 
+&gt 
+&gt 
+&gt Le 20/11/07 17:45, «&nbsp;[NOM]&nbsp;» &lt;[ADRESSE]&gt a écrit&nbsp;:
+&gt 
+&gt &gt 
+&gt &gt&gt&gt&gt&gt&gt On Tue, 20 Nov 2007 16:20:54 +0100, Denis Pousseur said:
+&gt &gt&gt 
+&gt &gt&gt Hello,
+&gt &gt&gt 
+&gt &gt&gt The delivery manual tells :
+&gt &gt&gt 
+&gt &gt&gt "If you use typep , typecase , and subtypep to discriminate between types,
+&gt &gt&gt Delivery is forced to keep additional information in the delivered image."
+&gt &gt&gt (Delivery User Guide 3.2.6)
+&gt &gt&gt 
+&gt &gt&gt Anybody knows if 'type-of' shares the same restriction (or other delivery
+&gt &gt&gt restrictions) ?
+&gt &gt 
+&gt &gt It depends on what you do with the result.
+&gt &gt 
+&gt &gt Also, I think the manual might be misleading here, because there are no large
+&gt &gt functions or tables within the implementation of these functions.
+&gt &gt 
+&gt &gt The problem is more general: referencing the name of a type (i.e. a symbol) in
+&gt &gt code means that delivery cannot remove that type even if it is never used
+&gt &gt anywhere else.  E.g. if you have code like this:
+&gt &gt 
+&gt &gt (cond ((typep x 'class1) ...)
+&gt &gt       ((typep x 'class2) ...)
+&gt &gt       ...
+&gt &gt       ((typep x 'class1000) ...))
+&gt &gt 
+&gt &gt then delivery would keep all of the classes class1,...,class100 even if
+&gt &gt nothing else references them.  This could also happen with type-of if you did
+&gt &gt something like this:
+&gt &gt 
+&gt &gt (let ((type (type-of x)))
+&gt &gt   (cond ((eq type 'class1) ...)
+&gt &gt         ((eq type 'class2) ...)
+&gt &gt         ...
+&gt &gt         ((eq type 'class1000) ...)))
+&gt &gt 
+&gt &gt Rewriting the cond by defining a method specialized for each class would allow
+&gt &gt any unused classes to be removed because each method is a separate function.
+&gt 
+&gt -------------------------------------------------------
+&gt Denis Pousseur
+&gt 70 rue de Wansijn
+&gt 1180 Bruxelles, Belgique
+&gt 
+&gt Tel : 32 (0)2 219 31 09
+&gt Mail :  denis.pousseur@gmail.com
+&gt -------------------------------------------------------
+&gt 
+&gt 
+
+
+</pre>
+                  </article>
+                  <section class=tree>
+                   <article class=email>
+                    <h1>Re: Delivery and type-of</h1>
+                    <pre>
+
+
+
+Le 20/11/07 19:18, «&nbsp;[NOM]&nbsp;» &lt;[ADRESSE]&gt a écrit&nbsp;:
+
+&gt Note that the defun using type-of code would be wrong if you define
+&gt 
+&gt (defclass mysubclass (myclass) ...)
+
+
+Naturally : I use this only for very specific situations (the most
+specialized descendant of a class)
+
+Thanks for your help !
+
+Denis
+
+
+-------------------------------------------------------
+Denis Pousseur
+70 rue de Wansijn
+1180 Bruxelles, Belgique
+
+Tel : 32 (0)2 219 31 09
+Mail :  denis.pousseur@gmail.com
+-------------------------------------------------------
+
+
+
+</pre>
+                   </article>
+                  </section>
+                 </section>
+                </section>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:41 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

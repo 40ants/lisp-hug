@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Reloading images</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Reloading images</h1>
+                <pre>
+Hi,
+
+When a pane goes "out of screen", i.e. when it is removed from its layout, it seems like all images loaded onto the pane are released. So when the pane is readded to the layout, references to those images are not valid and any attempt to use them leads to an exception. This has led me into a pattern like this:
+
+… in some display-callback
+  (unless (and (slot-value pane 'loaded-image)
+                   (slot-value (slot-value pane 'loaded-image) 'gp::representation))
+        ;; Loaded image is not valid, so reload it
+        (let ((image-object (gp:load-image pane (slot-value btn 'image))))
+          (setf (slot-value btn 'loaded-image) image-object)))
+        
+
+While this works, it grows tedious if there are many images. Is there any way to avoid freeing of images while the pane is being hidden?
+
+Erik
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Reloading images</h1><html><head><meta http-equiv="content-type" content="text/html; charset=utf-8"></head><body dir="auto"><div style="-webkit-text-size-adjust: auto; ">Hi Erik,</div><div style="-webkit-text-size-adjust: auto; "><br></div><div style="-webkit-text-size-adjust: auto; ">I use images with the panes that contain them, so they are loaded at creation and freed at destruction.</div><div style="-webkit-text-size-adjust: auto; "><br></div><div style="-webkit-text-size-adjust: auto; ">I also use this to lazily load an image:</div><div style="-webkit-text-size-adjust: auto; "><br></div><div><pre style="margin-top: 0px; margin-bottom: 0px; padding: 0px; "><font face="Helvetica"><span style="white-space: normal; -webkit-text-size-adjust: auto; background-color: rgba(255, 255, 255, 0);"><span class="L58"><span class="p">(</span><span class="nb">defmethod</span> <span class="nb">slot-unbound</span> <span class="p">(</span><span class="nc" style="font-weight: bold; ">class</span> <span class="p">(</span><span class="nv">self</span> <span class="nv">status-indicator</span><span class="p">)</span></span>
+<span class="L59">                               <span class="p">(</span><span class="nv">slot-name</span> <span class="p">(</span><span class="nb">eql</span> <span class="ss">'image</span><span class="p">)))</span></span></span></font></pre><pre style="margin-top: 0px; margin-bottom: 0px; padding: 0px; "><font face="Helvetica"><span style="white-space: normal; -webkit-text-size-adjust: auto; background-color: rgba(255, 255, 255, 0);"><span class="L60"><span class="p">&nbsp; (</span><span class="nb">with-slots</span> <span class="p">(</span><span class="nv">image</span> <span class="nv">status</span><span class="p">)</span> <span class="nv">self</span></span></span></font></pre><pre style="margin-top: 0px; margin-bottom: 0px; padding: 0px; "><font face="Helvetica"><span style="white-space: normal; -webkit-text-size-adjust: auto; background-color: rgba(255, 255, 255, 0);"><span class="L61"><span class="p">&nbsp; &nbsp; (</span><span class="nb">setf</span> <span class="nv">image</span> <span class="p">(</span><span class="nv">gp:load-image</span> <span class="nv">self</span> <span class="nv">status</span><span class="p">))))</span></span></span></font></pre></div><div style="-webkit-text-size-adjust: auto; "><br></div><div style="-webkit-text-size-adjust: auto; "><br></div><div style="-webkit-text-size-adjust: auto; "><br></div><div style="-webkit-text-size-adjust: auto; ">Best,</div><div style="-webkit-text-size-adjust: auto; ">Cam</div><div style="-webkit-text-size-adjust: auto; "><br></div><div style="-webkit-text-size-adjust: auto; "><br>On 12 sept. 2013, at 00:34, Erik Ronström &lt;<a href="mailto:erik.ronstrom@doremir.com">erik.ronstrom@doremir.com</a>&gt; wrote:<br><br></div><blockquote type="cite" style="-webkit-text-size-adjust: auto; "><div><span></span><br><span>Hi,</span><br><span></span><br><span>When a pane goes "out of screen", i.e. when it is removed from its layout, it seems like all images loaded onto the pane are released. So when the pane is readded to the layout, references to those images are not valid and any attempt to use them leads to an exception. This has led me into a pattern like this:</span><br><span></span><br><span>… in some display-callback</span><br><span> &nbsp;(unless (and (slot-value pane 'loaded-image)</span><br><span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(slot-value (slot-value pane 'loaded-image) 'gp::representation))</span><br><span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;; Loaded image is not valid, so reload it</span><br><span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(let ((image-object (gp:load-image pane (slot-value btn 'image))))</span><br><span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(setf (slot-value btn 'loaded-image) image-object)))</span><br><span></span><br><span></span><br><span>While this works, it grows tedious if there are many images. Is there any way to avoid freeing of images while the pane is being hidden?</span><br><span></span><br><span>Erik</span><br><span></span><br><span></span><br><span>_______________________________________________</span><br><span>Lisp Hug - the mailing list for LispWorks users</span><br><span><a href="mailto:lisp-hug@lispworks.com">lisp-hug@lispworks.com</a></span><br><span><a href="http://www..lispworks.com/support/lisp-hug.html">http://www.lispworks.com/support/lisp-hug.html</a></span><br><span></span><br></div></blockquote></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Reloading images</h1>
+                 <pre>
+&gt&gt&gt&gt&gt On Thu, 12 Sep 2013 00:34:41 +0200, Erik Ronström said:
+&gt 
+&gt Hi,
+&gt 
+&gt When a pane goes "out of screen", i.e. when it is removed from its layout,
+&gt it seems like all images loaded onto the pane are released. So when the pane
+&gt is readded to the layout, references to those images are not valid and any
+&gt attempt to use them leads to an exception. This has led me into a pattern
+&gt like this:
+&gt 
+&gt … in some display-callback
+&gt   (unless (and (slot-value pane 'loaded-image)
+&gt                    (slot-value (slot-value pane 'loaded-image) 'gp::representation))
+&gt         ;; Loaded image is not valid, so reload it
+&gt         (let ((image-object (gp:load-image pane (slot-value btn 'image))))
+&gt           (setf (slot-value btn 'loaded-image) image-object)))
+&gt         
+&gt 
+&gt While this works, it grows tedious if there are many images. Is there any
+&gt way to avoid freeing of images while the pane is being hidden?
+
+No, you can't avoid the freeing.
+
+I recommend adding a :destroy-callback to the output-pane to set the
+loaded-image slot to nil so you can detect that it needs to be reloaded.
+
+-- 
+Martin Simmons
+LispWorks Ltd
+http://www.lispworks.com/
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:31 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

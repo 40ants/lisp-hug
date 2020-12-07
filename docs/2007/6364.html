@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>ASDF Patch for LispWorks</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>ASDF Patch for LispWorks</h1>
+                <pre>Consider the (silly) system definition below.
+
+FILE S1.ASD
+
+&gt (in-package #:common-lisp-user)
+&gt
+&gt (defpackage #:s1-system
+&gt 	    (:use #:common-lisp #:asdf))
+&gt
+&gt (in-package #:s1-system)
+&gt
+&gt (defsystem s1
+&gt   :components
+&gt   ((:module "main"
+&gt     :pathname ""
+&gt     :components ((:file "f1")
+&gt 		 )))
+&gt   :perform
+&gt   (load-op :after (op c)
+&gt 	   (print (list :load :after op c))))
+
+Loading this once in LispWorks 5.01 Personal (OS X Mactel) is fine;  
+loading twice is unhappy.
+
+&gt
+&gt CL-USER 1 &gt (load "/repository/cclan/asdf/asdf")
+&gt ; Loading text file /repository/cclan/asdf/asdf.lisp
+&gt #P"/repository/cclan/asdf/asdf.lisp"
+&gt
+&gt CL-USER 2 &gt (load "/repository/other/ts-20/lisp/experimental/asdf- 
+&gt problem/s1.asd")
+&gt ; Loading text file /repository/other/ts-20/lisp/experimental/asdf- 
+&gt problem/s1.asd
+&gt #P"/repository/other/ts-20/lisp/experimental/asdf-problem/s1.asd"
+&gt
+&gt CL-USER 3 &gt (load "/repository/other/ts-20/lisp/experimental/asdf- 
+&gt problem/s1.asd")
+&gt ; Loading text file /repository/other/ts-20/lisp/experimental/asdf- 
+&gt problem/s1.asd
+&gt
+&gt Error: No applicable methods for #&lt;STANDARD-GENERIC-FUNCTION  
+&gt HARLEQUIN-COMMON-LISP:GENERIC-FUNCTION-NAME 2091E0DA&gt with args (NIL)
+&gt   1 (continue) Call #&lt;STANDARD-GENERIC-FUNCTION HARLEQUIN-COMMON- 
+&gt LISP:GENERIC-FUNCTION-NAME 2091E0DA&gt again
+&gt   2 Try loading /repository/other/ts-20/lisp/experimental/asdf- 
+&gt problem/s1.asd again.
+&gt   3 Give up loading /repository/other/ts-20/lisp/experimental/asdf- 
+&gt problem/s1.asd.
+&gt   4 Try loading another file instead of /repository/other/ts-20/ 
+&gt lisp/experimental/asdf-problem/s1.asd.
+&gt   5 (abort) Return to level 0.
+&gt   6 Return to top loop level 0.
+&gt
+&gt Type :b for backtrace, :c &lt;option number&gt to proceed,  or :? for  
+&gt other options
+&gt
+&gt S1-SYSTEM 4 : 1 &gt
+
+The problem, as I see it, is in parse-component-form. It currently uses
+
+&gt       (loop for (n v) in `((perform ,perform) (explain ,explain)
+&gt 			   (output-files ,output-files)
+&gt 			   (operation-done-p ,operation-done-p))
+&gt 	    do (map 'nil
+&gt 		    ;; this is inefficient as most of the stored
+&gt 		    ;; methods will not be for this particular gf n
+&gt 		    ;; But this is hardly performance-critical
+&gt 		    (lambda (m) (remove-method (symbol-function n) m))
+&gt 		    (component-inline-methods ret))
+&gt 	  when v
+&gt 	   (destructuring-bind (op qual (o c) &amp;body body) v
+&gt 		 (pushnew
+&gt 		  (eval `(defmethod ,n ,qual ((,o ,op) (,c (eql ,ret)))
+&gt 			  ,@body))
+&gt 		  (component-inline-methods ret))))
+
+to update the inline-methods (e.g., perform, explain, etc) of a  
+system. Since component-inline-methods is never cleared, it can end  
+up with methods that don't exist and (at least on LispWorks), these  
+methods can be of the form
+
+#&lt;STANDARD-METHOD NIL (:AFTER) (#&lt;STANDARD-CLASS ASDF:LOAD-OP  
+21778B0C&gt (
+      (EQL #&lt;ASDF::SYSTEM-CONNECTION "bind-and-metatilities" 214F08F4&gt))
+
+I.e., the method name is nil; this then causes LispWorks to complain  
+when it tries to remove the method whose name is nil.
+
+I propose the following patch:
+
+1. Add
+
+(defparameter +asdf-methods+
+   '(perform explain output-files operation-done-p))
+
+to prevent duplication
+
+2. Replace the code above with:
+
+&gt ;; remove old methods
+&gt       (loop for name in +asdf-methods+
+&gt 	    do (map 'nil
+&gt 		    ;; this is inefficient as most of the stored
+&gt 		    ;; methods will not be for this particular gf n
+&gt 		    ;; But this is hardly performance-critical
+&gt 		    (lambda (m)
+&gt 		      (remove-method (symbol-function name) m))
+&gt 		    (component-inline-methods ret)))
+&gt       ;; clear methods, then add the new ones
+&gt       (setf (component-inline-methods ret) nil)
+&gt       (loop for name in +asdf-methods+
+&gt 	   for v = (getf rest (intern name :keyword))
+&gt 	 when v do
+&gt 	   (destructuring-bind (op qual (o c) &amp;body body) v
+&gt 	     (pushnew
+&gt 	      (eval `(defmethod ,name ,qual ((,o ,op) (,c (eql ,ret)))
+&gt 				,@body))
+&gt 	      (component-inline-methods ret))))
+
+Patch attached.
+
+If there is not discussion, I'll commit this in a few days.
+
+
+</pre>
+               </article>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:43 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

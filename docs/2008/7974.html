@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>SLIME, LispWorks and UTF-8 revisited</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>SLIME, LispWorks and UTF-8 revisited</h1>
+                <pre>
+It seems that this problem was discussed before 
+(http://article.gmane.org/gmane.lisp.lispworks.general/5559)
+
+and this problem had bitten me on day one with Lispworks. Short 
+description: start SLIME with
+
+:coding-system "utf-8-unix", type at the SLIME REPL something like 
+(code-char 3000) and get "Lisp
+
+connection terminated". Seems that comm:socket-stream is not working 
+with external formats, so
+
+slime-lispworks just ignores it.
+
+
+The solution involving using flexi-streams in the article mentioned 
+above probably wouldn't be acceptable
+
+for SLIME (it also for some reason didn't work for me on the first try, 
+but I didn't investigate further), so
+
+I thought that something lightweight might do the trick. This is the 
+first time I'm seeing LW's user-defined
+
+streams and not everything is clear from the documentation, so I'd very 
+much like people with more
+
+experience in this area to have look and tell me if I'm doing something 
+stupid.
+
+
+The idea is to subclass the comm:socket-stream and provide 
+external-format processing on just the methods
+
+that are used by SLIME. At the moment it seems to work (checked only 
+with the utf-8 encoding) both with
+
+and without swank:*use-dedicated-output-stream*.
+
+
+I do not post this in patch format since it's mostly a request for 
+comments at the moment and the change is
+
+located in one place only. In file swank-lispworks.lisp the function 
+accept-connection is replaced by the following
+
+code:
+
+
+(defclass ef-socket-stream (comm:socket-stream)
+  ((ext-format :reader ext-format :initarg :ext-format)))
+
+
+;; This seems to greatly affect which generic stream functions
+
+;; are called by the standard ones in CL:
+
+;; (defmethod stream-element-type ((stream ef-socket-stream))
+;;   ;;'lw:simple-char
+;;   'character
+;;   )
+
+
+(defun decode-external-string-or-nil (buffer external-format &amp;key (start 
+0) end)
+  (handler-bind ((arithmetic-error #'(lambda (condition)
+                                       (declare (ignore condition))
+                                       (return-from 
+decode-external-string-or-nil nil) )))
+    (ef:decode-external-string buffer external-format
+                               :start start :end end)))
+
+
+(defmethod stream:stream-read-sequence ((stream ef-socket-stream) 
+sequence start end)
+  (setf end (or end (length sequence)))
+  (setf start (or start 0))
+
+  (let* ((charlen-to-read (- end start))
+         (buf (make-array (list (* 4 charlen-to-read))
+                          :element-type '(unsigned-byte 8)))
+         (pos (call-next-method stream buf 0 end)))
+
+    (loop for decoded = (decode-external-string-or-nil buf (ext-format 
+stream)
+                                                       :start 0 :end pos)
+       until (and decoded
+                  (= (length decoded) charlen-to-read))
+       do
+         (setf (aref buf pos) (stream:stream-read-byte stream))
+         (incf pos)
+       finally
+         (replace sequence decoded :start1 start :end1 end)
+         (return end))))
+
+
+(defmethod stream:stream-write-char ((stream ef-socket-stream) char)
+  (write-sequence (ef:encode-lisp-string (string char)
+                                         (ext-format stream))
+                  stream))
+
+
+(defmethod stream:stream-write-string ((stream ef-socket-stream) string
+                                       &amp;optional start end)
+  (write-sequence
+    (ef:encode-lisp-string string (ext-format stream)
+                           :start start :end  end)
+    stream))
+
+(defmethod stream-external-format ((stream ef-socket-stream))
+  (ext-format stream))
+
+
+(defimplementation accept-connection (socket
+                                      &amp;key external-format buffering 
+timeout)
+  (declare (ignore buffering timeout))
+  (let* ((fd (comm::get-fd-from-socket socket)))
+    (assert (/= fd -1))
+    (make-instance 'ef-socket-stream :socket fd :direction :io
+                   :element-type
+                   ;;'base-char
+                   '(unsigned-byte 8)
+                   ;;'simple-char
+                   :ext-format external-format)))
+
+These changes should probably be protected by #+lispworks5 - when were 
+the user-defined streams introduced?
+
+Of course it was only meant to be just enough to get SLIME working but 
+it's still interesting to know what's missing,
+
+what should be done differently, starting with which LW version this is 
+supposed to work at all, maybe other comments.
+
+
+Ury
+
+
+
+</pre>
+               </article>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:39 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

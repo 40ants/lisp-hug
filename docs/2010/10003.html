@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Displaying and scrolling live data</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Displaying and scrolling live data</h1>
+                <pre>
+Hi all,
+I have problems updating live data in a scrolling output-pane, using  
+LWM6.0 on Mac OS X 10.5.
+I have looked through the scrolling examples, but I cannot see  
+anything that resembles what I am trying to do with a pane increasing  
+in width.
+
+I have an output-pane displaying score notes representing MIDI input.  
+It looks something like this:
+
+(note-pane capi:output-pane
+            :accessor note-pane
+            :display-callback 'display-note-pane
+            :visible-min-width 250
+            :visible-min-height 160
+            :horizontal-scroll t
+            :vertical-scroll nil)
+
+During MIDI input, a timer is calling an update function (note-pane- 
+update) every 20ms. This updating function changes the :max-range of  
+the horizontal scroll-bar using capi:set-horizontal-scroll-parameters  
+followed by a "scroll :horizontal :move :end", and then calls the  
+display-callback function (display-note-pane). The idea is to set the  
+slug in its right-most position, so that score notes enter the note- 
+pane from the right and scroll to the left.
+
+In the display-callback function, I have wrapped the drawing inside a  
+with-atomic-redisplay.
+Note:
+The score notes displayed will change during scrolling, so I have to  
+redraw them instead of just copying a bitmap.
+
+Some observations:
+-It works, but the drawing is not very smooth. It seems to jump a  
+little back and forth while scrolling.
+-When updating every 200ms instead, it looks OK, but slow.
+-I have tried removing messages queued up in note-pane-update (just a  
+few messages get queued up), but it does not make any visible  
+difference.
+- I have a feeling that it has something to do with the slug  
+position, because when I list values in display-note-pane, I can see  
+that :slug-size is constant and :max-range is increasing, but :slug- 
+position has an upward trend while the values are not always increasing.
+
+Questions:
+-Does anyone have experience from updating a pane with live data like  
+this?
+-Source code of something similar?
+-Pattern of how to do this the right way?
+-Is it maybe better to do the scrolling myself (:pane-can-scroll t)  
+instead of letting capi do it?
+
+/Sven
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Displaying and scrolling live data</h1>
+                 <pre>
+
+On Mar 5, 2010, at 6:39 AM, Sven Emtell wrote:
+
+&gt During MIDI input, a timer is calling an update function (note-pane-update) every 20ms. This updating function changes the :max-range of the horizontal scroll-bar using capi:set-horizontal-scroll-parameters followed by a "scroll :horizontal :move :end", and then calls the display-callback function (display-note-pane). The idea is to set the slug in its right-most position, so that score notes enter the note-pane from the right and scroll to the left.
+&gt 
+&gt In the display-callback function, I have wrapped the drawing inside a with-atomic-redisplay.
+&gt Note:
+&gt The score notes displayed will change during scrolling, so I have to redraw them instead of just copying a bitmap.
+&gt 
+&gt Some observations:
+&gt -It works, but the drawing is not very smooth. It seems to jump a little back and forth while scrolling.
+&gt -When updating every 200ms instead, it looks OK, but slow.
+
+Other sorts of capi animation I've done as well as apple's docs suggest that you'll never get more than 60fps screen refresh from a Cocoa/AppKit application. If you do much computation and drawing you'll start to see aliasing (e.g., wheels appearing to rotate backwards) even at 60fps. So 20ms=50fps is right on the edge of what is possible even with minimal computation and drawing per frame. Have you tried a 33ms timer (i.e., 30 fps)?
+
+Another possibility: You could grab the already drawn notes in an image, draw that to the pane, then draw the new notes over it. For example, if you shift the notes by 1/10 of the visible pane width each frame, you grab the rightmost 9/10 of the pane in an image (gp:make-image-from-port), draw this image full left in the pane, then draw the new notes in the rightmost 1/10 of the pane.
+
+Of course whether this would be faster than just redrawing is entirely dependent on how much redrawing you're doing. My benchmarks suggest that you can draw just under 200 polygons (i.e., gp:draw-polygon) at 30 fps on a 2+GHz machine. Anything more than this and it's worthwhile to grab an image first, then do any new drawing for each frame over the grabbed image from the previous frame.
+
+Something like this would do the side scrolling:
+
+(defun anim-test-sidescroll (&amp;key (framerate 10) (time 6)) ;; up framerate to see effect
+  (declare (optimize speed (safety 1) (debug 0)))
+  (let* ((frame-x-offset 70) ;; how far we'll shift the pane contents left each frame
+         (circle-base-x-coordinate 600) ;; where we'll plunk down new circles
+         (current-image nil) ;; the image we've grabbed of the port, left end choppped
+         (old-image nil) ;; previous frame so we can free it and avoid a leak
+         (still-running t))
+    (labels ((display-a-frame (self x y width height)
+               (declare (ignorable x y width height))
+               (when current-image (gp:draw-image self current-image 0 0))
+               (dotimes (n 4) ;; draw 4 circles in a vertical line at the right edge
+                 (gp:draw-circle self
+                                 (+ circle-base-x-coordinate (* n 3)) ;; x
+                                 (+ 50 (* n 100) (random 100))        ;; y
+                                 (+ 20 (random 15))                   ;; radius
+                                 :filled t
+                                 :foreground (nth n '(:orange :blue :green :purple))))
+               (setf old-image current-image) ;; swap these cause we need a ref to old-image
+               (setf current-image ;; grab the current port contents with the left end chopped
+                     (gp:make-image-from-port self frame-x-offset 0
+                                              ;; need to truncate width  by frame-x-offset
+                                              ;; or the image will be stretched when displayed
+                                              (- (gp:port-width self) frame-x-offset)
+                                              (gp:port-height self)))
+               (when old-image (gp:free-image self old-image))) ;; free the old image
+             (pane-destroyed (self) ;; stop the animation loop if pane goes bye bye
+               (declare (ignorable self))
+               (setf still-running nil)))
+      (let* ((the-pane ;; make a pane that uses the above func for display
+                       (capi:contain
+                        (make-instance 'capi:output-pane
+                                       :display-callback #'display-a-frame
+                                       :destroy-callback #'pane-destroyed)
+                        :best-height 600 :best-width 700)))
+        (mp:process-run-function
+         "anim-test-sidescroll-process" ()
+         (lambda ()
+           (loop for i below (round (* framerate time))
+                 while still-running do ;; loop for time redisplaying at framerate
+                 (sleep (float (/ framerate) 1.0s0))
+                 (gp:invalidate-rectangle the-pane))))))))
+
+As you'll see if you experiment with the framerate keyword arg, you don't see any increase in speed beyond :framerate 60 - i.e., :framerate 300 looks just the same.
+
+hth,
+
+warmest regards,
+
+Ralph
+
+
+
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Displaying and scrolling live data</h1>
+                 <pre>
+
+On Mar 5, 2010, at 2:11 PM, Raffael Cavallaro wrote:
+
+&gt Something like this would do the side scrolling:
+
+BTW, I don't have windows running on this machine. Could someone running LWW try the code I posed in the previous email and see that this sort of thing works as expected on windows?
+
+TIA,
+
+warmest regards,
+
+Ralph
+
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:35 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

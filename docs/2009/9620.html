@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Loading external files as UTF-8 by default</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Loading external files as UTF-8 by default</h1>
+                <pre>
+Hello.  New to LispWorks, though not to Lisp.
+
+I'm trying to load some library files (originally created for CLISP)
+that are in UTF-8.  This works:
+
+(load "filename" :external-format :utf-8)
+
+but the setting doesn't cascade; any (load)s inside the file being
+(load)ed are still interpreted as Latin-1, and I'd rather not have to
+go through them and hard-code that.
+
+I also tried setting stream::*default-external-format* to :utf-8, but
+that didn't seem to make any difference.
+
+What am I missing?
+
+Thanks in advance for any help.
+
+-- 
+Mark J. Reed &lt;markjreed@gmail.com&gt
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>RE: Loading external files as UTF-8 by default</h1>
+                 <pre>
+You can add following text to the first line of source file:
+;;;; -*- encoding:utf-8 -*-
+
+Or you can add following codes in your .lispworks:
+
+;;; make lispworks could detect the utf-8 encoded files.
+(defun utf-8-file-encoding (pathname ef-spec buffer length)
+  (declare (ignore pathname buffer length))
+  (system:merge-ef-specs ef-spec :utf-8))
+(setq system:*file-encoding-detection-algorithm*
+      (substitute 'utf-8-file-encoding 'system:locale-file-encoding
+                  system:*file-encoding-detection-algorithm*))
+
+modify editor if you want:
+  (setf (editor:variable-value "Input Format Default")
+        '(:utf-8 :eol-style :crlf))
+  (setf (editor:variable-value "Output Format Default")
+        '(:utf-8 :eol-style :crlf))
+
+-----Original Message-----
+From: owner-lisp-hug@lispworks.com [mailto:owner-lisp-hug@lispworks.com] On Behalf Of Mark J. Reed
+Sent: Wednesday, December 23, 2009 10:32 AM
+To: lisp-hug@lispworks.com
+Subject: Loading external files as UTF-8 by default
+
+
+Hello.  New to LispWorks, though not to Lisp.
+
+I'm trying to load some library files (originally created for CLISP)
+that are in UTF-8.  This works:
+
+(load "filename" :external-format :utf-8)
+
+but the setting doesn't cascade; any (load)s inside the file being
+(load)ed are still interpreted as Latin-1, and I'd rather not have to
+go through them and hard-code that.
+
+I also tried setting stream::*default-external-format* to :utf-8, but
+that didn't seem to make any difference.
+
+What am I missing?
+
+Thanks in advance for any help.
+
+-- 
+Mark J. Reed &lt;markjreed@gmail.com&gt
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>cl, lispworks question and mysql</h1>
+                 <pre>
+Hello lispers!
+
+I’m a newbie to Lisp and I have some questions, some concerning
+Common Lisp in general, some to Lispworks.
+
+As an exercise in learning Lisp and finding out what Lispworks’
+implementation of CL is, I have written this code
+
+http://www.obrezan.com/lisp/mysql.lisp
+
+
+That’s a simple native mysql driver, that is it accesses to mysql
+via the mysql client/server protocol. So called “a thing in itself”
+that needs no third-party libraries (i.e. mysqllib), no ffi calls,
+no even asdf (a formidable beast to me), but which actually works
+and connects to the mysql server, send queries and get results back.
+
+Questions:
+
+1. How in Lispworks can I test if the socket stream was closed
+on the other side? For example, the mysql server drops the connection
+and I want to be aware of that fact.
+
+2. To signal errors I use, as I got it, a simple-error error type.
+Should I make up a special kind of error, say mysql-error?
+Or simple-errors are ok?
+
+3. Signaling errors and go into the debug-repl after it is an easy
+part, but how do I handle errors in “production” code, that say
+if I have access to the database in an web server code and there
+is an error? I don’t want to stop my program in the debug-repl,
+instead I need to catch that situation and spit, say to the web
+browser, “oops, no database for today” and happily continue my
+program. Use handle-case and handle-bind functions for that?
+Can someone point me at some actual/sample code of such error
+handling?
+
+4. I coded the sha1 algorithm in generic CL. Lispworks have
+functions that works in int32 – a lot of such functions. Should
+I use them for speed/other benefits?
+
+5. When I load that file into Lispworks’ IDE it asks me if I want
+to create the mysql package, it doesn’t see my defpackage construct.
+To suppress this “ai” behavior of the IDE at new loading of
+mysql.lisp, how should I place my defpackage construct?
+Into eval-then?
+
+
+Thanks.
+
+Best,
+ Art
+
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:36 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

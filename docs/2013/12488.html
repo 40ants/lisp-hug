@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>CLOS slot and :type</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>CLOS slot and :type</h1><html><head>
+<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1"></head><body
+ text="#000000" bgcolor="#FFFFFF">
+I'm wondering what the :type in a CLOS object slot is actually used for,
+ and if my using it for something else is going to end up causing a 
+world of problems?<br>
+  <br>
+  <span><a href="https://github.com/massung/json">https://github.com/massung/json</a>
+ <br>
+    <br>
+My JSON package for LW has&nbsp; a very helpful function: json-decode-into. 
+You basically provide a class symbol and away it goes. For example:<br>
+    <br>
+    <span style="font-family: monospace;">(defclass login ()</span><br 
+style="font-family: monospace;">
+    <span style="font-family: monospace;">&nbsp; ((|username| :reader 
+login-username)</span><br style="font-family: monospace;">
+    <span style="font-family: monospace;">&nbsp;&nbsp; (|password| :reader 
+login-password)))</span><br>
+    <br>
+And now if you had the following JSON string:<br>
+    <br>
+    <span style="font-family: monospace;">{ "username" : "jeff", 
+"password" : "12345" }</span><br>
+    <br>
+Then:<br>
+    <br>
+    <span style="font-family: monospace;">(json-decode-into 'login 
+json-string)</span><span style="font-family: monospace;"> ;=&gt; 
+#&lt;LOGIN&gt;</span><br>
+    <br>
+Nothing terribly special here. However, often times there will be 
+objects within objects. And, so I allow for a particular slot to use 
+:type to identify when the JSON decoder should recurse:<br>
+    <br>
+    <span style="font-family: monospace;">(defclass account ()</span><br
+ style="font-family: monospace;">
+    <span style="font-family: monospace;">&nbsp; ((|login|&nbsp;&nbsp; :reader 
+account-login :type login)</span><br style="font-family: monospace;">
+    <span style="font-family: monospace;">&nbsp;&nbsp; (|balance| :reader 
+account-balance)))</span><br>
+    <br>
+With the above, calling (json-decode-into 'account ...), if a "login" 
+key is found, it will recursively call (json-decode-into 'login ...) 
+since that's the :type of the slot (and a subtype of standard-object).<br>
+    <br>
+I'm just curious if that - by doing this - I'm circumventing something 
+else either in the standard or the LW implementation of CLOS?<br>
+    <br>
+Jeff M.<br>
+  </span>
+</body>
+</html>
+
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: CLOS slot and :type</h1><div dir="ltr">Hello Jeff,<div><br></div><div>I think that is a great use of the TYPE slot option. I had to look at your code to see exactly how you were using the information and now I, too, want to start taking advantage of MOP:SLOT-DEFINITION-TYPE. In the past, I&#39;ve only used the TYPE slot option as a form of documentation and have never expected or relied on it to do anything useful because of the following statement.</div>
+<div><br></div><blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left-width:1px;border-left-color:rgb(204,204,204);border-left-style:solid;padding-left:1ex">The consequences of attempting to store in a slot a value that does not satisfy the type of the slot are undefined.</blockquote>
+<div><br></div><div>Although, I ran into a TYPE slot issue once with CCL because it actually verifies that the value for the slot is compatible with the type of the slot. The same code ran without error or warning on LW.</div>
+<div><br></div><div>Good luck,</div><div><br></div><div>Tom H.</div></div><div class="gmail_extra"><br clear="all"><div><div dir="ltr">----------------------------------------------------------------<br>Thomas M. Hermann<br>
+Odonata Research LLC<div>316-285-0120<br><a href="http://www.odonata-research.com/" target="_blank">http://www.odonata-research.com/</a><br><a href="http://www.linkedin.com/in/thomasmhermann" target="_blank">http://www.linkedin.com/in/thomasmhermann</a></div>
+</div></div>
+<br><br><div class="gmail_quote">On Tue, Sep 24, 2013 at 1:50 PM, Jeffrey Massung <span dir="ltr">&lt;<a href="mailto:massung@gmail.com" target="_blank">massung@gmail.com</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+
+<div text="#000000" bgcolor="#FFFFFF">
+I&#39;m wondering what the :type in a CLOS object slot is actually used for,
+ and if my using it for something else is going to end up causing a 
+world of problems?<br>
+  <br>
+  <span><a href="https://github.com/massung/json" target="_blank">https://github.com/massung/json</a>
+ <br>
+    <br>
+My JSON package for LW has  a very helpful function: json-decode-into. 
+You basically provide a class symbol and away it goes. For example:<br>
+    <br>
+    <span style="font-family:monospace">(defclass login ()</span><br style="font-family:monospace">
+    <span style="font-family:monospace">  ((|username| :reader 
+login-username)</span><br style="font-family:monospace">
+    <span style="font-family:monospace">   (|password| :reader 
+login-password)))</span><br>
+    <br>
+And now if you had the following JSON string:<br>
+    <br>
+    <span style="font-family:monospace">{ &quot;username&quot; : &quot;jeff&quot;, 
+&quot;password&quot; : &quot;12345&quot; }</span><br>
+    <br>
+Then:<br>
+    <br>
+    <span style="font-family:monospace">(json-decode-into &#39;login 
+json-string)</span><span style="font-family:monospace"> ;=&gt; 
+#&lt;LOGIN&gt;</span><br>
+    <br>
+Nothing terribly special here. However, often times there will be 
+objects within objects. And, so I allow for a particular slot to use 
+:type to identify when the JSON decoder should recurse:<br>
+    <br>
+    <span style="font-family:monospace">(defclass account ()</span><br style="font-family:monospace">
+    <span style="font-family:monospace">  ((|login|   :reader 
+account-login :type login)</span><br style="font-family:monospace">
+    <span style="font-family:monospace">   (|balance| :reader 
+account-balance)))</span><br>
+    <br>
+With the above, calling (json-decode-into &#39;account ...), if a &quot;login&quot; 
+key is found, it will recursively call (json-decode-into &#39;login ...) 
+since that&#39;s the :type of the slot (and a subtype of standard-object).<br>
+    <br>
+I&#39;m just curious if that - by doing this - I&#39;m circumventing something 
+else either in the standard or the LW implementation of CLOS?<br>
+    <br>
+Jeff M.<br>
+  </span>
+</div>
+
+</blockquote></div><br></div>
+
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: CLOS slot and :type</h1>
+                 <pre>
+On Tue, 24 Sep 2013 19:50:55 +0100, Jeffrey Massung &lt;massung@gmail.com&gt  
+wrote:
+
+&gt I'm wondering what the :type in a CLOS object slot is actually used for,  
+&gt and if my using it for something else is going to end up causing a world  
+&gt of problems?
+
+:type is a specifier used by defstruct to define data types of its slots,  
+so I'd imagine defclass would have inherited it for the same purpose.
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: CLOS slot and :type</h1>
+                 <pre>
+* Jeffrey Massung &lt;5241DF0F.5060109@gmail.com&gt :
+Wrote on Tue, 24 Sep 2013 13:50:55 -0500:
+
+| I'm wondering what the :type in a CLOS object slot is actually used
+| for, and if my using it for something else is going to end up causing
+| a world of problems?
+|
+| (defclass login ()
+| ((|username| :reader login-username)
+| (|password| :reader login-password)))
+
+I believe CL-SQL uses the :type slot in DEF-VIEW-CLASS to map the lisp
+type to the DB-TYPE.  I've used the CLOS slot-definition-types, for
+eg. to automatically build up CAPI interfaces for editing displaying the
+classes.  I only ever did this with LW.  There were a few drawbacks [off
+the top of my head from maybe 5 years ago]---Madhu
+
+1. I had to resort to a naming convention to distinguish slots that
+   represented JOIN-CLASSes, naming them as SLOTNAME-OBJ, so I could
+   skip them or handle them specially when operating on slot names (the
+   DB-COLUMNS) and type names.
+
+2. I could not get at the slot :documentation strings, and so had to
+   resort to annotating the view-classes separately, and use this
+   information when operating on the slot names and types names.
+
+3. Differences in translating the lisp types to various database
+   backends had to be kluged in a few cases, this was inherently
+   fragile.
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: CLOS slot and :type</h1><html><head><meta http-equiv="content-type" content="text/html; charset=utf-8"></head><body dir="auto"><div>This may not be LW specific, but you may wish to have a look at Alexander Repenning's XMLisp package, which spends a bit of its effort on this issue of automatically constructing/aggregating objects based on slot definition type. &nbsp;Some of the techniques (eg determining plurality of slot value based on English plurality of slot name; integration of xml decoding with lisp reader using macro character) you probably want to avoid, but perhaps some others might provide food for thought.&nbsp;</div><div><br></div><div>Regards,</div><div>Dan<br><br>Sent from my iPad</div><div><br>On Sep 24, 2013, at 2:50 PM, Jeffrey Massung &lt;<a href="mailto:massung@gmail.com">massung@gmail.com</a>&g
+ t; wrote:<br><br></div><blockquote type="cite"><div>
+<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+I'm wondering what the :type in a CLOS object slot is actually used for,
+ and if my using it for something else is going to end up causing a 
+world of problems?<br>
+  <br>
+  <span><a href="https://github.com/massung/json">https://github.com/massung/json</a>
+ <br>
+    <br>
+My JSON package for LW has&nbsp; a very helpful function: json-decode-into. 
+You basically provide a class symbol and away it goes. For example:<br>
+    <br>
+    <span style="font-family: monospace;">(defclass login ()</span><br style="font-family: monospace;">
+    <span style="font-family: monospace;">&nbsp; ((|username| :reader 
+login-username)</span><br style="font-family: monospace;">
+    <span style="font-family: monospace;">&nbsp;&nbsp; (|password| :reader 
+login-password)))</span><br>
+    <br>
+And now if you had the following JSON string:<br>
+    <br>
+    <span style="font-family: monospace;">{ "username" : "jeff", 
+"password" : "12345" }</span><br>
+    <br>
+Then:<br>
+    <br>
+    <span style="font-family: monospace;">(json-decode-into 'login 
+json-string)</span><span style="font-family: monospace;"> ;=&gt; 
+#&lt;LOGIN&gt;</span><br>
+    <br>
+Nothing terribly special here. However, often times there will be 
+objects within objects. And, so I allow for a particular slot to use 
+:type to identify when the JSON decoder should recurse:<br>
+    <br>
+    <span style="font-family: monospace;">(defclass account ()</span><br style="font-family: monospace;">
+    <span style="font-family: monospace;">&nbsp; ((|login|&nbsp;&nbsp; :reader 
+account-login :type login)</span><br style="font-family: monospace;">
+    <span style="font-family: monospace;">&nbsp;&nbsp; (|balance| :reader 
+account-balance)))</span><br>
+    <br>
+With the above, calling (json-decode-into 'account ...), if a "login" 
+key is found, it will recursively call (json-decode-into 'login ...) 
+since that's the :type of the slot (and a subtype of standard-object).<br>
+    <br>
+I'm just curious if that - by doing this - I'm circumventing something 
+else either in the standard or the LW implementation of CLOS?<br>
+    <br>
+Jeff M.<br>
+  </span>
+
+
+</div></blockquote></body></html>
+
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:31 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

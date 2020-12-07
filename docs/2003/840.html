@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Delivery debugging</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Delivery debugging</h1>
+                <pre>Hi!
+
+I am trying to deliver some program.  Delivery level 4 works, 5
+crashes.  Trying to find the error, I deliver with
+
+(deliver 'foo:foo "foo" 5
+         :keep-conditions :all
+         :interface :capi :keep-lisp-reader t)
+
+What I get then is:
+
+nils@pc022[foo]$ ./foo
+
+Error: Package NIL not found.
+Simple backtrace: 
+204bf938 201fe454 #&lt;cfo 201fe37a&gt
+204bf954 2007882f #&lt;cfo 200787ba&gt
+204bf97c 2019c75f #&lt;cfo 2019c60a&gt
+....
+
+Is there some way to find out which package is missing?  I tried
+:keep-debug-mode t, but then the program simply works :-)
+
+Another question: Is there some way I can make sense of the addresses
+in such backtraces?  Can DELIVER generate some kind of map file?
+
+Regards,
+-- 
+Nils Gösche
+"Don't ask for whom the &lt;CTRL-G&gt tolls."
+
+PGP key ID 0x0655CFA0
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Delivery debugging</h1>
+                 <pre>
+----- Original Message -----
+From: "Nils Goesche" &lt;cartan@cartan.de&gt
+To: &lt;lisp-hug@xanalys.com&gt
+Sent: Thursday, February 06, 2003 6:59 AM
+Subject: Delivery debugging
+
+
+Hi!
+
+I am trying to deliver some program.  Delivery level 4 works, 5
+crashes.  Trying to find the error, I deliver with
+
+(deliver 'foo:foo "foo" 5
+         :keep-conditions :all
+         :interface :capi :keep-lisp-reader t)
+------------------------------------
+
+
+Since you seem to be keeping the reader you might want to add a couple
+of more delivery opitons (especially :symbols-name-action.  Here is an example
+of delivery of a complex app.  Your app is probably failing because no
+symbol-names are kept
+
+http://www.lispworks.com/reference/lwl42/DV-U/html/deluser-162.htm#pgfId-107436
+
+(deliver 'running-log::make-running-log "RUNNING:runners-log" 5
+  :symbol-names-action nil
+  :keep-lisp-reader t
+  :keep-eval nil
+  :keep-structure-info nil
+  :keep-conditions '(file-error)
+  :symbols-to-keep-structure-info '(running-log::runner running-log::running-shoe
+running-log::image running-log::milestone running-log::kilometers running-log::miles
+running-log::meters running-log::yards running-log::pace pathname)
+         :interface :capi
+         :format t
+         :keep-complex-numbers nil
+         :icon-file "RUNNING:application.ico"
+         :diagnostics-file "deliver.txt"
+         :clos-info :classes-and-methods
+         :call-count :size
+         :keep-stub-functions nil
+         :keep-package-manipulation nil
+         :keep-top-level nil
+         :print-circle nil
+         :quit-when-no-windows nil
+         :console :input
+         :multiprocessing t)
+
+Wade
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Delivery debugging</h1>
+                 <p>
+                  Unable to parse email body. Email id is 843
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: Delivery debugging</h1>
+                  <pre>David Fox &lt;davef@xanalys.com&gt writes:
+
+&gt &gt I am trying to deliver some program.  Delivery level 4 works, 5
+&gt &gt crashes. 
+&gt 
+&gt Do you mean that the Delivery process crashes? What is its output?
+
+No no, an executable is generated and when I start it it exits
+printing a backtrace, like this:
+
+&gt &gt  nils@pc022[foo]$ ./foo
+&gt &gt
+&gt &gt  Error: Package NIL not found.
+&gt &gt  Simple backtrace: 
+&gt &gt  204bf938 201fe454 #&lt;cfo 201fe37a&gt
+&gt &gt  204bf954 2007882f #&lt;cfo 200787ba&gt
+&gt &gt  204bf97c 2019c75f #&lt;cfo 2019c60a&gt
+&gt    ...
+&gt 
+&gt Is this error different to when you deliver without passing
+&gt :KEEP-LISP-READER T and :KEEP-CONDITIONS :ALL ?
+
+Well, in a way: If all I say is :INTERFACE :CAPI, I get
+
+nils@pc022[foo]$ ./foo
+Attempt to invoke function REA on arguments (#&lt;#:LAT 20506A4C&gt).
+REA was removed by Delivery keyword :KEEP-LISP-READER "NIL".
+Try :KEEP-LISP-READER T.
+
+which makes sense, as I use the Lisp reader :-).  If I add it, I get
+
+nils@pc022[foo]$ ./foo
+
+Error: An error of type PACSimple backtrace: 
+204aa998 201fb434 #&lt;cfo 201fb35a&gt
+204aa9b4 200775df #&lt;cfo 2007756a&gt
+204aa9dc 2019b947 #&lt;cfo 2019b7f2&gt
+204aaa08 20085267 #&lt;cfo 200850ca&gt
+204aab00 200f4035 #&lt;cfo 200f3ff2&gt
+204aab10 200f3bf4 #&lt;cfo 200f3bca&gt
+
+To find out what went wrong, I added :keep-conditions :all, which I
+was going to do anyway, as I like conditions... then I get the
+backtrace I posted first (see above).  The entry function looks like
+this:
+
+(defun foo ()
+  (display (make-instance 'foo)))
+
+If I wrap the call to CAPI:DISPLAY in a HANDLER-CASE, I don't get a
+backtrace, but (almost) the same error messages, like
+
+Package NIL not found.
+
+An error of type #:PAC occured, arguments : (:PACKAGE COMMON-LISP::NIL)
+
+If I add Wade's :SYMBOL-NAMES-ACTION NIL, everything works fine.
+Interestingly, if I set :SYMBOL-NAMES-ACTION to :DUMP, the executable
+works, too!
+
+&gt    Is there some way to find out which package is missing?  I tried
+&gt    :keep-debug-mode t, but then the program simply works :-)
+&gt 
+&gt    Another question: Is there some way I can make sense of the addresses
+&gt    in such backtraces? 
+&gt 
+&gt Try it like this:
+&gt 
+&gt (deliver 'foo:foo "foo" 5
+&gt    :ERROR-HANDLER :BTRACE
+&gt    :NO-SYMBOL-FUNCTION-USAGE NIL
+&gt    :SYMBOL-NAMES-ACTION NIL 
+&gt    :interface :capi )
+
+Then it whines about not having the Lisp reader available.  If I add
+:KEEP-LISP-READER T, the program simply works (as before, when I set
+SYMBOL-NAMES-ACTION to NIL or :DUMP).  If I omit :SYMBOL-NAMES-ACTION,
+however, I get a longer dump:
+
+start 20002680 end 20436da0
+204B6574 2008E68F = CERstart 20002680 end 20436da0
+
+204B6680 200F831D = PACstart 20002680 end 20436da0
+
+204B6690 200F7E9C = INTstart 20002680 end 20436da0
+
+204B66AC 200D1750 = PARstart 20002680 end 20436da0
+
+204B66C0 200D204B = REAstart 20002680 end 20436da0
+
+204B66D8 200D216C = RECstart 20002680 end 20436da0
+
+204B66FC 200108FF = 0start 20002680 end 20436da0
+
+204B6714 200D36B8 = REAstart 20002680 end 20436da0
+
+204B67D8 20404A34 = PARstart 20002680 end 20436da0
+
+204B6840 20404DEF = #&lt;function 20404DBA&gtstart 20002680 end 20436da0
+
+204B6854 20093E70 = #&lt;function 20093D5A&gtstart 20002680 end 20436da0
+
+204B6884 2001B569 = NEXstart 20002680 end 20436da0
+
+204B68A4 20314EC6 = #&lt;function 20314E82&gt
+204B68C8 2001B569 = NEXstart 20002680 end 20436da0
+
+204B68E8 2033DB26 = #&lt;function 2033DA32&gtstart 20002680 end 20436da0
+
+204B6934 2008A46C = #&lt;function 2008A442&gt
+204B6954 200108FF = #&lt;function 0 20010832&gtstart 20002680 end 20436da0
+
+204B696C 2001C6D5 = #&lt;function 2001C5DA&gtstart 20002680 end 20436da0
+
+204B699C 20208E6C = MAKstart 20002680 end 20436da0
+
+204B69B8 203FE445 = #&lt;function 203FE2B2&gtstart 20002680 end 20436da0
+
+204B69F4 2028816C = #&lt;function 202880E2&gt
+204B6A1C 200108FF = #&lt;function 0 20010832&gtstart 20002680 end 20436da0
+
+204B6A34 2028180B = #&lt;function 2028178A&gt
+204B6A5C 20093E70 = #&lt;function 20093D5A&gt
+204B6AE4 2001B569 = NEX
+204B6B04 20314EC6 = #&lt;function 20314E82&gt
+204B6B28 2001B569 = NEXstart 20002680 end 20436da0
+
+204B6B48 2032B235 = #&lt;function 2032B20A&gt
+204B6B6C 2008A46C = #&lt;function 2008A442&gt
+204B6B84 200108FF = #&lt;function 0 20010832&gt
+204B6B9C 2001C6D5 = #&lt;function 2001C5DA&gt
+204B6BC8 20208E6C = MAK
+204B6BE4 200108FF = #&lt;function 0 20010832&gtstart 20002680 end 20436da0
+
+204B6BFC 204052A7 = SYSstart 20002680 end 20436da0
+
+204B6C18 200C0B17 = 0start 20002680 end 20436da0
+
+204B6CF0 201876D3 = %%Fstart 20002680 end 20436da0
+
+204B6D00 201877C2 = %%%
+
+Error: An error of type PACSimple backtrace: 
+204b64f0 2020799c #&lt;cfo 202078c2&gt
+204b650c 20081097 #&lt;cfo 20081022&gt
+204b6534 201a4687 #&lt;cfo 201a4532&gt
+204b6560 204018d7 #&lt;cfo 204018b2&gt
+204b6574 2008e68f #&lt;cfo 2008e4f2&gt
+204b6680 200f831d #&lt;cfo 200f82da&gt
+204b6690 200f7e9c #&lt;cfo 200f7e72&gt
+204b66ac 200d1750 #&lt;cfo 200d16b2&gt
+204b66c0 200d204b #&lt;cfo 200d1dda&gt
+204b66d8 200d216c #&lt;cfo 200d2132&gt
+204b66fc 200108ff #&lt;cfo 20010832&gt
+204b6714 200d36b8 #&lt;cfo 200d3452&gt
+204b67d8 20404a34 #&lt;cfo 204049ba&gt
+204b6840 20404def #&lt;cfo 20404dba&gt
+204b6854 20093e70 #&lt;cfo 20093d5a&gt
+204b6884 2001b569 #&lt;cfo 2001b522&gt
+204b68a4 20314ec6 #&lt;cfo 20314e82&gt
+204b68c8 2001b569 #&lt;cfo 2001b522&gt
+204b68e8 2033db26 #&lt;cfo 2033da32&gt
+204b6934 2008a46c #&lt;cfo 2008a442&gt
+204b6954 200108ff #&lt;cfo 20010832&gt
+204b696c 2001c6d5 #&lt;cfo 2001c5da&gt
+204b699c 20208e6c #&lt;cfo 20208e32&gt
+204b69b8 203fe445 #&lt;cfo 203fe2b2&gt
+204b69f4 2028816c #&lt;cfo 202880e2&gt
+204b6a1c 200108ff #&lt;cfo 20010832&gt
+204b6a34 2028180b #&lt;cfo 2028178a&gt
+204b6a5c 20093e70 #&lt;cfo 20093d5a&gt
+204b6ae4 2001b569 #&lt;cfo 2001b522&gt
+204b6b04 20314ec6 #&lt;cfo 20314e82&gt
+204b6b28 2001b569 #&lt;cfo 2001b522&gt
+204b6b48 2032b235 #&lt;cfo 2032b20a&gt
+204b6b6c 2008a46c #&lt;cfo 2008a442&gt
+204b6b84 200108ff #&lt;cfo 20010832&gt
+204b6b9c 2001c6d5 #&lt;cfo 2001c5da&gt
+204b6bc8 20208e6c #&lt;cfo 20208e32&gt
+204b6be4 200108ff #&lt;cfo 20010832&gt
+204b6bfc 204052a7 #&lt;cfo 2040528a&gt
+204b6c18 200c0b17 #&lt;cfo 200c0a02&gt
+204b6cf0 201876d3 #&lt;cfo 201876aa&gt
+204b6d00 201877c2 #&lt;cfo 2018775a&gt
+
+Regards,
+-- 
+Nils Gösche
+"Don't ask for whom the &lt;CTRL-G&gt tolls."
+
+PGP key ID 0x0655CFA0
+
+
+</pre>
+                 </article>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>Calling up the Adobe SVG viewer with CAPI</h1>
+                   <pre>Hi
+
+subject says it all.  I would like to invoke the Adobe SVG viewer in a 
+window (possibly a CAPI window).  In alternative I could always call up 
+a browser.
+
+I need advice about how to go ahead and do this.
+
+Thanks in advance
+
+--
+Marco Antoniotti
+NYU Courant Bioinformatics Group		tel. +1 - 212 - 998 3488
+715 Broadway 10th FL				fax. +1 - 212 - 998 3484
+New York, NY, 10003, U.S.A.
+
+
+</pre>
+                  </article>
+                  <section class=tree>
+                   <article class=email>
+                    <h1>Re: Calling up the Adobe SVG viewer with CAPI</h1>
+                    <pre>Any taker on this one?
+
+Cheers
+
+
+On Thursday, Feb 6, 2003, at 14:09 America/New_York, Marco Antoniotti 
+wrote:
+
+&gt Hi
+&gt
+&gt subject says it all.  I would like to invoke the Adobe SVG viewer in a 
+&gt window (possibly a CAPI window).  In alternative I could always call 
+&gt up a browser.
+&gt
+&gt I need advice about how to go ahead and do this.
+&gt
+&gt Thanks in advance
+&gt
+&gt --
+&gt Marco Antoniotti
+&gt NYU Courant Bioinformatics Group		tel. +1 - 212 - 998 3488
+&gt 715 Broadway 10th FL				fax. +1 - 212 - 998 3484
+&gt New York, NY, 10003, U.S.A.
+&gt
+--
+Marco Antoniotti
+NYU Courant Bioinformatics Group		tel. +1 - 212 - 998 3488
+715 Broadway 10th FL				fax. +1 - 212 - 998 3484
+New York, NY, 10003, U.S.A.
+
+
+</pre>
+                   </article>
+                   <section class=tree>
+                    <article class=email>
+                     <h1>Re: Calling up the Adobe SVG viewer with CAPI</h1>
+                     <pre>
+The only way I know to do this would be to use a SVG plugin for Netscape.
+Essentially, you implement the container-side of the Netscape plug-in API.
+It requires you to pass in the handle of the window to use for the plug-in.
+You
+have to root the window handle out of the CAPI structures - I suspect this
+is
+highly non-portable.
+
+I'm able to run Java applets in a CAPI window using this method.
+
+Greg DuPertuis
+President &amp; CEO
+The Adrenaline Group, Inc.
+~ Innovation at the Edge ~
+http://www.adrenaline.com
+greg@adrenaline.com
+
+
+----- Original Message -----
+From: "Marco Antoniotti" &lt;marcoxa@cs.nyu.edu&gt
+To: &lt;lisp-hug@xanalys.com&gt
+Sent: Friday, February 07, 2003 11:27 AM
+Subject: Re: Calling up the Adobe SVG viewer with CAPI
+
+
+&gt Any taker on this one?
+&gt
+&gt Cheers
+&gt
+&gt
+&gt On Thursday, Feb 6, 2003, at 14:09 America/New_York, Marco Antoniotti
+&gt wrote:
+&gt
+&gt &gt Hi
+&gt &gt
+&gt &gt subject says it all.  I would like to invoke the Adobe SVG viewer in a
+&gt &gt window (possibly a CAPI window).  In alternative I could always call
+&gt &gt up a browser.
+&gt &gt
+&gt &gt I need advice about how to go ahead and do this.
+&gt &gt
+&gt &gt Thanks in advance
+&gt &gt
+&gt &gt --
+&gt &gt Marco Antoniotti
+&gt &gt NYU Courant Bioinformatics Group tel. +1 - 212 - 998 3488
+&gt &gt 715 Broadway 10th FL fax. +1 - 212 - 998 3484
+&gt &gt New York, NY, 10003, U.S.A.
+&gt &gt
+&gt --
+&gt Marco Antoniotti
+&gt NYU Courant Bioinformatics Group tel. +1 - 212 - 998 3488
+&gt 715 Broadway 10th FL fax. +1 - 212 - 998 3484
+&gt New York, NY, 10003, U.S.A.
+
+
+</pre>
+                    </article>
+                   </section>
+                   <section class=tree>
+                    <article class=email>
+                     <h1>Re: Calling up the Adobe SVG viewer with CAPI</h1>
+                     <pre>Marco,
+
+This may not be the best way to get a useful hwnd from
+capi, but it is one way to do it. I pulled things from
+different fragments here, but this should get you
+started.
+
+(setf port 
+        (capi:contain (make-instance
+'capi:output-pane)))
+....
+    (let ((parent-hwnd (slot-value
+                        (capi-internals:representation
+port) 
+                        'win32:hwnd)))
+....
+    (let ((hwnd 
+             (createwindowex exstyle class-p title-p
+		 style x y width height parent-hwnd 
+                menu hInstance lpParam)))
+
+The last let, showing createwindowex, will need to be
+replaced with some other Win32 call invoking the Adobe
+SVG viewer. This could involve many steps if that
+requires OLE or COM in any form unless Adobe provides
+an API hiding the COM interactions and lets you treat
+it more-or-less like a call to CreateWindow... 
+
+I hope this helps. The key is getting the hwnd of the
+parent so you can begin to create children.
+
+Jeff Caldwell
+
+--- Marco Antoniotti &lt;marcoxa@cs.nyu.edu&gt wrote:
+&gt Any taker on this one?
+&gt 
+&gt Cheers
+&gt 
+&gt 
+&gt On Thursday, Feb 6, 2003, at 14:09 America/New_York,
+&gt Marco Antoniotti 
+&gt wrote:
+&gt 
+&gt &gt Hi
+&gt &gt
+&gt &gt subject says it all.  I would like to invoke the
+&gt Adobe SVG viewer in a 
+&gt &gt window (possibly a CAPI window).  In alternative I
+&gt could always call 
+&gt &gt up a browser.
+&gt &gt
+&gt &gt I need advice about how to go ahead and do this.
+&gt &gt
+&gt &gt Thanks in advance
+&gt &gt
+&gt &gt --
+&gt &gt Marco Antoniotti
+&gt &gt NYU Courant Bioinformatics Group		tel. +1 - 212 -
+&gt 998 3488
+&gt &gt 715 Broadway 10th FL				fax. +1 - 212 - 998 3484
+&gt &gt New York, NY, 10003, U.S.A.
+&gt &gt
+&gt --
+&gt Marco Antoniotti
+&gt NYU Courant Bioinformatics Group		tel. +1 - 212 -
+&gt 998 3488
+&gt 715 Broadway 10th FL				fax. +1 - 212 - 998 3484
+&gt New York, NY, 10003, U.S.A.
+&gt 
+
+
+__________________________________________________
+Do you Yahoo!?
+Yahoo! Mail Plus - Powerful. Affordable. Sign up now.
+http://mailplus.yahoo.com
+
+
+</pre>
+                    </article>
+                   </section>
+                  </section>
+                 </section>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>Re: Delivery debugging</h1>
+                   <p>
+                    Unable to parse email body. Email id is 856
+                  </article>
+                  <section class=tree>
+                   <article class=email>
+                    <h1>Re: Delivery debugging</h1>
+                    <pre>David Fox &lt;davef@xanalys.com&gt writes:
+
+&gt We would be interested to know where READ is called and why it gets
+&gt an error. The backtrace looks like a function with name starting PAR
+&gt (probably one of your functions) which calls READ. The unnamed
+&gt functions are probably methods and CLOS internal functions, the NEX
+&gt functions are one of the CLOS::NEXT-METHOD-CALL* functions, and the
+&gt MAK function is most likely MAKE-INSTANCE.
+&gt 
+&gt It is not obvious to us what can cause the LispWorks internal
+&gt function IO::PARSE-SYMBOL to call INTERN with a NIL package, it is
+&gt supposed to test for it, unless it calls it with
+&gt LW:*KEYWORD-PACKAGE* or without the package argument (so INTERN uses
+&gt *PACKAGE*), and these cases should still work. Do you set or bind
+&gt LW:*KEYWORD-PACKAGE*?
+
+Looks like it's my fault: I call READ like this:
+
+    (let* ((*read-eval* nil)
+           (*package* (find-package "FOOBAR"))
+           (code (read stream))
+
+And indeed, if I call DELIVER with :packages-to-keep '("FOOBAR"),
+everything works.  D'oh!  Thanks for the hint!
+
+&gt It would be useful to have the image that generated this backtrace,
+&gt so we can figure out how IO::PARSE-SYMBOL called INTERN with NIL. Do
+&gt let us know at lisp-support@xanalys.com if you are willing to let us
+&gt have this image.
+
+Well, I guess the explanation above is enough.  If not, I could mail
+you the sources, too: I am playing around with a toy program to
+improve my DELIVERY skills...
+
+Regards,
+-- 
+Nils Gösche
+"Don't ask for whom the &lt;CTRL-G&gt tolls."
+
+PGP key ID 0x0655CFA0
+
+
+</pre>
+                   </article>
+                  </section>
+                 </section>
+                </section>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:57 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Passing address of Lisp foreign callable to C</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Passing address of Lisp foreign callable to C</h1>
+                <pre>Hello,
+
+The FLI manual in section 4.3 shows how to define a
+Lisp function callable from C. The only demonstration
+of an actual call, though, is from a Lisp function
+designed to call C functions. There is only Lisp
+calling Lisp in that example. egrep found no
+'define-foreign-callable' in the examples directories.
+Is it possible to pass the address of the Lisp
+function as a callback to the C world?
+
+Can someone pass along a short example using a
+fli:define-foreign-callable function as a Windows
+callback? It would be especially nice to have a
+RegisterClass / WndProc example but if it is not
+possible to hook into the flow of messages, an example
+of as much as is possible will be greatly appreciated.
+Would that example change under delivery, when I don't
+want CAPI but do need Lisp managing a windows message
+loop?
+
+I love CAPI so far but I have a conversion to do where
+it seems much easier to port straight across, gaining
+many Lisp-ish advantages while retaining
+look-and-feel, without having to decide if CAPI can
+reproduce everything exactly, or explain why it can't
+be the same as before. Corman claims to allow straight
+Win32 SDK apps but I'd rather stick with one Lisp
+implementation rather than two. 
+
+Thanks,
+
+Jeff Caldwell
+
+__________________________________________________
+Do you Yahoo!?
+Yahoo! Mail Plus - Powerful. Affordable. Sign up now.
+http://mailplus.yahoo.com
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Passing address of Lisp foreign callable to C</h1>
+                 <pre>On Tuesday 31 December 2002 10:43 am, Jeff Caldwell wrote:
+&gt Is it possible to pass the address of the Lisp
+&gt function as a callback to the C world?
+
+I did something like this a while back.  Yes it is possible (LWW using C dll's 
+that create Windows classes with callbacks handled by lisp).  I'll see if I 
+can't find / create a coherent example of what I learned during this process 
+and get back to you in a few days.
+
+In the meantime, AHA's that come to mind are:
+
+a) You can write a DLL using DevStudio, then use LWW as the .exe that calls 
+the DLL by specifying lispworksXXX.exe in the DevStudio debug dialog (program 
+to call the dll).
+
+b) If your LWW/C-DLL program crashes, it is most likely caused by getting the 
+calling convention wrong - check that first (LWW needs to use :stdcall to 
+call the C DLL, but the C DLL code defaults to using :cdecl to call the lisp 
+functions).
+
+c) At some point, you need to pass the hInstance for the "parent" window to 
+the C widget.  I found that a value of 0 (NULL) works (found this trick by 
+perusing the source code for Tk).
+
+In the end, the task was much less daunting that it looked (my main problem 
+was my unfamiliarity with the Win32 API :-).
+
+pt
+tarvydas@attcanada.ca
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Passing address of Lisp foreign callable to C</h1>
+                 <pre>&gt Can someone pass along a short example using a
+&gt fli:define-foreign-callable function as a Windows
+&gt callback? It would be especially nice to have a
+&gt RegisterClass / WndProc example but if it is not
+&gt possible to hook into the flow of messages, an example
+&gt of as much as is possible will be greatly appreciated.
+&gt Would that example change under delivery, when I don't
+&gt want CAPI but do need Lisp managing a windows message
+&gt loop?
+
+(fli:define-foreign-callable ("lisp-wnd-func" :result-type (:one-of :long
+(:boolean :long)))
+        ((hWnd :hwnd) (Msg :ulong) (wParam :ulong) (lParam :long))
+your function here)
+
+;;you have to define your :hwnd, :ulong, etc. types
+
+(defvar *lisp-wnd-func* (fli:make-pointer :symbol-name "lisp-wnd-func"
+:functionp t))
+
+Then pass this pointer to windows.
+
+This is old (1997) code so there may be easier ways to do this.
+
+Marc
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Passing address of Lisp foreign callable to C</h1>
+                 <p>
+                  Unable to parse email body. Email id is 748
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:57 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

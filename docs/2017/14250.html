@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>UTF-8 and the LW Shell on LWM</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>UTF-8 and the LW Shell on LWM</h1>
+                <pre>I have been going around in circles on this problem… perhaps someone out there has some answers.
+
+I have a bunch of CD tracks recorded in Europe, with file and folder names containing extended characters (e.g., umlouts, c-cedilla, acute accents, etc.). I have not been able to reach them with command line utilities, either from within the LW Shell pane, nor from my programs with SYS:CALL-SYSTEM. I really need to reach them from within some running application code. The LWM Shell pane was just a side track.
+
+I read in some Erlang documentation that almost all OS today allow Unicode in filenames, and that OS X is actually quite rigorous about enforcing UTF-8 encodings on reading back of filenames.
+
+I have absolutely no trouble opening these files from inside of LWM using WITH-OPEN-FILE and the file pathnames returned by directory scans. It is only when attempting to go through a shell or from a direct SYS:CALL-SYSTEM that I have difficulties. The filenames do not go across with the proper character set translations.
+
+This is true whether I run my LWM with the default BASE-CHAR, or the full CHARACTER as default.
+
+I tried setting locale inside the Shell pane, and also surrounding my CALL-SYSTEM with FLI locale settings, but to no avail. 
+
+At first I thought this was Apple’s fault for not sufficiently programming their own tools to handle these filenames with extended characters embedded within. But then I tried from Apple’s own Terminal panes, and they manage to execute the utility programs just fine. The Apple Terminal is running en_US.UTF-8 locale. So it isn’t Apple’s problem after all.
+
+There is something amiss in the LWM Shell interface and CALL-SYSTEM interface, and I cannot find anything resembling system or environment parameters that can coax it to run properly. I did dig down through the disassembly on CALL-SYSTEM to look for where it might be hosing up the character string encodings to the outside world, but I could not find anything obvious.
+
+The Erlang documentation discussed what a can of worms this all is. So my sympathies extend to anyone attempting to provide bridges between programs. It is almost looking like it would be more uniform to use binary interfaces instead of the old Unix textual interfaces. At least then we would have some definite protocols to follow. That flies in the opposite direction from the original Unix philosophy. But I guess, in a more inclusive global setting, we really must dispense with plain old 127-code ASCII. But we now have ambiguous protocols.
+
+- DM
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: UTF-8 and the LW Shell on LWM</h1>
+                 <pre>… my workaround for now… since I can reach these files directly from inside of LW, I copy them bodily to a temp file with a simpler name, then call the command line utilities on that temp file. Then I erase the temp file after finishing.
+
+That works, using LW:COPY-FILE, and MAKE-TEMP-FILE. But that is a kludge, and in many cases the reason that my command line utility calls fail is because some of these tracks have DRM encryption and cannot be read, even if you can reach them. 
+
+But for now, I have to make two attempts — the first one against the original file name, then if that fails, make a copy of the file to a simpler named file and try again. Only after this second attempt can I be sure that the external utility fails because of DRM encoding. That first failure might have been due to a filename with extended characters that could not be found by the external utility, due to improper name translation from Lisp the the outside world.
+
+- DM
+
+
+&gt On Feb 13, 2017, at 23:32, David McClain &lt;dbm@refined-audiometrics.com&gt wrote:
+&gt 
+&gt I have been going around in circles on this problem… perhaps someone out there has some answers.
+&gt 
+&gt I have a bunch of CD tracks recorded in Europe, with file and folder names containing extended characters (e.g., umlouts, c-cedilla, acute accents, etc.). I have not been able to reach them with command line utilities, either from within the LW Shell pane, nor from my programs with SYS:CALL-SYSTEM. I really need to reach them from within some running application code. The LWM Shell pane was just a side track.
+&gt 
+&gt I read in some Erlang documentation that almost all OS today allow Unicode in filenames, and that OS X is actually quite rigorous about enforcing UTF-8 encodings on reading back of filenames.
+&gt 
+&gt I have absolutely no trouble opening these files from inside of LWM using WITH-OPEN-FILE and the file pathnames returned by directory scans. It is only when attempting to go through a shell or from a direct SYS:CALL-SYSTEM that I have difficulties. The filenames do not go across with the proper character set translations.
+&gt 
+&gt This is true whether I run my LWM with the default BASE-CHAR, or the full CHARACTER as default.
+&gt 
+&gt I tried setting locale inside the Shell pane, and also surrounding my CALL-SYSTEM with FLI locale settings, but to no avail. 
+&gt 
+&gt At first I thought this was Apple’s fault for not sufficiently programming their own tools to handle these filenames with extended characters embedded within. But then I tried from Apple’s own Terminal panes, and they manage to execute the utility programs just fine. The Apple Terminal is running en_US.UTF-8 locale. So it isn’t Apple’s problem after all.
+&gt 
+&gt There is something amiss in the LWM Shell interface and CALL-SYSTEM interface, and I cannot find anything resembling system or environment parameters that can coax it to run properly. I did dig down through the disassembly on CALL-SYSTEM to look for where it might be hosing up the character string encodings to the outside world, but I could not find anything obvious.
+&gt 
+&gt The Erlang documentation discussed what a can of worms this all is. So my sympathies extend to anyone attempting to provide bridges between programs. It is almost looking like it would be more uniform to use binary interfaces instead of the old Unix textual interfaces. At least then we would have some definite protocols to follow. That flies in the opposite direction from the original Unix philosophy. But I guess, in a more inclusive global setting, we really must dispense with plain old 127-code ASCII. But we now have ambiguous protocols.
+&gt 
+&gt - DM
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: UTF-8 and the LW Shell on LWM</h1>
+                 <pre>Thank you Martin! That worked!!
+
+- DM
+
+&gt On Feb 14, 2017, at 04:00, Martin Simmons &lt;martin@lispworks.com&gt wrote:
+&gt 
+&gt The problem is that SYS:CALL-SYSTEM doesn't convert its arguments into the
+&gt correct external format.
+&gt 
+&gt You could try writing the command into a temporary file (opened with
+&gt :external-format :utf-8 probably) and then use
+&gt 
+&gt sys:call-system (list "/bin/sh" temp-file)
+&gt 
+&gt -- 
+&gt Martin Simmons
+&gt LispWorks Ltd
+&gt http://www.lispworks.com/
+&gt 
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: UTF-8 and the LW Shell on LWM</h1><html><head><meta http-equiv="Content-Type" content="text/html charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">Here’s Martin’s suggested approach, shared with everyone…<div class=""><br class=""></div><div class="">( I added a keyword :SHOWING to allow this to be used for both SYS:CALL-SYSTEM and SYS:CALL-SYSTEM-SHOWING-OUTPUT)<br class=""><div class=""><br class=""></div><div class=""><div class=""><font face="Menlo" class="">;; SAFE-CALL-SYSTEM - fixes a bug in LWM that prevents proper</font></div><div class=""><font face="Menlo" class="">;; character set translation of extended chars in filenames, making a</font></div><div class=""><font face="Menlo" class="">;; straightforward CALL-SYSTEM fail when it should otherwise succeed.</font></div><div class=""><font face="Menlo" class="">;;</font></div><div class=""><font face="Menlo" class="">;; DM/RAL 02/17 (LWM 7.0)</font></div><div class=""><font face="Menlo" class=""><br class=""></font></div><div class=""><font face="Menlo" class="">(defmethod safe-call-system ((v vector) &amp;rest args &amp;key &amp;allow-other-keys)</font></div><div class=""><font face="Menlo" class="">&nbsp; (apply #'safe-call-system (coerce v 'list) args))</font></div><div class=""><font face="Menlo" class=""><br class=""></font></div><div class=""><font face="Menlo" class="">(defmethod safe-call-system ((lst list) &amp;rest args &amp;key &amp;allow-other-keys)</font></div><div class=""><font face="Menlo" class="">&nbsp; (apply #'safe-call-system (format nil "~{~A ~}" lst) args))</font></div><div class=""><font face="Menlo" class=""><br class=""></font></div><div class=""><font face="Menlo" class="">(defmethod safe-call-system ((cmd string) &amp;rest args &amp;key showing &amp;allow-other-keys)</font></div><div class=""><font face="Menlo" class="">&nbsp; (let ((syscmd (if showing</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; #'sys:call-system-showing-output</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; #'sys:call-system)))</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; (remf args :showing)</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; (if (some (lambda (c)</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (&gt; (char-code c) 127))</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; cmd)</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; (let ((scrfname (hcl:create-temp-file :directory "/tmp/")))</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (with-open-file (s scrfname</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;:direction :output</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;:if-exists :supersede</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;:external-format '(:UTF-8 :eol-style :lf))</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (write-line cmd s))</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (unwind-protect</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (apply syscmd (list "/bin/sh" (namestring scrfname)) args)</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (delete-file scrfname)))</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; ;; else</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; (apply syscmd cmd args))</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; ))</font></div><div class=""><br class=""></div><div class=""><br class=""></div><div class="">- DM</div><div class=""><br class=""></div><div class=""><br class=""></div><div><blockquote type="cite" class=""><div class="">On Feb 14, 2017, at 08:15, David McClain &lt;<a href="mailto:dbm@refined-audiometrics.com" class="">dbm@refined-audiometrics.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><div class="">Thank you Martin! That worked!!<br class=""><br class="">- DM<br class=""><br class=""><blockquote type="cite" class="">On Feb 14, 2017, at 04:00, Martin Simmons &lt;<a href="mailto:martin@lispworks.com" class="">martin@lispworks.com</a>&gt; wrote:<br class=""><br class="">The problem is that SYS:CALL-SYSTEM doesn't convert its arguments into the<br class="">correct external format.<br class=""><br class="">You could try writing the command into a temporary file (opened with<br class="">:external-format :utf-8 probably) and then use<br class=""><br class="">sys:call-system (list "/bin/sh" temp-file)<br class=""><br class="">-- <br class="">Martin Simmons<br class="">LispWorks Ltd<br class=""><a href="http://www.lispworks.com/" class="">http://www.lispworks.com/</a><br class=""><br class=""></blockquote><br class="">_______________________________________________<br class="">Lisp Hug - the mailing list for LispWorks users<br class=""><a href="mailto:lisp-hug@lispworks.com" class="">lisp-hug@lispworks.com</a><br class="">http://www.lispworks.com/support/lisp-hug.html<br class=""><br class=""></div></div></blockquote></div><br class=""></div></div></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: UTF-8 and the LW Shell on LWM</h1><html><head><meta http-equiv="Content-Type" content="text/html charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">Yes… the UNWIND-PROTECT was in the wrong place…<div class=""><br class=""></div><div class=""><div class=""><font face="Menlo" class="">(defmethod safe-call-system ((cmd string) &amp;rest args &amp;key showing &amp;allow-other-keys)</font></div><div class=""><font face="Menlo" class="">&nbsp; (let ((syscmd (if showing</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; #'sys:call-system-showing-output</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; #'sys:call-system)))</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; (remf args :showing)</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; (if (some (lambda (c)</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (&gt; (char-code c) 127))</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; cmd)</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; (let ((scrfname (hcl:create-temp-file :directory "/tmp/")))</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (unwind-protect</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (progn</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (with-open-file (s scrfname</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;:direction :output</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;:if-exists :supersede</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;:external-format '(:UTF-8 :eol-style :lf))</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (write-line cmd s))</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (apply syscmd (list "/bin/sh" (namestring scrfname)) args))</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (delete-file scrfname)))</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; ;; else</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; (apply syscmd cmd args))</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; ))</font></div><div class=""><br class=""></div><div class="">—————</div><div class="">Also… you should still ensure that any special filenames have been properly escaped for the shell - either with backslashes or else enclosed in single-quotes.</div><div class=""><br class=""></div><div class="">&nbsp;- DM</div><div class=""><br class=""></div><div><blockquote type="cite" class=""><div class="">On Feb 14, 2017, at 09:14, David McClain &lt;<a href="mailto:dbm@refined-audiometrics.com" class="">dbm@refined-audiometrics.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><meta http-equiv="Content-Type" content="text/html charset=utf-8" class=""><div style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">Here’s Martin’s suggested approach, shared with everyone…<div class=""><br class=""></div><div class="">( I added a keyword :SHOWING to allow this to be used for both SYS:CALL-SYSTEM and SYS:CALL-SYSTEM-SHOWING-OUTPUT)<br class=""><div class=""><br class=""></div><div class=""><div class=""><font face="Menlo" class="">;; SAFE-CALL-SYSTEM - fixes a bug in LWM that prevents proper</font></div><div class=""><font face="Menlo" class="">;; character set translation of extended chars in filenames, making a</font></div><div class=""><font face="Menlo" class="">;; straightforward CALL-SYSTEM fail when it should otherwise succeed.</font></div><div class=""><font face="Menlo" class="">;;</font></div><div class=""><font face="Menlo" class="">;; DM/RAL 02/17 (LWM 7.0)</font></div><div class=""><font face="Menlo" class=""><br class=""></font></div><div class=""><font face="Menlo" class="">(defmethod safe-call-system ((v vector) &amp;rest args &amp;key &amp;allow-other-keys)</font></div><div class=""><font face="Menlo" class="">&nbsp; (apply #'safe-call-system (coerce v 'list) args))</font></div><div class=""><font face="Menlo" class=""><br class=""></font></div><div class=""><font face="Menlo" class="">(defmethod safe-call-system ((lst list) &amp;rest args &amp;key &amp;allow-other-keys)</font></div><div class=""><font face="Menlo" class="">&nbsp; (apply #'safe-call-system (format nil "~{~A ~}" lst) args))</font></div><div class=""><font face="Menlo" class=""><br class=""></font></div><div class=""><font face="Menlo" class="">(defmethod safe-call-system ((cmd string) &amp;rest args &amp;key showing &amp;allow-other-keys)</font></div><div class=""><font face="Menlo" class="">&nbsp; (let ((syscmd (if showing</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; #'sys:call-system-showing-output</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; #'sys:call-system)))</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; (remf args :showing)</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; (if (some (lambda (c)</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (&gt; (char-code c) 127))</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; cmd)</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; (let ((scrfname (hcl:create-temp-file :directory "/tmp/")))</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (with-open-file (s scrfname</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;:direction :output</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;:if-exists :supersede</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;:external-format '(:UTF-8 :eol-style :lf))</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (write-line cmd s))</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (unwind-protect</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (apply syscmd (list "/bin/sh" (namestring scrfname)) args)</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (delete-file scrfname)))</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; ;; else</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; &nbsp; (apply syscmd cmd args))</font></div><div class=""><font face="Menlo" class="">&nbsp; &nbsp; ))</font></div><div class=""><br class=""></div><div class=""><br class=""></div><div class="">- DM</div><div class=""><br class=""></div><div class=""><br class=""></div><div class=""><blockquote type="cite" class=""><div class="">On Feb 14, 2017, at 08:15, David McClain &lt;<a href="mailto:dbm@refined-audiometrics.com" class="">dbm@refined-audiometrics.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><div class="">Thank you Martin! That worked!!<br class=""><br class="">- DM<br class=""><br class=""><blockquote type="cite" class="">On Feb 14, 2017, at 04:00, Martin Simmons &lt;<a href="mailto:martin@lispworks.com" class="">martin@lispworks.com</a>&gt; wrote:<br class=""><br class="">The problem is that SYS:CALL-SYSTEM doesn't convert its arguments into the<br class="">correct external format.<br class=""><br class="">You could try writing the command into a temporary file (opened with<br class="">:external-format :utf-8 probably) and then use<br class=""><br class="">sys:call-system (list "/bin/sh" temp-file)<br class=""><br class="">-- <br class="">Martin Simmons<br class="">LispWorks Ltd<br class=""><a href="http://www.lispworks.com/" class="">http://www.lispworks.com/</a><br class=""><br class=""></blockquote><br class="">_______________________________________________<br class="">Lisp Hug - the mailing list for LispWorks users<br class=""><a href="mailto:lisp-hug@lispworks.com" class="">lisp-hug@lispworks.com</a><br class=""><a href="http://www.lispworks.com/support/lisp-hug.html" class="">http://www.lispworks.com/support/lisp-hug.html</a><br class=""><br class=""></div></div></blockquote></div><br class=""></div></div></div></div></blockquote></div><br class=""></div></body></html>
+
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:27 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Fw: Passing primitive value by reference</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Fw: Passing primitive value by reference</h1>
+                <pre>
+----- Original Message -----
+From: "lisptracker" &lt;lisptracker@mail.ru&gt
+To: "Mark Nahabedian" &lt;naha@MIT.EDU&gt
+Sent: Tuesday, October 05, 2004 5:15 AM
+Subject: Re: Passing primitive value by reference
+
+
+&gt ----- Original Message -----
+&gt From: "Mark Nahabedian" &lt;naha@MIT.EDU&gt
+&gt To: "lisptracker" &lt;lisptracker@mail.ru&gt; &lt;lisp-hug@xanalys.com&gt
+&gt Sent: Tuesday, October 05, 2004 12:57 AM
+&gt Subject: Re: Passing primitive value by reference
+&gt
+&gt
+&gt &gt On Mon, Oct 04, 2004, 13:20, lisptracker &lt;lisptracker@mail.ru&gt wrote
+&gt &gt &gtHi
+&gt &gt &gt
+&gt &gt &gtOne my frind, who likes C++ much, asked me How to pass by reference
+value
+&gt &gt of primitive type to function. It's common technique in C/C++ to share
+one
+&gt &gt memory cell between multiple functions passing address of cell as value.
+&gt One
+&gt &gt way similar to it is to pass value wraped into cons cell. Another way is
+&gt to
+&gt &gt use dynamic extent or macro, but it is very ugly.
+&gt &gt &gt
+&gt &gt &gtAs far as I know a primitive value being passed to a function, remains
+&gt &gt unmuttable object. So I have to use some wrapper...
+&gt &gt &gtTo answer a question I should find some way to do it like below:
+&gt &gt &gt
+&gt &gt &gt(let ((mutable-var 2))
+&gt &gt &gt    (function-to-change-var mutable-var)
+&gt &gt &gtmutable-var)
+&gt &gt &gt
+&gt &gt &gtSo mutable-var is not equals 2 after calling of function-to-change-var.
+&gt &gt
+&gt &gt Why would you want to do this in Lisp?  WHat are you really trying to
+do?
+&gt &gt I ask because though C and C++ programers frequently need to pass "by
+&gt &gt reference" parameters, I as a Lisp programmer don't recall ever having
+to
+&gt do
+&gt &gt so.
+&gt
+&gt He want pass reference to some "place" to many functions which can modify
+&gt their arguments,
+&gt so they can modify that place. He said it is way of sharing mutable value
+&gt between multiple functions
+&gt which were defined somewhere. I can do it with non primitive types easily,
+&gt but for example numbers are immutable.
+&gt Maybe best way is to wrap number to cons cell.
+&gt
+&gt He would thought that is impossible in Lisp. For some reasons I must prove
+&gt him that thing is possible somehow and
+&gt show most elegant way.
+&gt
+&gt
+&gt &gt The typical use for by-reference parameters in C and C++ is for a
+function
+&gt &gt to return more than one value, e.g. returning a sucess/failure code as
+the
+&gt &gt value of the function and filling in some structure which was passed by
+&gt &gt reference.  The way one would do this in Lisp is to have the function
+&gt return
+&gt &gt multiple values.  In Lisp, functions can return more than one value.  In
+&gt &gt C and C++ they can't.
+&gt
+&gt I know. But looks like ability to return multiple values is not only one
+&gt reason.
+&gt
+&gt For example at first we have closure:
+&gt
+&gt (let ((var 5))
+&gt
+&gt     (defun change-var-one ()
+&gt         (setf var 6))
+&gt
+&gt     (defun change-var-two ()
+&gt         (setf var (+ var 7)))
+&gt
+&gt     (defun change-var-three ()
+&gt         (incf var)))
+&gt
+&gt Now we want to declare change-var-one, change-var-two, change-var-three in
+&gt one place, declare var
+&gt in another place and call these functions passing reference to place:
+&gt
+&gt (let ((place-one 5)
+&gt        (place-two 5))
+&gt
+&gt     (change-var-one place-one)
+&gt     (change-var-one place-two)
+&gt     (change-var-two place-one)
+&gt     (change-var-two place-two))
+&gt
+&gt More than that, he want to pass reference from outer world.
+&gt
+&gt (defun one-big-fun (reference-place)
+&gt     (change-var-one reference-place)
+&gt     (change-var-two reference-place)
+&gt )
+&gt
+&gt &gt If you really need to be able to have some function modify a value that
+it
+&gt &gt doesn;t have access to, you can always pass a closure which modifies the
+&gt &gt value, e.g.:
+&gt &gt
+&gt &gt for some code fragment
+&gt &gt
+&gt &gt    ...
+&gt &gt    (let ((change-this-value 7))
+&gt &gt      (some-function #'(lambda (new-value)
+&gt &gt                         (setq change-this-value new-value)))
+&gt &gt      ;; At this point the value of CHANGE-THIS-VALUE is 4
+&gt &gt      )
+&gt &gt    ...
+&gt &gt
+&gt &gt which calls SOME-FUNCTION and expects it to modify the value of
+&gt &gt CHANGE-THIN-VALUE
+&gt &gt
+&gt &gt (defun some-function (value-changer)
+&gt &gt   (funcall value-changer 4))
+&gt
+&gt Anyway, thank you, for your kind advice.
+&gt
+&gt Though it is another way to create a wrapper. Would it be efficient to
+call
+&gt function every time to change value ?
+&gt
+&gt Maybe there are some ways to do same thing with totaly different approach
+&gt ?????
+&gt
+&gt So I repeat conditions and question:
+&gt     1) There is some place where primitive value is stored
+&gt     2) There are some functions which should modify places we point on, so
+&gt we can share places between functions.
+&gt
+&gt How to share places between some functions and have ability to point place
+&gt by name for that functions in most
+&gt elegant way (is it closures, or macro, or dynamic vars ...) ?
+&gt
+&gt Best regards
+&gt Lisper
+&gt
+&gt
+
+
+</pre>
+               </article>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:51 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

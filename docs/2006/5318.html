@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Draw-string and font</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Draw-string and font</h1>
+                <pre>
+Hi,
+
+I'm new to LispWorks and to CAPI. I have a basic difficulty. I should  
+build a pane and draw strings on it with different fonts and sizes.
+
+Question: How can I inform a pane with fcn draw-string about a  
+certain font, size etc.?
+
+I understand that I can build an instance of a pane and define my  
+wishes with make-font-description. And I understand that I can form  
+something like
+
+- (gp:draw-string pane "Affenbaum" 100 150) and get the information  
+given by make-font-description. I understand that I can change this  
+information with something like
+
+(gp:draw-string pane "Affenbaum" 100 150 :font "Sonata")
+
+But how can I add to fcn draw-string my other wishes? Something like
+
+(gp:draw-string pane "Affenbaum" 100 150 :font "Sonata" :size  
+48 :weight :very-large) ?
+
+I've read now during two days in the CAPI manuals but I seem to be  
+too dumb to find a solution.
+
+Thanks in advance!
+
+Max
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Draw-string and font</h1>
+                 <pre>
+Hi,
+
+I think you need to use gp:make-font-description with gp:find-best-font or 
+gp:find-matching-fonts
+
+For example:
+
+(defun foo (pane)
+                (let ((font (gp:find-best-font pane 
+(gp:make-font-description :family "Sonata" :size 48 :weight :bold))))
+                  (capi:apply-in-pane-process pane (lambda () 
+(gp:draw-string pane "Test" 100 150 :font font)))))
+
+Font descriptions are discussed in 11.7 of the LispWorks CAPI User Guide.
+
+hope this helps
+
+paulm
+
+At 14:42 09/02/2006, Max Haas wrote:
+
+&gtHi,
+&gt
+&gtI'm new to LispWorks and to CAPI. I have a basic difficulty. I should
+&gtbuild a pane and draw strings on it with different fonts and sizes.
+&gt
+&gtQuestion: How can I inform a pane with fcn draw-string about a
+&gtcertain font, size etc.?
+&gt
+&gtI understand that I can build an instance of a pane and define my
+&gtwishes with make-font-description. And I understand that I can form
+&gtsomething like
+&gt
+&gt- (gp:draw-string pane "Affenbaum" 100 150) and get the information
+&gtgiven by make-font-description. I understand that I can change this
+&gtinformation with something like
+&gt
+&gt(gp:draw-string pane "Affenbaum" 100 150 :font "Sonata")
+&gt
+&gtBut how can I add to fcn draw-string my other wishes? Something like
+&gt
+&gt(gp:draw-string pane "Affenbaum" 100 150 :font "Sonata" :size
+&gt48 :weight :very-large) ?
+&gt
+&gtI've read now during two days in the CAPI manuals but I seem to be
+&gttoo dumb to find a solution.
+&gt
+&gtThanks in advance!
+&gt
+&gtMax
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Draw-string and font</h1>
+                 <pre>
+You have to give a font-description or a font object to the arg :font
+
+Something like :
+
+(gp:draw-string pane "Affenbaum" 100 150 :font (gp:make-font-description
+:family "Sonata" :size 48 :weight :bold)
+
+;see the capi user manual -&gt graphics-port -&gt portable fonts description for
+details
+
+When the port exists you can construct a font object like this
+
+(gp:find-best-font port font-description)
+
+If you give a font-description to the gp:draw-string function the call to
+gp:find-best-font is implicit. So it's really faster to store the font
+object somewhere and give it to the function, particularly if you have to
+make many changes
+
+Best
+
+Denis
+
+Le 9/02/06 15:42, «&nbsp;Max Haas&nbsp;» &lt;Max.Haas@unibas.ch&gt a écrit&nbsp;:
+
+&gt 
+&gt Hi,
+&gt 
+&gt I'm new to LispWorks and to CAPI. I have a basic difficulty. I should
+&gt build a pane and draw strings on it with different fonts and sizes.
+&gt 
+&gt Question: How can I inform a pane with fcn draw-string about a
+&gt certain font, size etc.?
+&gt 
+&gt I understand that I can build an instance of a pane and define my
+&gt wishes with make-font-description. And I understand that I can form
+&gt something like
+&gt 
+&gt - (gp:draw-string pane "Affenbaum" 100 150) and get the information
+&gt given by make-font-description. I understand that I can change this
+&gt information with something like
+&gt 
+&gt (gp:draw-string pane "Affenbaum" 100 150 :font "Sonata")
+&gt 
+&gt But how can I add to fcn draw-string my other wishes? Something like
+&gt 
+&gt (gp:draw-string pane "Affenbaum" 100 150 :font "Sonata" :size
+&gt 48 :weight :very-large) ?
+&gt 
+&gt I've read now during two days in the CAPI manuals but I seem to be
+&gt too dumb to find a solution.
+&gt 
+&gt Thanks in advance!
+&gt 
+&gt Max
+&gt 
+&gt 
+
+
+
+----------------------------------------------------
+Denis Pousseur
+6 clos du Drossart
+1180 Bruxelles, Belgique
+
+Mail :  denis.pousseur@compositeurs.be
+Website : http://compositeurs.be
+----------------------------------------------------
+
+
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:45 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

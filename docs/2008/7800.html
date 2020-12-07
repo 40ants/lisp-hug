@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Updating a CAPI GUI during phases of heavy computation</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Updating a CAPI GUI during phases of heavy computation</h1>
+                <p>
+                 Unable to parse email body. Email id is 7800
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Updating a CAPI GUI during phases of heavy computation</h1>
+                 <pre>
+Edi Weitz wrote on Mon, 03 Mar 2008 11:24:26 +0100 13:24:
+
+| I have an application with a somewhat complicated GUI from which you
+| can start a heavy computation.  What I want is that the intermediate
+| results of the computation are reported in the main interface while a
+| little window pops up which shows the overall progress and also
+| provides a button to stop the computation.  The attached code is a
+| gross simplification of the actual situation, but it should hopefully
+| be enough to illustrate my problem.
+|...snip...|
+
+In my version of progress-dialog packed within ywidgets and based on Michal
+Krupka's code, I am running heavy computation in the process of the progress
+popup window itself. I have basically tested this with the simplest progress
+function only updating the popup's meter. IIRC, updating the caller window
+also worked.
+--
+Sincerely,
+Dmitriy Ivanov
+lisp.ystok.ru
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Updating a CAPI GUI during phases of heavy computation</h1>
+                 <pre>
+
+On Mar 3, 2008, at 4:24 AM, Edi Weitz wrote:
+
+&gt Am I missing a solution that's substantially better?  Why do I only
+&gt have to wait for the progress window and not for the main window?  Why
+&gt do (TEST :WAIT T :SEPARATE-THREAD T) and (TEST :WAIT T) behave the
+&gt same?
+&gt
+&gt BTW, all this might be specific to Windows as each top-level interface
+&gt has its own thread there.
+
+My approach to this is to run the operation in a separate faceless  
+process which calls back to the interface with progress information.  
+The interface switches to a progress display with a cancel button that  
+can be used to kill the computation process.
+
+This works for me on both Mac and Windows.
+
+
+John DeSoi, Ph.D.
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Updating a CAPI GUI during phases of heavy computation</h1>
+                 <pre>
+On Mon, 3 Mar 2008 09:14:21 -0600, John DeSoi &lt;desoi@pgedit.com&gt wrote:
+
+&gt My approach to this is to run the operation in a separate faceless
+&gt process which calls back to the interface with progress information.
+&gt The interface switches to a progress display with a cancel button
+&gt that can be used to kill the computation process.
+
+Yes, that's what I'm also doing in my example code (see the
+:SEPARATE-THREAD keyword).  Except that I don't want to
+MP:PROCESS-KILL the background process at some random point.  That
+seems too big a hammer for my taste.
+
+&gt This works for me on both Mac and Windows.
+
+My impression is that this only works reliably if the background
+procress isn't able to saturate the CPU (core) for a longer period.
+Or if there are enough places in the background process where LW
+releases the "big lock".
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Updating a CAPI GUI during phases of heavy computation</h1>
+                 <pre>
+In this kind of situation I force the computation to slow down with some
+calls to process-wait-with-time-out (rather than process-allow-scheduling).
+This let a chance to the display operations to run.
+The problem is to find the good delay. Here, with a delay of one millisecond
+it's run on my intel Mac :
+
+(defun test-in-separate-threads ()
+  (let* ((update-callback
+          (lambda (iteration text)
+            (mp:process-wait-with-timeout nil 0.001)
+            (update-output-pane text)
+            (update-progress-pane iteration)))
+         (start-function
+          (lambda ()
+            (mp:process-run-function "worker" nil
+                                     (lambda ()
+                                       (work update-callback))))))
+    (setq *test-interface*
+          (make-instance 'test-interface :button-args `(:callback
+,start-function)))
+    (capi:display *test-interface*)))
+
+Naturally it's probably not the faster way...
+
+Best
+
+Denis
+
+Le 3/03/08 11:24, «&nbsp;[NOM]&nbsp;» &lt;[ADRESSE]&gt a écrit&nbsp;:
+
+&gt [Attention: Running this test code might lock up your Lisp image!]
+&gt 
+&gt I have an application with a somewhat complicated GUI from which you
+&gt can start a heavy computation.  What I want is that the intermediate
+&gt results of the computation are reported in the main interface while a
+&gt little window pops up which shows the overall progress and also
+&gt provides a button to stop the computation.  The attached code is a
+&gt gross simplification of the actual situation, but it should hopefully
+&gt be enough to illustrate my problem.
+&gt 
+&gt My first approach was to just do it in a straightforward way.  Update
+&gt the GUI whenever there's a reason to update it.  That's what you get
+&gt if you run (TEST).  If you do that, the progress window is updated,
+&gt but the "main" window is kind of dead - try to move the progress
+&gt window around and you'll note that the main window isn't repainted.
+&gt 
+&gt Not good.  So I thought that this happened because the heavy
+&gt computation runs in the thread of the main window and prevents it from
+&gt taking care of windoing events.  The next thing I tried was equivalent
+&gt to (TEST :SEPARATE-THREAD T).  If I try this, everything locks up, no
+&gt progress is reported at all.  If you're lucky, you can find the
+&gt "worker" process in the Process Browser and kill it.
+&gt 
+&gt Hmmm.  I tend to think that this wouldn't happen (see previous
+&gt discussions), if we had real SMP.  Anyway, I tried a third solution.
+&gt That'd be (TEST :WAIT T).  In this case, the computation thread
+&gt actually waits until the progress window has been updated.  This
+&gt doesn't seem like an ideal solution to me as it kind of serializes the
+&gt events and takes all the fun out of multi-threading, but at least it
+&gt works.  More or less, that is, as the whole computation now has to
+&gt halt when you move the progress window around and only continues once
+&gt you stop moving it... :(
+&gt 
+&gt Am I missing a solution that's substantially better?  Why do I only
+&gt have to wait for the progress window and not for the main window?  Why
+&gt do (TEST :WAIT T :SEPARATE-THREAD T) and (TEST :WAIT T) behave the
+&gt same?
+&gt 
+&gt BTW, all this might be specific to Windows as each top-level interface
+&gt has its own thread there.
+&gt 
+
+-------------------------------------------------------
+Denis Pousseur
+70 rue de Wansijn
+1180 Bruxelles, Belgique
+
+Tel : 32 (0)2 219 31 09
+Mail :  denis.pousseur@gmail.com
+-------------------------------------------------------
+
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Unit testing of graphics</h1>
+                  <pre>
+Is there a ready-made way to unit test the windowed output of functions 
+(for Windows)?
+
+I have scanned the unit test libraries here 
+(http://www.cl-user.net/asp/BK9t6/sdataQIrH-xEyOeShDQjr-br2cQTk8yBX8yBX8oQ5Ss9v-ujg$Np5/sdataQu3F$sSHnB==) 
+and have started using lisp-unit, but that doesn't have anything along 
+those lines.
+
+Mitch Berkson
+
+
+</pre>
+                 </article>
+                </section>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: Unit testing of graphics</h1>
+                  <pre>
+
+Mitch Berkson &lt;mitch@bermita.com&gt writes:
+&gt Is there a ready-made way to unit test the windowed output of
+&gt functions (for Windows)?
+
+As the earlier poster said, if you want to do automated testing of a
+GUI you'll need some sort of record and replay software.  As far as I
+know there is no good software where you can write gui tests in Common
+Lisp as you would for "normal" unit tests.
+
+I've used http://en.wikipedia.org/wiki/HP_QuickTest_Professional in a
+previous project for this purpose.  That was a web-based app in Scheme
+(about 75k loc if I remember right), but it's the same idea for any
+gui.
+
+Cheers,
+Chris Dean
+
+P.S. If you ever switch to a web-based app, there are now some
+     JavaScript based testing frameworks available.
+
+
+
+</pre>
+                 </article>
+                </section>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:40 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>RE: capi and remote listeners</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>RE: capi and remote listeners</h1>
+                <pre>The issue appears to be our custom toplevel function. I ran your example
+without providing a toplevel function and history works. If I provide a
+toplevel that simply does the following:
+
+(defun kbsd-toplevel (interface pane strm)
+  (loop
+   (princ (eval (read strm)) strm)))
+
+I get the behavior originally reported.
+
+So, what is the proper way to define a custom toplevel function?
+
+#'dey
+
+-----Original Message-----
+From: David Fox [mailto:davef@xanalys.com]
+Sent: Thursday, March 13, 2003 1:05 PM
+To: dyoung@bloodhoundinc.com
+Cc: lisp-hug@xanalys.com
+Subject: Re: capi and remote listeners
+
+
+
+   Hi Dave. That made sense to me; but alas, it doesn't solve the problem.
+   Basically, I have this:
+
+   (define-interface administrator ()
+     (...)
+     (:panes
+      (...)
+      (kbsd-listener listener-pane
+		     :top-level-function #'kbsd-toplevel
+		     :enabled nil
+		     :reader kbsd-listener))
+     ...)
+
+   (defmethod capi:interface-keys-style ((self administrator))
+     :emacs)
+
+   When I start the app, my interface-keys-style method gets called, but the
+   behavior of the listener doesn't change. Note that initially, the
+listener
+   pane is disabled. It's enabled programatically once a connection is made.
+
+I don't think the enabled state is relevant, though you should take
+care to set it in the correct process.
+
+
+   What do you think?
+
+Works for me in the LispWorks IDE with this code:
+
+(capi:define-interface administrator () ()
+  (:panes
+   (kbsd-listener capi:listener-pane
+                  ; :top-level-function #'kbsd-toplevel
+                  :enabled nil
+                  :reader kbsd-listener))
+  )
+
+(defmethod capi:interface-keys-style ((self administrator))
+  :emacs)
+
+
+CL-USER 7 &gt (setf administrator (capi:contain (make-instance
+'administrator)))
+#&lt;ADMINISTRATOR "Untitled LispWorks Interface - 9" 205F96D4&gt
+
+CL-USER 8 &gt (capi:execute-with-interface administrator #'(lambda (self)
+(setf (capi:simple-pane-enabled (kbsd-listener self)) t)) administrator)
+NIL
+
+Now M-P works in the administrator listener window.  
+
+
+
+If you are delivering a standalone application you need to pass the
+DELIVER keyword :EDITOR-STYLE :EMACS to override the platform default,
+and at high deliver levels it seems you need to ensure that the
+required editor functionality is retained. Here's example code and a
+DELIVER script that produces an administrator listener application in
+which M-P works:
+
+---------------------- administrator.lisp ----------------------------
+(in-package CL-USER)
+
+(capi:define-interface administrator () ()
+  (:panes
+   (kbsd-listener capi:listener-pane
+                  :enabled nil
+                  :reader kbsd-listener)))
+
+(defmethod capi:interface-keys-style ((self administrator))
+  :emacs)
+
+(defun set-enabled (self on)
+       (setf (capi:simple-pane-enabled (kbsd-listener self)) on))
+
+(defun start-administrator ()
+  (let ((administrator (capi:display (make-instance 'administrator))))
+    (sleep 1)
+    (capi:execute-with-interface administrator 'set-enabled
+administrator t)))
+----------------------------------------------------------------------
+
+------------------------ deliver.lisp --------------------------------
+(in-package "CL-USER")
+
+(load-all-patches)
+
+(load (current-pathname "administrator" "fsl"))
+
+(deliver 'start-administrator "administrator" 5 
+         :interface :capi 
+         :keep-top-level t
+         :editor-style :emacs
+         :editor-commands-to-keep '(:simple-editor :tools))
+
+(quit)
+----------------------------------------------------------------------
+
+
+
+Dave Fox
+Xanalys
+Compass House
+Vision Park
+Chivers Way
+Histon
+Cambridge
+CB4 9AD
+England
+
+Email: davef@xanalys.com
+Tel:   +44 1223 253793
+Fax:   +44 1223 257812
+These opinions are not necessarily those of Xanalys.
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: capi and remote listeners</h1>
+                 <p>
+                  Unable to parse email body. Email id is 962
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:56 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

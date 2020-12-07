@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Undocumented gp:draw-x-y-adjusted-string y-adjusts improperly</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Undocumented gp:draw-x-y-adjusted-string y-adjusts improperly</h1>
+                <pre>Hello,
+
+When I tried the gp:draw-x-y-adjusted-string function on LWW 4.2, I
+found it behavior slightly odd in "y-adjust" aspect. Later, its
+definition was discovered in the scroll-test.lisp sample file:
+
+;;; This should be in GP...
+(defun draw-x-y-adjusted-string (port string x y &amp;rest options &amp;key
+(x-adjust :left) (y-adjust :bottom) &amp;allow-other-keys)
+  (multiple-value-bind (left top right bottom)
+      (gp:get-string-extent port string)
+
+    (let ((width (- right left))
+          (height (- bottom top)))
+      (without-properties (draw-options options :x-adjust :y-adjust)
+        (apply 'gp:draw-string
+               port
+        string
+        (- x (ecase x-adjust
+        (:left 0)
+        ((:centre :center) (floor width 2))
+        (:right width)))
+        (+ y (ecase y-adjust
+                      (:top height)
+                      ((:centre :center) (floor height 2))
+                      (:bottom 0)))
+        draw-options)))))
+
+To perform more intuitively, the above definition could be rewritten
+like this:
+
+(defun draw-x-y-adjusted-string (port string x y &amp;rest options
+                                                 &amp;key (x-adjust :left)
+(y-adjust :bottom)
+                                                 &amp;allow-other-keys)
+  (multiple-value-bind (left top right bottom)
+      (gp:get-string-extent port string)
+    (let ((width (- right left))
+          (height (- bottom top)))
+      (without-properties (graphics-args options :x-adjust :y-adjust)
+        (apply 'gp:draw-string
+               port
+        string
+        (- x (ecase x-adjust
+        (:left 0)
+        ((:centre :center) (floor width 2))
+        (:right width)))
+        (+ y (ecase y-adjust
+                      (:top (gp:get-font-ascent port))
+                      ((:centre :center) (- (floor height 2)
+                                            (gp:get-font-descent port)))
+                      (:bottom (- (gp:get-font-descent port)))))
+        graphics-args)))))
+---
+Sincerely,
+Dmitri Ivanov
+www.aha.ru/~divanov
+
+
+</pre>
+               </article>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:57 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

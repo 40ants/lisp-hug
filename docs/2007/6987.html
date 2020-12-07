@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>reader macro function -&gt constituant character</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>reader macro function -&gt constituant character</h1>
+                <pre>
+Hello,
+
+What would be the definition of a reader macro function for 
+character that just returns the character as a normal constituant 
+character? In the example below, I want '{abc to still evaluate to {ABC
+
+
+CL-USER 10 &gt (get-macro-character #\{)
+NIL
+NIL
+
+CL-USER 11 &gt '{abc
+{ABC
+
+CL-USER 12 &gt (set-macro-character #\{ (lambda (stream char) char))
+T
+
+CL-USER 13 &gt '{
+#\{
+
+CL-USER 14 &gt abc
+
+Error: The variable ABC is unbound.
+
+
+
+Francis
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: reader macro function -&gt constituant character</h1>
+                 <p>
+                  Unable to parse email body. Email id is 6988
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: reader macro function -&gt constituant character</h1>
+                 <pre>
+Francis Leboutte wrote:
+
+&gt What would be the definition of a reader macro function for
+&gt character that just returns the character as a normal constituant
+&gt character? In the example below, I want '{abc to still evaluate to {ABC
+&gt
+&gt
+&gt CL-USER 10 &gt (get-macro-character #\{)
+&gt NIL
+&gt NIL
+&gt
+&gt CL-USER 11 &gt '{abc
+&gt {ABC
+&gt
+&gt CL-USER 12 &gt (set-macro-character #\{ (lambda (stream char) char))
+&gt T
+
+I think that adding a call to SET-SYNTAX-FROM-CHAR, e.g.
+
+   (set-syntax-from-char #\{ #\A)
+
+should do what you need.
+
+
+Arthur Lemmens
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: reader macro function -&gt constituant character</h1>
+                 <pre>
+Le 25/09/2007 11:10, Nick Levine écrivait :
+&gt    What would be the definition of a reader macro function for
+&gt    character that just returns the character as a normal constituant
+&gt    character? In the example below, I want '{abc to still evaluate to
+&gt    {ABC
+&gt
+&gtCareful. I don't think you really mean "evaluate". "Read as", maybe?
+
+This is what I mean:
+USER 8 &gt '{ab
+{ab
+USER 9 &gt '{
+{
+
+&gtSo ignoring (which you shouldn't) what happens if the #\{ is not
+&gtfollowed by a symbol, or how you'd get to a symbol not visible in
+&gt*package*, consider:
+&gt
+&gt(lambda (stream char) (intern (format nil "~c~a" char (read stream t nil t))))
+
+This looks promising. But see my next post.
+Thanks,
+Francis
+
+
+&gt- nick
+&gt
+&gt
+&gt    CL-USER 10 &gt (get-macro-character #\{)
+&gt    NIL
+&gt    NIL
+&gt
+&gt    CL-USER 11 &gt '{abc
+&gt    {ABC
+&gt
+&gt    CL-USER 12 &gt (set-macro-character #\{ (lambda (stream char) char))
+&gt    T
+&gt
+&gt    CL-USER 13 &gt '{
+&gt    #\{
+&gt
+&gt    CL-USER 14 &gt abc
+&gt
+&gt    Error: The variable ABC is unbound.
+&gt
+&gt
+&gt
+&gt    Francis
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: reader macro function -&gt constituant character</h1>
+                 <pre>
+Le 25/09/2007 11:20, Arthur Lemmens écrivait :
+&gtFrancis Leboutte wrote:
+&gt
+&gt &gt What would be the definition of a reader macro function for
+&gt &gt character that just returns the character as a normal constituant
+&gt &gt character? In the example below, I want '{abc to still evaluate to {ABC
+&gt &gt
+&gt &gt
+&gt &gt CL-USER 10 &gt (get-macro-character #\{)
+&gt &gt NIL
+&gt &gt NIL
+&gt &gt
+&gt &gt CL-USER 11 &gt '{abc
+&gt &gt {ABC
+&gt &gt
+&gt &gt CL-USER 12 &gt (set-macro-character #\{ (lambda (stream char) char))
+&gt &gt T
+&gt
+&gtI think that adding a call to SET-SYNTAX-FROM-CHAR, e.g.
+&gt
+&gt    (set-syntax-from-char #\{ #\A)
+&gt
+&gtshould do what you need.
+
+I want to write something a bit more dynamic like this:
+
+(set-macro-character
+        #\{
+        (lambda (stream char)
+          (cond (*rm-fun (funcall *rm-fun stream char))
+                (T
+                 ;; takes char as a constituant character
+                 ...
+                 ))))
+
+
+In a Lisp implementation where a constituant 
+character would have a reader macro function, the answer would be simple:
+
+(set-macro-character
+        #\{
+        (lambda (stream char)
+          (cond (*rm-fun (funcall *rm-fun stream char))
+                (T
+                 (funcall (get-macro-character #\a) stream char)
+                 ))))
+
+
+Francis
+
+&gtArthur Lemmens
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:41 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

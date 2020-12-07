@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Optimization riddle</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Optimization riddle</h1>
+                <pre>
+Hello everybody,
+
+I'm stumped by the following results and I hope that someone can
+explain to me what I'm missing.  This is the 64-bit version of LWW
+7.0.
+
+I have the following two functions.  (And, yes, I know there's a
+better way to compute the sum of the first n integers.  This is just
+an example.)
+
+  (defun foo-1 (n)
+    (loop for i from 0 to n
+          sum i))
+
+  (defun foo-2 (n)
+    (declare (optimize (hcl:fixnum-safety 0) (safety 2)))
+    (loop for i from 0 to n
+          sum i))
+
+If I disassemble FOO-2, I see essentially only pure machine code while
+FOO-1 contains calls to functions like
+SYSTEM::*%WRONG-NUMBER-OF-ARGUMENTS-STUB, SYSTEM::*%+$ANY-CODE, or
+SYSTEM::*%&gt$ANY-CODE which are obviously able to cope with arbitrary
+numbers and not only fixnums.  Simple-minded me expects that FOO-2
+should be significantly faster.  But it's the other way around!  I
+consistently get results like this:
+
+  CL-USER 14 &gt (time (foo-1 1000000000))
+  Timing the evaluation of (FOO-1 1000000000)
+
+  User time    =        2.698
+  System time  =        0.000
+  Elapsed time =        2.699
+  Allocation   = 50024 bytes
+  0 Page faults
+  500000000500000000
+
+  CL-USER 15 &gt (time (foo-2 1000000000))
+  Timing the evaluation of (FOO-2 1000000000)
+
+  User time    =        4.461
+  System time  =        0.000
+  Elapsed time =        4.446
+  Allocation   = 52176 bytes
+  0 Page faults
+  500000000500000000
+
+What's happening?
+
+Thanks,
+Edi.
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Optimization riddle</h1>
+                 <pre>
+Why do they allocate?
+
+- nick
+
+&gt On 11 Jun 2015, at 17:51, Edi Weitz &lt;edi@weitz.de&gt wrote:
+&gt 
+&gt 
+&gt Hello everybody,
+&gt 
+&gt I'm stumped by the following results and I hope that someone can
+&gt explain to me what I'm missing.  This is the 64-bit version of LWW
+&gt 7.0.
+&gt 
+&gt I have the following two functions.  (And, yes, I know there's a
+&gt better way to compute the sum of the first n integers.  This is just
+&gt an example.)
+&gt 
+&gt  (defun foo-1 (n)
+&gt    (loop for i from 0 to n
+&gt          sum i))
+&gt 
+&gt  (defun foo-2 (n)
+&gt    (declare (optimize (hcl:fixnum-safety 0) (safety 2)))
+&gt    (loop for i from 0 to n
+&gt          sum i))
+&gt 
+&gt If I disassemble FOO-2, I see essentially only pure machine code while
+&gt FOO-1 contains calls to functions like
+&gt SYSTEM::*%WRONG-NUMBER-OF-ARGUMENTS-STUB, SYSTEM::*%+$ANY-CODE, or
+&gt SYSTEM::*%&gt$ANY-CODE which are obviously able to cope with arbitrary
+&gt numbers and not only fixnums.  Simple-minded me expects that FOO-2
+&gt should be significantly faster.  But it's the other way around!  I
+&gt consistently get results like this:
+&gt 
+&gt  CL-USER 14 &gt (time (foo-1 1000000000))
+&gt  Timing the evaluation of (FOO-1 1000000000)
+&gt 
+&gt  User time    =        2.698
+&gt  System time  =        0.000
+&gt  Elapsed time =        2.699
+&gt  Allocation   = 50024 bytes
+&gt  0 Page faults
+&gt  500000000500000000
+&gt 
+&gt  CL-USER 15 &gt (time (foo-2 1000000000))
+&gt  Timing the evaluation of (FOO-2 1000000000)
+&gt 
+&gt  User time    =        4.461
+&gt  System time  =        0.000
+&gt  Elapsed time =        4.446
+&gt  Allocation   = 52176 bytes
+&gt  0 Page faults
+&gt  500000000500000000
+&gt 
+&gt What's happening?
+&gt 
+&gt Thanks,
+&gt Edi.
+&gt 
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+&gt 
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Optimization riddle</h1>
+                 <pre>
+Have you tried the, preferably new, type specifier syntax?
+
+(http://www.lispworks.com/documentation/HyperSpec/Body/06_aag.htm)
+
+
+
+On Thu, Jun 11, 2015 at 11:51 AM, Edi Weitz &lt;edi@weitz.de&gt wrote:
+&gt
+&gt Hello everybody,
+&gt
+&gt I'm stumped by the following results and I hope that someone can
+&gt explain to me what I'm missing.  This is the 64-bit version of LWW
+&gt 7.0.
+&gt
+&gt I have the following two functions.  (And, yes, I know there's a
+&gt better way to compute the sum of the first n integers.  This is just
+&gt an example.)
+&gt
+&gt   (defun foo-1 (n)
+&gt     (loop for i from 0 to n
+&gt           sum i))
+&gt
+&gt   (defun foo-2 (n)
+&gt     (declare (optimize (hcl:fixnum-safety 0) (safety 2)))
+&gt     (loop for i from 0 to n
+&gt           sum i))
+&gt
+&gt If I disassemble FOO-2, I see essentially only pure machine code while
+&gt FOO-1 contains calls to functions like
+&gt SYSTEM::*%WRONG-NUMBER-OF-ARGUMENTS-STUB, SYSTEM::*%+$ANY-CODE, or
+&gt SYSTEM::*%&gt$ANY-CODE which are obviously able to cope with arbitrary
+&gt numbers and not only fixnums.  Simple-minded me expects that FOO-2
+&gt should be significantly faster.  But it's the other way around!  I
+&gt consistently get results like this:
+&gt
+&gt   CL-USER 14 &gt (time (foo-1 1000000000))
+&gt   Timing the evaluation of (FOO-1 1000000000)
+&gt
+&gt   User time    =        2.698
+&gt   System time  =        0.000
+&gt   Elapsed time =        2.699
+&gt   Allocation   = 50024 bytes
+&gt   0 Page faults
+&gt   500000000500000000
+&gt
+&gt   CL-USER 15 &gt (time (foo-2 1000000000))
+&gt   Timing the evaluation of (FOO-2 1000000000)
+&gt
+&gt   User time    =        4.461
+&gt   System time  =        0.000
+&gt   Elapsed time =        4.446
+&gt   Allocation   = 52176 bytes
+&gt   0 Page faults
+&gt   500000000500000000
+&gt
+&gt What's happening?
+&gt
+&gt Thanks,
+&gt Edi.
+&gt
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+&gt
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Optimization riddle</h1>
+                 <pre>
+Interesting...
+
+So note if you change foo-2 to optimize debug 0 and speed 2 as well as your existing declarations, it’s much faster (but still allocates). The code produced between foo-2 and this foo-3 is mostly the same, but if we look at the core of the loop we can see this:
+
+foo-2: (the problematic code -safety 2, fixnum safety 0)
+
+L4:   92:      4C896DF0         moveq [rbp-10], r13
+      96:      4D89DC           moveq r12, r11
+      99:      4C89E0           moveq rax, r12
+     102:      480345F0         addq  rax, [rbp-10]
+     106:      488945F8         moveq [rbp-8], rax
+     110:      4C8B5DF8         moveq r11, [rbp-8]
+     114:      4C896DE0         moveq [rbp-20], r13
+     118:      488B45E0         moveq rax, [rbp-20]
+     122:      4883C008         addq  rax, 8
+     126:      488945D8         moveq [rbp-28], rax
+     130:      4C8B6DD8         moveq r13, [rbp-28]
+     134:      4C896DE8         moveq [rbp-18], r13
+     138:      488B45E8         moveq rax, [rbp-18]
+     142:      483B45D0         cmpq  rax, [rbp-30]
+     146:      7FA6             jg    L1
+     148:      EBC0             jmp   L3
+L5
+
+foo-3: (speed optimized - safety 2, fixnum safety 0, debug 0, speed 2)
+
+L4:   75:      4D03DD           addq  r11, r13
+      78:      4983C508         addq  r13, 8
+      82:      4D3BEC           cmpq  r13, r12
+      85:      7FD2             jg    L1
+      87:      EBEC             jmp   L3
+
+
+So the other code is doing some kind of test and indirect referencing that’s adding to the cost. Note there are no indirect references in the speed optimized version (e.g., [rbp-18]) I see some indirect references in foo-1, but not as many in the loop (though I’m only guessing L4-L6 is the loop, based on block L6 ending with the same instruction pair. (the indirect codes are using some offset to a register rather than just doing direct register arithmetic and is presumably much slower as it may require a non-cache access to memory).
+
+foo-1: (safety 2)
+
+L4:  113:      4D89EC           moveq r12, r13
+     116:      4D89D9           moveq r9, r11
+     119:      4D0BCC           orq   r9, r12
+     122:      41F6C107         testb r9b, 7
+     126:      7554             jne   L9
+     128:      4C89D8           moveq rax, r11
+     131:      4903C4           addq  rax, r12
+     134:      488945F0         moveq [rbp-10], rax
+     138:      7048             jo    L9
+L5:  140:      4C8B5DF0         moveq r11, [rbp-10]
+     144:      41F6C507         testb r13b, 7
+     148:      7553             jne   L10
+     150:      4C89E8           moveq rax, r13
+     153:      4883C008         addq  rax, 8
+     157:      488945F8         moveq [rbp-8], rax
+     161:      7046             jo    L10
+L6:  163:      4C8B6DF8         moveq r13, [rbp-8]
+     167:      4C89EF           moveq rdi, r13
+     170:      488B75E8         moveq rsi, [rbp-18]
+     174:      4989F9           moveq r9, rdi
+     177:      4C0BCE           orq   r9, rsi
+     180:      41F6C107         testb r9b, 7
+     184:      7546             jne   L11
+     186:      483BFE           cmpq  rdi, rsi
+     189:      7F89             jg    L1
+     191:      EBAA             jmp   L3
+
+So it’s possible the code generator isn’t worrying that the indirect references are slower because you didn’t ask it to optimize speed… not very intuitive I’ll admit.
+
+— 
+Bradford W. Miller
+Sr. Cognition and Decision Scientist
+Co-Chair Industrial Internet Consortium Technology Working Group
+
+GE Global Research
+Distributed Intelligent Systems Lab
+
+518 387-4271
+millerb@ge.com
+http://www.geglobalresearch.com/blog/brilliant-machines
+
+
+
+
+
+&gt On Jun 11, 2015, at 11:51 AM, Edi Weitz &lt;edi@weitz.de&gt wrote:
+&gt 
+&gt 
+&gt Hello everybody,
+&gt 
+&gt I'm stumped by the following results and I hope that someone can
+&gt explain to me what I'm missing.  This is the 64-bit version of LWW
+&gt 7.0.
+&gt 
+&gt I have the following two functions.  (And, yes, I know there's a
+&gt better way to compute the sum of the first n integers.  This is just
+&gt an example.)
+&gt 
+&gt  (defun foo-1 (n)
+&gt    (loop for i from 0 to n
+&gt          sum i))
+&gt 
+&gt  (defun foo-2 (n)
+&gt    (declare (optimize (hcl:fixnum-safety 0) (safety 2)))
+&gt    (loop for i from 0 to n
+&gt          sum i))
+&gt 
+&gt If I disassemble FOO-2, I see essentially only pure machine code while
+&gt FOO-1 contains calls to functions like
+&gt SYSTEM::*%WRONG-NUMBER-OF-ARGUMENTS-STUB, SYSTEM::*%+$ANY-CODE, or
+&gt SYSTEM::*%&gt$ANY-CODE which are obviously able to cope with arbitrary
+&gt numbers and not only fixnums.  Simple-minded me expects that FOO-2
+&gt should be significantly faster.  But it's the other way around!  I
+&gt consistently get results like this:
+&gt 
+&gt  CL-USER 14 &gt (time (foo-1 1000000000))
+&gt  Timing the evaluation of (FOO-1 1000000000)
+&gt 
+&gt  User time    =        2.698
+&gt  System time  =        0.000
+&gt  Elapsed time =        2.699
+&gt  Allocation   = 50024 bytes
+&gt  0 Page faults
+&gt  500000000500000000
+&gt 
+&gt  CL-USER 15 &gt (time (foo-2 1000000000))
+&gt  Timing the evaluation of (FOO-2 1000000000)
+&gt 
+&gt  User time    =        4.461
+&gt  System time  =        0.000
+&gt  Elapsed time =        4.446
+&gt  Allocation   = 52176 bytes
+&gt  0 Page faults
+&gt  500000000500000000
+&gt 
+&gt What's happening?
+&gt 
+&gt Thanks,
+&gt Edi.
+&gt 
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt https://urldefense.proofpoint.com/v2/url?u=http-3A__www.lispworks.com_support_lisp-2Dhug.html&amp;d=AwIBaQ&amp;c=IV_clAzoPDE253xZdHuilRgztyh_RiV3wUrLrDQYWSI&amp;r=yTegpHW1zevhgxHhUFFvwA&amp;m=6N6FeE9kDHQlglCyqYC02ADV7hY55rf7V8oIfWKboEk&amp;s=qeaTdAzG2x7NLWncinc2XS4EAMVgyP3sYWH4FmgP_qs&amp;e= 
+&gt 
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Optimization riddle</h1>
+                 <pre>
+On Thu, Jun 11, 2015 at 10:43 PM, Nick Levine &lt;nick@nicklevine.org&gt wrote:
+&gt Why do they allocate?
+
+My guess was that this allocation was not due to my code but rather
+spurious allocation done by the IDE.  I agree that the code shouldn't
+cons at all.
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Optimization riddle</h1>
+                 <pre>
+On Thu, Jun 11, 2015 at 11:29 PM, Jeff Caldwell
+&lt;jeffrey.d.caldwell@gmail.com&gt wrote:
+&gt Have you tried the, preferably new, type specifier syntax?
+
+The point of HCL:FIXNUM-SAFETY is that you don't have to bother with
+adding individual type specifiers.  Besides, I was not really trying
+to optimize this function but I was experimenting with the effects of
+various declarations and was surprised by this result.
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Optimization riddle</h1>
+                 <pre>
+On Thu, Jun 11, 2015 at 11:32 PM, Miller, Bradford W (GE Global
+Research) &lt;millerb@ge.com&gt wrote:
+&gt So it’s possible the code generator isn’t worrying that the indirect references are slower because you didn’t ask it to optimize speed… not very intuitive I’ll admit.
+
+Thanks for the detailed analysis.  Let me add one more thing: In my
+attempt to construct an example which was as simple as possible I
+forgot that in my original experiments I had already asked the
+compiler to optimize for speed.  The code should have looked like this
+(where FOO-3 now is your function):
+
+(defun foo-1 (n)
+  (loop for i from 0 to n
+        sum i))
+
+(defun foo-2 (n)
+  (declare (optimize speed (hcl:fixnum-safety 0) (safety 2)))
+  (loop for i from 0 to n
+        sum i))
+
+(defun foo-3 (n)
+  (declare (optimize (speed 2) (debug 0) (hcl:fixnum-safety 0) (safety 2)))
+  (loop for i from 0 to n
+        sum i))
+
+The funny thing is that even with SPEED cranked up to 3 the function
+FOO-2 is still by far the slowest!  To convince the compiler to make
+the code really fast, you need to tell it that you're not interested
+in debuggability as in FOO-3.
+
+I understand that there are certain dependencies between the different
+optimize qualities as explained in 9.5 of the reference manual, but I
+still find it counterintuitive that providing the compiler with type
+information and asking it for speed will result in a significant
+slow-down of the code...
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Optimization riddle</h1>
+                 <pre>
+On Fri, Jun 12, 2015 at 8:31 AM, Edi Weitz &lt;edi@weitz.de&gt wrote:
+&gt My guess was that this allocation was not due to my code but rather
+&gt spurious allocation done by the IDE.  I agree that the code shouldn't
+&gt cons at all.
+
+See notes at the end here:
+
+  http://www.lispworks.com/documentation/lw70/LW/html/lw-402.htm
+
+If I use sys:with-other-threads-disabled, then there's no consing.
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:29 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

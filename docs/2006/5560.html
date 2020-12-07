@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Stack overflow during delivery</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Stack overflow during delivery</h1>
+                <pre>
+
+I'm trying to compile a large function in LispWorks on Linux and am
+getting this error during compilation:
+
+    Stack overflow (stack size 16368).
+       1 Skip compiling form.
+       2 Skip compiling form.
+       3 (continue) Try compiling /tmp/auto-build-2006-May-08-15h-09m/contrib/ironclad/arcfour.lisp again.                                              
+       ...
+
+This only happens when running a delivery script that uses ASDF
+to compile all my files.  When I run asdf interactively
+everything is fine.  (I'm using a custom built image with a
+larger stack size in both cases.)  I'm guessing that when I run
+it interactively I'm running in a thread that has the larger
+stack size.
+
+I run the delivery script like this, where lispworks-tty-dev is
+my custom image:
+
+  linux% lispworks-tty-dev -init deliver-my-program.lisp
+   =&gt Fails with stack overflow error
+
+and the deliver script is:
+
+   ;;; ... stuff
+   (asdf:operate 'asdf:load-op :my-package)
+   ;;; ... more stuff that never gets called ...
+
+Any help on increasing the stack size? or some sort of work
+around?
+
+Thanks!
+
+Regards,
+Chris Dean
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Stack overflow during delivery</h1>
+                 <pre>
+Chris,
+
+Is ASDF compiled? I seem to vaguely remember a stack issue resolved  
+in LispWorks by compiling and loading ASDF rather than just loading it.
+
+This thread might be helpful also:
+
+http://thread.gmane.org/gmane.lisp.lispworks.general/3907/focus=3908
+
+
+John
+
+
+On May 8, 2006, at 8:07 PM, Chris Dean wrote:
+
+&gt I'm trying to compile a large function in LispWorks on Linux and am
+&gt getting this error during compilation:
+&gt
+&gt     Stack overflow (stack size 16368).
+&gt        1 Skip compiling form.
+&gt        2 Skip compiling form.
+&gt        3 (continue) Try compiling /tmp/auto-build-2006- 
+&gt May-08-15h-09m/contrib/ironclad/arcfour.lisp again.
+&gt        ...
+&gt
+&gt This only happens when running a delivery script that uses ASDF
+&gt to compile all my files.  When I run asdf interactively
+&gt everything is fine.  (I'm using a custom built image with a
+&gt larger stack size in both cases.)  I'm guessing that when I run
+&gt it interactively I'm running in a thread that has the larger
+&gt stack size.
+
+
+
+John DeSoi, Ph.D.
+http://pgedit.com/
+Power Tools for PostgreSQL
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Stack overflow during delivery</h1>
+                 <pre>
+
+John DeSoi &lt;desoi@pgedit.com&gt writes:
+&gt Is ASDF compiled? I seem to vaguely remember a stack issue resolved
+&gt in LispWorks by compiling and loading ASDF rather than just loading
+&gt it.
+
+ASDF is compiled.  I've tried it both compiled and not and it hasn't
+made a difference for me.
+
+Thanks for the idea!
+
+The work around I'm using right now is to compile in a separate
+thread.  I have compile-my-program.lisp:
+
+    ;; ...
+    (push (list "Build in larger stack" nil
+                (lambda () 
+                  (asdf:operate 'asdf:compile-op :my-package))
+                  (quit)))
+            mp:*initial-processes*)
+
+That does work for the compilation step, but it seems not for the
+deliver step.  Deliver complains about being in a thread, so I have
+deliver-my-program.lisp:
+
+    ;; ...
+    (asdf:operate 'asdf:load-op :my-package)
+    (use-package :my-package)
+
+    ;;; ensure that load is quiet
+    (setf *load-verbose* nil)
+    (setf sys::*demand-load-verbose* nil)
+
+    (deliver 'my-main "my-program" 0 :multiprocessing t)
+
+To create an executable I have these two steps:
+
+    linux% lispworks-tty-dev -init compile-my-program.lisp
+    linux% lispworks-tty-dev -init deliver-my-program.lisp
+
+Regards,
+Chris Dean
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:45 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

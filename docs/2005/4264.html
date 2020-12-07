@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>RE: Passing lisp vector to foreign code</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>RE: Passing lisp vector to foreign code</h1>
+                <pre>Sorry, I should mention that the ffi definition for get_bytes is
+
+(fli:define-foreign-function
+    (get-bytes "get_bytes" :source)
+    ((db db)
+     (nbytes (:reference-return :int)))
+  :result-type (:pointer (:unsigned :char))
+  :lambda-list (db &amp;aux nbytes)
+  :calling-convention :cdecl)
+
+-----Original Message-----
+From: Young, David [mailto:deyoung@bloodhoundinc.com]
+Sent: Friday, July 29, 2005 10:38 AM
+To: 'Martin Simmons'
+Cc: lisp-hug@lispworks.com
+Subject: RE: Passing lisp vector to foreign code
+
+
+However, I got a suggestion to look at fli:replace-foreign-array. The
+following code gives me this error:
+
+Error: Attempting to get address of non string or signed-byte/unsigned-byte
+vector: SIMPLE-VECTOR.
+  1 (abort) Return to level 0.
+  2 Return to top loop level 0.
+
+Type :b for backtrace, :c &lt;option number&gt to proceed,  or :? for other
+options
+
+Here's the revised code:
+
+(defmethod fill-stream-buffer ((self binary-input-stream) db)
+  (with-slots ((buf buffer)
+               (len bufsiz)) self
+    (multiple-value-bind (bytes nbytes)
+        (get-bytes db)
+      (let ((buf (make-array nbytes)))
+        (fli:replace-foreign-array buf bytes)
+        (setf len nbytes)))))
+
+I've also tried (make-array nbytes :element-type 'unsigned-byte).
+
+dey
+
+-----Original Message-----
+From: Martin Simmons [mailto:martin@lispworks.com]
+Sent: Thursday, July 28, 2005 4:08 PM
+To: deyoung@bloodhoundinc.com
+Cc: lisp-hug@lispworks.com
+Subject: Re: Passing lisp vector to foreign code
+
+
+&gt&gt&gt&gt&gt On Thu, 28 Jul 2005 13:15:16 -0400, "Young, David"
+&lt;deyoung@bloodhoundinc.com&gt said:
+
+  dey&gt Thanks. Here's how I got it working:
+
+  dey&gt Outbound:
+
+  dey&gt (let ((buf (output-buffer self))
+  dey&gt       (bufsiz (buffer-size self)))
+  dey&gt   (fli:with-dynamic-foreign-objects ()
+  dey&gt     (let ((vector (fli:allocate-dynamic-foreign-object :type
+`(:c-array
+  dey&gt (:unsigned :char) ,bufsiz))))
+  dey&gt       (dotimes (i bufsiz)
+  dey&gt         (setf (fli:foreign-aref vector i) (aref buf i)))
+  dey&gt       (put-bytes db vector bufsiz)
+
+  dey&gt Inbound:
+
+  dey&gt with-slots ((buf buffer)
+  dey&gt              (len bufsiz)) self
+  dey&gt   (multiple-value-bind (bytes nbytes)
+  dey&gt       (get-bytes db)
+  dey&gt     (let ((contents (loop for i from 0 below nbytes collect
+(fli:dereference
+  dey&gt bytes :index i))))
+  dey&gt       (setf buf (make-array nbytes :initial-contents contents))
+  dey&gt       (setf len (length buf)))))
+
+  dey&gt Look reasonable?
+
+What allocates the memory returned by get-bytes and should something free
+it?
+
+-- 
+Martin Simmons                              Email: martin@lispworks.com
+LispWorks Ltd, St John's Innovation Centre    TEL:   +44 1223 421860
+Cowley Road, Cambridge CB4 0WS, England.      FAX:   +44 870 2206189
+
+
+
+  dey&gt -----Original Message-----
+  dey&gt From: Martin Simmons [mailto:martin@lispworks.com]
+  dey&gt Sent: Thursday, July 28, 2005 1:10 PM
+  dey&gt To: deyoung@bloodhoundinc.com
+  dey&gt Cc: lisp-hug@lispworks.com
+  dey&gt Subject: Re: Passing lisp vector to foreign code
+
+
+&gt&gt&gt&gt&gt On Wed, 27 Jul 2005 11:26:44 -0400, "Young, David"
+  dey&gt &lt;deyoung@bloodhoundinc.com&gt said:
+
+  dey&gt So, I have a binary stream class that collects bytes into a buffer
+  dey&gt represented by a vector with a fill pointer. I want to take this
+  dey&gt buffer and
+  dey&gt send it to a C function, which stores it in a "database". Later, I
+  dey&gt want to
+  dey&gt retrieve this data via another binary stream class (we're
+  dey&gt experimenting with
+  dey&gt CL-STORE). Using the lw ffi, how do I set this up? It seems from the
+  dey&gt docs
+  dey&gt that I need to make a copy of the buffer in static space prior to
+  dey&gt sending it
+  dey&gt to C; is that correct? What should the ffi function declarations look
+  dey&gt like?
+  dey&gt Currently, I have:
+
+  dey&gt (fli:define-foreign-function
+  dey&gt (put-bytes "put_bytes" :source)
+  dey&gt ((bytes (:c-array (:unsigned :char)))
+  dey&gt (len :int))
+  dey&gt :result-type :void
+  dey&gt :calling-convention :cdecl)
+
+  dey&gt (fli:define-foreign-function
+  dey&gt (get-bytes "get_bytes" :source)
+  dey&gt ((nbytes (:pointer (:int))))
+  dey&gt :result-type (:c-array (:unsigned :char))
+  dey&gt :calling-convention :cdecl)
+
+  dey&gt But, passing a Lisp vector to PUT-BYTES yields a type error:
+
+  dey&gt Expecting type (:foreign-array (:UNSIGNED :CHAR) (0)) (got #(76
+  dey&gt ...))
+
+  dey&gt so clearly I'm doing something wrong. Thanks for the help.
+
+  dey&gt There are two kinds of static array: Lisp and foreign.  The :C-ARRAY
+foreign
+  dey&gt type needs a foreign array object (e.g. created with
+  dey&gt FLI:ALLOCATE-FOREIGN-OBJECT).  See also the :LISP-ARRAY foreign type
+if you
+  dey&gt want to pass a static Lisp array pointer directly to C.
+
+  dey&gt -- 
+  dey&gt Martin Simmons                              Email:
+martin@lispworks.com
+  dey&gt LispWorks Ltd, St John's Innovation Centre    TEL:   +44 1223 421860
+  dey&gt Cowley Road, Cambridge CB4 0WS, England.      FAX:   +44 870 2206189
+
+This email message is for the sole use of the intended recipients(s) and may
+contain confidential and privileged information of Bloodhound Software,
+Inc.. Any unauthorized review, use, disclosure is prohibited. If you are not
+the intended recipient, please contact the sender by reply email and destroy
+all copies of the original message.
+
+This email message is for the sole use of the intended recipients(s) and may contain confidential and privileged information of Bloodhound Software, Inc.. Any unauthorized review, use, disclosure is prohibited. If you are not the intended recipient, please contact the sender by reply email and destroy all copies of the original message.
+
+
+</pre>
+               </article>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:47 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

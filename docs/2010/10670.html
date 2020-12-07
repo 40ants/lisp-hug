@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>delivery and removing capi</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>delivery and removing capi</h1>
+                <pre>
+Greetings Lispers -
+
+How can I deliver a console application at the delivery level 0 and remove all CAPI/IDE stuff? I need this for 1) my linux console web server application 2) for win32 application where I want to roll out my own windows stuff without capi.
+
+I tried something like this:
+
+(in-package "CL-USER")
+(load-all-patches)
+(deliver 'start-tty-listener "lw-console.exe" 0
+         :display-progress-bar nil
+         :multiprocessing t
+         :smash-packages '(capi-library
+                           capi-toolkit
+                           capi-layout
+                           capi
+                           capi-internals))
+
+with many different combination of packages to smash, but the result of the delivered exe wasn't what I expected. I got a lot of errors after starting up that resultant exe.
+
+
+Any advice?
+
+Best,
+ Art
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: delivery and removing capi</h1>
+                 <p>
+                  Unable to parse email body. Email id is 10686
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: delivery and removing capi</h1>
+                  <pre>
+&gt The supported way to remove the CAPI is using tree shaking,
+&gt which works best at delivery level 2 and above (where is
+&gt the default).
+
+&gt BTW, what is the reason for wanting to remove the
+&gt CAPI/IDE?
+
+Space is the main reason. The second one is mostly psychological -- remove something that isn't belong here. 
+
+
+1. Linux server application.
+
+Why should I keep CAPI/IDE if my app runs in a text terminal and never ever uses and will use capi? Right now after the delivery with '0', my app takes 23 Mb on Win32, and 29Mb on Linux 32bits. I can't think of the reason why I need all that ballast code that (room) shows in generation 3.
+
+I run the server application on Amazon EC2, that's a VM.  Right now there are proliferation of small instances of VM (VPS, cloud instances, etc) from different vendors for low cost. But those VM have limited amount of memory, think of 256Mb, 512Mb. Even Amazon introduced recently a micro instance with 613Mb. When there is such amount of memory, every Mb counts to me. Soon I'll start two new web projects, and to one of them I can introduce and use CL for sure. And if I'm to use CL in that project, it should run on "micro" VMs. It isn't right saying "we need to pay more for the server, because our solution in CL needs more memory". As I know (correct me if I'm wrong), sbcl suffers in popularity in web development to some degree, because it "eats" a lot of memory and cannot be run well on suc
+ h hostings like slicehost with theirs Slice 256Mb.
+
+Next, delivery with the level 2 is ok, but it shakes a lot and I need to be conscious of what it would shake and shake not when I'm writing the app. Right now I have some packages where all my logic is, and some functions in the cl-user package to run the server. I start the app from the terminal listener manually, invoking (start), (start-with-debug), etc. But for the shaker those function out of the tree, so it shakes them too with all my packages, so I need to explicitly say to the shaker -- don't mess with this and this code.
+
+My delivery script at the moment looks like this:
+
+(deliver 'start-tty-listener "scgiserver" 2
+         :display-progress-bar nil
+         :keep-symbols '(start start-with-debug)
+         :never-shake-packages '("WAREHOUSE" "SCGI" "MYSQL" "SHA1")
+         :multiprocessing t)
+
+So I need to write a lot words to tell to the shaker to keep what I need. And that's because the delivery level 0 cannot get rid of capi/gui, the optional packages in opinion. Also, I have in my packages a lot of service functions -- to monitor the state of the server, to add tables to the mysql, etc that I invoke manually via the listener from time to time. So after each delivery with the level 2 I need to test the app over and over gain to see if the shaker left my functions. With the delivery level 0 the things are much more simpler to me.
+
+
+2. Windows applications.
+
+CAPI is great, but to some limited extend. I don't need the cross-platform thing for my application. I a windows guy. And I want GUI for my apps that looks like Windows gui on Windows and uses all features of the Windows platform.
+
+Some examples. I wrote some time ago that I'm not happy with the look and feel of the option-pane on Win7.
+
+See http://msdn.microsoft.com/en-us/library/bb775791(v=VS.85).aspx
+
+Option panes in CAPI are drop-down comboboxes where the ability to edit the items is turned off. But they should look like the Drop-down list style shows. On XP you cannot spot the difference between the drop-down and drop-down list styles, but on Win7 you can. In order for my future win apps to have a standard look and feel for comboboxes I need to rewrite (subclass?) the option-pane class and do all "low-level" win32 work, because you can not change the style of the combobox after you created it. But where are docs of how to write your own pane classes that are wrappers to win32 controls?
+
+I want to use GDI+, Direct2D. I looked to the source code of the CAPI OpenGL pane the other day. It used things that are not documented in the CAPI Refrence Manual.
+
+So, my point is, because I know Win32 API better, then CAPI, and I see how CAPI is limiting me in some areas, it's better to me to use my own Win32 code for gui/gfx stuff. In this case I again don't need CAPI/IDE in my delivered application -- the less size the mass-market app takes, the better.
+
+:-)
+
+
+(I'm not saying that CAPI is that bad. It's great. I use it sometimes for prototyping, but CAPI has its limits for my needs).
+
+
+Best,
+ Art
+
+
+
+P.S. excuse me for such an English language -- I'm Russian after all :)
+
+
+</pre>
+                 </article>
+                </section>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:34 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

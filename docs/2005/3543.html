@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Defining macro FOO visible from BAR</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Defining macro FOO visible from BAR</h1>
+                <pre>Hello all,
+I'm getting an error involving macros, package visibility and 
+'.' in names.
+
+Three files have I:
+
+test1.lisp:
+(make-package :match)
+
+
+test2.lisp
+(in-package :match)
+(export '(new.set))
+
+
+test.3:lisp
+(in-package :match)
+(defmacro new.set ()
+    `( () ))
+
+
+In a listener, I run
+
+(mapcar #'load '("test1" "test2" "test3"))
+
+and I get the error:
+Defining macro New.Set visible from package MATCH
+
+I do not get this error if rather than new.set I just use newset (with
+no period)
+
+
+This is the second issue I've had recently in 4.4 with . in names. The first
+was not being able to load files from the editor like "test.foo.lisp". Is this
+related, perhaps? Either way, this one seems like it would be harder to 
+work around. Any ideas?
+
+ 
+
+
+
+-- 
+=====================
+Joshua Taylor
+tayloj@rpi.edu
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Defining macro FOO visible from BAR</h1>
+                 <p>
+                  Unable to parse email body. Email id is 3544
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Defining macro FOO visible from BAR</h1>
+                 <pre>&gt I think you would get that error if NEWSET was exported in the MATCH
+&gt package.
+
+My mistake, I do get that error. 
+
+&gt Use a package name which is less likely to clash. For example, you
+&gt could embed your project name in the package name.
+
+Well, unfortunately it's not my code, but the SNePS system from
+SUN Y Buffalo. At the moment I just turn off warning on redefinition
+for the time that I load the code defining things. I guess I'll have to 
+go into some package renaming later on...
+
+
+-- 
+=====================
+Joshua Taylor
+tayloj@rpi.edu
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Defining macro FOO visible from BAR</h1>
+                 <p>
+                  Unable to parse email body. Email id is 3546
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Defining macro FOO visible from BAR</h1>
+                 <pre>At 15/02/2005 12:53, davef@lispworks.com wrote:
+
+&gt  &gt &gt Use a package name which is less likely to clash. For example, you
+&gt  &gt &gt could embed your project name in the package name.
+&gt  &gt
+&gt  &gt Well, unfortunately it's not my code, but the SNePS system from
+&gt  &gt SUN Y Buffalo. At the moment I just turn off warning on redefinition
+&gt  &gt for the time that I load the code defining things. I guess I'll have to
+&gt  &gt go into some package renaming later on...
+&gt
+&gtIn this case a safer approach (that is, safer than switching off all
+&gtredefinition checks) would be to remove checking on the MATCH package
+&gtonly:
+&gt
+&gt(SETF *PACKAGES-FOR-WARN-ON-REDEFINITION*
+&gt       (DELETE "MATCH" *PACKAGES-FOR-WARN-ON-REDEFINITION*
+&gt               :TEST 'STRING=))
+
+BTW, why is the keyword package in this list? I use to define 
+functions in this package (for exemple a :test function) and have 
+just defined these 2 macros a few days ago:
+
+(eval-when (:compile-toplevel :load-toplevel :execute)
+   (defmacro without-redefinition-warnings (&amp;body body)
+     `(let ((*redefinition-action* nil))
+        ,@body)))
+
+(defmacro without-protection-errors (&amp;body body)
+   `(let ((*packages-for-warn-on-redefinition* nil))
+       (without-redefinition-warnings
+        ,@body)))
+
+
+Francis
+
+
+&gtThe LispWorks MATCH package is used only by Common SQL.
+&gt
+&gt__
+&gtDave Fox
+&gtLispWorks Ltd
+&gtSt John's Innovation Centre
+&gtCowley Road
+&gtCambridge
+&gtCB4 0WS
+&gtEngland
+&gt
+&gt+44 1223 421861
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Defining macro FOO visible from BAR</h1>
+                 <p>
+                  Unable to parse email body. Email id is 3548
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:49 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

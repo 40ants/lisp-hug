@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>CAPI and create-callback</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>CAPI and create-callback</h1>
+                <pre>
+Is there a way for me to have different create-callbacks called? I'm 
+guessing not, but right now I have the following:
+
+Subclass my-output-pane has a :create-callback which does a bunch of 
+required setup work. I'd also like to create a subclass of 
+my-output-pane that does additional setup work.
+
+I know I can use CLOS and :after, but that requires knowledge of the 
+create-callback symbol name. If I supply a different :create-callback 
+then it's overridden (from what I can tell) and the create-callback for 
+my-output-pane is never called.
+
+Summary: I know of ways I can get the behavior I want via CLOS, etc. but 
+was wondering if there was a nice CAPI way of doing this?
+
+Jeff M.
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: CAPI and create-callback</h1>
+                 <pre>
+Jeffrey Massung &lt;massung@gmail.com&gt writes:
+
+&gt Is there a way for me to have different create-callbacks called? I'm
+&gt guessing not, but right now I have the following:
+
+I think you may want to put your code in either initialize-instance or
+interface-display methods. Notice this in the documentation of
+capi:interface:
+
+"Note: create-callback should be used only for operations that must be
+done with the interface already created and cannot be done in
+interface-display. Otherwise they should be either done in
+initialize-instance or between your calls to make-instance and
+display. An operation that needs to run after the interface is created
+but just before displaying the interface as an ordinary window (typical
+cases are font queries and loading images) can be put in the
+interface-display :before method. An operation that needs to run just
+after displaying the interface as an ordinary window can be put in the
+interface-display :after method."
+
+-- 
+  (espen)
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: CAPI and create-callback</h1>
+                 <pre>
+On Mon, May 5, 2014 at 11:48 AM, Jeffrey Massung &lt;massung@gmail.com&gt wrote:
+&gt
+&gt Is there a way for me to have different create-callbacks called? I'm
+&gt guessing not, but right now I have the following:
+&gt
+&gt Subclass my-output-pane has a :create-callback which does a bunch of
+&gt required setup work. I'd also like to create a subclass of my-output-pane
+&gt that does additional setup work.
+&gt
+&gt I know I can use CLOS and :after, but that requires knowledge of the
+&gt create-callback symbol name. If I supply a different :create-callback then
+&gt it's overridden (from what I can tell) and the create-callback for
+&gt my-output-pane is never called.
+&gt
+&gt Summary: I know of ways I can get the behavior I want via CLOS, etc. but was
+&gt wondering if there was a nice CAPI way of doing this?
+
+If I understand correctly, one solution is to dispatch to a generic
+function, which may be what you had in mind. The user writes a method
+specialization instead of passing a :create-callback argument.
+
+(defclass my-output-pane (capi:output-pane)
+  ()
+  (:default-initargs :create-callback 'create-callback))
+
+(defclass my-output-pane-subclass (my-output-pane)
+  ())
+
+(defgeneric create-callback (obj)
+  (:method-combination progn :most-specific-last))
+
+(defmethod create-callback progn ((obj my-output-pane))
+  (break "my-output-pane callback"))
+
+(defmethod create-callback progn ((obj my-output-pane-subclass))
+  (break "my-output-pane-subclass callback"))
+
+(capi:contain (make-instance 'my-output-pane))
+;;; =&gt calls my-output-pane callback
+
+(capi:contain (make-instance 'my-output-pane-subclass))
+;;; =&gt calls my-output-pane callback, then the subclass callback
+
+An on-the-fly :create-callback argument can be handled by playing
+tricks with the initarg list. (Though such trickery is a last resort,
+in my view.)
+
+(defmethod initialize-instance ((instance my-output-pane)
+                                &amp;rest initargs &amp;key &amp;allow-other-keys)
+  (let ((create-callback (getf initargs :create-callback)))
+    (if (eq create-callback 'create-callback)
+        (call-next-method)
+        (let ((new-initargs (copy-list initargs)))
+          (setf (getf new-initargs :create-callback)
+                (if create-callback
+                    (lambda (obj)
+                      (create-callback obj)
+                      (funcall create-callback obj))
+                    'create-callback))
+          (apply #'call-next-method instance new-initargs)))))
+
+(capi:contain (make-instance 'my-output-pane-subclass
+                             :create-callback
+                             (lambda (obj)
+                               (break "user callback"))))
+;;; =&gt calls all three callbacks; user callback is last
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: CAPI and create-callback</h1>
+                 <pre>
+On Tue, May 6, 2014 at 10:31 AM, Jeffrey Massung &lt;massung@gmail.com&gt wrote:
+&gt
+&gt (defmethod my-capi-framework:create-callback :after ((pane my-output-pane-subclass))
+&gt     ...)
+&gt
+&gt This is what I have currently. It works fine, but feels strange to me. That said, I'm still not fully comfortable with CLOS generic method ordering (:before, :after, :around), and I don't understand what your example of 'progn' does.
+
+One primary method together with only :after specializations for
+subclasses is basically the same as the progn :most-specific-last
+method combination, save for the return value. I chose progn because I
+pictured the callbacks as a chain of equal-stature functions rather
+than one specially designated function (the primary method) with
+others sprinkled on top (aux methods), but it doesn't matter a whole
+lot.
+
+&gt Your initialize-instance idea is quite interesting as well. I agree that it feels like a last resort. But it's neat to see that it's possible that way.
+
+In retrospect it's not that bad as long as it accomplishes what is
+needed and the "switcheroo" move is noted (if only for yourself six
+months from now).
+
+&gt On a side note, something I've never figured out is how to remove a method in a 'chain'. For example, if I create an initialize-instance method :after, and later decide I don't want it, then the only options I've really had are to kill LW and restart the image or compile the method with an empty body. Is there something else I could do?
+
+(defgeneric foo (x))
+(defmethod foo ((x integer)) x)
+(defmethod foo :after ((x integer)) (break "foo"))
+(foo 3) ;=&gt break
+(remove-method #'foo (find-method #'foo '(:after)
+                                  (list (find-class 'integer))))
+(foo 3) ;=&gt 3
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:30 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

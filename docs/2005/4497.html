@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Push question</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Push question</h1>
+                <pre>Can someone tell me why:
+
+
+CL-USER 5 &gt (let ((acc nil)
+                   (val 1))
+               (push val acc))
+(1)
+
+CL-USER 6 &gt (push 1 nil)
+
+Error: Cannot change NIL -- it is a constant.
+
+
+Are the Lisp gods crazy?
+
+Laughing Water
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Push question</h1>
+                 <pre>On September 9, 2005 05:16 pm, Laughing Water wrote:
+&gt Can someone tell me why:
+&gt
+&gt
+&gt CL-USER 5 &gt (let ((acc nil)
+&gt                    (val 1))
+&gt                (push val acc))
+&gt (1)
+&gt
+&gt CL-USER 6 &gt (push 1 nil)
+&gt
+&gt Error: Cannot change NIL -- it is a constant.
+&gt
+&gt
+&gt Are the Lisp gods crazy?
+
+The 2nd arg of PUSH is a "place", not a value.  From TFM: "push prepends item 
+to the list that is stored in place, stores the resulting list in place, and 
+returns the list".
+
+(push 1 nil) - nil isn't a "place", it's a constant, hence you simply cannot 
+do this (actually, you could do this in my 1978 version of lisp, which didn't 
+actually check what you were rplaca'ing and rplacd'ing, with the result that 
+you physically altered the value of nil and destroyed the system :-).
+
+You might be confusing push with cons
+
+(cons 1 nil) returns a new list (1)
+
+(push val acc) is the same as :
+
+(setf acc (cons val acc))
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Push question</h1>
+                 <pre>On Fri, 9 Sep 2005 15:16:02 -0600, Laughing Water &lt;lw@mt.net&gt wrote:
+
+&gt Can someone tell me why:
+&gt
+&gt CL-USER 5 &gt (let ((acc nil)
+&gt                    (val 1))
+&gt                (push val acc))
+&gt (1)
+&gt
+&gt CL-USER 6 &gt (push 1 nil)
+&gt
+&gt Error: Cannot change NIL -- it is a constant.
+
+PUSH is a macro which modifies a /place/, its second argument.  ACC is
+a perfectly valid place because it's a variable, NIL isn't.
+
+Think of it this way: (PUSH VAL ACC) is translated by the macro to
+something like (SETQ ACC (CONS VAL ACC)).  Now, what happens if you
+replace ACC with NIL in that form?
+
+Cheers,
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Push question</h1>
+                 <pre>While this sort of issue is being mentioned, I noticed something
+odd the other day that sort of makes sense (insofar as I've seen 
+similar behavior before), but I'm still not quite clear on why it 
+happens:
+
+CL-USER 4 &gt 
+(dotimes (x 4)
+   (let ((foo '(a b c d)))
+       (setf (nth x foo) 'e)
+       (print foo)))
+
+(E B C D) 
+(E E C D) 
+(E E E D) 
+(E E E E) 
+Nil
+
+CL-USER 5 &gt 
+(dotimes (x 4)
+    (let ((foo (list 'a 'b 'c 'd)))
+       (setf (nth x foo) 'e)
+       (print foo)))
+
+(E B C D) 
+(A E C D) 
+(A B E D) 
+(A B C E) 
+Nil
+
+CL-USER 6 &gt 
+
+
+Why is it that the space for foo isn't refreshed between iterations of the 
+dotimes with '(a b c d) but is with (list 'a 'b 'c 'd) ?
+
+
+On 09/09/05, Edi Weitz &lt;edi@agharta.de&gt wrote:
+&gt On Fri, 9 Sep 2005 15:16:02 -0600, Laughing Water &lt;lw@mt.net&gt wrote:
+&gt 
+&gt &gt Can someone tell me why:
+&gt &gt
+&gt &gt CL-USER 5 &gt (let ((acc nil)
+&gt &gt                    (val 1))
+&gt &gt                (push val acc))
+&gt &gt (1)
+&gt &gt
+&gt &gt CL-USER 6 &gt (push 1 nil)
+&gt &gt
+&gt &gt Error: Cannot change NIL -- it is a constant.
+&gt 
+&gt PUSH is a macro which modifies a /place/, its second argument.  ACC is
+&gt a perfectly valid place because it's a variable, NIL isn't.
+&gt 
+&gt Think of it this way: (PUSH VAL ACC) is translated by the macro to
+&gt something like (SETQ ACC (CONS VAL ACC)).  Now, what happens if you
+&gt replace ACC with NIL in that form?
+&gt 
+&gt Cheers,
+&gt Edi.
+&gt 
+&gt 
+
+
+-- 
+=====================
+Joshua Taylor
+tayloj@rpi.edu
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Push question</h1>
+                 <pre>On Fri, 9 Sep 2005 17:49:33 -0400, Joshua Taylor &lt;joshuaaaron@gmail.com&gt wrote:
+
+&gt While this sort of issue is being mentioned, I noticed something odd
+&gt the other day that sort of makes sense (insofar as I've seen similar
+&gt behavior before), but I'm still not quite clear on why it happens:
+&gt
+&gt CL-USER 4 &gt 
+&gt (dotimes (x 4)
+&gt    (let ((foo '(a b c d)))
+&gt        (setf (nth x foo) 'e)
+&gt        (print foo)))
+&gt
+&gt (E B C D) 
+&gt (E E C D) 
+&gt (E E E D) 
+&gt (E E E E) 
+&gt Nil
+&gt
+&gt CL-USER 5 &gt 
+&gt (dotimes (x 4)
+&gt     (let ((foo (list 'a 'b 'c 'd)))
+&gt        (setf (nth x foo) 'e)
+&gt        (print foo)))
+&gt
+&gt (E B C D) 
+&gt (A E C D) 
+&gt (A B E D) 
+&gt (A B C E) 
+&gt Nil
+&gt
+&gt CL-USER 6 &gt 
+&gt
+&gt Why is it that the space for foo isn't refreshed between iterations
+&gt of the dotimes with '(a b c d) but is with (list 'a 'b 'c 'd) ?
+
+  &lt;http://www.cs.cmu.edu/Groups/AI/html/faqs/lang/lisp/part3/faq-doc-14.html&gt
+
+Cheers,
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:47 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

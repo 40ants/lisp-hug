@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>dspecs for progns?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>dspecs for progns?</h1>
+                <pre>
+Hello all,
+
+If I have a macro that expands into a PROGN with some DEFUNS within,
+what's the appropriate way to make those DEFUNs findable?
+Particularly, they aren't part of some bigger defined thing, like the
+MAKE-* and *-SLOT functions in a DEFSTRUCT might be considered to be.
+E.g., if I was making functions to trim a certain kinds of character
+classes, I might write a macro:
+
+(defmacro define-trimmers (kind bag)
+  (flet ((ics (&amp;rest args)
+           (intern (apply 'concatenate 'string (mapcar 'string args)))))
+    (let ((stk (ics '#:string-trim- kind))
+          (stlk (ics '#:string-trim-left- kind))
+          (strk (ics '#:string-trim-right- kind)))
+      `(progn
+         (defun ,stk  (string) (string-trim       ',bag string))
+         (defun ,stlk (string) (string-left-trim  ',bag string))
+         (defun ,strk (string) (string-right-trim ',bag string))))))
+
+so that
+
+(define-trimmers vowel "aeiou")
+
+expands into
+
+(PROGN
+  (DEFUN STRING-TRIM-VOWEL (STRING) (STRING-TRIM '"aeiou" STRING))
+  (DEFUN STRING-TRIM-LEFT-VOWEL (STRING) (STRING-LEFT-TRIM '"aeiou" STRING))
+  (DEFUN STRING-TRIM-RIGHT-VOWEL (STRING) (STRING-RIGHT-TRIM '"aeiou" STRING)))
+
+Since I'm not defining some bigger thing to which these functions
+`belong', I'm not sure what the second argument to DSPEC:DEF would be.
+I recognize that I /can/ use the top-level form, e.g., use
+
+`(dspec:def (define-trimmers ,kind) ; note JUST ,kind
+         (defun ,stk  (string) (string-trim       ',bag string))
+         (defun ,stlk (string) (string-left-trim  ',bag string))
+         (defun ,strk (string) (string-right-trim ',bag string)))
+
+without having to define anything about define-trimmers. I can use
+"Find Definition" if I do this. But this doesn't work if there's more
+than one significant argument to the macro. E.g., if I'd tried to do
+
+`(dspec:def (define-trimmers ,kind ,bag) ; note ,kind AND ,bag
+         (defun ,stk  (string) (string-trim       ',bag string))
+         (defun ,stlk (string) (string-left-trim  ',bag string))
+         (defun ,strk (string) (string-right-trim ',bag string)))
+
+then I'd get in the minibuffer:
+
+Cannot find (DEFINE-TRIMMERS VOWEL "aeiou") in defns.lisp
+
+I think I'm missing something simple here—hopefully someone can chime
+in and point me to what it is.
+
+Thanks in advance,
+//JT
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: dspecs for progns?</h1>
+                 <pre>
+Just pinging this again since I haven't heard anything. I've got some
+library code most of whose functions are defined via macros, and it
+would be very nice to be able to use "Find Source" with them.
+
+Thanks in advance,
+
+On Thu, Feb 26, 2009 at 4:19 PM, Joshua TAYLOR &lt;tayloj@cs.rpi.edu&gt wrote:
+&gt Hello all,
+&gt
+&gt If I have a macro that expands into a PROGN with some DEFUNS within,
+&gt what's the appropriate way to make those DEFUNs findable?
+&gt Particularly, they aren't part of some bigger defined thing, like the
+&gt MAKE-* and *-SLOT functions in a DEFSTRUCT might be considered to be.
+&gt E.g., if I was making functions to trim a certain kinds of character
+&gt classes, I might write a macro:
+&gt
+&gt (defmacro define-trimmers (kind bag)
+&gt &nbsp;(flet ((ics (&amp;rest args)
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (intern (apply 'concatenate 'string (mapcar 'string args)))))
+&gt &nbsp; &nbsp;(let ((stk (ics '#:string-trim- kind))
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(stlk (ics '#:string-trim-left- kind))
+&gt &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;(strk (ics '#:string-trim-right- kind)))
+&gt &nbsp; &nbsp; &nbsp;`(progn
+&gt &nbsp; &nbsp; &nbsp; &nbsp; (defun ,stk &nbsp;(string) (string-trim &nbsp; &nbsp; &nbsp; ',bag string))
+&gt &nbsp; &nbsp; &nbsp; &nbsp; (defun ,stlk (string) (string-left-trim &nbsp;',bag string))
+&gt &nbsp; &nbsp; &nbsp; &nbsp; (defun ,strk (string) (string-right-trim ',bag string))))))
+&gt
+&gt so that
+&gt
+&gt (define-trimmers vowel "aeiou")
+&gt
+&gt expands into
+&gt
+&gt (PROGN
+&gt &nbsp;(DEFUN STRING-TRIM-VOWEL (STRING) (STRING-TRIM '"aeiou" STRING))
+&gt &nbsp;(DEFUN STRING-TRIM-LEFT-VOWEL (STRING) (STRING-LEFT-TRIM '"aeiou" STRING))
+&gt &nbsp;(DEFUN STRING-TRIM-RIGHT-VOWEL (STRING) (STRING-RIGHT-TRIM '"aeiou" STRING)))
+&gt
+&gt Since I'm not defining some bigger thing to which these functions
+&gt `belong', I'm not sure what the second argument to DSPEC:DEF would be.
+&gt I recognize that I /can/ use the top-level form, e.g., use
+&gt
+&gt `(dspec:def (define-trimmers ,kind) ; note JUST ,kind
+&gt &nbsp; &nbsp; &nbsp; &nbsp; (defun ,stk &nbsp;(string) (string-trim &nbsp; &nbsp; &nbsp; ',bag string))
+&gt &nbsp; &nbsp; &nbsp; &nbsp; (defun ,stlk (string) (string-left-trim &nbsp;',bag string))
+&gt &nbsp; &nbsp; &nbsp; &nbsp; (defun ,strk (string) (string-right-trim ',bag string)))
+&gt
+&gt without having to define anything about define-trimmers. I can use
+&gt "Find Definition" if I do this. But this doesn't work if there's more
+&gt than one significant argument to the macro. E.g., if I'd tried to do
+&gt
+&gt `(dspec:def (define-trimmers ,kind ,bag) ; note ,kind AND ,bag
+&gt &nbsp; &nbsp; &nbsp; &nbsp; (defun ,stk &nbsp;(string) (string-trim &nbsp; &nbsp; &nbsp; ',bag string))
+&gt &nbsp; &nbsp; &nbsp; &nbsp; (defun ,stlk (string) (string-left-trim &nbsp;',bag string))
+&gt &nbsp; &nbsp; &nbsp; &nbsp; (defun ,strk (string) (string-right-trim ',bag string)))
+&gt
+&gt then I'd get in the minibuffer:
+&gt
+&gt Cannot find (DEFINE-TRIMMERS VOWEL "aeiou") in defns.lisp
+&gt
+&gt I think I'm missing something simple here—hopefully someone can chime
+&gt in and point me to what it is.
+&gt
+&gt Thanks in advance,
+&gt //JT
+&gt
+
+
+
+-- 
+=====================
+Joshua Taylor
+tayloj@cs.rpi.edu, jtaylor@alum.rpi.edu
+
+"A lot of good things went down one time,
+  back in the goodle days."
+    John Hartford
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:37 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

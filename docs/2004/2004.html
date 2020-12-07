@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>numeric performance of LW</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>numeric performance of LW</h1>
+                <pre>There's a recent thread in c.l.l. which was started by a nameless troll,
+but which was followed up by some lispers which took the challenge and
+translated the numeric benchmark into code that was close to C in speed
+with both cmucl and sbcl, and Duane Rettig followed up with a beta
+for the upcoming ACL 6.2 which made it almost as fast. I tried this
+version: http://www.cs.indiana.edu/~bmastenb/misc/almabench.lisp
+of the benchmark with LispWorks 4.3.6 (linux), and it wasn't exactly
+impressing - it's very evident that the declarations won't stop LW
+from consing like hell (se end of message. Actually I think it's
+pretty impressive that it is that fast, given that it has allocated
+40 GIGABYTES!).
+
+I've tried to do some numeric optimizations in LW before, with little
+luck, so I wonder if there is something I miss here, or if LW 
+actually is quite bad at this kind of numeric stuff?
+
+Note: I'm doing this mostly out of curiousity, for my actual work LW
+has so far been more than fast enough. But who knows, I might be doing
+something involving floats next, and I'd like not having to switch to
+CMUCL or SBCL for that!
+
+I'd LOVE to have unboxed 32-bit integers, though, I do a lot of crypto
+stuff in my app, and that is really slow with bignums.  (Also on my
+make-crypto-faster-wishlist is a built-in implementation of
+exponential modulus, that would be really cool, it is the only thing
+slowing down my homebrewed RSA code)
+
+Here the timings:
+
+LW 4.3.6 on Athlon XP 2200+-based workstation with linux 2.4/debian
+unstable:
+==============================================
+
+CL-USER 19 &gt (time (almabench:main))
+Timing the evaluation of (ALMABENCH:MAIN)
+
+user time    =    455.280
+system time  =      1.420
+Elapsed time =   0:10:21
+Allocation   = 40555763480 bytes standard / 66231 bytes conses
+2 Page faults
+Calls to %EVAL    33
+
+SBCL on the same workstation:
+=============================
+
+* (time (almabench:main))
+
+Evaluation took:
+                 32.962 seconds of real time
+                 4.11 seconds of user run time
+                 0.08 seconds of system run time
+                 0 page faults and
+                 0 bytes consed.
+
+-- 
+  (espen)
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: numeric performance of LW</h1>
+                 <pre>On 10 Mar 2004, at 13:07, Espen Vestre wrote:
+
+&gt LW 4.3.6 on Athlon XP 2200+-based workstation with linux 2.4/debian
+&gt unstable:
+&gt ==============================================
+&gt
+&gt CL-USER 19 &gt (time (almabench:main))
+&gt Timing the evaluation of (ALMABENCH:MAIN)
+&gt
+&gt user time    =    455.280
+&gt system time  =      1.420
+&gt Elapsed time =   0:10:21
+&gt Allocation   = 40555763480 bytes standard / 66231 bytes conses
+&gt 2 Page faults
+&gt Calls to %EVAL    33
+
+On a totally different machine, PowerBook G4 1.25 Ghz, 1 Gb RAM, Mac OS 
+10.3.2, LWM 4.3.6:
+
+CL-USER 129 &gt  (time (almabench:main))
+Timing the evaluation of (ALMABENCH:MAIN)
+
+user time    =    450.460
+system time  =      1.940
+Elapsed time =   0:07:44
+Allocation   = 40743601840 bytes
+0 Page faults
+Calls to %EVAL    31
+
+As much as I would like a PowerPC G4 to beat an Athlon, this is not 
+possible for this floating point code,
+unless that code is heavily vectorized (which I don't think is the case 
+here). Furthermore, altough my machine's load was 100%, it was still 
+very responsive, which suggests that it wasn't completely occupied. I 
+suspect LW was doing memory management most of the time, and not 
+floating point calculations.
+
+Sven
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: numeric performance of LW</h1>
+                 <pre>Sven Van Caekenberghe &lt;sven@beta9.be&gt writes:
+
+&gt occupied. I suspect LW was doing memory management most of the time,
+&gt and not floating point calculations.
+
+Sure. That's the problem. It isn't able to compile the code that
+works with those floats and float-vectors into non-allocating code
+(LW allocates 40GB while SBCL allocates nothing).
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: numeric performance of LW</h1>
+                 <pre>Espen Vestre wrote:
+
+&gt I tried this version: http://www.cs.indiana.edu/~bmastenb/misc/almabench.lisp
+&gt of the benchmark with LispWorks 4.3.6 (linux), and it wasn't exactly
+&gt impressing - it's very evident that the declarations won't stop LW
+&gt from consing like hell [...]
+&gt I've tried to do some numeric optimizations in LW before, with little
+&gt luck, so I wonder if there is something I miss here, or if LW actually
+&gt is quite bad at this kind of numeric stuff?
+
+I'm also interested in learning more about this.
+
+Adding #+LISPWORKS(FLOAT 0) to the (DECLAIM (OPTIMIZE ...)) form
+seems to speed up the code by about 5% and also to reduce the consing
+by 5%, but that's the only thing I can think of to get this code
+faster.
+
+A quick browse of the disassembly of PLANETPV shows a few places where
+all the computations seem to be done on unboxed floats, but also quite
+a few calls to SYSTEM::RAW-FAST-BOX-DOUBLE. It's not clear to me how the
+the compiler decides when floats must be boxed.
+
+Regards,
+
+Arthur Lemmens
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: numeric performance of LW</h1>
+                 <pre>davef@xanalys.com writes:
+
+&gt We've now done some work to improve LispWorks performance, adding more
+&gt unboxed float optimizations and the type inferencing to trigger
+&gt them. 
+
+Great work!
+Do you think this will make it into the next patch package?
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: numeric performance of LW</h1>
+                 <p>
+                  Unable to parse email body. Email id is 2068
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:53 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

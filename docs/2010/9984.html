@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Richer set of border styles for CAPI?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Richer set of border styles for CAPI?</h1><html>
+<head>
+<style><!--
+..hmmessage P
+{
+margin:0px;
+padding:0px
+}
+body.hmmessage
+{
+font-size: 10pt;
+font-family:Verdana
+}
+--></style>
+</head>
+<body class='hmmessage'>
+Hi list,<br><br>I'm interested in having access to a richer set of border styles - like the ones listed here for Windows, for example:<br><br>http://msdn.microsoft.com/en-us/library/bb226804(VS.85).aspx<br><br>In my application I am currently using a pinboard-layout with an object which draws a 1-pixel border (similar to the 'status field' style listed above). This works OK, but does anyone know a better way of doing this kind of thing? I suppose the only other way is to directly access the native styles through the FLI (presumably with DrawEdge on Windows).<br><br>It would be really nice if more border styles could be available through the CAPI.<br><br>Cheers,<br>Chris 		 	   		  <br /><hr />Do you want a Hotmail account? <a href='http://clk.atdmt.com/UKM/go/197222280/direct/01/' target='_new'>Sign-up now - Free</a></body>
+</html>
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Richer set of border styles for CAPI?</h1>
+                 <pre>
+Christopher Melen &lt;relativeflux &lt;at&gt hotmail.co.uk&gt writes:
+
+&gt
+&gt Hi list,I'm interested in having access to a richer set of border styles -
+like the ones listed here for Windows, for
+example:http://msdn.microsoft.com/en-us/library/bb226804(VS.85).aspx
+&gt 
+
+OK, so I've been investigating this a bit and now I do it (on Windows at least)
+using DrawEdge rather than a pinboard-object:
+
+(fli:define-c-typedef HDC (:unsigned :long))
+(fli:define-c-typedef HWND (:unsigned :long))
+(fli:define-c-typedef PTR (:unsigned :long))
+	
+(fli:define-c-struct sRECT 
+  (left :long)
+  (top  :long)
+  (right :long)
+  (bottom :long))
+
+(fli:define-c-typedef RECT sRECT)
+
+(fli:define-foreign-function (get-client-rect "GetClientRect")
+  ((hwnd HWND)
+   (lprect PTR))
+  :calling-convention :stdcall
+  :result-type :boolean)
+
+(fli:define-foreign-function (draw-edge "DrawEdge")
+  ((hdc HDC)
+   (qrc PTR)
+   (edge (:unsigned :int))
+   (flags (:unsigned :int)))
+  :calling-convention :stdcall
+  :result-type :boolean)
+
+; The following flags specify border types.
+(defconstant BDR_RAISEDOUTER 1)
+(defconstant BDR_SUNKENOUTER 2)
+(defconstant BDR_RAISEDINNER 4)
+(defconstant BDR_SUNKENINNER 8)
+(defconstant EDGE_BUMP 9) ; Combines BDR_RAISEDOUTER and BDR_SUNKENINNER
+(defconstant EDGE_ETCHED 6) ; Combines BDR_SUNKENOUTER and BDR_RAISEDINNER
+(defconstant EDGE_RAISED 5) ; Combines BDR_RAISEDOUTER and BDR_RAISEDINNER
+(defconstant EDGE_SUNKEN 10) ; Combines BDR_SUNKENOUTER and BDR_SUNKENINNER
+
+; Edge flags.	
+(defconstant BF_LEFT 1)
+(defconstant BF_TOP 2)
+(defconstant BF_RIGHT 4)
+(defconstant BF_BOTTOM 8)
+(defconstant BF_RECT 15) ; Combines BF_LEFT, BF_TOP, BF_RIGHT and BF_BOTTOM)
+
+(defun draw-sunken-border (pane x y width height)
+  (declare (ignore x y width height))
+  (fli:with-dynamic-foreign-objects ((rect RECT))
+    (let* ((representation (gp:port-representation pane))
+	   (hdc (slot-value representation 'capi-win32-lib::hdc))
+	   (ptr (fli:pointer-address rect)))
+      (get-client-rect (capi:simple-pane-handle pane) ptr)
+      (draw-edge hdc ptr BDR_SUNKENOUTER BF_RECT))))
+
+(capi:contain (make-instance 'capi:output-pane
+                             :display-callback 'draw-sunken-border
+			     :background :color_3dface
+			     :visible-border nil)
+	       :internal-border 5)
+
+So all I do is to call DrawEdge from the pane's display-callback. This technique
+works nicely, but is it the only way to mix CAPI and GDI calls?
+And how would I implement it with a scrolling pane?
+
+How exactly does a CAPI pane draw its border, anyway?
+
+Many thanks,
+Christopher
+
+
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:36 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

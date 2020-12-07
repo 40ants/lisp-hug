@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>References for how declares affect the compiler?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>References for how declares affect the compiler?</h1><div dir="ltr"><div>Hi,<br><br></div>Is there a precise references for what combinations of declares/the&#39;s/etc. actually achieve improvements in the LW compiler and what improvements they achieve? The reference manual page on declare mentions that declaring types &quot;removes type checking&quot;, what effects do other declarations have?<br>
+<br>Mark<br><br></div>
+
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: References for how declares affect the compiler?</h1>
+                 <pre>
+http://www.lispworks.com/documentation/lw61/LW/html/lw-105.htm
+
+Especially http://www.lispworks.com/documentation/lw61/LW/html/lw-110.htm
+
+Pascal
+
+Sent from my iPad
+
+&gt On 22 May 2014, at 02:36, Mark Green &lt;mark@antelope.nildram.co.uk&gt wrote:
+&gt 
+&gt Hi,
+&gt 
+&gt Is there a precise references for what combinations of declares/the's/etc. actually achieve improvements in the LW compiler and what improvements they achieve? The reference manual page on declare mentions that declaring types "removes type checking", what effects do other declarations have?
+&gt 
+&gt Mark
+&gt 
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: References for how declares affect the compiler?</h1><html><head><meta http-equiv="Content-Type" content="text/html charset=windows-1252"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;">Dear list,<div><br></div><div>I just spent several month to optimize some modules of my application. I would like to add some comments about this interesting experience. Thanks for any comment or corrections because I have always a lot of things to learn from you.</div><div><br></div><div>Before this experience, I really never understand nothing about this question of optimization because, when I test it, (speed 3) generally doesn’t offer any difference… Now I realize that this feeling was completely wrong. The main module I optimized was a drawing module, so it uses many single-float geometric computation (I work on a 32 bits version of lw 5) and the result of optimization was amazing : with floats, it’s possible (in testing environment) to divide the time of computation by 50, or even more, and to reduce the consumption of memory to nothing. Practically, the drawing process of my application consumes now 40% of the time it consumed before (20% being the - irreducible - drawing itself), and less than 5% of the memory (before optimization, drawing the view completely can consume several MB). The gain is very noticeable, especially during scrolling, &nbsp;resizing, zooming and so on. But another observable result is that the codes are at least 2 times longer and more difficult to read. However, they are also safer and simpler to maintain because types are explicit.</div><div><br></div><div>During the process of optimization, my goal was to reduce the memory consumption of low-level functions used by this module to zero. Generally it was a good way to obtain a drastic reduction of the consumption of time. (float 0) is essential, but it must be combined with (safety 0) to obtain the «&nbsp;optimized environment ». If each variable going in an operator is typed, the compiler uses the typed version of this operator (you can see that when disassemble), the main gain of time is there. The main gain of space is to avoid boxing and unboxing numbers. So it is not a good idea to switch too often between optimized an non optimized environment. To store unboxed floats, the only solution is to use typed arrays (don’t trust type declarations in classes or structures : they never store raw values). Passing arguments between functions (even local functions like flet) can become difficult because optimized floats are boxed at this point. The only solution is to pass typed arrays (even single index arrays, equivalent to a kind of « customized box&nbsp;») between functions, and/or to use inlined functions (and/or macros). So the type of each float variable should be declared if you plane to use it for computation (even in loops). The type of typed arrays should be declared too. Numeric constants must be typed (I mean 1.0 not 1). Global variables must be typed with «&nbsp;the&nbsp;» (no other solution, even if «&nbsp;the&nbsp;» is really not the best way to declare types) - the declaration (defvar *foo* (the single-float 1.0)) is useless.&nbsp;</div><div><br></div><div>for instance :</div><div><div>(defvar *increment* 1.0)</div><div><br></div><div>NON OPTIMIZED</div><div><br></div><div><div>(defun test () (loop for f = 1.0 then (+ f *increment*) while (&lt; f 20) sum f))</div><div><br></div><div>(time (test)) =&gt; 190.0, 0ms,&nbsp;<b>340</b>&nbsp;bytes. (for 1.000.000 operations the time is 2.8 sec)</div></div><div><br></div><div>OPTIMIZED</div><div><br></div><div><div>(defun test ()</div><div>&nbsp; (declare (optimize (speed 3) (safety 0) (float 0)))</div><div>&nbsp; (let ((fbox (load-time-value (make-array 1 :element-type 'single-float)))) ;could be a macro 'with-fbox'</div><div>&nbsp; &nbsp; (declare (type (simple-array single-float 1) fbox))</div><div>&nbsp; &nbsp; (loop for f of-type single-float = 1.0 then (+ f (the single-float *increment*)) while (&lt; f 20.0)</div><div>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; sum f into sum of-type single-float</div><div>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; finally (progn (setf (aref fbox 0)&nbsp;sum)</div><div>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; (return fbox)))))</div></div><div><br></div><div>(time (test)) =&gt; #(190.0), 0ms, <b>0&nbsp;</b>bytes. (for 1.000.000 operation the time is 0.04 sec… 70 times better)</div></div><div><br></div><div><br></div><div>Another source of acceleration (not so impressive than for float however) is with fixnums. The operators having always to check if a fixnum doesn’t overflow the range of 29 bits (becoming a bignum), If you have fixnum computation and know that it won’t overflow, the declaration of types combined with the use of (hcl:fixnum-safety 0) can add a significant acceleration.</div><div><br></div><div>Another source of optimization is the use of typed arrays. For instance, imagine two arrays of length 4, one with a default type T and another with a type single-float.</div><div><br></div><div>- the first needs 8 bytes for the array + &nbsp;16 bytes for the 4 pointers to the boxed floats + 32 bits for the boxed floats themselves =&gt; 56 bytes</div><div>- the second needs 8 bytes for the array + &nbsp;16 bytes for the 4 single-float =&gt; 24 bytes</div><div><br></div><div>Note that, if your read the typed array in a non optimized environment, it will consume 8 bytes each time when, boxed, it consumes nothing. But in optimized environment it’s something like the contrary… So the context, optimized or not, becomes very important to choose the type of storage.</div><div><br></div><div>There is another benefit of typed arrays but it’s hacking and certainly not portable : in optimized environment, you can read an array of single-float as a integer (the IEEE code), you can use an array of (unsigned-byte 32) as an array of (unsigned-byte 8) with 4 indexes instead of one, or even as a bit vector with 32 indexes&nbsp;instead of&nbsp;one... Simply pass the array to a function, and declare it as another (compatible) type. In the function, the new type will be used, when outside it’s the real type that is used.</div><div><br></div><div>Finally I am very happy with the result of this experience... but also troubled : After all this evolution, avoiding consing, using typed array, declaring the type of local variables, and so on… am I not in a kind of pseudo C environment ? except that the codes are less clear, the work at least two times longer, and the compiler a lot less helpful for the programmer that in, let’s say, xcode 5 ? Naturally it’s for a very specific module… but this module needs to speak with my lisp model so it can’t be implemented in pure C. So I believe that tools to build optimized and performant codes in lisp more simply could be very, very useful and a fantastic evolution for the language.</div><div><br></div><div>Best regards</div><div><br></div><div>Denis</div><div>------------------------------------------------<br><div apple-content-edited="true"><div><div>Denis Pousseur</div><div>70 rue de Wansijn</div><div>1180 Bruxelles</div><div>+ 32 2 219 31 09</div><div><a href="http://www.denispousseur.com">http://www.denispousseur.com</a></div><div>------------------------------------------------</div></div>
+
+</div>
+<br><div><div>Le 22 mai 2014 à 02:36, Mark Green &lt;<a href="mailto:mark@antelope.nildram.co.uk">mark@antelope.nildram.co.uk</a>&gt; a écrit :</div><br class="Apple-interchange-newline"><blockquote type="cite"><div dir="ltr"><div>Hi,<br><br></div>Is there a precise references for what combinations of declares/the's/etc. actually achieve improvements in the LW compiler and what improvements they achieve? The reference manual page on declare mentions that declaring types "removes type checking", what effects do other declarations have?<br>
+<br>Mark<br><br></div>
+</blockquote></div><br></div></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: References for how declares affect the compiler?</h1>
+                 <pre>
+LW provides the :explain declaration
+
+http://www.lispworks.com/documentation/lw61/LW/html/lw-638.htm
+
+In short it shows what is the compiler is trying to do.
+
+(defun test ()
+  (declare (optimize (speed 3) (safety 0) (float 0)))
+  (declare (:explain :types))
+  (loop for f of-type single-float = 1.0 then (+ f (the single-float
+*increment*))
+        while (&lt; f 20.0) sum f into total of-type single-float
+        finally (return total)))
+
+(compile 'test) ;; look at the compiler output.
+
+HiH
+
+Ala'a
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: References for how declares affect the compiler?</h1>
+                 <pre>
+On Thu, May 22, 2014 at 3:01 AM, Denis Pousseur
+&lt;denis.pousseur@gmail.com&gt wrote:
+&gt Finally I am very happy with the result of this experience... but also
+&gt troubled : After all this evolution, avoiding consing, using typed array,
+&gt declaring the type of local variables, and so on… am I not in a kind of
+&gt pseudo C environment ? except that the codes are less clear, the work at
+&gt least two times longer, and the compiler a lot less helpful for the
+&gt programmer that in, let’s say, xcode 5 ? Naturally it’s for a very specific
+&gt module… but this module needs to speak with my lisp model so it can’t be
+&gt implemented in pure C. So I believe that tools to build optimized and
+&gt performant codes in lisp more simply could be very, very useful and a
+&gt fantastic evolution for the language.
+
+Indeed, you are coding closer to the way you would in C. Is this
+unexpected, and could it be avoided? I don't think so.
+
+Things could be improved by better semantic analysis in the compiler:
+extended lifetime analysis, type propagation and inference, interval
+analysis, and so on. That would remove some of the burden from the
+Lisp programmer.
+
+However, I wouldn't say that XCode 5 would be a better place to do
+development in, principally because if you're down to the C level,
+you're locked in it. I can't prototype, modify safety settings as
+much, and so on.
+
+An experienced Lisp programmer who is very adept with his or her
+compiler of choice can produce a reasonably equivalent to a C
+programmer in the same, if not shorter time. And more likely than not,
+the Lisp programmer's program will be safer and better debugged. It's
+true that C-like Lisp is longer than just C, but that's because Lisp
+makes all unsafe points/performant points/etc more explicit.
+
+Cheers,
+
+Robert
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: References for how declares affect the compiler?</h1>
+                 <pre>
+Martin Simmons &lt;martin@lispworks.com&gt writes:
+
+&gt Nice post!
+&gt
+&gt One minor addition: you can type global variables with declaim as a top level
+&gt form.
+&gt
+&gt (defvar *increment* 1.0)
+&gt (declaim (type single-float *increment*))
+
+You cannot declaim that!  You've not checked that
+*read-default-float-format* is single-float, so *increment* could be of
+another float type.
+
+You should write either:
+
+    (setf *read-default-float-format* 'single-float)
+    (defvar *increment* 1.0)
+    (declaim (type single-float *increment*))
+
+or:
+
+    (defvar *increment* 1.0)
+    (eval-when (:compile-toplevel :load-toplevel :execute)
+      (proclaim `(type ,*read-default-float-format* *increment*)))
+
+
+or:
+
+    (defvar *increment* 1.0f0)
+    (declaim (type single-float *increment*))
+
+
+-- 
+__Pascal Bourguignon__
+http://www.informatimago.com/
+"Le mercure monte ?  C'est le moment d'acheter !"
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: References for how declares affect the compiler?</h1>
+                 <pre>
+Martin Simmons &lt;martin@lispworks.com&gt writes:
+
+&gt Nice post!
+&gt
+&gt One minor addition: you can type global variables with declaim as a top level
+&gt form.
+&gt
+&gt (defvar *increment* 1.0)
+&gt (declaim (type single-float *increment*))
+
+No, you cannot declaim that!  You've not checked that
+*read-default-float-format* is single-float, so *increment* could be of
+another float type.
+
+You should write either:
+
+    (setf *read-default-float-format* 'single-float)
+    (defvar *increment* 1.0)
+    (declaim (type single-float *increment*))
+
+or:
+
+    (defvar *increment* 1.0)
+    (eval-when (:compile-toplevel :load-toplevel :execute)
+      (proclaim `(type ,*read-default-float-format* *increment*)))
+
+
+or:
+
+    (defvar *increment* 1.0f0)
+    (declaim (type single-float *increment*))
+
+
+
+-- 
+__Pascal Bourguignon__
+http://www.informatimago.com/
+"Le mercure monte ?  C'est le moment d'acheter !"
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: References for how declares affect the compiler?</h1>
+                 <p>
+                  Unable to parse email body. Email id is 13075
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: References for how declares affect the compiler?</h1>
+                 <pre>
+Denis Pousseur &lt;denis.pousseur@gmail.com&gt writes:
+
+&gt Le 29 mai 2014 à 16:22, Pascal J. Bourguignon &lt;pjb@informatimago.com&gt a écrit :
+&gt&gt 
+&gt&gt No, you cannot declaim that!  You've not checked that
+&gt&gt *read-default-float-format* is single-float, so *increment* could be of
+&gt&gt another float type.
+&gt&gt 
+&gt&gt You should write either:
+&gt&gt 
+&gt&gt    (setf *read-default-float-format* 'single-float)
+&gt
+&gt could I do this once for all at startup...
+
+And what good would that do to people loading your code in other
+environments?
+
+Sure, you could and probably should set it up in your rc files, but you
+should also explicitely set it in  your source files, if you depend on
+it.
+
+
+&gt&gt    (defvar *increment* 1.0)
+&gt&gt    (declaim (type single-float *increment*))
+&gt
+&gt ...and after declare the variables as Martin told me ?
+
+But if you depend on a specific float type for a given variable, you
+should probably better explicitely give a specifically typed literal
+such as 1.0f0.
+
+
+-- 
+__Pascal Bourguignon__
+http://www.informatimago.com/
+"Le mercure monte ?  C'est le moment d'acheter !"
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:29 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

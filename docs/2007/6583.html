@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>strange behavior in sys:open-pipe</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>strange behavior in sys:open-pipe</h1>
+                <pre>
+Hi again, list,
+
+In LWL 5.0.1, sys:open-pipe doesn't build the exec'd command-line
+correctly (or, at least, not how I would have expected it) when given
+a simple string.
+
+  (sys:open-pipe "foo bar baz")
+
+should act like
+
+  (sys:open-pipe (vector "/bin/ksh" "/bin/ksh" "-c" "foo bar baz"))
+
+but sometimes it looks like it actually runs
+
+  (sys:open-pipe (vector "/bin/ksh" "foo bar baz" "-c" "foo bar baz"))
+
+The "sometimes" seems to involve using shell redirection.
+
+Test case:
+
+shell script: test-lw-pipe
+&gt #!/bin/ksh
+&gt 
+&gt (
+&gt   echo '$0:' $0
+&gt   echo "args:" "$@"
+&gt   ps auxww | grep -v grep | grep test-lw-pipe
+&gt   echo
+&gt   echo pid is $$
+&gt   ps auxww | grep -v grep | grep $$
+&gt ) &gt ~/lw-shell-args
+
+BUG:
+
+Listener:
+&gt CL-USER 106 &gt (defparameter pipe (sys:open-pipe "test-lw-pipe a b c &gt /dev/null" :direction :io))
+&gt PIPE
+
+file ~/lw-shell-args:
+&gt $0: /home/lmc/bin/test-lw-pipe
+&gt args: a b c
+&gt lmc      10122  0.0  0.1   2648  1240 pts/13   S+   11:07   0:00 test-lw-pipe a b c &gt /dev/null -c test-lw-pipe a b c &gt /dev/null
+                                                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ ???
+&gt lmc      10123  0.0  0.0   1740   536 pts/13   S+   11:07   0:00 /bin/ksh /home/lmc/bin/test-lw-pipe a b c
+&gt lmc      10124  0.0  0.0   1740   336 pts/13   R+   11:07   0:00 /bin/ksh /home/lmc/bin/test-lw-pipe a b c
+&gt 
+&gt pid is 10123
+&gt lmc      10123  0.0  0.0   1740   536 pts/13   S+   11:07   0:00 /bin/ksh /home/lmc/bin/test-lw-pipe a b c
+
+Note specifically pid 10122.
+
+Compare (EXPECTED RESULT):
+
+Listener:
+&gt CL-USER 107 &gt (defparameter pipe (sys:open-pipe "test-lw-pipe a b c" :direction :io))
+&gt PIPE
+
+File ~/lw-shell-args:
+&gt $0: /home/lmc/bin/test-lw-pipe
+&gt args: a b c
+&gt lmc      10238  0.0  0.0   1736   532 pts/13   S+   11:12   0:00 /bin/ksh /home/lmc/bin/test-lw-pipe a b c
+&gt lmc      10239  0.0  0.0   1736   332 pts/13   R+   11:12   0:00 /bin/ksh /home/lmc/bin/test-lw-pipe a b c
+&gt 
+&gt pid is 10238
+&gt lmc      10238  0.0  0.0   1736   532 pts/13   S+   11:12   0:00 /bin/ksh /home/lmc/bin/test-lw-pipe a b c
+
+And finally (REPRODUCED BEHAVIOR):
+
+Listener:
+&gt CL-USER 110 &gt (defparameter pipe (sys:open-pipe (vector "/bin/ksh" "test-lw-pipe a b c &gt /dev/null" "-c" "test-lw-pipe a b c &gt /dev/null") :direction :io))
+                                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+&gt PIPE
+
+File ~/lw-shell-args:
+&gt $0: /home/lmc/bin/test-lw-pipe
+&gt args: a b c
+&gt lmc      10311  0.0  0.0   1740   540 pts/13   S+   11:16   0:00 test-lw-pipe a b c &gt /dev/null -c test-lw-pipe a b c &gt /dev/null
+                                                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+&gt lmc      10312  0.0  0.0   1740   536 pts/13   S+   11:16   0:00 /bin/ksh /home/lmc/bin/test-lw-pipe a b c
+&gt lmc      10313  0.0  0.0   1740   336 pts/13   R+   11:16   0:00 /bin/ksh /home/lmc/bin/test-lw-pipe a b c
+&gt 
+&gt pid is 10312
+&gt lmc      10312  0.0  0.0   1740   536 pts/13   S+   11:16   0:00 /bin/ksh /home/lmc/bin/test-lw-pipe a b c
+
+I guess my workaround is to use the list form and not the string form.
+
+I started this "bug report" because I thought the executable I was
+actually calling was being called incorrectly, but doing further
+research during the write-up made me realize that it only looks wrong
+in ps.
+
+Anyway, caveat user.
+
+-- Larry Clapp
+
+
+</pre>
+               </article>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:42 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

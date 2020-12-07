@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Using macro to define macros and functions in the current package?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Using macro to define macros and functions in the current package?</h1>
+                <pre>
+I have been experimenting with macros, packages and symbols, and it
+seems there may be something I do not quite understand.
+
+Let's say I have a packages :util and :zip. :util is utilities
+package, which has a macro-defining macro foo, which I call from
+package :zip. I would expect that the calls interns the symbols to
+package :zip but it seems it interns them into :util.
+
+In the example below I would expect to see symbols ZIP::BAR and ZIP::Y
+in the macroexpansion, not UTIL::BAR and UTIL::Y. Can somebody explain
+why this is so? Is there a way to prevent this?
+
+CL-USER 61 : 1 &gt (defpackage :util (:use :common-lisp))
+#&lt;The UTIL package, 0/16 internal, 0/16 external&gt
+
+NAPLES 62 : 1 &gt (in-package :util)
+#&lt;The UTIL package, 0/16 internal, 0/16 external&gt
+
+UTIL 63 : 1 &gt (defmacro foo ()
+  `(defun bar (y)
+      (format t "y=~A~%" y)))
+FOO
+
+UTIL 64 : 1 &gt (defpackage :zip (:use :common-lisp))
+#&lt;The ZIP package, 0/16 internal, 0/16 external&gt
+
+UTIL 65 : 1 &gt (in-package :zip)
+#&lt;The ZIP package, 0/16 internal, 0/16 external&gt
+
+ZIP 66 : 1 &gt (pprint (macroexpand-1 '(util::foo)))
+
+(DEFUN UTIL::BAR (UTIL::Y) (FORMAT T "y=~A~%" UTIL::Y))
+
+Best regards,
+
+Mikko
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Using macro to define macros and functions in the current package?</h1>
+                 <pre>
+On Thu, Apr 16, 2009 at 03:26:20PM +0300, Mikko Ahonen wrote:
+&gt I have been experimenting with macros, packages and symbols, and it
+&gt seems there may be something I do not quite understand.
+&gt 
+&gt Let's say I have a packages :util and :zip. :util is utilities
+&gt package, which has a macro-defining macro foo, which I call from
+&gt package :zip. I would expect that the calls interns the symbols to
+&gt package :zip but it seems it interns them into :util.
+
+Calling UTIL::FOO in your example doesn't actually intern any new
+symbols.  The symbols are interned when they're read, which happens
+only once, when you define the macro FOO, in package UTIL.  When you
+invoke FOO, it macro-expands into (in this case) a constant list with
+already-interned symbols in it.
+
+&gt In the example below I would expect to see symbols ZIP::BAR and
+&gt ZIP::Y in the macroexpansion, not UTIL::BAR and UTIL::Y. Can
+&gt somebody explain why this is so? Is there a way to prevent this?
+&gt 
+&gt CL-USER 61 : 1 &gt (defpackage :util (:use :common-lisp))
+&gt #&lt;The UTIL package, 0/16 internal, 0/16 external&gt
+&gt 
+&gt NAPLES 62 : 1 &gt (in-package :util)
+&gt #&lt;The UTIL package, 0/16 internal, 0/16 external&gt
+&gt 
+&gt UTIL 63 : 1 &gt (defmacro foo ()
+&gt   `(defun bar (y)
+&gt       (format t "y=~A~%" y)))
+&gt FOO
+
+This is similar to
+
+  (in-package :util)
+
+  (defmacro foo ()
+    (make-foo-definition))
+
+  (defun make-foo-definition ()
+    '(defun bar (y)
+	(format t "y=~A~%" y)))
+
+You wouldn't expect calling MAKE-FOO-DEFINITION to return symbols in
+any package but UTIL, would you?  So macro-expanding FOO necessarily
+returns a list with symbols in UTIL.
+
+Hope that helps.
+
+-- Larry
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Using macro to define macros and functions in the current package?</h1>
+                 <pre>
+Both excellent answers, thank you. It seems so obvious now...
+
+So to answer my own question, the basic idea how to define functions
+in package of macro call is:
+
+(defmacro foo ()
+  `(defun ,(intern "BAR") ()))
+
+Mikko
+
+On Thu, Apr 16, 2009 at 4:38 PM, Chris Riesbeck
+&lt;c-riesbeck@northwestern.edu&gt wrote:
+&gt
+&gt Larry Clapp wrote:
+&gt&gt
+&gt&gt On Thu, Apr 16, 2009 at 03:26:20PM +0300, Mikko Ahonen wrote:
+&gt&gt &gt
+&gt&gt&gt
+&gt&gt&gt In the example below I would expect to see symbols ZIP::BAR and
+&gt&gt&gt ZIP::Y in the macroexpansion, not UTIL::BAR and UTIL::Y. Can
+&gt&gt&gt somebody explain why this is so? Is there a way to prevent this?
+&gt&gt&gt
+&gt&gt&gt UTIL 63 : 1 &gt (defmacro foo ()
+&gt&gt&gt &nbsp;`(defun bar (y)
+&gt&gt&gt &nbsp; &nbsp; &nbsp;(format t "y=~A~%" y)))
+&gt&gt&gt FOO
+&gt&gt
+&gt&gt This is similar to
+&gt&gt
+&gt&gt &nbsp;(in-package :util)
+&gt&gt
+&gt&gt &nbsp;(defmacro foo ()
+&gt&gt &nbsp; &nbsp;(make-foo-definition))
+&gt&gt
+&gt&gt &nbsp;(defun make-foo-definition ()
+&gt&gt &nbsp; &nbsp;'(defun bar (y)
+&gt&gt &nbsp; &nbsp; &nbsp; &nbsp;(format t "y=~A~%" y)))
+&gt&gt
+&gt&gt You wouldn't expect calling MAKE-FOO-DEFINITION to return symbols in
+&gt&gt any package but UTIL, would you? &nbsp;So macro-expanding FOO necessarily
+&gt&gt returns a list with symbols in UTIL.
+&gt
+&gt As for "Is there a way to prevent this?" consider
+&gt
+&gt &nbsp;(DEFSTRUCT FOO A B)
+&gt
+&gt It constructs and INTERNs names like FOO-A, FOO-B and MAKE-FOO when the
+&gt DEFSTRUCT call is expanded, so they go into the package in effect at the
+&gt macro call.
+&gt
+&gt --
+&gt Chris Riesbeck
+&gt
+&gt Home page: http://www.cs.northwestern.edu/~riesbeck/
+&gt Calendar: http://calendar.yahoo.com/criesbeck
+&gt
+&gt
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:37 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

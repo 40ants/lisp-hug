@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>AppKit and CAPI (LWM)</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>AppKit and CAPI (LWM)</h1>
+                <pre>
+Hello,
+
+I have to draw complex shapes (especially bezier curves), something
+impossible with the tools of the GP package. So, I thought of using the
+AppKit API of Cocoa. I try to call drawing functions of AppKit inside the
+display-callback procedure of an output-pane, but this doesn¹t work. No
+error or crash, but no visible drawing in the pane either.
+
+Has anybody experimented the use of AppKit drawing functions inside of the
+CAPI ?
+
+Thanks
+
+Denis
+
+
+
+
+-------------------------------------------------------
+Denis Pousseur
+70 rue de Wansijn
+1180 Bruxelles, Belgique
+
+Tel : 32 (0)2 219 31 09
+Mail :  denis.pousseur@gmail.com
+-------------------------------------------------------
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: AppKit and CAPI (LWM)</h1>
+                 <pre>
+
+On Feb 4, 2010, at 4:37 AM, Denis Pousseur wrote:
+
+&gt Has anybody experimented the use of AppKit drawing functions inside of the
+&gt CAPI ?
+
+
+Yes. You need to:
+1. use a capi:cocoa-view-pane as one of (or the sole) pane of your capi interface.
+2. define your own subclass of NSView using objc:define-objc-class
+3. define your NSView subclass's drawRect: method using objc:define-objc-method.
+
+If you like, I can post a cut down example that draws a simple bezier path to a capi interface. Just give me a bit - I have some other things on my plate just now.
+
+warmest regards,
+
+Ralph
+
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: AppKit and CAPI (LWM)</h1>
+                  <pre>
+Thank's Ralph. 
+
+Don't loose your time for me : I will find how to do that exactly if
+necessary (but I'm not sure because changing my main output-pane for a
+Nsview will result in a lot of changes in my codes...)
+
+Best regards
+
+Denis
+
+
+
+Le 4/02/10 14:51, «&nbsp;[NOM]&nbsp;» &lt;[ADRESSE]&gt a écrit&nbsp;:
+
+&gt 
+&gt On Feb 4, 2010, at 4:37 AM, Denis Pousseur wrote:
+&gt 
+&gt&gt Has anybody experimented the use of AppKit drawing functions inside of the
+&gt&gt CAPI ?
+&gt 
+&gt 
+&gt Yes. You need to:
+&gt 1. use a capi:cocoa-view-pane as one of (or the sole) pane of your capi
+&gt interface.
+&gt 2. define your own subclass of NSView using objc:define-objc-class
+&gt 3. define your NSView subclass's drawRect: method using
+&gt objc:define-objc-method.
+&gt 
+&gt If you like, I can post a cut down example that draws a simple bezier path to
+&gt a capi interface. Just give me a bit - I have some other things on my plate
+&gt just now.
+&gt 
+&gt warmest regards,
+&gt 
+&gt Ralph
+&gt 
+&gt 
+&gt Raffael Cavallaro
+&gt raffaelcavallaro@me.com
+&gt 
+&gt 
+&gt 
+&gt 
+&gt 
+
+-------------------------------------------------------
+Denis Pousseur
+70 rue de Wansijn
+1180 Bruxelles, Belgique
+
+Tel : 32 (0)2 219 31 09
+Mail :  denis.pousseur@gmail.com
+-------------------------------------------------------
+
+
+
+</pre>
+                 </article>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>Re: AppKit and CAPI (LWM)</h1>
+                   <pre>
+
+On Feb 4, 2010, at 10:07 AM, Denis Pousseur wrote:
+
+&gt Don't loose your time for me : I will find how to do that exactly if
+&gt necessary (but I'm not sure because changing my main output-pane for a
+&gt Nsview will result in a lot of changes in my codes...)
+
+No problem - it was just a matter of cutting down existing code to a simple example. Here it is:
+
+warmest regards,
+
+Ralph
+
+;; --------- simple-bp-capi.lisp ------------
+
+#|
+Copyright (c) 2010 Raffael Cavallaro
+
+All rights reserved.
+
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+"Software"), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+(N.B. this is the MIT license)
+
+|#
+
+;; Raffael Cavallaro can be reached at raffaelcavallaro@me.com
+;;
+;; Simple example of using capi:cocoa-view-pane and NSBezierPath
+;; lightly tested under LWM 6.0 64-bit Intel and LW Personal 5.1.1
+;; 32-bit Intel.
+;;
+;; Compile and load this file and call:
+;; (simple-bp-capi-test)
+;;
+;; Note that resizing the window will cause the AppKit to call
+;; drawRect:, so you'll see a new path with new background and
+;; foreground colors for every resize. If you resize continuously
+;; you'll see how quickly the LW objc interface can do redraws -
+;; the AppKit throttles this to about 60 fps. Having such a view
+;; do animation of bezier paths is simple; add an mp:timer to
+;; the interface and have it call setNeedsDisplayInRect:, making
+;; sure to first check that the view still exists using
+;; objc:objc-object-from-pointer and objc:null-objc-pointer-p.
+;; Using this method, you can get ~30 paths, full screen, with
+;; alpha blending and anti-aliasing, @ between 15 and 30 fps on
+;; reasonably recent hardware.
+
+(use-package :cocoa :objc)
+
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defmacro @ (&amp;body body) `(objc:invoke ,@body))
+  (defmacro @into (&amp;body body) `(objc:invoke-into ,@body))
+  (defmacro @pool (&amp;body body) `(objc:with-autorelease-pool () ,@body))
+
+  (objc:define-objc-class
+   simple-bp-view ()
+   ()
+   (:objc-class-name "SimpleBPView")
+   (:objc-superclass-name "NSView")))
+
+(let* ((*read-default-float-format*
+        #+LISPWORKS-32BIT 'single-float
+        #+LISPWORKS-64BIT 'double-float))
+  ;; NSColor and NSBezierPath want CGFloats which are
+  ;; floats on 32-bit Macs, and doubles on 64-bit Macs.
+        
+
+
+  (defun random-ns-warm-color ()
+    (@ "NSColor" "colorWithCalibratedHue:saturation:brightness:alpha:"
+      (random .13) ;; red-yellow-orange hue
+      (+ .6 (random .4)) ;; fairly saturated
+      (+ .8 (random .2)) ;; very bright
+      (+ .8 (random .2)))) ;; at least 80% alpha so it shows in foreground
+
+  (defun random-ns-cool-color ()
+    (@ "NSColor" "colorWithCalibratedHue:saturation:brightness:alpha:"
+      (+ .35 (random .15))  ;; blue-green to blue
+      (+ .5 (random .5)) ;;  somewhat desaturated
+      (+ .8 (random .2)) ;; very bright
+      (+ .8 (random .2)))) ;; at least 80% alpha
+
+
+  (objc:define-objc-method
+      ("drawRect:" :void)
+      ((self simple-bp-view)
+       (rect-to-draw cocoa:ns-rect))
+    (declare (ignorable rect-to-draw))
+    (block bail-out
+      (if (or (null self) ;; don't try to draw if view is gone
+              (objc:null-objc-pointer-p (objc:objc-object-pointer self)))
+        (return-from bail-out nil)
+        (@pool
+          (let* ((rect (make-array 4))
+                 (ns-self (when self (objc:objc-object-pointer self)))
+                 (bounds-vector (when ns-self (@into rect ns-self "bounds")))
+                 (background-path ;; just the view's entire bounds rect
+                   (@ "NSBezierPath" "bezierPathWithRect:" bounds-vector))
+                 (width (svref rect 2))
+                 (height (svref rect 3))
+                 (foreground-path (@ "NSBezierPath" "bezierPath")))
+            (declare (ignorable bounds-vector))
+            (labels ((rand-xoffset () ;; well within view bounds
+                       (+ 20 (random (- width 30))))
+                     (rand-yoffset () ;; ditto
+                       (+ 20 (random (- height 30))))
+                     (random-point ()
+                       (vector (rand-xoffset) (rand-yoffset))))
+                    
+              (@ (random-ns-cool-color) "setFill") ;; set random cool color
+              (@ background-path "fill") ;; fill background with it
+              ;; make foreground-path a random NSBezierPath within bounds
+              (@ foreground-path "moveToPoint:" (random-point))
+              (@ foreground-path "curveToPoint:controlPoint1:controlPoint2:"
+                (random-point) (random-point) (random-point))
+              (@ (random-ns-warm-color) "setFill") ;; set random warm color
+              (@ foreground-path "fill"))))))) ;; fill foreground path with it
+
+  (capi:define-interface simple-bp-capi-window ()
+    ()
+    (:panes
+     (simple-bp-view-pane capi:cocoa-view-pane
+                          :view-class "SimpleBPView"
+                          :init-function
+                          #'(lambda (pane view)
+                              (declare (ignorable pane))
+                              (setf view (objc:objc-object-pointer
+                                          (make-instance
+                                           'simple-bp-view)))
+                              view)
+                          :accessor bp-view-pane
+                          
+                          :internal-min-width 550
+                          :internal-min-height 350))
+    (:default-initargs
+   :title "Simple Bezier CAPI Window"
+   :window-styles '(:internal-borderless))))
+
+(defun simple-bp-capi-test ()
+  (capi::display (make-instance 'simple-bp-capi-window)))
+           
+           
+
+;; Raffael Cavallaro
+;; raffaelcavallaro@me.com
+
+
+
+</pre>
+                  </article>
+                  <section class=tree>
+                   <article class=email>
+                    <h1>Re: AppKit and CAPI (LWM)</h1>
+                    <pre>
+Ouah, very cool ! Thanks a lot Ralph !
+
+Best regards
+
+Denis
+
+
+Le 4/02/10 16:42, «&nbsp;[NOM]&nbsp;» &lt;[ADRESSE]&gt a écrit&nbsp;:
+
+&gt 
+&gt On Feb 4, 2010, at 10:07 AM, Denis Pousseur wrote:
+&gt 
+&gt&gt Don't loose your time for me : I will find how to do that exactly if
+&gt&gt necessary (but I'm not sure because changing my main output-pane for a
+&gt&gt Nsview will result in a lot of changes in my codes...)
+&gt 
+&gt No problem - it was just a matter of cutting down existing code to a simple
+&gt example. Here it is:
+&gt 
+&gt warmest regards,
+&gt 
+&gt Ralph
+&gt 
+&gt ;; --------- simple-bp-capi.lisp ------------
+&gt 
+&gt #|
+&gt Copyright (c) 2010 Raffael Cavallaro
+&gt 
+&gt All rights reserved.
+&gt 
+&gt Permission is hereby granted, free of charge, to any person obtaining
+&gt a copy of this software and associated documentation files (the
+&gt "Software"), to deal in the Software without restriction, including
+&gt without limitation the rights to use, copy, modify, merge, publish,
+&gt distribute, sublicense, and/or sell copies of the Software, and to
+&gt permit persons to whom the Software is furnished to do so, subject to
+&gt the following conditions:
+&gt 
+&gt The above copyright notice and this permission notice shall be
+&gt included in all copies or substantial portions of the Software.
+&gt 
+&gt THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+&gt EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+&gt MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+&gt IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+&gt CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+&gt TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+&gt SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+&gt 
+&gt (N.B. this is the MIT license)
+&gt 
+&gt |#
+&gt 
+&gt ;; Raffael Cavallaro can be reached at raffaelcavallaro@me.com
+&gt ;;
+&gt ;; Simple example of using capi:cocoa-view-pane and NSBezierPath
+&gt ;; lightly tested under LWM 6.0 64-bit Intel and LW Personal 5.1.1
+&gt ;; 32-bit Intel.
+&gt ;;
+&gt ;; Compile and load this file and call:
+&gt ;; (simple-bp-capi-test)
+&gt ;;
+&gt ;; Note that resizing the window will cause the AppKit to call
+&gt ;; drawRect:, so you'll see a new path with new background and
+&gt ;; foreground colors for every resize. If you resize continuously
+&gt ;; you'll see how quickly the LW objc interface can do redraws -
+&gt ;; the AppKit throttles this to about 60 fps. Having such a view
+&gt ;; do animation of bezier paths is simple; add an mp:timer to
+&gt ;; the interface and have it call setNeedsDisplayInRect:, making
+&gt ;; sure to first check that the view still exists using
+&gt ;; objc:objc-object-from-pointer and objc:null-objc-pointer-p.
+&gt ;; Using this method, you can get ~30 paths, full screen, with
+&gt ;; alpha blending and anti-aliasing, @ between 15 and 30 fps on
+&gt ;; reasonably recent hardware.
+&gt 
+&gt (use-package :cocoa :objc)
+&gt 
+&gt (eval-when (:compile-toplevel :load-toplevel :execute)
+&gt   (defmacro @ (&amp;body body) `(objc:invoke ,@body))
+&gt   (defmacro @into (&amp;body body) `(objc:invoke-into ,@body))
+&gt   (defmacro @pool (&amp;body body) `(objc:with-autorelease-pool () ,@body))
+&gt 
+&gt   (objc:define-objc-class
+&gt    simple-bp-view ()
+&gt    ()
+&gt    (:objc-class-name "SimpleBPView")
+&gt    (:objc-superclass-name "NSView")))
+&gt 
+&gt (let* ((*read-default-float-format*
+&gt         #+LISPWORKS-32BIT 'single-float
+&gt         #+LISPWORKS-64BIT 'double-float))
+&gt   ;; NSColor and NSBezierPath want CGFloats which are
+&gt   ;; floats on 32-bit Macs, and doubles on 64-bit Macs.
+&gt         
+&gt 
+&gt 
+&gt   (defun random-ns-warm-color ()
+&gt     (@ "NSColor" "colorWithCalibratedHue:saturation:brightness:alpha:"
+&gt       (random .13) ;; red-yellow-orange hue
+&gt       (+ .6 (random .4)) ;; fairly saturated
+&gt       (+ .8 (random .2)) ;; very bright
+&gt       (+ .8 (random .2)))) ;; at least 80% alpha so it shows in foreground
+&gt 
+&gt   (defun random-ns-cool-color ()
+&gt     (@ "NSColor" "colorWithCalibratedHue:saturation:brightness:alpha:"
+&gt       (+ .35 (random .15))  ;; blue-green to blue
+&gt       (+ .5 (random .5)) ;;  somewhat desaturated
+&gt       (+ .8 (random .2)) ;; very bright
+&gt       (+ .8 (random .2)))) ;; at least 80% alpha
+&gt 
+&gt 
+&gt   (objc:define-objc-method
+&gt       ("drawRect:" :void)
+&gt       ((self simple-bp-view)
+&gt        (rect-to-draw cocoa:ns-rect))
+&gt     (declare (ignorable rect-to-draw))
+&gt     (block bail-out
+&gt       (if (or (null self) ;; don't try to draw if view is gone
+&gt               (objc:null-objc-pointer-p (objc:objc-object-pointer self)))
+&gt         (return-from bail-out nil)
+&gt         (@pool
+&gt           (let* ((rect (make-array 4))
+&gt                  (ns-self (when self (objc:objc-object-pointer self)))
+&gt                  (bounds-vector (when ns-self (@into rect ns-self "bounds")))
+&gt                  (background-path ;; just the view's entire bounds rect
+&gt                    (@ "NSBezierPath" "bezierPathWithRect:" bounds-vector))
+&gt                  (width (svref rect 2))
+&gt                  (height (svref rect 3))
+&gt                  (foreground-path (@ "NSBezierPath" "bezierPath")))
+&gt             (declare (ignorable bounds-vector))
+&gt             (labels ((rand-xoffset () ;; well within view bounds
+&gt                        (+ 20 (random (- width 30))))
+&gt                      (rand-yoffset () ;; ditto
+&gt                        (+ 20 (random (- height 30))))
+&gt                      (random-point ()
+&gt                        (vector (rand-xoffset) (rand-yoffset))))
+&gt                  
+&gt               (@ (random-ns-cool-color) "setFill") ;; set random cool color
+&gt               (@ background-path "fill") ;; fill background with it
+&gt               ;; make foreground-path a random NSBezierPath within bounds
+&gt               (@ foreground-path "moveToPoint:" (random-point))
+&gt               (@ foreground-path "curveToPoint:controlPoint1:controlPoint2:"
+&gt                 (random-point) (random-point) (random-point))
+&gt               (@ (random-ns-warm-color) "setFill") ;; set random warm color
+&gt               (@ foreground-path "fill"))))))) ;; fill foreground path with it
+&gt 
+&gt   (capi:define-interface simple-bp-capi-window ()
+&gt     ()
+&gt     (:panes
+&gt      (simple-bp-view-pane capi:cocoa-view-pane
+&gt                           :view-class "SimpleBPView"
+&gt                           :init-function
+&gt                           #'(lambda (pane view)
+&gt                               (declare (ignorable pane))
+&gt                               (setf view (objc:objc-object-pointer
+&gt                                           (make-instance
+&gt                                            'simple-bp-view)))
+&gt                               view)
+&gt                           :accessor bp-view-pane
+&gt                  
+&gt                           :internal-min-width 550
+&gt                           :internal-min-height 350))
+&gt     (:default-initargs
+&gt    :title "Simple Bezier CAPI Window"
+&gt    :window-styles '(:internal-borderless))))
+&gt 
+&gt (defun simple-bp-capi-test ()
+&gt   (capi::display (make-instance 'simple-bp-capi-window)))
+&gt            
+&gt            
+&gt 
+&gt ;; Raffael Cavallaro
+&gt ;; raffaelcavallaro@me.com
+&gt 
+&gt 
+
+-------------------------------------------------------
+Denis Pousseur
+70 rue de Wansijn
+1180 Bruxelles, Belgique
+
+Tel : 32 (0)2 219 31 09
+Mail :  denis.pousseur@gmail.com
+-------------------------------------------------------
+
+
+
+</pre>
+                   </article>
+                  </section>
+                 </section>
+                </section>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:36 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>array to string</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>array to string</h1>
+                <pre>
+What is the most efficient way to convert an array of bytes to string?
+
+The only thing I can think of is creating a foreign string from the array and using fli:convert-from-foreign string.
+
+It's the end of a long work day and I want to double-check.
+
+	Thanks, Joel
+
+--------------------------------------------------------------------------
+- for hire: mac osx device driver ninja, kernel extensions and usb drivers
+---------------------+------------+---------------------------------------
+http://wagerlabs.com | @wagerlabs | http://www.linkedin.com/in/joelreymont
+---------------------+------------+---------------------------------------
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: array to string</h1>
+                 <pre>
+
+On Sep 29, 2011, at 9:42 PM, Joel Reymont wrote:
+
+&gt What is the most efficient way to convert an array of bytes to string?
+
+
+This works but is there a better way?
+
+PACKET&gt (subseq *buffer* 1 10)
+#(111 112 101 110 112 111 107 101 114)
+
+PACKET&gt (setq x *)
+#(111 112 101 110 112 111 107 101 114)
+
+PACKET&gt (fli:replace-foreign-array y x)
+"openpoker"
+
+PACKET&gt (type-of *buffer*)
+(SIMPLE-ARRAY (UNSIGNED-BYTE 8) (4096))
+
+--------------------------------------------------------------------------
+- for hire: mac osx device driver ninja, kernel extensions and usb drivers
+---------------------+------------+---------------------------------------
+http://wagerlabs.com | @wagerlabs | http://www.linkedin.com/in/joelreymont
+---------------------+------------+---------------------------------------
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: array to string</h1>
+                 <pre>
+On Fri, Sep 30, 2011 at 4:03 AM, Joel Reymont &lt;joelr1@gmail.com&gt wrote:
+&gt
+&gt
+&gt On Sep 29, 2011, at 10:02 PM, Joshua TAYLOR wrote:
+&gt
+&gt&gt CL-USER &gt (map 'string 'code-char #(111 112 101 110 112 111 107 101 114))
+&gt&gt "openpoker"
+&gt
+&gt
+&gt Obvious but slow?
+
+You may want to look at flexi-streams:octets-to-string and
+external-format:decode-external-string - these do the required
+conversion from bytes to strings, but also allow you to specify a
+character encoding.
+
+Alternatively, if your byte array represents a UTF-8 string, the code
+below, with suitable modifications, should be faster than either
+flexi-streams:octets-to-string or
+external-format:decode-external-string.
+
+(defun reinterpret-string-as-utf8 (string)
+  "Useful when a string has been generated from an external source,
+where the source data has been interpreted as an 8-bit (direct)
+encoding - e.g, :latin-1, but should have been interpreted as :utf-8."
+  (declare (optimize (speed 3) (compilation-speed 0)
+                     (debug 1) (safety 1)))
+  (let ((output-chars-remaining 0)
+        (output-accumulator 0))
+    (with-output-to-string (s nil :element-type 'character)
+      (flet ((output-byte (byte)
+               (if (zerop output-chars-remaining)
+                 (if (= (logand byte #x80) 0)
+                   (write-char (code-char byte) s)
+                   (cond ((= (logand byte #xe0) #xc0)
+                          (setf output-accumulator (logand byte #x1f))
+                          (setf output-chars-remaining 1))
+                         ((= (logand byte #xf0) #xe0)
+                          (setf output-accumulator (logand byte #x0f))
+                          (setf output-chars-remaining 2))
+                         ((= (logand byte #xf8) #xf0)
+                          (setf output-accumulator (logand byte #x07))
+                          (setf output-chars-remaining 3))
+                         ((= (logand byte #xfc) #xf8)
+                          (setf output-accumulator (logand byte #x03))
+                          (setf output-chars-remaining 4))
+                         ((= (logand byte #xe0) #xfe)
+                          (setf output-accumulator (logand byte #x01))
+                          (setf output-chars-remaining 5))
+                         (t (error "Invalid UTF-8 byte ~A" byte))))
+                 (progn
+                   (assert (= (logand byte #xc0) #x80))
+                   (setf output-accumulator (logior (ash output-accumulator 6)
+                                                    (logand byte #x3f)))
+                   (decf output-chars-remaining)
+                   (when (zerop output-chars-remaining)
+                     (write-char (code-char output-accumulator) s))))))
+        (loop for c across string
+              do (output-byte (char-code c))
+              finally (assert (= output-chars-remaining 0)))))))
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: array to string</h1>
+                 <pre>
+Hi Joel,
+
+
+On 30 sept. 2011, at 03:42, Joel Reymont &lt;joelr1@gmail.com&gt wrote:
+
+&gt What is the most efficient way to convert an array of bytes to string?
+
+You should be able to do that with flexi-streams.
+
+Ihttp://weitz.de/flexi-streams/
+
+
+Best Regards,
+Camille
+
+&gt 
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:33 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

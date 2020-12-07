@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Puzzled by capi:remove-items</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Puzzled by capi:remove-items</h1>
+                <pre>
+Hi again,
+
+Having troubling getting REMOVE-ITEMS to work as I'd expect.  Was hoping that ':items-callback :redisplay-interface' would address the trouble, but CAPI is rejecting it.
+
+In the example below, a series of Tabs is appended to a TAB-LAYOUT and then removed again.  There is however a 'residue' of the last Tab still visible (and selectable). As usual, I am overlooking something.    8^/
+
+
+(in-package CL-USER)
+
+
+(capi:define-interface tab ()
+  ((items :initarg :items))
+  (:panes
+   (things capi:list-panel :items items))
+  (:layouts
+   (column capi:column-layout '(things)))
+  (:default-initargs
+   :layout 'column
+   :visible-min-height 50
+   :auto-menus nil))
+
+
+(defvar *tabs* 
+  `(,(make-instance 'tab 
+                    :title "A"
+                    :items (list :a :a :a :a))
+      ,(make-instance 'tab
+                    :title "B"
+                    :items (list :b :b :b :b))
+      ,(make-instance 'tab
+                    :title "C"
+                    :items (list :c :c :c :c))))
+
+
+(defclass tabs (capi:tab-layout)
+  ()
+  (:default-initargs
+   :print-function 'capi:titled-object-title
+   :visible-child-function 'identity
+   :items-get-function 'svref
+   :items nil
+;   :items-callback :redisplay-interface ;; I'm surprised this is rejected by CAPI
+   :title "Tabs"
+   :title-position :frame))
+
+
+(defun append-tab (tabs tab)
+  (capi:apply-in-pane-process tabs
+     #'(lambda (tabs)
+            (capi:append-items tabs (list tab))
+            ;; Appended Tab contents won't display till selected-item is set!?
+            (setf (capi:choice-selected-item tabs) tab))
+     tabs))
+
+
+(defun remove-tab (tabs tab)
+  (capi:apply-in-pane-process tabs
+     #'(lambda (tabs)
+            (capi:remove-items tabs (list tab))) 
+     tabs))
+
+
+#|
+(progn
+  (setq tabs (make-instance 'tabs))
+  (capi:contain tabs)
+  ;; Append 'em
+  (append-tab tabs (first *tabs*))
+  (append-tab tabs (second *tabs*))
+  (append-tab tabs (third *tabs*))
+  ;; Remove 'em
+  (remove-tab tabs (first *tabs*))
+  (remove-tab tabs (second *tabs*))
+  (remove-tab tabs (third *tabs*))
+)
+|#
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Puzzled by capi:remove-items</h1>
+                 <pre>
+Brian Connoy wrote on Fri, 28 May 2010 10:46:58 -0400 18:46:
+
+| Having troubling getting REMOVE-ITEMS to work as I'd expect.  Was
+| hoping that ':items-callback :redisplay-interface' would address the
+| trouble, but CAPI is rejecting it.
+|
+| In the example below, a series of Tabs is appended to a TAB-LAYOUT and
+| then removed again.  There is however a 'residue' of the last Tab still
+| visible (and selectable). As usual, I am overlooking something.    8^/
+
+I see the same but do not consider this disastrous :-)
+
+IMHO, turning blank area into a tab or leaving the tab-layout without any
+tabs is anti-stylish.
+
+Many wide-spread GUI programs show at least one tab on starting up, e.g.
+with an empty new document. You can add and close tabs but one tab always
+stays there.
+--
+Sincerely,
+Dmitriy Ivanov
+lisp.ystok.ru
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Puzzled by capi:remove-items</h1>
+                 <p>
+                  Unable to parse email body. Email id is 10338
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:35 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

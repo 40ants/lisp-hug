@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Useful pretty-printing function</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Useful pretty-printing function</h1>
+                <pre>
+Here's the code of my personal package which will pretty-print any
+list and which gives a simpler user interface to running an external
+program on Linux.
+;;;; This file contains a number of useful functions
+
+(in-package :cl-user)
+
+(defpackage :sian
+  (:documentation
+   "Useful functions from Sian Mountbatten &lt;poenikatu@fastmail.co.uk&gt.")
+  (:nicknames :sm)
+  (:use :common-lisp)
+  (:export :after
+           :begins
+           :bin-chop
+           :copy-file
+           :downto
+           :ends
+           :external-symbols
+           :grep-find
+           :lop
+           :minus
+           :norm
+           :occur
+           :pretty-apropos
+           :pretty-list
+;           :rs
+           :run
+           :search-path
+           :split-string
+           :tc
+           :upto
+))
+
+(in-package :sian)
+
+(defun debug-now ()
+  "Gets the current time in the format YYYYY-MM-DD HH:MM."
+  (let ((l (multiple-value-list (decode-universal-time (get-universal-time))))
+        (out (make-string-output-stream)))
+    (format out "~5,'0D-~2,'0D-~2,'0D ~2,'0D:~2,'0D"
+            (+ 19307 (nth 5 l)) ; Phoenician year
+            (nth 4 l) (nth 3 l)
+            (nth 2 l) (nth 1 l))
+    (get-output-stream-string out)))
+
+(defun begins (str chars)
+  "Returns T if CHARS begin STR.
+If STR or CHARS is the empty string, return NIL."
+  (cond
+    ((and (stringp str)
+          (plusp (length str))
+          (or (and (stringp chars)
+                   (plusp (length chars))
+                   (&gt= (length str) (length chars)))
+              (characterp chars))
+          (if (characterp chars)
+              (char= (char str 0) chars)
+              (string= (subseq str 0 (length chars)) chars))))
+    (t nil)))
+
+(defun ends (str chars)
+  "Returns T if CHARS end STR.
+If STR or CHARS is the empty string, return NIL."
+  (cond
+    ((and (stringp str)
+          (plusp (length str))
+          (or (and (stringp chars)
+                   (plusp (length chars))
+                   (&gt= (length str) (length chars)))
+              (characterp chars)))
+     (if (characterp chars)
+         (char= (char str (1- (length str))) chars)
+         (string= (subseq str (- (length str) (length chars))) chars)))
+    (t nil)))
+
+(defun chop (obj vec start end)
+  "Auxiliary function for `bin-chop'."
+  (let ((range (- end start)))
+    (if (zerop range)
+        (if (eql obj (svref vec start))
+            obj
+            nil)
+        (let ((mid (+ start (round (/ range 2)))))
+          (let ((obj2 (svref vec mid)))
+            (if (&lt; obj obj2)
+                (chop obj vec start (- mid 1))
+                (if (&gt obj obj2)
+                    (chop obj vec (+ mid 1) end)
+                    obj)))))))
+
+(defun bin-chop (obj vec)
+  "Finds OBJ in a sorted VEC."
+  (let ((len (length vec)))
+    ;; if a real vector, send it to chop
+    (and (plusp len) ; returns nil if empty
+         (chop obj vec 0 (1- len)))))
+
+(defun occur (item sequence)
+  "Returns a list of all occurrences of ITEM in SEQUENCE.
+If ITEM is NIL, push -1, else the position of ITEM."
+  (if (null sequence)
+      nil
+      (when (or (stringp sequence)
+                (vectorp sequence)
+                (listp sequence))
+        (let (e out)
+          (dotimes (i (length sequence) (reverse out))
+            (setf e (elt sequence i))
+            (if (and (null item) (null e))
+                (push -1 out)
+                (when (equalp item e)
+                  (push i out))))))))
+
+(defun upto (s ch)
+  "Returns S upto, but not including CH.
+If CH is not found, returns S."
+  (if (and (stringp s)
+           (characterp ch)
+           (not (zerop (length s))))
+      (let ((to-ix (position ch s)))
+        (if (null to-ix)
+            s
+            (subseq s 0 to-ix)))))
+
+(defun downto (s ch)
+  "Returns S from its end to, but not including, CH.
+If CH is not found, returns S."
+  (if (and (stringp s)
+           (characterp ch)
+           (not (zerop (length s))))
+      (let ((to-ix (position ch s :from-end t)))
+        (if (null to-ix)
+            s
+            (subseq s (1+ to-ix))))))
+
+(defun after (s ch &amp;optional nz)
+  "Returns that part of S after the first CH.
+If CH is not found, returns a zero-length string.
+If NZ, returns S when CH is not found."
+  (if (and (stringp s)
+           (characterp ch)
+           (plusp (length s)))
+      (let ((ix (position ch s)))
+        (cond ((null ix) (if nz s ""))
+              ((= ix (1- (length s))) "")
+              (t (subseq s (1+ ix)))))))
+
+(defun minus (ch1 ch2)
+  "Returns a string containing all the characters from
+ch1 to ch2 or ch2 to ch1, depending on which character is the lesser."
+  (when (and (characterp ch1) (characterp ch2))
+    (let ((start  (min (char-code ch1) (char-code ch2)))
+          (finish (max (char-code ch1) (char-code ch2)))
+          (out    (make-string-output-stream)))
+      (do ((i start (1+ i)))
+          ((&gt i finish) (get-output-stream-string out))
+        (write-char (code-char i) out)))))
+
+(defun lop (str ch)
+  "Removes all characters from STR following the last CH including CH."
+  (subseq str 0 (position ch str :from-end t)))
+
+(defun tc (path)
+  "Replace a leading ~ with the home directory."
+  (if (begins path #\~)
+      (concatenate 'string
+                   #+lispworks (lw:environment-variable "HOME")
+                   #+sbcl      (sb-ext:posix-getenv "HOME")
+                   #+ccl       (ccl::getenv "HOME")
+                   (subseq path 1))
+      path))
+
+(defun norm (dir)
+  "Normalise DIR by replacing ~, ./ and ../ with the appropriate values."
+  (let ((p 0) (ds "./" ) (sd "/." ) (dd ".." ) (dds "../" )
+        (sdd "/.." ) (sds "/./") (sdds "/../") (dot #\.) (stroke #\/)
+        (flag-dot (code-char 1))
+        (ss (tc dir))
+        (cwd #+lispworks (hcl:get-working-directory)
+             #+sbcl      (sb-posix:getcwd)
+             #+ccl       (ccl::current-directory-name)))
+    (if (not (and (stringp dir) (plusp (length dir))))
+        cwd
+        (progn
+          (do ()
+              ((not (position dot ss)))
+            (setf ss
+                  (case (length ss)
+                    (1 cwd)
+                    (2 (cond
+                         ((string= ss ds) cwd)
+                         ((string= ss sd) (string stroke))
+                         ((string= ss dd) (lop cwd stroke))
+                         (t
+                          (substitute flag-dot dot ss))))
+                    (3 (cond
+                         ((string= ss dds) (lop cwd stroke))
+                         ((string= ss sdd) (string stroke))
+                         ((begins ss ds) (subseq ss 2))
+                         (t (substitute flag-dot dot ss))))
+                    (t ;; length &gt 3
+                     (cond
+                       ((begins ss ds) (subseq ss 2))
+                       ((begins ss dds)
+                        (concatenate 'string (lop cwd stroke) (subseq ss 2)))
+                       ((setf p (search sdds ss))
+                        (concatenate 'string
+                                     (lop (subseq ss 0 p) stroke) ;remove dir
+                                     (subseq ss (+ 3 p))))
+                       ((setf p (search sds ss))
+                        (concatenate 'string
+                                     (subseq ss 0 p) ; upto p
+                                     (subseq ss (+ 2 p)))) ; p+2 onwards
+                       (t
+                        (substitute flag-dot dot ss)))))))
+          (substitute dot flag-dot ss)))))
+
+(defun split-string (str delim)
+  "Split STR using DELIM to show the splitting points."
+  (if (characterp delim)
+      (let (words (prev 0))
+        (dolist (pos (occur delim str))
+          (push (subseq str prev pos) words)
+          (setf prev (1+ pos)))
+        (push (subseq str prev) words)
+        (reverse words))
+    nil))
+
+(defun search-path (prog)
+  "If PROG is not an absolute path, get its absolute path as a string.
+Search for PROG in all the directories in the environment variable PATH,
+prepending the user's top-level BIN directory, if it exists."
+  (let ((path #+lispworks (lw:environment-variable "PATH")
+              #+sbcl      (sb-posix:getcwd)
+              #+ccl       (ccl::getenv "PATH"))
+        (home-bin (probe-file "~/bin")))
+    (if (probe-file prog)
+        (namestring (probe-file prog))
+      (progn
+        (when home-bin
+          (setf path (concatenate 'string
+                                  (if (ends (namestring home-bin) #\/)
+                                      (lop (namestring home-bin) #\/)
+                                    (namestring home-bin))
+                                  ":" path)))
+        (dolist (dir (split-string path #\:) nil)
+          (when (plusp (length dir))
+            (let ((filename (concatenate 'string dir "/" prog)))
+              (when (probe-file filename)
+                (return-from search-path filename)))))))))
+
+(defun run (prog &amp;rest args)
+  "Runs PROG with arguments ARGS and returns two values:
+  a list of the lines output to *standard-output*.
+  a list of the lines output to *standard-error*."
+  (when (and (stringp prog)
+             (plusp (length prog))
+             (listp args))
+    (let* (#+lispworks (prog-path (search-path prog))
+           (proc #+lispworks (multiple-value-list
+                  (sys:run-shell-command
+                   (if args
+                       (append (list prog-path) args)
+                     (list prog-path))
+                   :output :stream :error-output :stream :wait nil))
+                 #+sbcl (sb-ext:run-program prog args
+                                            :search t
+                                            :wait nil
+                                            :input nil
+                                            :output :stream
+                                            :error  :stream)
+                 #+ccl (ccl::run-program prog &amp;rest args
+                                         :wait nil
+                                         :input nil
+                                         :output :stream
+                                         :error :stream))
+           out-lines out-error)
+      (values
+       (with-open-stream (o #+lispworks (first proc)
+                            #+sbcl (sb-ext:process-output proc)
+                            #+ccl (ccl::external-process-output-stream proc))
+         (do ((line (read-line o nil nil)
+                    (read-line o nil nil)))
+             ((not line) (if out-lines
+                             (reverse out-lines)
+                           nil))
+           (push line out-lines)))
+       (with-open-stream (e #+lispworks (second proc)
+                            #+sbcl (sb-ext:process-error proc)
+                            #+ccl (ccl::external-process-error-stream proc))
+         (do ((line (read-line e nil nil)
+                    (read-line e nil nil)))
+             ((not line) (if out-error
+                             (reverse out-error)
+                           nil))
+           (push line out-error)))))))
+
+(defun copy-file (infn outfn)
+  "Copy file INFN to OUTFN using block copy. Returns T if successful."
+  (let ((buffer (make-array 4096
+                            :element-type '(unsigned-byte 8))))
+    (with-open-file (instr (norm infn)
+                           :element-type '(unsigned-byte 8))
+      (with-open-file (outstr (norm outfn)
+                              :element-type '(unsigned-byte 8)
+                              :direction :output
+                              :if-exists :supersede)
+        (do ((fp (read-sequence buffer instr)
+                 (read-sequence buffer instr)))
+            ((&lt; fp (length buffer))
+             (when (plusp fp)
+               (write-sequence buffer outstr :end fp)))
+          (write-sequence buffer outstr :end fp))))
+    (run "chmod" (concatenate 'string "--reference=" infn) outfn)))
+
+(defun grep-find (path file-pattern search-pattern
+                       &amp;optional (output-path "/tmp/grep-find.results"))
+  "Use FIND to find files in PATH whose name is FILE-PATTERN, using
+GREP to search for SEARCH-PATTERN. Results will be output to OUTPUT-FILE
+which defaults to \"/tmp/grep-find.results\"."
+  (with-open-file
+      (o output-path :direction :output :if-exists :supersede)
+    (dolist (line (run "find" path "-name" file-pattern
+                          "-exec" "grep" "-nH" search-pattern "{}" ";"))
+      (format o "~A~%" line))))
+
+(defun make-dir-name (dirspec)
+  "Extract the directories from DIRSPEC and create a directory path."
+  (when (&gt (length dirspec) 1)
+    (let (result)
+      (dolist (dir (cdr dirspec) result)
+        (setf result
+              (concatenate 'string result "/" dir))))))
+
+;;; The following functions are all part of PRETTY-LIST (see below)
+(defun get-rows (n cols)
+  "Compute the number of rows in each of COLS columns to display N values."
+  (multiple-value-bind (quotient remainder)
+      (floor n (if (zerop cols) 1 cols))
+    (if (zerop remainder)
+        (cons quotient quotient)
+        (cons (1+ quotient) (1+ remainder)))))
+
+(defun get-col-indexes (elts rows cols)
+  "Compute the indexes of the entries at the top of each column.
+ROWS is the number of rows in the first COLS-1 columns. RESULT is
+a list of COLS integers. ELTS is the number of elements in the list."
+  (let (result)
+    (if (&lt; elts cols)
+        (dotimes (i cols)
+          (push (if (&lt; i elts) i nil) result))
+        (do ((c 0 (1+ c))
+             (top 0 (+ top rows)))
+            ((= c cols) (reverse result))
+          (push top result)))))
+
+(defun compute-col-width (seq key)
+  "Compute the column width required to display the elements of SEQ.
+KEY is as in PRETTY-LIST."
+  (let (numbers elem)
+    (dolist (e seq (reduce #'max numbers))
+      (setf elem (funcall key e))
+      (push (cond ((stringp    elem)
+                   (length elem))
+                  ((symbolp    elem)
+                   (length (string elem)))
+                  ((numberp    elem)
+                   (1+ (if (&lt;= elem 0) 1 (floor (log elem 10)))))
+                  ((characterp e) 1)
+                  (t              0))
+            numbers))))
+
+(defun compute-display-cols (num column-width columns)
+  "Compute the number of columns to display for PRETTY-LIST."
+  (min num
+       (floor (parse-integer
+               (let ((cols #+lispworks (lw:environment-variable "COLUMNS")
+                           #+sbcl      (sb-ext:posix-getenv "COLUMNS")))
+                 (if cols cols
+                   (format nil "~D" columns))))
+              (+ 2 column-width))))
+
+(defun pretty-list (seq
+                    &amp;key
+                    (func #'string&lt;)
+                    (key #'identity)
+                    (stream t)
+                    (window-width 100))
+  "Output the contents of SEQ in columns, column-sorted according to FUNC.
+Use KEY to provide a function which gets an element of SEQ for FUNC.
+If STREAM is given, output to it. The WINDOW-WIDTH of the REPL (in
+columns) can be given and defaults to 100."
+  (let* ((sorted-seq    (sort (copy-seq seq) func :key key))
+         (s             (make-string-output-stream))
+         (column-width  (compute-col-width seq key))
+         (display-cols 
+          (compute-display-cols (length seq) column-width window-width))
+         (display-rows  (get-rows (length seq) display-cols))
+         (col-indexes   (get-col-indexes
+                         (length seq) (car display-rows) display-cols))
+         (format-string (concatenate 'string
+                                     "~"
+                                     (format nil "~D" (+ 2 column-width))
+                                     "A"))
+         (outstr        (if (not stream)
+                            ;; STREAM specified as NIL (see default above)
+                            t
+                          stream)))
+    (dotimes (r (car display-rows) t)
+      (dotimes (c display-cols)
+        (let* ((seq-ix (nth c col-indexes)) ; index into sorted-seq
+               (elem (if (and seq-ix (&lt; seq-ix (length seq)))
+                         (funcall key (nth seq-ix sorted-seq))
+                         nil)))
+          (format s format-string (if elem elem #\Space))))
+      (format outstr "~A~%" (string-trim " " (get-output-stream-string s)))
+      (dotimes (i display-cols)
+        (when (nth i col-indexes)
+          (incf (nth i col-indexes)))))))
+
+(defun external-symbols (pkg &amp;key stream)
+  "Output the external symbols of package PKG in columns sorted vertically.
+If STREAM is a stream, output to it, otherwise display the output. Returns
+the number of external symbols."
+  (let (unsorted-list)
+    (do-external-symbols (sym pkg)
+      (push sym unsorted-list))
+    (when (plusp (length unsorted-list))
+      (pretty-list unsorted-list :key #'string :stream stream))
+    (length unsorted-list)))
+
+(defun pretty-apropos (string &amp;key pkg stream)
+  "Display an apropos list of all names containing STRING.
+If PKG is T, only of that package, otherwise all packages.
+If STREAM is given, output to it."
+  (let ((al (apropos-list string pkg)))
+    (when (plusp (length al))
+      (pretty-list al :key #'string :stream stream))))
+
+;; Note that the output from (pretty-apropos ...) does not give the
+details that the (apropos ...) function, provided by LispWorks, does.
+
+Thus, to get a listing of the current directory, all you need to write
+is:
+   (sm:pretty-list (sm:run "ls"))
+
+Sincerely
+-- 
+Dr Sian Mountbatten
+http://www.poenikatu.co.uk/
+Associate member of the FSF no. 10888
+Asocia membro de la Libera Programara Fonduso n-ro 10888
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Useful pretty-printing function</h1>
+                 <pre>
+Dear Zach and Art
+
+Thank you very much for replying so quickly. I shall revise the file
+immediately according to your comments.
+
+May I say that the use of abbreviated identifiers comes mainly from my
+considerable background of using Algol 68 for nearly 20 years. I shall
+try to shed that background as I become more used to CL.
+
+I must admit that I find the use of parameter names which resemble
+functions as, still, somewhat confusing, even though I am dimly aware
+that there is no confusion between a name used as a variable and a name
+used as a function. Again, I shall change the parameter names to full
+words.
+
+Yes, I must revise my usage of "(round ...)" and I shall look at
+"(string= ...)" again.
+
+I shall make the "(copy-file ...)" function peculiar to CL
+implementations other than LispWorks.
+
+I shall also remove the "(debug-now ...)" function because, clearly,
+Phoenician dates are not relevant to anybody else.
+
+I shall also use "(multiple-value-bind...)" as suggested.
+
+"(with-output-to-string...)" is new to me: I shall use it.
+
+I am aware of "(when...)" and "(unless...)". I don't know how that
+"(if...)" got through my revisions.
+
+Again, thanks a lot for your comments. I shall submit the revised file
+to the hug.
+
+Regards 
+
+-- 
+Dr Sian Mountbatten
+http://www.poenikatu.co.uk/
+Associate member of the FSF no. 10888
+Asocia membro de la Libera Programara Fonduso n-ro 10888
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:30 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

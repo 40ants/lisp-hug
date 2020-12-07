@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>FLI structure problem</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>FLI structure problem</h1><html><head></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space; ">I've been tying into a foreign library and getting a crash when looping. I know the foreign library is good, and this is likely just something I'm doing wrong with FLI. I'll try demonstrating this with example code, but if more details are needed to help me solve the issue, I can post those as well. Sorry if this message is a little long, I just want to be sure no detail is left out.<div><br></div><div>The C library has a union of structures, all with the same header. Somewhat like this:</div><div><br></div><blockquote class="webkit-indent-blockquote" style="margin: 0 0 0 40px; border: none; padding: 0px;"><div>struct event_header {</div><div>&nbsp; &nbsp; u32 type;</div><div>&nbsp; &nbsp; void* pointer;</div><div>};</div><div><br></div><div>struct event_type_a {</div><div>&nbsp; &nbsp; event_header header;</div><div>&nbsp; &nbsp; u32 data;</div><div>};</div><div><br></div><div>struct event_type_b {</div><div>&nbsp; &nbsp; event_header header;</div><div>&nbsp; &nbsp; u8 data[16];</div><div>}</div><div><br></div><div>// etc…</div><div><br></div><div>union event {</div><div>&nbsp; &nbsp; u32 type;</div><div>&nbsp; &nbsp; event_type_a a;</div><div>&nbsp; &nbsp; event_type_b b;</div><div>&nbsp; &nbsp; // ….</div><div>};</div><div><br></div></blockquote>Here is my FLI representation of the above:<div><br></div><blockquote class="webkit-indent-blockquote" style="margin: 0 0 0 40px; border: none; padding: 0px;"><div>(define-c-struct event-header</div><div>&nbsp; (type :uint32)</div><div>&nbsp; (pointer :pointer))</div><div><br></div><div>(define-c-struct event-type-a</div><div>&nbsp; (header (:struct event-header))</div><div>&nbsp; (data :uint32))</div><div><br></div><div>(define-c-struct event-type-b</div><div>&nbsp; (header (:struct event-header))</div><div>&nbsp; (data (:c-array :byte 16)))</div><div><br></div><div>(define-c-union event</div><div>&nbsp; (type :uint32)</div><div>&nbsp; (a (:struct event-type-a))</div><div>&nbsp; (b (:struct event-type-b)))</div></blockquote><div><blockquote class="webkit-indent-blockquote" style="margin: 0 0 0 40px; border: none; padding: 0px;"><div><br></div></blockquote><div>Internally, the C code has a queue of events, and I can call the function:&nbsp;</div><div><br></div><blockquote class="webkit-indent-blockquote" style="margin: 0 0 0 40px; border: none; padding: 0px;"><div>bool get_next_event(event_queue* q, event* output_e);</div></blockquote><div><br></div><div>Now, I didn't want to have to create a foreign event structure for the output. So, I figured that a :reference-return parameter to the FLI function would wok as I would like (and it seems to):</div></div><div><br></div><blockquote class="webkit-indent-blockquote" style="margin: 0 0 0 40px; border: none; padding: 0px;"><div>(define-foreign-function (get-next-event "get_next_event")</div><div>&nbsp; &nbsp; ((queue :pointer)</div><div>&nbsp; &nbsp; &nbsp;(event (:reference-return event)))</div><div>&nbsp; :result-type :boolean)</div></blockquote><br><div>At this point everything appears to be just fine. I can call the function, get back an event, call #'foreign-slot-value on it and get access to everything as I would expect:</div><div><br></div><blockquote class="webkit-indent-blockquote" style="margin: 0 0 0 40px; border: none; padding: 0px;"><div>(multiple-value-bind (pending event)</div><div>&nbsp; &nbsp; (get-next-event queue)</div><div>&nbsp; (when pending</div><div>&nbsp; &nbsp; (case (foreign-slot-value event 'type)))</div><div>&nbsp; &nbsp; &nbsp; (type-a (print (foreign-slot-value event '(a data))))</div><div>&nbsp; &nbsp; &nbsp; (type-b …))))</div><div><br></div></blockquote>Works great!<div><br></div><div>But, if I stick the above code in a loop and just let it spin, eventually (within ~10 seconds) it will crash LispWorks (OS X 32-bit). I don't have to interact, and I don't even have to put events into the queue (pending = nil always). It will just crash.&nbsp;</div><div><br></div><div>There was one time when trying things that I got a new window to pop up with details about the crash (which I can't seem to get to happen again), which had a call stack that seemed to imply it was a GC issue. Perhaps I'm doing something wrong above and a GC is attempting to clean up a pointer that's actually still in use and I'm not protecting it?</div><div><br></div><div>I've tried wrapping the code above in a #'with-dynamic-foreign-objects macro, but that doesn't appear to help at all. Admittedly, it's starting to become genetic programming at this point.</div><div><br></div><div>Any thoughts/suggestions very much appreciated!</div><div><br></div><div>Jeff M.</div></body></html>
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: FLI structure problem</h1><html><head></head><body bgcolor="#FFFFFF"><div>Jeff,</div><div><br></div><div>Did you try macroexpanding and disassembling the code?<br><br><div><span class="Apple-style-span" style="-webkit-tap-highlight-color: rgba(26, 26, 26, 0.296875); -webkit-composition-fill-color: rgba(175, 192, 227, 0..230469); -webkit-composition-frame-color: rgba(77, 128, 180, 0.230469); ">---</span></div>
+<a href="http://twitter.com/wagerlabs">http://twitter.com/wagerlabs</a><div><br></div></div><div><br>On Oct 1, 2011, at 16:46, Jeffrey Massung &lt;<a href="mailto:massung@gmail.com">massung@gmail.com</a>&gt; wrote:<br><br>
+</div><div></div><blockquote type="cite"><div>I&#39;ve been tying into a foreign library and getting a crash when looping. I know the foreign library is good, and this is likely just something I&#39;m doing wrong with FLI. I&#39;ll try demonstrating this with example code, but if more details are needed to help me solve the issue, I can post those as well. Sorry if this message is a little long, I just want to be sure no detail is left out.<div>
+<br></div><div>The C library has a union of structures, all with the same header. Somewhat like this:</div><div><br></div><blockquote class="webkit-indent-blockquote" style="margin: 0 0 0 40px; border: none; padding: 0px;">
+<div>struct event_header {</div><div>    u32 type;</div><div>    void* pointer;</div><div>};</div><div><br></div><div>struct event_type_a {</div><div>    event_header header;</div><div>    u32 data;</div><div>};</div><div>
+<br></div><div>struct event_type_b {</div><div>    event_header header;</div><div>    u8 data[16];</div><div>}</div><div><br></div><div>// etc…</div><div><br></div><div>union event {</div><div>    u32 type;</div><div>    event_type_a a;</div>
+<div>    event_type_b b;</div><div>    // ….</div><div>};</div><div><br></div></blockquote>Here is my FLI representation of the above:<div><br></div><blockquote class="webkit-indent-blockquote" style="margin: 0 0 0 40px; border: none; padding: 0px;">
+<div>(define-c-struct event-header</div><div>  (type :uint32)</div><div>  (pointer :pointer))</div><div><br></div><div>(define-c-struct event-type-a</div><div>  (header (:struct event-header))</div><div>  (data :uint32))</div>
+<div><br></div><div>(define-c-struct event-type-b</div><div>  (header (:struct event-header))</div><div>  (data (:c-array :byte 16)))</div><div><br></div><div>(define-c-union event</div><div>  (type :uint32)</div><div>  (a (:struct event-type-a))</div>
+<div>  (b (:struct event-type-b)))</div></blockquote><div><blockquote class="webkit-indent-blockquote" style="margin: 0 0 0 40px; border: none; padding: 0px;"><div><br></div></blockquote><div>Internally, the C code has a queue of events, and I can call the function: </div>
+<div><br></div><blockquote class="webkit-indent-blockquote" style="margin: 0 0 0 40px; border: none; padding: 0px;"><div>bool get_next_event(event_queue* q, event* output_e);</div></blockquote><div><br></div><div>Now, I didn&#39;t want to have to create a foreign event structure for the output. So, I figured that a :reference-return parameter to the FLI function would wok as I would like (and it seems to):</div>
+</div><div><br></div><blockquote class="webkit-indent-blockquote" style="margin: 0 0 0 40px; border: none; padding: 0px;"><div>(define-foreign-function (get-next-event &quot;get_next_event&quot;)</div><div>    ((queue :pointer)</div>
+<div>     (event (:reference-return event)))</div><div>  :result-type :boolean)</div></blockquote><br><div>At this point everything appears to be just fine. I can call the function, get back an event, call #&#39;foreign-slot-value on it and get access to everything as I would expect:</div>
+<div><br></div><blockquote class="webkit-indent-blockquote" style="margin: 0 0 0 40px; border: none; padding: 0px;"><div>(multiple-value-bind (pending event)</div><div>    (get-next-event queue)</div><div>  (when pending</div>
+<div>    (case (foreign-slot-value event &#39;type)))</div><div>      (type-a (print (foreign-slot-value event &#39;(a data))))</div><div>      (type-b …))))</div><div><br></div></blockquote>Works great!<div><br></div><div>
+But, if I stick the above code in a loop and just let it spin, eventually (within ~10 seconds) it will crash LispWorks (OS X 32-bit). I don&#39;t have to interact, and I don&#39;t even have to put events into the queue (pending = nil always). It will just crash. </div>
+<div><br></div><div>There was one time when trying things that I got a new window to pop up with details about the crash (which I can&#39;t seem to get to happen again), which had a call stack that seemed to imply it was a GC issue. Perhaps I&#39;m doing something wrong above and a GC is attempting to clean up a pointer that&#39;s actually still in use and I&#39;m not protecting it?</div>
+<div><br></div><div>I&#39;ve tried wrapping the code above in a #&#39;with-dynamic-foreign-objects macro, but that doesn&#39;t appear to help at all. Admittedly, it&#39;s starting to become genetic programming at this point.</div>
+<div><br></div><div>Any thoughts/suggestions very much appreciated!</div><div><br></div><div>Jeff M.</div></div></blockquote></body></html>
+
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: FLI structure problem</h1><html><body bgcolor="#FFFFFF"><div>The SDL_event structure uses unions. You could look through the code in lispbuilder-sdl to see how the events are handled using cffi. I don&#39;t have the code in front of me right now, otherwise I would link to the file. </div>
+<div><br></div><div><br></div><div><br></div><div><br><br>On Oct 1, 2011, at 18:01, Jeffrey Massung &lt;<a href="mailto:massung@gmail.com">massung@gmail.com</a>&gt; wrote:<br><br></div><div></div><blockquote type="cite"><div>
+<div>Joel,</div><div><br></div><div>I haven&#39;t yet. Before digging down deep I was hoping that someone would just notice something blatantly wrong with the code I posted.</div><div><br></div><div>That said, if I don&#39;t use a reference-return and instead use (:pointer event), just allocate the event structure and pass it regularly, then everything works as expected just fine. Specifically:</div>
+<div><br></div><div>(with-foreign-objects ((e event))</div><div>  (when (get-next-event q e) …))</div><div><br></div><div>My guess is that there&#39;s something about :reference-return that I don&#39;t understand, or perhaps a bug, but I&#39;d doubt that.</div>
+<div><br></div><div>Jeff M.</div><br><div><div>On Oct 1, 2011, at 4:54 PM, Joel Reymont wrote:</div><br class="Apple-interchange-newline"><blockquote type="cite"><div bgcolor="#FFFFFF"><div>Jeff,</div><div><br></div><div>
+Did you try macroexpanding and disassembling the code?<br><br><div><span class="Apple-style-span" style="-webkit-tap-highlight-color: rgba(26, 26, 26, 0.296875); -webkit-composition-fill-color: rgba(175, 192, 227, 0.230469); -webkit-composition-frame-color: rgba(77, 128, 180, 0.230469); ">---</span></div>
+
+<a href="http://twitter.com/wagerlabs"><a href="http://twitter.com/wagerlabs">http://twitter.com/wagerlabs</a></a><div><br></div></div></div></blockquote></div><br></div></blockquote></body></html>
+
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: FLI structure problem</h1>
+                 <p>
+                  Unable to parse email body. Email id is 11281
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:33 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

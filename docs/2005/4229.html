@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Adding slots to an existing class definition</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Adding slots to an existing class definition</h1>
+                <pre>
+Hi,
+
+Is there a standard way to add slot definitions to an existing class?
+
+I've appended a bit of code that is quite rigid but that successfully 
+adds a second slot to an existing class. It is hard coded but 
+illustrates the only technique I've managed to come up with.
+
+This can be generalised easily enough, but surely there is a better 
+way. For one thing, this is definitely not going to work in at least 
+some other implementations of CL.
+
+Thanks,
+Bob
+
+
+------
+
+Defines a class called my-class with a single slot 'a
+
+The extend-my-class function defines a list, new-slots, that defines a 
+new slot 'b in the way expected by clos:ensure-class. It then iterates 
+over the direct slots of 'my-class and adds those to the new-slots 
+list, also in the expected form. Then clos:ensure-class is called with 
+new-slots containing definitions of both the old and new slots.
+
+This seems to work.
+
+
+(defclass my-class ()
+   ((a :accessor a :initform nil)))
+
+(defun extend-my-class ()
+   (let ((new-slots (list (list :name 'b
+                                :readers '(b)
+                                :writers '((SETF b))
+                                :initform 'nil
+                                :initfunction 'raw::return-nil))))
+     (dolist (slot-defn (class-direct-slots (find-class 'my-class)))
+       (with-slots
+           (clos::name clos::readers clos::writers clos::initform 
+clos::initfunction)
+           slot-defn
+         (push (list :name clos::name
+                     :readers clos::readers
+                     :writers clos::writers
+                     :initform clos::initform
+                     :initfunction clos::initfunction)
+               new-slots)))
+     (clos:ensure-class 'my-class :direct-slots new-slots)))
+
+
+----
+Bob Hutchison          -- blogs at &lt;http://www.recursive.ca/hutch/&gt
+Recursive Design Inc.  -- &lt;http://www.recursive.ca/&gt
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Adding slots to an existing class definition</h1>
+                 <pre>On 7/27/05, Bob Hutchison &lt;hutch@recursive.ca&gt wrote:
+&gt 
+&gt Is there a standard way to add slot definitions to an existing class?
+&gt 
+
+Why not just subclass? Is there a particular reason why that isn't possible?
+
+Jeff M.
+
+-- 
+http://www.retrobyte.org
+mailto:massung@gmail.com
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Adding slots to an existing class definition</h1>
+                 <pre>Bob Hutchison wrote:
+
+&gt Is there a standard way to add slot definitions to an existing class?
+&gt
+&gt I've appended a bit of code that is quite rigid but that successfully
+&gt adds a second slot to an existing class. It is hard coded but illustrates
+&gt the only technique I've managed to come up with.
+&gt
+&gt This can be generalised easily enough, but surely there is a better way.
+
+I'm not a MOP expert, but your approach looks reasonable to me.
+
+
+&gt For one thing, this is definitely not going to work in at least some
+&gt other implementations of CL.
+
+That can be easily fixed by:
+
+- using the standard MOP functions SLOT-DEFINITION-NAME, SLOT-DEFINITION-READERS,
+  etc. instead of your
+
+   (with-slots
+       (clos::name clos::readers clos::writers clos::initform clos::initfunction)
+      slot-defn
+
+- using (CONSTANTLY NIL) instead of 'RAW::RETURN-NIL
+
+- USEing the MOP package of the implementation you want to port it to.
+
+Something like the following (lightly tested with Lispworks and Allegro):
+
+(defpackage :test
+  (:use :common-lisp
+        #+lispworks :clos
+        #+allegro :aclmop
+        ;; Add MOP packages for other implementations if necessary.
+        ))
+
+(in-package :test)
+
+
+(defclass my-class ()
+   ((a :accessor a :initform nil)))
+
+(defun extend-my-class ()
+  (let ((new-slots (list (list :name 'b
+                               :readers '(b)
+                               :writers '((setf b))
+                               :initform 'nil
+                               :initfunction (constantly nil)))))
+    (dolist (slot-defn (class-direct-slots (find-class 'my-class)))
+      (push (list :name (slot-definition-name slot-defn)
+                  :readers (slot-definition-readers slot-defn)
+                  :writers (slot-definition-writers slot-defn)
+                  :initform (slot-definition-initform slot-defn)
+                  :initfunction (slot-definition-initfunction slot-defn))
+            new-slots))
+    (ensure-class 'my-class :direct-slots new-slots)))
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Adding slots to an existing class definition</h1>
+                 <pre>Bob Hutchison &lt;hutch@recursive.ca&gt writes:
+
+&gt Hi,
+&gt
+&gt Is there a standard way to add slot definitions to an existing class?
+&gt
+&gt I've appended a bit of code that is quite rigid but that successfully
+&gt adds a second slot to an existing class. It is hard coded but
+&gt illustrates the only technique I've managed to come up with.
+&gt
+&gt This can be generalised easily enough, but surely there is a better
+&gt way. For one thing, this is definitely not going to work in at least
+&gt some other implementations of CL.
+
+FWIW I had a similar need a couple of years ago, and hacked up
+something to extend a class at make-instance time if unknown initargs
+were supplied to make-instance.
+
+I see I also tossed in a rudimentary add-slot method, but I don't
+think I've used it anywhere.  The code is for CMUCL, but should be
+fairly straight MOP.  I recently updated it to make sure it compiled
+on recent CMUCL, but other than that I've not looked at it for ages.
+It was mostly a MOP training exercise.
+
+I've put the code up at
+&lt;http://www.klingenberg.no/~pok/mop-utils.lisp&gt.  The license should
+probably be something suitably BSD-ish.
+
+....Peder...
+-- 
+This must be Thursday.  I never could get the hang of Thursdays.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Adding slots to an existing class definition</h1>
+                 <pre>
+On 27 Jul 2005, at 06:55, Bob Hutchison wrote:
+
+&gt Hi,
+&gt
+&gt Is there a standard way to add slot definitions to an existing class?
+&gt
+&gt I've appended a bit of code that is quite rigid but that  
+&gt successfully adds a second slot to an existing class. It is hard  
+&gt coded but illustrates the only technique I've managed to come up with.
+&gt
+&gt This can be generalised easily enough, but surely there is a better  
+&gt way. For one thing, this is definitely not going to work in at  
+&gt least some other implementations of CL.
+
+Adding slots to an existing class can be achieved with the so-called  
+destructive mixins that are part of AspectL - see http://common- 
+lisp.net/project/aspectl/
+
+Example: Assume you have a class person defined as follows.
+
+(defclass person ()
+   ((name :accessor name :initarg :name)))
+At a later stage in the program, you can add new slots to such a  
+class, without repeating the complete class definition, as follows.
+
+(with-class 'person
+   (class-add
+    :direct-slots
+    '(age :accessor age :initarg :age)))
+
+The code is portable and runs on several Common Lisp implementations.  
+However, it's very easy to shoot yourself in the foot with  
+destructive mixins because I have added no checks whatsoever. So, for  
+example, if some of your slot options are incorrect, or you try to  
+override a slot from a superclass in some incompatible way, you will  
+probably not get an exception, but the chances are high that your  
+system will become just unusable and must be restarted.
+
+I have stopped working on this further because I think I have found a  
+better, more declarative approach by now. ContextL is a new library  
+(that is going to supersede AspectL - I have basically thrown away  
+the AOP notions because they don't make much sense in Common Lisp, so  
+I had to find a new name... ;). Among the features of ContextL, there  
+are partial classes that allow you to spread class definitions into  
+different layers. The above example would look as follows in ContextL:
+
+(defclass person ()
+   ((name :accessor name :initarg :name))
+   (:metaclass partial-class))
+
+(deflayer info-layer)
+
+(defclass person ()
+   ((age :accessor age :initarg :age))
+   (:metaclass partial-class)
+   (:in-layer info-layer))
+
+The different partial definitions in the different layers contribute  
+to the same class, so here the class person will have both the name  
+and the age slots. You can even redefine the two partial classes  
+independently, so if you say this subsequently:
+
+(defclass person ()
+   ((employer :accessor employer :initarg :employer))
+   (:metaclass partial-class)
+   (:in-layer info-layer))
+
+....the class will lose its age slot and gain an employer slot, but  
+the name slot will not be touched.
+
+I think this is a better way to deal with "extra" slots. Especially,  
+it gives you all the safety nets that CLOS provides for preventing  
+bad class definitions.
+
+ContextL is not publicly available yet. I expect to be able to make  
+it available in August or September the latest. The code runs on my  
+machine on seven different Common Lisp implementations, so I think  
+portability is not an issue. (The only thing holding me back from  
+uploading the code to some server right now is that I want to set up  
+a darcs repository and make the code asdf installable. Uploading new  
+versions of AspectL was always a little bit too much work for my  
+taste, and I want to avoid that for ContextL, so I would like to do  
+the right thing from the start this time.)
+
+
+Pascal
+
+--
+2nd European Lisp and Scheme Workshop
+July 26 - Glasgow, Scotland - co-located with ECOOP 2005
+http://lisp-ecoop05.bknr.net/
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Fwd: Adding slots to an existing class definition</h1><br><br>---------- Forwarded message ----------<br><span class="gmail_quote">From: <b class="gmail_sendername">Pascal Costanza</b> &lt;<a href="mailto:pc@p-cos.net">pc@p-cos.net</a>&gt;<br>Date: Jul 28, 2005 3:24 PM<br>Subject: Re: Adding slots to an existing class definition
+<br>To: Bob Hutchison &lt;<a href="mailto:hutch@recursive.ca">hutch@recursive.ca</a>&gt;<br>Cc: Lispworks HUG &lt;<a href="mailto:lisp-hug@lispworks.com">lisp-hug@lispworks.com</a>&gt;<br><br></span><br>On 27 Jul 2005, at 06:55, Bob Hutchison wrote:
+<br><br>&gt; Hi,<br>&gt;<br>&gt; Is there a standard way to add slot definitions to an existing class?<br>&gt;<br>&gt; I've appended a bit of code that is quite rigid but that<br>&gt; successfully adds a second slot to an existing class. It is hard
+<br>&gt; coded but illustrates the only technique I've managed to come up with.<br>&gt;<br>&gt; This can be generalised easily enough, but surely there is a better<br>&gt; way. For one thing, this is definitely not going to work in at
+<br>&gt; least some other implementations of CL.<br><br>Adding slots to an existing class can be achieved with the so-called<br>destructive mixins that are part of AspectL - see <a href="http://common-">http://common-</a>
+<br><a href="http://lisp.net/project/aspectl/">lisp.net/project/aspectl/</a><br><br>Example: Assume you have a class person defined as follows.<br><br>(defclass person ()<br>&nbsp;&nbsp; ((name :accessor name :initarg :name)))<br>At a later stage in the program, you can add new slots to such a
+<br>class, without repeating the complete class definition, as follows.<br><br>(with-class 'person<br>&nbsp;&nbsp; (class-add<br>&nbsp;&nbsp;&nbsp;&nbsp;:direct-slots<br>&nbsp;&nbsp;&nbsp;&nbsp;'(age :accessor age :initarg :age)))<br><br>The code is portable and runs on several Common Lisp implementations.
+<br>However, it's very easy to shoot yourself in the foot with<br>destructive mixins because I have added no checks whatsoever. So, for<br>example, if some of your slot options are incorrect, or you try to<br>override a slot from a superclass in some incompatible way, you will
+<br>probably not get an exception, but the chances are high that your<br>system will become just unusable and must be restarted.<br><br>I have stopped working on this further because I think I have found a<br>better, more declarative approach by now. ContextL is a new library
+<br>(that is going to supersede AspectL - I have basically thrown away<br>the AOP notions because they don't make much sense in Common Lisp, so<br>I had to find a new name... ;). Among the features of ContextL, there<br>are partial classes that allow you to spread class definitions into
+<br>different layers. The above example would look as follows in ContextL:<br><br>(defclass person ()<br>&nbsp;&nbsp; ((name :accessor name :initarg :name))<br>&nbsp;&nbsp; (:metaclass partial-class))<br><br>(deflayer info-layer)<br><br>(defclass person ()
+<br>&nbsp;&nbsp; ((age :accessor age :initarg :age))<br>&nbsp;&nbsp; (:metaclass partial-class)<br>&nbsp;&nbsp; (:in-layer info-layer))<br><br>The different partial definitions in the different layers contribute<br>to the same class, so here the class person will have both the name
+<br>and the age slots. You can even redefine the two partial classes<br>independently, so if you say this subsequently:<br><br>(defclass person ()<br>&nbsp;&nbsp; ((employer :accessor employer :initarg :employer))<br>&nbsp;&nbsp; (:metaclass partial-class)
+<br>&nbsp;&nbsp; (:in-layer info-layer))<br><br>...the class will lose its age slot and gain an employer slot, but<br>the name slot will not be touched.<br><br>I think this is a better way to deal with &quot;extra&quot; slots.. Especially,
+<br>it gives you all the safety nets that CLOS provides for preventing<br>bad class definitions.<br><br>ContextL is not publicly available yet. I expect to be able to make<br>it available in August or September the latest. The code runs on my
+<br>machine on seven different Common Lisp implementations, so I think<br>portability is not an issue. (The only thing holding me back from<br>uploading the code to some server right now is that I want to set up<br>a darcs repository and make the code asdf installable. Uploading new
+<br>versions of AspectL was always a little bit too much work for my<br>taste, and I want to avoid that for ContextL, so I would like to do<br>the right thing from the start this time.)<br><br><br>Pascal<br><br>--<br>2nd European Lisp and Scheme Workshop
+<br>July 26 - Glasgow, Scotland - co-located with ECOOP 2005<br><a href="http://lisp-ecoop05.bknr.net/">http://lisp-ecoop05.bknr.net/</a><br><br><br>
+
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Fwd: Adding slots to an existing class definition</h1>oops, meant to send ths to the group as well!<br><br>---------- Forwarded message ----------<br><span class="gmail_quote">From: <b class="gmail_sendername">Keith Mantell</b> &lt;<a href="mailto:keithmantell@gmail.com">keithmantell@gmail.com
+</a>&gt;<br>Date: Jul 28, 2005 2:01 PM<br>Subject: Re: Adding slots to an existing class definition<br>To: Bob Hutchison &lt;<a href="mailto:hutch@recursive.ca">hutch@recursive.ca</a>&gt;<br><br></span><span class="gmail_quote">
+</span>From the little I can glean from this ( and making a assumtions etc.) to me the issue comes down to:<br>
+<br>
+1)&nbsp; If you are in an interactive development mode then you add
+fields if you realise you &quot;made a mistake&quot; - really this class should
+have had these felds, but you only just realised it.<br>
+<br>
+2) You subclass for &quot;intrinsic&quot; structural reasons ; the super class is a valid parent of 2 or more subclasses.....<br>
+<br>
+I have in mind a sort of Domain Specific Language Tool - so 1) would be
+&quot;Of course Customers have names, duh!&quot;, whilst 2) would be &quot; Customers
+who are individuals have Dates of Birth whilst Customers who are
+companies have VAT numbers&quot;.<br>
+<br>
+So both approaches are valid IMHO :-)<br>
+<br>
+Best wishes,<br><span class="sg">
+Keith<br>
+
+</span>
+
+
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:47 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

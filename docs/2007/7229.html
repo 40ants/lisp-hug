@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Clos question</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Clos question</h1>
+                <pre>
+Hello,
+
+I would make some sort of alias object, where all the slots are shared with
+the original object and only one slot is local (for instance to maintain a
+different position of the object on the screen).
+
+The Clos system doesn't seem to allow this, excerpt if the object is also a
+class (shared slots). It is not the case here : the class has several
+instances, each of them should have alias.
+
+Making a new class with two slots, one to contain the original object and
+the other to contain the local slot is possible but add a lot of complexity
+for slot access, and also for specialization of methods (because this class
+could not be a subclass of the original class : it needs only two slots and
+the original class has a lot of slots). I already have many functions witch
+access to these slots, some time using 'with-slots' or 'slot-value' and not
+with accessors... So I'm looking for a solution witch preserve my current
+codes at maximum.
+
+Any hints will be very appreciated. Thanks by advance
+
+Denis
+
+
+-------------------------------------------------------
+Denis Pousseur
+70 rue de Wansijn
+1180 Bruxelles, Belgique
+
+Tel : 32 (0)2 219 31 09
+Mail :  denis.pousseur@gmail.com
+-------------------------------------------------------
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Clos question</h1>
+                 <pre>
+On 30 Nov 2007, at 09:34, Denis Pousseur wrote:
+&gt
+&gt
+&gt Making a new class with two slots, one to contain the original  
+&gt object and
+&gt the other to contain the local slot is possible but add a lot of  
+&gt complexity
+&gt for slot access, and also for specialization of methods (because  
+&gt this class
+&gt could not be a subclass of the original class : it needs only two  
+&gt slots and
+&gt the original class has a lot of slots). I already have many  
+&gt functions witch
+&gt access to these slots, some time using 'with-slots' or 'slot-value'  
+&gt and not
+&gt with accessors... So I'm looking for a solution witch preserve my  
+&gt current
+&gt codes at maximum.
+&gt
+&gt
+
+Look at the MOP.  I forget what you want to specialise but it is  
+probably something liek SLOT-VALUE-USING-CLASS.  So you'd change this  
+to punt to the real object for all but one slot.  Be aware of  
+performance issues.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Clos question</h1>
+                 <p>
+                  Unable to parse email body. Email id is 7231
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Clos question</h1>
+                 <pre>
+
+On 30 Nov 2007, at 10:34, Denis Pousseur wrote:
+
+&gt
+&gt Hello,
+&gt
+&gt I would make some sort of alias object, where all the slots are  
+&gt shared with
+&gt the original object and only one slot is local (for instance to  
+&gt maintain a
+&gt different position of the object on the screen).
+&gt
+&gt The Clos system doesn't seem to allow this, excerpt if the object is  
+&gt also a
+&gt class (shared slots). It is not the case here : the class has several
+&gt instances, each of them should have alias.
+&gt
+&gt Making a new class with two slots, one to contain the original  
+&gt object and
+&gt the other to contain the local slot is possible but add a lot of  
+&gt complexity
+&gt for slot access, and also for specialization of methods (because  
+&gt this class
+&gt could not be a subclass of the original class : it needs only two  
+&gt slots and
+&gt the original class has a lot of slots). I already have many  
+&gt functions witch
+&gt access to these slots, some time using 'with-slots' or 'slot-value'  
+&gt and not
+&gt with accessors... So I'm looking for a solution witch preserve my  
+&gt current
+&gt codes at maximum.
+&gt
+&gt Any hints will be very appreciated. Thanks by advance
+
+
+However, this kind of alias objects is typically described as wrappers  
+or delegating objects. Delegation between objects is one of the  
+trickier things to get right on top of the CLOS MOP and has a lot of  
+nasty corner cases. My gut feeling tells me it's better to look for a  
+different solution (but I may be wrong, maybe your case is much  
+simpler - I'd just be very careful here).
+
+Your observation that classes already do what you need is right on  
+spot, and I would rather try to take advantage of that. The general  
+direction would be: Instead of defining classes and create instances  
+thereof in the usual way, you could as well define metaclasses and  
+create instances of such metaclasses - but you treat the latter as  
+plain objects, not actually as classes. In the metaclasses you can  
+define shared slots and instance slots for their instances as before,  
+but additionally, each metaclass instance can define their own shared  
+slots which, due to your changed perspective, are actually object- 
+local slots that can be shared between objects by making them inherit  
+from each other.
+
+A drawback of such an approach is that classes are typically always  
+named and, more importantly, typically never garbage-collected. In  
+principle, CLOS and the CLOS MOP allow for creating anonymous class  
+objects, but some CLOS implementations have problems with that  
+(because presumably they haven't taken that option serious enough, and  
+CLOS is already hard enough to implement anyway ;).
+
+Nevertheless, yes, I think I would go the latter way, especially  
+because I already tried to implement delegating objects with the CLOS  
+MOP, and the result of that was pretty ugly and hard to understand...
+
+I hope this helps.
+
+Pascal
+
+-- 
+Pascal Costanza, mailto:pc@p-cos.net, http://p-cos.net
+Vrije Universiteit Brussel, Programming Technology Lab
+Pleinlaan 2, B-1050 Brussel, Belgium
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:41 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

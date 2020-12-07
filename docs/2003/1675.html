@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>pixmaps, images, and transparency</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>pixmaps, images, and transparency</h1>
+                <pre>
+Hi,
+
+I am building an application using LW and CAPI. This is my first in 
+lisp, and so also LW.
+
+The UI for the application requires me to draw a fairly complex diagram 
+on the screen. There will be dozens, potentially hundreds of these 
+things on the screen at the same time, so they will overlap. There is 
+also a fairly high computational overhead to determine the layout of 
+these things (not so much drawing time, but figuring out *what* to draw 
+can be time consuming).
+
+Normally there is an opaque background. We were playing around with 
+dragging them around and found that there is a real usability 
+improvement if we change the alpha channel to about .5 giving us a 
+degree of transparency.
+
+Out of concern for performance I am now drawing each thing to a pixmap, 
+once in 'normal' rendering, once in 'drag' rendering (i.e. with a 
+transparent background), then converting the pixmaps to images and 
+caching the images. If the thing changes then I create a new image. 
+Pretty standard I suppose.
+
+First questions. It is quite possible that the pixmap graphics ports 
+were introduced as a way of double buffering, and that the conversion 
+of a pixmap to an image for cached display, like I'm doing, was a 
+secondary concern.
+	- Is this approach that I've taken reasonable?
+	- Obviously I'm 'spending' memory to 'buy' time, what is this actually 
+costing me in memory?
+	- How efficient are the internal images?
+	- Is there a better way to do this?
+
+An alternative approach is to record, somehow, the drawing instructions 
+rather than keeping the image around. It may well use less memory, and 
+I already know that drawing won't be an issue (as I say, it is figuring 
+out what to draw...), and I can avoid the next questions....
+
+Second questions. Are transparent backgrounds supported in images? I 
+don't know if I'm doing something wrong, but the image (as a whole) has 
+a background exactly the same as if there was an opaque white 
+background behind my transparent background. I tried setting the 
+background of the pixmap (0 0 0 0) and clearing the pixmap but this 
+does not appear to have any affect. I can set the background to, blue 
+say, and it will affect the background colour, but the image is still 
+opaque). I've also tried setting the background in the draw-image call 
+to (0 0 0 0), with no visible effect at all. Is there some colour model 
+stuff I need to be aware of?
+
+Thanks,
+Bob
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: pixmaps, images, and transparency</h1>
+                 <pre>On Tuesday 09 December 2003 10:17 am, Bob Hutchison wrote:
+
+Only a partial answer to one of your questions:
+
+&gt I am building an application using LW and CAPI. This is my first in
+&gt lisp, and so also LW.
+....
+&gt An alternative approach is to record, somehow, the drawing instructions
+&gt rather than keeping the image around. It may well use less memory, and
+
+This part, in lisp, is trivial.  You simply "record" the drawing instruction 
+using a closure - #'(lambda...).  I have a drawing tool that keeps a "display 
+list".  I add capi/gp things to the display list like this:
+
+(push #'(lambda () 
+    (gp:draw-rectangle pane x y w h :filled nil)) 
+  display-list)
+
+and at drawing time, the pane-display-callback contains code that simply 
+funcalls each item on the display list, like this:
+
+(dolist (func display-list)
+    (funcall func))
+
+I benchmarked this - for speed, not size - in LW - against a more traditional 
+data-contained-in-a-display-list algorithm and found that the closure method, 
+above, ran faster.  YMMV.
+
+pt
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: pixmaps, images, and transparency</h1>
+                  <pre>Oh, that's nice! CL is getting better every time I sit down with it.
+
+Thank you.
+
+I'll give this a shot this afternoon.
+
+Cheers,
+Bob
+
+On Tuesday, December 9, 2003, at 11:04  AM, tarvydas wrote:
+
+&gt On Tuesday 09 December 2003 10:17 am, Bob Hutchison wrote:
+&gt
+&gt Only a partial answer to one of your questions:
+&gt
+&gt&gt I am building an application using LW and CAPI. This is my first in
+&gt&gt lisp, and so also LW.
+&gt ...
+&gt&gt An alternative approach is to record, somehow, the drawing 
+&gt&gt instructions
+&gt&gt rather than keeping the image around. It may well use less memory, and
+&gt
+&gt This part, in lisp, is trivial.  You simply "record" the drawing 
+&gt instruction
+&gt using a closure - #'(lambda...).  I have a drawing tool that keeps a 
+&gt "display
+&gt list".  I add capi/gp things to the display list like this:
+&gt
+&gt (push #'(lambda ()
+&gt     (gp:draw-rectangle pane x y w h :filled nil))
+&gt   display-list)
+&gt
+&gt and at drawing time, the pane-display-callback contains code that 
+&gt simply
+&gt funcalls each item on the display list, like this:
+&gt
+&gt (dolist (func display-list)
+&gt     (funcall func))
+&gt
+&gt I benchmarked this - for speed, not size - in LW - against a more 
+&gt traditional
+&gt data-contained-in-a-display-list algorithm and found that the closure 
+&gt method,
+&gt above, ran faster.  YMMV.
+&gt
+&gt pt
+&gt
+&gt
+
+
+</pre>
+                 </article>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>Re: pixmaps, images, and transparency</h1>
+                   <pre>The display list technique from pt works beautifully. Thanks again for 
+the suggestion.
+
+Unfortunately, I still need to know about transparency in images. Is it 
+supported?
+
+Also, what external image types are supported? I can't seem to find 
+anything documented, though it seems that compressed bmp files work.
+
+Thanks,
+Bob
+
+On Tuesday, December 9, 2003, at 11:17  AM, Bob Hutchison wrote:
+
+&gt Oh, that's nice! CL is getting better every time I sit down with it.
+&gt
+&gt Thank you.
+&gt
+&gt I'll give this a shot this afternoon.
+&gt
+&gt Cheers,
+&gt Bob
+&gt
+&gt On Tuesday, December 9, 2003, at 11:04  AM, tarvydas wrote:
+&gt
+&gt&gt On Tuesday 09 December 2003 10:17 am, Bob Hutchison wrote:
+&gt&gt
+&gt&gt Only a partial answer to one of your questions:
+&gt&gt
+&gt&gt&gt I am building an application using LW and CAPI. This is my first in
+&gt&gt&gt lisp, and so also LW.
+&gt&gt ...
+&gt&gt&gt An alternative approach is to record, somehow, the drawing 
+&gt&gt&gt instructions
+&gt&gt&gt rather than keeping the image around. It may well use less memory, 
+&gt&gt&gt and
+&gt&gt
+&gt&gt This part, in lisp, is trivial.  You simply "record" the drawing 
+&gt&gt instruction
+&gt&gt using a closure - #'(lambda...).  I have a drawing tool that keeps a 
+&gt&gt "display
+&gt&gt list".  I add capi/gp things to the display list like this:
+&gt&gt
+&gt&gt (push #'(lambda ()
+&gt&gt     (gp:draw-rectangle pane x y w h :filled nil))
+&gt&gt   display-list)
+&gt&gt
+&gt&gt and at drawing time, the pane-display-callback contains code that 
+&gt&gt simply
+&gt&gt funcalls each item on the display list, like this:
+&gt&gt
+&gt&gt (dolist (func display-list)
+&gt&gt     (funcall func))
+&gt&gt
+&gt&gt I benchmarked this - for speed, not size - in LW - against a more 
+&gt&gt traditional
+&gt&gt data-contained-in-a-display-list algorithm and found that the closure 
+&gt&gt method,
+&gt&gt above, ran faster.  YMMV.
+&gt&gt
+&gt&gt pt
+&gt&gt
+&gt&gt
+&gt
+&gt
+
+
+</pre>
+                  </article>
+                  <section class=tree>
+                   <article class=email>
+                    <h1>Re: pixmaps, images, and transparency</h1>
+                    <pre>I've convinced myself that I'm wrong about the compressed bmp file. I 
+had been tempted to write "some kind of compressed bmp file", probably 
+should have. Bmp appears to be as bad as they've always been.
+
+Bob
+
+On Tuesday, December 9, 2003, at 07:56  PM, Bob Hutchison wrote:
+
+&gt The display list technique from pt works beautifully. Thanks again for 
+&gt the suggestion.
+&gt
+&gt Unfortunately, I still need to know about transparency in images. Is 
+&gt it supported?
+&gt
+&gt Also, what external image types are supported? I can't seem to find 
+&gt anything documented, though it seems that compressed bmp files work.
+&gt
+&gt Thanks,
+&gt Bob
+&gt
+&gt On Tuesday, December 9, 2003, at 11:17  AM, Bob Hutchison wrote:
+&gt
+&gt&gt Oh, that's nice! CL is getting better every time I sit down with it.
+&gt&gt
+&gt&gt Thank you.
+&gt&gt
+&gt&gt I'll give this a shot this afternoon.
+&gt&gt
+&gt&gt Cheers,
+&gt&gt Bob
+&gt&gt
+&gt&gt On Tuesday, December 9, 2003, at 11:04  AM, tarvydas wrote:
+&gt&gt
+&gt&gt&gt On Tuesday 09 December 2003 10:17 am, Bob Hutchison wrote:
+&gt&gt&gt
+&gt&gt&gt Only a partial answer to one of your questions:
+&gt&gt&gt
+&gt&gt&gt&gt I am building an application using LW and CAPI. This is my first in
+&gt&gt&gt&gt lisp, and so also LW.
+&gt&gt&gt ...
+&gt&gt&gt&gt An alternative approach is to record, somehow, the drawing 
+&gt&gt&gt&gt instructions
+&gt&gt&gt&gt rather than keeping the image around. It may well use less memory, 
+&gt&gt&gt&gt and
+&gt&gt&gt
+&gt&gt&gt This part, in lisp, is trivial.  You simply "record" the drawing 
+&gt&gt&gt instruction
+&gt&gt&gt using a closure - #'(lambda...).  I have a drawing tool that keeps a 
+&gt&gt&gt "display
+&gt&gt&gt list".  I add capi/gp things to the display list like this:
+&gt&gt&gt
+&gt&gt&gt (push #'(lambda ()
+&gt&gt&gt     (gp:draw-rectangle pane x y w h :filled nil))
+&gt&gt&gt   display-list)
+&gt&gt&gt
+&gt&gt&gt and at drawing time, the pane-display-callback contains code that 
+&gt&gt&gt simply
+&gt&gt&gt funcalls each item on the display list, like this:
+&gt&gt&gt
+&gt&gt&gt (dolist (func display-list)
+&gt&gt&gt     (funcall func))
+&gt&gt&gt
+&gt&gt&gt I benchmarked this - for speed, not size - in LW - against a more 
+&gt&gt&gt traditional
+&gt&gt&gt data-contained-in-a-display-list algorithm and found that the 
+&gt&gt&gt closure method,
+&gt&gt&gt above, ran faster.  YMMV.
+&gt&gt&gt
+&gt&gt&gt pt
+&gt&gt&gt
+&gt&gt&gt
+&gt&gt
+&gt&gt
+&gt
+&gt
+
+
+</pre>
+                   </article>
+                  </section>
+                  <section class=tree>
+                   <article class=email>
+                    <h1>Re: pixmaps, images, and transparency</h1>
+                    <p>
+                     Unable to parse email body. Email id is 1689
+                   </article>
+                   <section class=tree>
+                    <article class=email>
+                     <h1>Re: pixmaps, images, and transparency</h1>
+                     <pre>Thanks Dave, this helps a lot. Too bad about other image types, but I 
+can live with BMPs (I'm pretty sure anyway).
+
+Cheers,
+Bob
+
+On Wednesday, December 10, 2003, at 10:57  AM, davef@xanalys.com wrote:
+
+&gt
+&gt    Unfortunately, I still need to know about transparency in images. 
+&gt Is it
+&gt    supported?
+&gt
+&gt GP:EXTERNAL-IMAGE has a TRANSPARENT-COLOR-INDEX slot. Should be
+&gt documented, but isn't. You can set this slot when calling
+&gt GP:READ-EXTERNAL-IMAGE.
+&gt
+&gt For an illustration, play with
+&gt examples/capi/graphics/images.lisp. Specify a non-white :BACKGROUND
+&gt for the VIEWER pane, and change the call to READ-EXTERNAL-IMAGE like
+&gt this:
+&gt
+&gt  (gp:read-external-image file :transparent-color-index 183)
+&gt
+&gt I used the Gimp to figure out the transparent color index.
+&gt
+&gt Then compile and run the example, click the "Change..." button and
+&gt select the lwsplash.bmp file.
+&gt
+&gt
+&gt TRANSPARENT-COLOR-INDEX works only for images with a color map - those
+&gt with 256 colors or less.
+&gt
+&gt
+&gt    Also, what external image types are supported?
+&gt
+&gt Bitmaps, only.
+&gt
+&gt                                                  I can't seem to find
+&gt    anything documented, though it seems that compressed bmp files work.
+&gt
+&gt Yes, compressed bitmaps are supported.
+&gt
+&gt --
+&gt Dave Fox			
+&gt
+&gt Xanalys                 http://www.lispworks.com
+&gt Compass House
+&gt Vision Park, Chivers Way
+&gt Histon
+&gt Cambridge, CB4 9AD
+&gt England
+&gt
+&gt
+
+
+</pre>
+                    </article>
+                    <section class=tree>
+                     <article class=email>
+                      <h1>Alpha Channels (was: pixmaps, images, and transparency)</h1>
+                      <pre>
+Hi,
+
+The transparency responses have been helpful (and I'll be using the 
+information), but I really meant alpha channel values less than 1.0 -- 
+do images in LW support alpha channels?
+
+Thanks,
+Bob
+
+On Wednesday, December 10, 2003, at 11:43  AM, Bob Hutchison wrote:
+
+&gt Thanks Dave, this helps a lot. Too bad about other image types, but I 
+&gt can live with BMPs (I'm pretty sure anyway).
+&gt
+&gt Cheers,
+&gt Bob
+&gt
+&gt On Wednesday, December 10, 2003, at 10:57  AM, davef@xanalys.com wrote:
+&gt
+&gt&gt
+&gt&gt    Unfortunately, I still need to know about transparency in images. 
+&gt&gt Is it
+&gt&gt    supported?
+&gt&gt
+&gt&gt GP:EXTERNAL-IMAGE has a TRANSPARENT-COLOR-INDEX slot. Should be
+&gt&gt documented, but isn't. You can set this slot when calling
+&gt&gt GP:READ-EXTERNAL-IMAGE.
+&gt&gt
+&gt&gt For an illustration, play with
+&gt&gt examples/capi/graphics/images.lisp. Specify a non-white :BACKGROUND
+&gt&gt for the VIEWER pane, and change the call to READ-EXTERNAL-IMAGE like
+&gt&gt this:
+&gt&gt
+&gt&gt  (gp:read-external-image file :transparent-color-index 183)
+&gt&gt
+&gt&gt I used the Gimp to figure out the transparent color index.
+&gt&gt
+&gt&gt Then compile and run the example, click the "Change..." button and
+&gt&gt select the lwsplash.bmp file.
+&gt&gt
+&gt&gt
+&gt&gt TRANSPARENT-COLOR-INDEX works only for images with a color map - those
+&gt&gt with 256 colors or less.
+&gt&gt
+&gt&gt
+&gt&gt    Also, what external image types are supported?
+&gt&gt
+&gt&gt Bitmaps, only.
+&gt&gt
+&gt&gt                                                  I can't seem to find
+&gt&gt    anything documented, though it seems that compressed bmp files 
+&gt&gt work.
+&gt&gt
+&gt&gt Yes, compressed bitmaps are supported.
+&gt&gt
+&gt&gt --
+&gt&gt Dave Fox			
+&gt&gt
+&gt&gt Xanalys                 http://www.lispworks.com
+&gt&gt Compass House
+&gt&gt Vision Park, Chivers Way
+&gt&gt Histon
+&gt&gt Cambridge, CB4 9AD
+&gt&gt England
+&gt&gt
+&gt&gt
+&gt
+&gt
+
+
+</pre>
+                     </article>
+                     <section class=tree>
+                      <article class=email>
+                       <h1>Re: Alpha Channels (was: pixmaps, images, and transparency)</h1>
+                       <p>
+                        Unable to parse email body. Email id is 1703
+                      </article>
+                      <section class=tree>
+                       <article class=email>
+                        <h1>Re: Alpha Channels (was: pixmaps, images, and transparency)</h1>
+                        <pre>
+On Thursday, December 11, 2003, at 11:26  AM, davef@xanalys.com wrote:
+
+&gt
+&gt    The transparency responses have been helpful (and I'll be using the
+&gt    information), but I really meant alpha channel values less than 1.0 
+&gt --
+&gt    do images in LW support alpha channels?
+&gt
+&gt Yes.
+&gt
+&gt But bitmaps don't support alpha channels, right? So you will need some
+&gt way to load your non-bitmap image.
+&gt
+&gt One possibility is GP:MAKE-IMAGE-FROM-PORT.
+
+This is how I got onto all this in the first place. I was drawing to a 
+pixmap then making an image from that drawing. When I tried to use the 
+image later it was opaque.
+
+&gt
+&gt Another possibility is this code which exploits the fact that, in
+&gt LispWorks for Macintosh (only),
+
+I'm using OS/X but I need this to be cross platform, so as tempting as 
+this is I'll have to pass on it.
+
+Cheers,
+Bob
+
+
+</pre>
+                       </article>
+                      </section>
+                     </section>
+                    </section>
+                   </section>
+                  </section>
+                 </section>
+                </section>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:54 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

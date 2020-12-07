@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Binding cmd-e on Mac?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Binding cmd-e on Mac?</h1>
+                <pre>
+I've been trying to make Cmd-e on Mac set up the current find string.  
+I've written an editor command that will do that, but it doesn't want  
+to bind to that key.
+
+Here's the command:
+
+(defcommand "Use Selection for Find" (p)
+      "Makes the selection the current find string"
+      "Makes the selection the current find string"
+   (declare (ignore p))
+   (when (region-active-p)
+     (let ((pt-string (points-to-string (current-point) (current- 
+mark))))
+       (push pt-string lispworks-tools::*editing-interface-find- 
+strings*))))
+
+and I'm binding it with:
+
+(mac-bind-key "Use Selection for Find" "Hyper-e")
+
+in my lispworks-init.lisp. There seems to be something special about  
+Cmd-keys. command-to-key reports the binding correctly, but I can't  
+type Cmd-e for key-to-command.
+
+I don't want to set the preference to use Cmd as Meta, either. I think  
+that would be too confusing.
+
+Ideally, I'd rather add a menu item named "Use Selection for Find",  
+but I don't see how to do that.
+
+Any ideas or suggestions?
+
+Thanks.
+
+  - Stoney
+
+-- 
+Stonewall Ballard
+stoney@sb.org           http://stoney.sb.org/
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Binding cmd-e on Mac?</h1>
+                 <pre>
+Hi Stoney,
+
+On Mar 16, 2009, at 5:38 PM, Stonewall Ballard wrote:
+
+&gt I don't want to set the preference to use Cmd as Meta, either. I  
+&gt think that would be too confusing.
+&gt
+&gt Ideally, I'd rather add a menu item named "Use Selection for Find",  
+&gt but I don't see how to do that.
+&gt
+&gt Any ideas or suggestions?
+
+
+I came to the same conclusion: no supported way to bind Mac command  
+keys. As usual, if there is no supported way, you can usually still  
+find a way :). But no guarantee it will always work with future  
+releases.
+
+What I did was to add my own menu to the editor and listener with all  
+the commands I wanted to have command key accelerators. See code  
+below. Note I also deleted the editor View menu because I did not find  
+it to be useful.
+
+John DeSoi, Ph.D.
+
+
+=====
+
+(lw:define-action "CAPI Create Interface" "customize interface"  
+'customize-interface)
+
+(defvar *my-custom-menu-title* "Toolbox")
+
+(defun customize-interface (iface)
+   (let ((menus (capi:interface-menu-bar-items iface))
+         (custom nil))
+     (typecase iface
+       (lispworks-tools:editor
+        (when-let (view (find "View" menus :key #'capi-internals:menu- 
+title :test #'string-equal))
+          (setf menus (remove view menus)))
+        (setf custom (editor-toolbox-menu)))
+       (lispworks-tools:listener
+        (setf custom (listener-toolbox-menu))))
+     (when custom
+       (when-let (old-custom (find *my-custom-menu-title* menus :key  
+#'capi-internals:menu-title :test #'string-equal))
+         (setf old-custom (remove old-custom menus)))
+       (setf (capi:interface-menu-bar-items iface) ;add custom menu  
+after file and edit
+             (append (list (first menus) (second menus) custom)  
+(nthcdr 2 menus))))))
+
+
+
+; custom menu we add to the editor mainly so we can use command keys  
+we want
+(defun editor-toolbox-menu ()
+   (make-instance
+            'capi:menu :title *my-custom-menu-title*
+            :callback-type :interface
+            :items (list
+                    (make-instance
+                     'capi:menu-component
+                     :name :shortcuts
+                     :items (list
+                             (make-instance
+                              'capi:menu-item
+                              :callback-type :none
+                              :title "Listener"
+                              :accelerator #\l
+                              :callback (lambda () (capi:find- 
+interface 'lw-tools:listener)))))
+                    (make-instance
+                     'capi:menu-component
+                     :name :editor-tools
+                     :items (list
+                             (make-instance
+                              'capi:menu-item
+                              :title "Compile Defun"
+                              :accelerator #\j
+                              :callback (lambda (ed) (exec-in-editor- 
+buffer ed 'my-compile-defun-command nil)))
+                             (make-instance
+                              'capi:menu-item
+                              :title "Compile Buffer"
+                              :accelerator #\b
+                              :callback (lambda (ed) (exec-in-editor- 
+buffer ed 'my-compile-buffer-command nil))))))))
+
+
+
+(defun listener-toolbox-menu ()
+   (make-instance
+            'capi:menu :title *my-custom-menu-title*
+            :callback-type :interface
+            :items (list
+                    (make-instance
+                     'capi:menu-component
+                     :name :shortcuts
+                     :items (list
+                             (make-instance
+                              'capi:menu-item
+                              :callback-type :none
+                              :title "Editor"
+                              :accelerator #\l ;same key to toggle  
+between editor and listener
+                              :callback (lambda () (capi:find- 
+interface 'lw-tools:editor))))))))
+
+
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:37 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

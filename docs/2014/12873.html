@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Delivered app (Mac) w/ defparameter hangs app</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Delivered app (Mac) w/ defparameter hangs app</h1><html><head>
+<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1"></head><body
+ bgcolor="#FFFFFF" text="#000000">
+Note: the problem below is specific to Mac (I can't test delivery on 
+Windows).<br>
+  <br>
+It's taken me 3 days to find a workaround to this particular problem. 
+I'm posting this here instead of to support in hopes that I don't 
+understand something in Common Lisp and will learn. If no one has an 
+answer for me I'll pass it along to support...<br>
+  <br>
+In my app, my main interface held the app preferences that were loaded 
+on startup. You could think of it like this:<br>
+  <br>
+  <span style="font-family: monospace;">(define-interface app ()</span><br
+ style="font-family: monospace;">
+  <span style="font-family: monospace;">&nbsp; ((prefs :accessor app-prefs))</span><br
+ style="font-family: monospace;">
+  <span style="font-family: monospace;">&nbsp; (:default-initargs</span><br 
+style="font-family: monospace;">
+  <span style="font-family: monospace;">&nbsp;&nbsp; :create-callback 
+'create-app))</span><br style="font-family: monospace;">
+  <br style="font-family: monospace;">
+  <span style="font-family: monospace;">(defmethod create-app 
+((interface app))</span><br style="font-family: monospace;">
+  <span style="font-family: monospace;">&nbsp; (setf (app-prefs interface) 
+(read-preferences-file)))</span><br>
+  <br>
+And this works great. However, as the app grew, I wanted to break out 
+the code and make the preferences global (maybe in the future I would 
+have multiple app interfaces open at once?).<br>
+  <br>
+So, I removed the create-app callback that read the preferences file and
+ changed my "main" function to do the following:<br>
+  <br>
+(defvar *prefs* nil)<br>
+  <br>
+(defun launch ()<br>
+&nbsp; (setq *prefs* (read-preferences-file))<br>
+&nbsp; (display (make-instance 'app)))<br>
+  <br>
+When I do this, though, while it works in the IDE it completely hangs 
+the delivered app. I can launch it, and whatever interface I set to 
+display initially (even a display-message) will show up, but the 
+interface is completely unresponsive and I need to force quit the 
+application.<br>
+  <br>
+The *only* way I've worked around this is to put the (setq *prefs* ...) 
+inside the cocoa-event-loop process. And there is nothing in 
+read-preferences-file that requires the cocoa-event-loop.<br>
+  <br>
+At first I thought maybe this was a special variable issue; perhaps 
+*prefs* was thread-local and perhaps the cocoa-event-loop was created 
+before *prefs*? But if I make display-message show a value from *prefs* 
+it is correct. So that's not it?<br>
+  <br>
+Anyway, here's what I would hope:<br>
+  <br>
+* If this is me being stupid, can someone explain to me why this is bad 
+and what's happening under-the-hood?<br>
+  <br>
+* This took me several days to figure out going commit-by-commit until I
+ figured out what change caused the issue. Is there a way to debug an 
+unresponsive, delivered app (a key press to break into the REPL)?<br>
+  <br>
+Thanks for any info!<br>
+  <br>
+Jeff M.<br>
+</body>
+</html>
+
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Delivered app (Mac) w/ defparameter hangs app</h1><html><head><meta http-equiv="Content-Type" content="text/html charset=iso-8859-1"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;">Maybe it's a bad idea to set slots in the interface from the create-callback? If so, it may be possible to initialize the preferences earlier, and pass them to the make-instance or some specialized constructor.<div><br></div><div>Have you looked at #'lw:user-preference (and its associated setf form)? I discovered this by chance some time back, and it works quite well for the (simple!) GUI applications that I've written.</div><div><br></div><div>For debugging: you should be able to do this :interrupt-function argument to #'deliver; you may find it useful to suspend threads as the first thing in your interrupt-function. Once you have this in place, you should be able to use Ctrl-C to brea into your application.</div><div><br><div><div>On 13 Feb 2014, at 17:57 , Jeffrey Massung &lt;<a href="mailto:massung@gmail.com">massung@gmail.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><blockquote type="cite">
+<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1"><div bgcolor="#FFFFFF" text="#000000">
+Note: the problem below is specific to Mac (I can't test delivery on 
+Windows).<br>
+  <br>
+It's taken me 3 days to find a workaround to this particular problem. 
+I'm posting this here instead of to support in hopes that I don't 
+understand something in Common Lisp and will learn. If no one has an 
+answer for me I'll pass it along to support...<br>
+  <br>
+In my app, my main interface held the app preferences that were loaded 
+on startup. You could think of it like this:<br>
+  <br>
+  <span style="font-family: monospace;">(define-interface app ()</span><br style="font-family: monospace;">
+  <span style="font-family: monospace;">&nbsp; ((prefs :accessor app-prefs))</span><br style="font-family: monospace;">
+  <span style="font-family: monospace;">&nbsp; (:default-initargs</span><br style="font-family: monospace;">
+  <span style="font-family: monospace;">&nbsp;&nbsp; :create-callback 
+'create-app))</span><br style="font-family: monospace;">
+  <br style="font-family: monospace;">
+  <span style="font-family: monospace;">(defmethod create-app 
+((interface app))</span><br style="font-family: monospace;">
+  <span style="font-family: monospace;">&nbsp; (setf (app-prefs interface) 
+(read-preferences-file)))</span><br>
+  <br>
+And this works great. However, as the app grew, I wanted to break out 
+the code and make the preferences global (maybe in the future I would 
+have multiple app interfaces open at once?).<br>
+  <br>
+So, I removed the create-app callback that read the preferences file and
+ changed my "main" function to do the following:<br>
+  <br>
+(defvar *prefs* nil)<br>
+  <br>
+(defun launch ()<br>
+&nbsp; (setq *prefs* (read-preferences-file))<br>
+&nbsp; (display (make-instance 'app)))<br>
+  <br>
+When I do this, though, while it works in the IDE it completely hangs 
+the delivered app. I can launch it, and whatever interface I set to 
+display initially (even a display-message) will show up, but the 
+interface is completely unresponsive and I need to force quit the 
+application.<br>
+  <br>
+The *only* way I've worked around this is to put the (setq *prefs* ...) 
+inside the cocoa-event-loop process. And there is nothing in 
+read-preferences-file that requires the cocoa-event-loop.<br>
+  <br>
+At first I thought maybe this was a special variable issue; perhaps 
+*prefs* was thread-local and perhaps the cocoa-event-loop was created 
+before *prefs*? But if I make display-message show a value from *prefs* 
+it is correct. So that's not it?<br>
+  <br>
+Anyway, here's what I would hope:<br>
+  <br>
+* If this is me being stupid, can someone explain to me why this is bad 
+and what's happening under-the-hood?<br>
+  <br>
+* This took me several days to figure out going commit-by-commit until I
+ figured out what change caused the issue. Is there a way to debug an 
+unresponsive, delivered app (a key press to break into the REPL)?<br>
+  <br>
+Thanks for any info!<br>
+  <br>
+Jeff M.<br>
+</div>
+
+</blockquote></div><br></div></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Delivered app (Mac) w/ defparameter hangs app</h1>
+                 <p>
+                  Unable to parse email body. Email id is 12875
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:30 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

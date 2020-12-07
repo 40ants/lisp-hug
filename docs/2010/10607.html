@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>thread pool</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>thread pool</h1>
+                <pre>
+Greetings, Lispers!
+
+For my web project, I've written a web application server that "talks" with the web server via the scgi protocol. The web application server can process more than one request from the server at the same time. First, I used one thread per request, but the overhead of creating and destroying thread was not worth to me and I decided to use a thread pool.
+
+Here is some code to show the idea of how I did a thread pool to process requests:
+
+
+(comm:start-up-server :function #'accept-scgi-connection :service port)
+
+
+(defparameter *sockets-pool* nil)
+
+(defun accept-scgi-connection (socket)
+      (when *cleanup-function*
+        (funcall *cleanup-function*))
+      (sys:atomic-push socket *sockets-pool*))
+
+(defun create-pool-worker ()
+  (mp:process-run-function
+   "Pool Worker"
+   nil
+   #'(lambda ()
+       (loop 
+        (mp:process-wait "Waiting for connection" 
+                         #'(lambda () (&gt (length *sockets-pool*) 0)))
+        (let ((socket (sys:atomic-pop *sockets-pool*)))
+          (when socket
+            (do-scgi-connection socket)))))))
+
+In words: when there is a request from the web server, I put the socket into the socket list. There are some pool workers threads. They monitor the length of the socket list and if its length is not zero, they pop the socket from the socket list and process the request.
+
+Question: are there other ways for the dispatcher to notify workers that there is a work to do? Effective ways to dispatch work to worker thread? LW ways to do a thread pool? Any suggestions, thoughts, code, links to articles are appreciated.
+
+
+Best,
+ Art
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: thread pool</h1>
+                 <pre>
+Art Obrezan wrote:
+&gt Question: are there other ways for the dispatcher to notify workers that there is a work to do? Effective ways to dispatch work to worker thread? LW ways to do a thread pool? Any suggestions, thoughts, code, links to articles are appreciated.
+
+What about using a shared mailbox?
+
+
+(defvar *sockets* (mp:make-mailbox))
+
+(defun accept-scgi-connection (socket)
+   (when *cleanup-function*
+     (funcall *cleanup-function*))
+   (mp:mailbox-send *sockets* socket))
+
+(defun create-pool-worker ()
+   (mp:process-run-function
+    "Pool Worker"
+    nil
+    (lambda (mb)
+      (loop for socket = (mp:mailbox-read mb "Waiting for connection")
+            do (do-scgi-connection socket)))
+    *sockets*))
+
+
+Mike
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: thread pool</h1>
+                 <p>
+                  Unable to parse email body. Email id is 10609
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:34 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>lw:defsystem rule (:in-order-to :load ... (:caused-by (:load ...))</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>lw:defsystem rule (:in-order-to :load ... (:caused-by (:load ...))</h1>
+                <pre>
+Hello lispworkers,
+
+Dealing with lw:defsystem for many years, I believed I understood it well.
+But I seem to be plainly wrong. Please, take a look at the following
+excerpt.
+
+(defsystem YHTML ()
+  :members
+    (...
+     "elements"
+     "htmlgen"
+     ("phtml"  :features :phtml)
+     ("lhtt"  :features :phtml) ...)
+:rules
+  (...
+   (:in-order-to :compile "lhtt"
+      (:requires (:load "elements" "htmlgen" "phtml")))
+   (:in-order-to :load "lhtt"
+     (:caused-by (:load "elements" "htmlgen"))
+     (:requires (:load "elements" "htmlgen" "phtml")))
+....))
+
+The scenario is simple. After everything is compiled and loaded, I
+alter the htmlgen.lisp source file. Then I try to compile and load the
+system again. In the System Browser on the Preview tab, I tick both Compile
+and Load and press the Recompute Events button.
+
+It shows Compile htmlgen.lisp and Load htmlgen.fsl under the Plan. Nothing
+about lhtt!
+Evaluating
+  (compile-system 'YHTML :load t)
+in the Listener confirms this plan. lhtt.fsl is not loaded. IMHO, the above
+rule should prescribe this.
+
+Should the :caused-by clause work for the :load action as well as for
+:compile? Am I wrong? (I am on LWW4.6)
+--
+Sincerely,
+Dmitriy Ivanov
+lisp.ystok.ru
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: lw:defsystem rule (:in-order-to :load ... (:caused-by (:load ...))</h1>
+                 <pre>
+* "Dmitriy Ivanov" &lt;000d01c9b1ea$86013720$8100a8c0@digo&gt :
+Wrote on Tue, 31 Mar 2009 14:21:49 +0400:
+
+| (defsystem YHTML ()
+|   :members
+|     (...
+|      "elements"
+|      "htmlgen"
+|      ("phtml"  :features :phtml)
+|      ("lhtt"  :features :phtml) ...)
+| :rules
+|   (...
+|    (:in-order-to :compile "lhtt"
+|       (:requires (:load "elements" "htmlgen" "phtml")))
+|    (:in-order-to :load "lhtt"
+|      (:caused-by (:load "elements" "htmlgen"))
+|      (:requires (:load "elements" "htmlgen" "phtml")))
+| ...))
+|
+| The scenario is simple. After everything is compiled and loaded, I
+| alter the htmlgen.lisp source file. Then I try to compile and load the
+| system again. In the System Browser on the Preview tab, I tick both
+| Compile and Load and press the Recompute Events button.
+|
+| It shows Compile htmlgen.lisp and Load htmlgen.fsl under the
+| Plan. Nothing about lhtt!  Evaluating
+|   (compile-system 'YHTML :load t)
+| in the Listener confirms this plan. lhtt.fsl is not loaded. IMHO, the
+| above rule should prescribe this.
+|
+| Should the :caused-by clause work for the :load action as well as for
+| :compile? Am I wrong? (I am on LWW4.6)
+
+
+Earlier, I had assumed that the answer was `no'; the after-the-fact
+reasoning I adduced was that the `compile' and `load' actions on the
+system are decoupled by default: and that implicit rules only specify
+that a member is added to a plan if it is changed it; and so I had
+always assumed that the system needed an explicit rule to trigger
+recompilation of "lhtt" when "elements" or "htmlgen" was recompiled.
+
+However on reading section 17.2.4 "DEFSYSTEM rules" of the LW user
+guide,
+&lt;/lw511/lib/5-1-0-0/manual/online/web/LWUG/html/lwuser-247.htm&gt
+
+,----
+| When you invoke an action such as compiling a system, the following
+| happens by default:
+|
+| Each member of the system is considered in turn, in the order they are
+| given in the system definition.
+|
+| If the member is a file and action-specific constraints are satisfied,
+| the file action is inserted into a plan .
+
+[...]
+
+| When the action and member of a target are matched during the traversal
+| of the list of members, the target is inserted into the plan if either
+| of the following are true:
+| 
+| - any of the action-member descriptions in the :caused-by clause is
+| already in the plan, or
+| 
+| - any implicit conditions (such as the source file being newer than the
+| object file) are satisfied.
+`----
+
+I'd agree that you are not wrong in your expectation: During the `load'
+action, when considering the member "lhtt", we already have
+
+ (LOAD [object] "htmlgen") in the plan.
+
+This matches the action-description in the :caused-by clause and so
+ (LOAD "lhtt")
+ought to be included in the plan.
+
+So in my reading of the description in LWUG, this would be a bug.
+--
+Madhu
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:37 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

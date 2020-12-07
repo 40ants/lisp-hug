@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>how much memory can lww use?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>how much memory can lww use?</h1>
+                <p>
+                 Unable to parse email body. Email id is 3810
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: how much memory can lww use?</h1>
+                 <p>
+                  Unable to parse email body. Email id is 3813
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: how much memory can lww use?</h1>
+                 <pre>davef@lispworks.com writes:
+
+&gt  &gt I'm using LWW 4.3.7 on an MS Windows XP machine with 2 GB's of RAM.
+&gt  &gt It does not look like my LWW process can use more than 1 GB of memory.
+&gt
+&gt This new section in the LispWorks User Guide is relevant:
+&gt http://www.lispworks.com/documentation/lw445/LWUG/html/lwuser-306.htm
+&gt
+&gt You could try using a tool such as ListDLLs or Process Explorer from
+&gt www.sysinternals.com to see if some DLL is loaded at around #x60000000
+&gt and thus preventing LispWorks from growing beyond 1GB.
+
+Thanks a lot for the info.
+
+With the help of Process Explorer, I got the memory map of the various
+DLL's loaded in LWW's process.  Here is an edited and annotated version
+of the output from Process Explorer with rows sorted based on the values
+of the Base column:
+
+Name                Size      Base        Image Base
+unicode.nls         0x16000   0x260000	  0x0
+locale.nls          0x3D000   0x280000	  0x0
+sortkey.nls         0x41000   0x2C0000	  0x0
+sorttbls.nls        0x6000    0x310000	  0x0
+lispworks-4307.exe  0x3A000   0x400000    0x400000  
+                         (--- 5.5 MB ---)
+ctype.nls           0x3000    0x980000	  0x0
+                         (--- 2.75 MB ---)
+LGMSGHK.DLL         0xB000    0xC40000	  0x10000000
+                         (--- 243.75 MB ---)
+LgWndHk.dll         0x7000    0x10000000  0x10000000
+                         (--- 1232.5625 MB ---)
+comctl32.dll        0x97000   0x5D090000  0x5D090000
+                         (--- 89.1875 MB ---)
+lpk.dll             0x9000    0x629C0000  0x629C0000
+hnetcfg.dll         0x58000   0x662B0000  0x662B0000
+Syncor11.dll        0xD000    0x6BD00000  0x6BD00000
+mswsock.dll         0x3F000   0x71A50000  0x71A50000
+wshtcpip.dll        0x8000    0x71A90000  0x71A90000
+  ... snipped ...
+shell32.dll         0x814000  0x7C9C0000  0x7C9C0000
+
+Could someone please explain to a memory idiot like me why my LWW process
+can get:
+
+  (room)
+   Generation 0:  Total Size 2444K, Allocated 2149K, Free 278K 
+   Generation 1:  Total Size 1858K, Allocated 1138K, Free 712K 
+   Generation 2:  Total Size 977492K, Allocated 976262K, Free 1205K 
+   Generation 3:  Total Size 17422K, Allocated 16999K, Free 405K 
+
+  Total Size 999214K, Allocated 996550K, Free 2602K
+
+after it reaches the maximum amount of memory it can get?  I thought
+LWW needed a contiguous chunk of memory to operate but there are only
+5.5 MB's of space between lispworks-4307.exe and ctype.nls. 
+
+Any explanation will be greately appreciated.
+
+Best wishes,
+
+-cph
+
+ps.  some addition info:
+       ctype.nls: No description and no company name for this one
+       LGMSGHK.DLL: Logitech Message Hook Library from Logitech
+       LgWndHk.dll: Logitech Call Window Hook Library from Logitech
+       comctl32.dll: Common Controls Library from Microsoft
+       lpk.dll: Language Pack from Microsoft
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: how much memory can lww use?</h1>
+                 <p>
+                  Unable to parse email body. Email id is 3815
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: how much memory can lww use?</h1>
+                 <pre>
+&gt http://www.lispworks.com/documentation/lw445/LWUG/html/lwuser-306.htm
+&gt
+&gt I think you didn't read that yet :)
+
+Actually, as a memory idiot, I had read it a few times before I 
+posted to lisp-hug again.  I did not take #x20000000 seriously
+because I'm using LWW 4.3.7, that doc is for 4.4.5, and I only
+saw the LWW process with a base address very different from
+#x20000000.
+
+&gt The LispWorks process you see in Process Explorer is the C stub, but
+&gt the Lisp heap itself is mapped at #x20000000. Therefore it has this
+&gt amount of memory to grow in:
+&gt
+&gt (- #x5D090000 #x20000000)
+&gt
+&gt which is about 976.6MB
+
+Thanks a lot for the explanation.   It makes sense to me now.
+
+Is rebase from MS SDK the only way to move those pesky DLL's between
+#x5000000 and #x7000000 to places above #x7000000?
+
+Best wishes,
+
+-cph
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: how much memory can lww use?</h1>
+                 <p>
+                  Unable to parse email body. Email id is 3818
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: how much memory can lww use?</h1>
+                 <pre>davef@lispworks.com writes:
+
+&gt  &gt Is rebase from MS SDK the only way to move those pesky DLL's between
+&gt  &gt #x5000000 and #x7000000 to places above #x7000000?
+&gt
+&gt A quick web search just now did not find any obvious alternative.
+
+Thanks a lot for taking time to look for an answer for me.
+
+Best wishes,
+
+-cph, looking forward to the LispWorks 5.0 (especially the AMD64 port)
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:48 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

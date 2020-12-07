@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>(LW-HUG) Copy Protection for Delivered Systems...</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>(LW-HUG) Copy Protection for Delivered Systems...</h1>
+                <pre>
+Greetings to the Group --
+
+I have been looking at the SG-Lock device -- built by SG Intec of 
+Kiel, Germany (http://www.sg-lock.com/en/index.php) -- as a possible 
+inexpensive way to protect "delivered" Lisp application systems from 
+surreptitious copying etc.
+
+The SG-Lock is a small USB "dongle" device that has an internal 
+processor and FLASH memory that is able to encipher/decipher data 
+using TEA (http://en.wikipedia.org/wiki/Tiny_Encryption_Algorithm) as 
+the base block cipher algorithm.
+
+My interest is to make it "difficult" for someone to simply make off 
+with a commercial application coded in Lisp and "deliver"ed as an 
+Application.exe (in Windows).  We build a system that lives in custom 
+embedded hardware and so such a dongle would be "inside the box" and 
+not something that the user would have to "fiddle around with".
+
+Best that I can tell, the SG-Lock is not really cryptographically 
+secure in the sense of "hiding" a secret key in protected hardware 
+(e.g., NIST FIPS 140-2/4) as the key is just downloaded and lives in 
+FLASH memory on the dongle which is fairly easy to recover (break the 
+physical thing open and look at it with one means or the other (I 
+used to do a vaguely similar thing decades ago with 1/2-inch magnetic 
+tape and a few drops of alcohol with a suspension of fine powdered 
+iron -- hordes of little magnetized iron stripes would appear as the 
+alcohol dried -- 800 to the inch in those ancient days -- the real 
+fun was to decode, under a microscope, what they meant in the NRZ 
+encoding used  :))
+
+In addition, the SG-Lock device uses TEA for the encipherment 
+algorithm which is not, best that I can tell, all that secure (in a 
+formal certified crypto sense).
+
+However, there is an old saying: "How much security do you need 
+anyway?"    Answer - "As much as you can afford."
+
+....and I *can* afford the SG-Lock at about $30 USD :)
+
+There are several obvious ways to proceed:
+
+(a)  Simply encipher (in part or in whole) the Application.exe 
+(Windows) file before shipping with a unique key using TEA and 
+download that key to the SG-Lock. At power-up, have an intermediary 
+program that deciphers the Application.exe file with the SG-Lock 
+device loaded with the key and supplied to the user and then start 
+the deciphered Application.exe. Problem:  If someone had access to 
+the enciphered Application.exe and the SG-Lock, they could easily 
+(well, if only partially enciphered, easilyish) decipher the file and 
+copy that and use it - spread it about etc.
+
+(b) Have the Application.exe call the SG-Lock during startup and do 
+some simple "crypto thing" and then return the symbol :proceed if all 
+is well or nil if not and stop. Problem: With a bit more reverse 
+engineering, one could simply NOP out the dongle check (scan for 
+assembly that leaps into the Windows USB driver thingus or, even 
+better, just replace the .dll supplied by SG-Lock with your own that 
+always returns :proceed).  Simple.
+
+(c) Similar others come to mind...   ...and they are no better.
+
+
+The fundamental problem is that the SG-Lock is not able to securely 
+store a secret key (what do you expect for $30? I am not criticizing).
+
+There is no way that I see to ever make this system 
+"cryptographically secure" -- especially in a way 
+transparent/acceptable to users (i.e., no unique pass phrases etc).
+
+There are procedures and things in the SG-Lock .dll/library that do 
+things like provide a requirement to initialize the .dll with a long 
+"customer id" etc - but those would be fairly easy to get around with 
+some reasonably good hack work - Clearly(ish), any half-decent 
+mechanism will depend on the TEA encipherment.
+
+Perhaps the device could be used at run-time -- for example, what if 
+I were to (somehow - an exercise for the student) TEA encipher a few 
+key/critical Lisp application functions (compiled code of course out 
+on the heap on the development PC) with a unique key just before the 
+system is being "Delivered". When the Application.exe system starts 
+up, part of the start-up sequence would be to decipher the several 
+functions using the supplied SG-Lock and the unique key and replace 
+them with the deciphered versions on-the-fly.
+
+Still not "cryptographically secure", of course -- really "security 
+by obfuscation" but it *would* be a bit more difficult to get through 
+as everything would happen within the dynamic Lisp system and not 
+just with static files on the disk - on the other hand, perhaps that 
+just makes it easier... (however, there would be no symbol names, or 
+compiler, or delivery mechanism in place - just 50mb of RAM - it 
+might actually be fairly difficult to duplicate the deciphered system 
+- e.g., how do you "deliver" an already "deliver"ed system...).
+
+Any thoughts on this......  ...especially by someone that knows more 
+than I do about the internal structure of LW.
+
+Regards,
+
+Jack Harper
+Secure Outcomes Inc
+http://www.secureoutcomes.net
+
+ps - It might be interesting to see what the GC might make of an 
+enciphered function - might work and might not :)
+
+
+
+
+
+
+
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: (LW-HUG) Copy Protection for Delivered Systems...</h1>
+                 <pre>
+Just checking before you re-invent the wheel - you know about the
+CL-DONGLE library, don't you?
+
+In applications secured with an SG-Lock dongle I've done some or all
+of the following things:
+
+1. The application checks for the presence of a dongle at application
+startup and whenever certain "strategic" functions are called.
+
+2. Optionally, the application can check for a specific dongle (based
+on its serial number) so that the executable is tied to this one
+dongle.
+
+3. The main application loop is started by a kind of "computed jump"
+(a simulated FLI call) and the encrypted target address is only
+decrypted at application startup using a key which is hidden in the
+dongle.
+
+4. A limited (by the dongle's memory size) number of crucial values is
+modified before the delivered executable is created.  The original
+values are restored from the dongle's internal memory at startup time.
+
+5. A (potentially unlimited) number of values is encrypted (and thus
+rendered useless) when the executable is created.  The correct values
+are decrypted using a hidden dongle key at startup time.
+
+Of course, as you said all of this can be broken in one way or the
+other.  The question just is how hard this would be and if there's
+someone with enough time, cleverness, expertise, and energy to do it.
+
+HTH,
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: (LW-HUG) Copy Protection for Delivered Systems...</h1>
+                 <pre>
+ma., 08.02.2010 kl. 13.03 -0700, skrev Jack Harper:
+&gt Greetings to the Group --
+&gt 
+&gt I have been looking at the SG-Lock device -- built by SG Intec of 
+&gt Kiel, Germany (http://www.sg-lock.com/en/index.php) -- as a possible 
+&gt inexpensive way to protect "delivered" Lisp application systems from 
+&gt surreptitious copying etc.
+&gt 
+&gt The SG-Lock is a small USB "dongle" device that has an internal 
+&gt processor and FLASH memory that is able to encipher/decipher data 
+&gt using TEA (http://en.wikipedia.org/wiki/Tiny_Encryption_Algorithm) as 
+&gt the base block cipher algorithm.
+&gt 
+&gt My interest is to make it "difficult" for someone to simply make off 
+&gt with a commercial application coded in Lisp and "deliver"ed as an 
+&gt Application.exe (in Windows).  We build a system that lives in custom 
+&gt embedded hardware and so such a dongle would be "inside the box" and 
+&gt not something that the user would have to "fiddle around with".
+
+&gt Any thoughts on this......  ...especially by someone that knows more 
+&gt than I do about the internal structure of LW.
+&gt 
+&gt Regards,
+&gt 
+&gt Jack Harper
+&gt Secure Outcomes Inc
+&gt http://www.secureoutcomes.net
+&gt 
+&gt ps - It might be interesting to see what the GC might make of an 
+&gt enciphered function - might work and might not :)
+
+I am no expert in this, but I've made a few reflections on the subject.
+The 'check and then go ahead and run it' approach can easily be hacked.
+You set a debugger to trap when some global data is altered, you look at
+the stack to see what called it and disassemble. Then you nop out the
+corresponding bytes that checks your pass-phrase and presto no check.
+
+The best way is to encrypt the entire program and then decrypt it in
+memory using the key in your doogle. The pass-phrase the is the thing
+encrypted in TEA. For your own program use 3DES, IDEA or Blowfish.
+Public key encryption is too slow using stock hardware and should only
+be used for key's. 
+And make sure to disable the ability to dump core.
+
+Secondly there is no reason to tell anyone about the doogle. Security
+through obscurity works remarkably well. If the don't know about it they
+won't be looking for it will they? (I also use Chrome insted of Firefox
+on the world wild web for the same reason.. Few people bother putting a
+lot of effort hacking obscure browsers.) Hardly cryptographically
+secure, but it mostly works. Chances are the real hacker won't have
+access to the hardware, he will just have and insider give him a copy of
+the software.
+
+Hope I gave you a few ideas.
+
+John
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: (LW-HUG) Copy Protection for Delivered Systems...</h1>
+                 <pre>
+At 01:24 PM 2/8/2010, Edi Weitz wrote:
+&gtJust checking before you re-invent the wheel - you know about the
+&gtCL-DONGLE library, don't you?
+&gt
+&gtIn applications secured with an SG-Lock dongle I've done some or all
+&gtof the following things:
+&gt
+&gt1. The application checks for the presence of a dongle at application
+&gtstartup and whenever certain "strategic" functions are called.
+&gt
+&gt2. Optionally, the application can check for a specific dongle (based
+&gton its serial number) so that the executable is tied to this one
+&gtdongle.
+&gt
+&gt3. The main application loop is started by a kind of "computed jump"
+&gt(a simulated FLI call) and the encrypted target address is only
+&gtdecrypted at application startup using a key which is hidden in the
+&gtdongle.
+&gt
+&gt4. A limited (by the dongle's memory size) number of crucial values is
+&gtmodified before the delivered executable is created.  The original
+&gtvalues are restored from the dongle's internal memory at startup time.
+&gt
+&gt5. A (potentially unlimited) number of values is encrypted (and thus
+&gtrendered useless) when the executable is created.  The correct values
+&gtare decrypted using a hidden dongle key at startup time.
+&gt
+&gtOf course, as you said all of this can be broken in one way or the
+&gtother.  The question just is how hard this would be and if there's
+&gtsomeone with enough time, cleverness, expertise, and energy to do it.
+&gt
+&gtHTH,
+&gtEdi.
+
+
+Edi -- I just now tracked down your CL-DONGLE library - Nice work indeed.
+
+I see your point (4) - to encipher certain "critical items" and store 
+them on the dongle and then retrieve/decipher the items at 
+run-time/startup and restore the "critical items" in the executing image.
+
+I had not thought of that - enciphering/storing, for example, certain 
+integers (addresses?) etc that the application depends on.
+
+Well, actually I guess that I sort of did -- I was thinking of 
+enciphering an entire "critical function" (compiled Lisp) with the 
+dongle - deciphering that and restoring it at run-time.
+
+This sort of thing is, of course, a fine line to walk - it is 
+inherently not secure as it just obfuscates the situation to make it 
+not worthwhile to get through the obscurity.
+
+I still like the idea of enciphering a compiled Lisp function and 
+then deciphering that with the dongle at startup. I think that is the 
+path that I will take - all that I will need will be the dongle with 
+just the TEA crypto engine and not any of the flash memory, which, if 
+nothing else, will save $10 USD or so of COGS.
+
+....and, it will be interesting to see exactly how to do that -
+
+Regards to the List,
+
+Jack Harper
+Secure Outcomes Inc
+
+ps - Sorry for the delay in responding, but I have been out of town 
+on business etc.
+
+
+
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: (LW-HUG) Copy Protection for Delivered Systems...</h1>
+                 <pre>
+At 05:50 AM 2/9/2010, John Thingstad wrote:
+
+&gtI am no expert in this, but I've made a few reflections on the subject.
+&gtThe 'check and then go ahead and run it' approach can easily be hacked.
+&gtYou set a debugger to trap when some global data is altered, you look at
+&gtthe stack to see what called it and disassemble. Then you nop out the
+&gtcorresponding bytes that checks your pass-phrase and presto no check.
+
+
+Exactly.
+
+
+&gtThe best way is to encrypt the entire program and then decrypt it in
+&gtmemory using the key in your doogle. The pass-phrase the is the thing
+&gtencrypted in TEA. For your own program use 3DES, IDEA or Blowfish.
+&gtPublic key encryption is too slow using stock hardware and should only
+&gtbe used for key's.
+&gtAnd make sure to disable the ability to dump core.
+
+....or AES-256.
+
+Yes, I agree but the thing I am struggling with is how to (simply) 
+encipher a delivered image (application.exe under windows) and have 
+that successfully load by the O/S - clearly, none of it (.exe headers 
+etc) will make any sense to the O/S.
+
+That is the primary reason that I am thinking of enciphering just a 
+single "critical" compiled Lisp function which would be part of the 
+delivered image. At run-time, decipher that "critical" Lisp function 
+(compiled, of course) and replace it.
+
+....and, of course, you are correct about using the slow external 
+dongle hardware to just handle a block cipher key and then using the 
+1.6Ghz faster target hardware (this is an embedded system) to handle 
+the bulk of the crypto.
+
+
+&gtSecondly there is no reason to tell anyone about the doogle. Security
+&gtthrough obscurity works remarkably well. If the don't know about it they
+&gtwon't be looking for it will they? (I also use Chrome insted of Firefox
+&gton the world wild web for the same reason.. Few people bother putting a
+&gtlot of effort hacking obscure browsers.) Hardly cryptographically
+&gtsecure, but it mostly works. Chances are the real hacker won't have
+&gtaccess to the hardware, he will just have and insider give him a copy of
+&gtthe software.
+&gt
+&gtHope I gave you a few ideas.
+
+
+You certainly have.
+
+Thank You John.
+
+Regards to the List.
+
+Jack Harper
+Secure Outcomes Inc. 
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:36 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Symbol-macros?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Symbol-macros?</h1>
+                <pre>
+Hi List,
+
+Sometimes it would be really nice to be able to import symbols from other packages in the style of Dylan, where local renaming can occur. Lisp seems to have made the decision to bind values and functions to the name instead of indirecting through a reference cell. That is probably good for runtime speed, although I'm not convinced it would matter if the compiler simply hooked to the ref cell directly.
+
+I tried using DEFINE-SYMBOL-MACRO, but find that it only has effect for symbols in non-function position. And this is true across the several Lisps that I tried. After scouring the Hyperspec, I can't find any place that dictates this behavior, though I'm sure there must be. 
+
+As a simple example, suppose I wanted to alias "+" with "add".  
+
+(define-symbol-macro add '+)
+
+But this refuses to translate the "add" in (add 1 2 3). However, it willingly does so with (list add).
+
+Can anyone tell me why symbol-macros are subverted for function position symbols?
+
+Dr. David McClain
+Chief Technical Officer
+Refined Audiometrics Laboratory
+4391 N. Camino Ferreo
+Tucson, AZ  85750
+
+email: dbm@refined-audiometrics.com
+phone: 1.520.390.3995
+web: http://www.refined-audiometrics.com
+
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Symbol-macros?</h1>
+                 <pre>
+
+On Mar 10, 2010, at 1:25 PM, David McClain wrote:
+
+&gt As a simple example, suppose I wanted to alias "+" with "add".  
+&gt 
+&gt (define-symbol-macro add '+)
+&gt 
+&gt But this refuses to translate the "add" in (add 1 2 3). However, it willingly does so with (list add).
+
+Does (setf (symbol-function 'add) (symbol-function '+)) do what you want?
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Symbol-macros?</h1>
+                 <pre>
+On 10 Mar 2010, at 18:25, David McClain wrote:
+
+&gt Can anyone tell me why symbol-macros are subverted for function  
+&gt position symbols?
+
+Because what they are for was translating things that look like  
+variable references into things which are not.  The canonical example  
+is for things like WITH-ACCESSORS (in fact, I am pretty sure that the  
+CLOS WITH-x macros is why symbol macros were introduced into CL).
+
+Another way of saying this is that CL is a Lisp-2: symbol macros deal  
+with the variable namespace, macros deal with the function namespace.
+
+Yet another way of saying this is that you can't actually do what you  
+want easily in CL at all: a combination of a macro and a symbol macro  
+might get you close, but I'm pretty sure that, say (FUNCTION ADD) will  
+not work.  CL has a package system, not a module system.
+
+--tim
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Symbol-macros?</h1>
+                 <pre>
+
+On 10 Mar 2010, at 19:25, David McClain wrote:
+
+&gt 
+&gt Hi List,
+&gt 
+&gt Sometimes it would be really nice to be able to import symbols from other packages in the style of Dylan, where local renaming can occur. Lisp seems to have made the decision to bind values and functions to the name instead of indirecting through a reference cell. That is probably good for runtime speed, although I'm not convinced it would matter if the compiler simply hooked to the ref cell directly.
+&gt 
+&gt I tried using DEFINE-SYMBOL-MACRO, but find that it only has effect for symbols in non-function position. And this is true across the several Lisps that I tried. After scouring the Hyperspec, I can't find any place that dictates this behavior, though I'm sure there must be. 
+&gt 
+&gt As a simple example, suppose I wanted to alias "+" with "add".  
+&gt 
+&gt (define-symbol-macro add '+)
+&gt 
+&gt But this refuses to translate the "add" in (add 1 2 3). However, it willingly does so with (list add).
+&gt 
+&gt Can anyone tell me why symbol-macros are subverted for function position symbols?
+
+Consider:
+
+(defun f (x) (+ x x))
+
+(define-symbol-macro g f)
+
+(defmacro g (x) 'screw-you)
+
+What should be the result of (g 5) under such definitions? Why?
+
+If you want to 'import' function bindings by way of your own macro definitions, you could do the following:
+
+(defun f (x) (+ x x))
+
+(define-symbol-macro g (function f))
+(defmacro g (x) `(f ,x))
+
+....and turn this into a macro that defines the macros and symbol-macros for you. Effectively, you would get Lisp-1 semantics for such imported functions, but maybe that's good enough in practice.
+
+You could also decide to shadow 'cl:function, then it would be possible to import the function binding in such a way that also (function g) yields (cl:function g) - however, that is much more complex (I have done this for an experimental extension of Common Lisp). One reason is that you have to keep track of everything you imported, and make this available in the macroexpansion environment. The other reason is that you still didn't modify the #' abbreviation, which still turns into cl:function, so you would also have to hack the read table. I think for practical purposes, this is not worth the effort. YMMV.
+
+
+Best,
+Pascal
+
+-- 
+Pascal Costanza, mailto:pc@p-cos.net, http://p-cos.net
+Vrije Universiteit Brussel
+Software Languages Lab
+Pleinlaan 2, B-1050 Brussel, Belgium
+
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:35 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

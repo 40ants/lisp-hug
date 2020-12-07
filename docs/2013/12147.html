@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Unescaping strings</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Unescaping strings</h1><div dir="ltr">Is there anything in the CLHS that deals with escaped strings? <div><br></div><div>For example, in C: &quot;\t\n&quot;, while in Lisp I seem forced to (format nil &quot;~c~c&quot; #\tab #\newline).</div><div>
+<br></div><div style>I can obviously write a function to handle escaped strings (more importantly un-escaping them), but if something the spec deals with this already, I&#39;d rather use it... I just haven&#39;t found it yet.</div>
+<div style><br></div><div style>Jeff M.</div></div>
+
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Unescaping strings</h1>
+                 <pre>
+On Mon, Feb 25, 2013 at 4:29 PM, Jeff Massung &lt;massung@gmail.com&gt wrote:
+&gt Is there anything in the CLHS that deals with escaped strings?
+[...]
+
+Nope. However, Edi Weitz' CL-INTERPOL will do it: http://weitz.de/cl-interpol/
+
+    -tree
+
+-- 
+Tom Emerson
+tremerson@gmail.com
+http://www.dreamersrealm.net/tree
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Unescaping strings</h1>
+                 <pre>
+On Mon, Feb 25, 2013 at 4:29 PM, Jeff Massung &lt;massung@gmail.com&gt wrote:
+&gt Is there anything in the CLHS that deals with escaped strings?
+&gt
+&gt For example, in C: "\t\n", while in Lisp I seem forced to (format nil "~c~c"
+&gt #\tab #\newline).
+&gt
+&gt I can obviously write a function to handle escaped strings (more importantly
+&gt un-escaping them), but if something the spec deals with this already, I'd
+&gt rather use it... I just haven't found it yet.
+
+It's not necessarily great style to have meaningful literal whitespace
+in your code, I suppose, but you can always just do "
+" as well.  (Let's see if any of the processing between here and the
+list will strip out that tab character...
+
+//JT
+
+-- 
+Joshua Taylor, http://www.cs.rpi.edu/~tayloj/
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Unescaping strings</h1><div dir="ltr">Well, I&#39;m parsing JSON, so I&#39;m not trying to just use the Lisp reader. ;-)<div><br></div><div style>See <a href="https://github.com/massung/json">https://github.com/massung/json</a></div><div style><br>
+</div><div style>So, while I&#39;ve just parsed the strings and that was simple/fine (just hoping CL had something built-in), this leads me to another string-related question for LispWorks. How can I coerce a list of characters to a string when that list can contain Unicode characters?</div>
+<div style><br></div><div style>For example:</div><div style><br></div><div style>(coerce `(#\a #\b ,(code-char 1049)) &#39;string) ;=&gt; ERROR!</div><div style><br></div><div style>(format nil &quot;~c&quot; (code-char 1049)) ;=&gt; WORKS!</div>
+<div style><br></div><div style>(format nil &quot;~{~c~}&quot; `(#\a #\b ,(code-char 1049))) ;=&gt; WORKS!</div><div style><br></div><div style>(type-of *) ;=&gt; SIMPLE-TEXT-STRING</div><div style><br></div><div style>(coerce `(#\a #\b ,(code-char 1049)) &#39;simple-text-string) ;=&gt; ERROR!</div>
+<div style><br></div><div style>So, I think my question boils down to whether or not there is a type specifier in LispWorks for Unicode/multi-byte strings that I can use with COERCE, or if I&#39;m stuck doing my FORMAT work-around?</div>
+<div style><br></div><div style>Jeff M.</div></div><div class="gmail_extra"><br><br><div class="gmail_quote">On Mon, Feb 25, 2013 at 5:26 PM, Joshua TAYLOR <span dir="ltr">&lt;<a href="mailto:tayloj@rpi.edu" target="_blank">tayloj@rpi.edu</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div class="im"><br>
+On Mon, Feb 25, 2013 at 4:29 PM, Jeff Massung &lt;<a href="mailto:massung@gmail.com">massung@gmail.com</a>&gt; wrote:<br>
+</div><div><div class="h5">&gt; Is there anything in the CLHS that deals with escaped strings?<br>
+&gt;<br>
+&gt; For example, in C: &quot;\t\n&quot;, while in Lisp I seem forced to (format nil &quot;~c~c&quot;<br>
+&gt; #\tab #\newline).<br>
+&gt;<br>
+&gt; I can obviously write a function to handle escaped strings (more importantly<br>
+&gt; un-escaping them), but if something the spec deals with this already, I&#39;d<br>
+&gt; rather use it... I just haven&#39;t found it yet.<br>
+<br>
+</div></div>It&#39;s not necessarily great style to have meaningful literal whitespace<br>
+in your code, I suppose, but you can always just do &quot;<br>
+&quot; as well.  (Let&#39;s see if any of the processing between here and the<br>
+list will strip out that tab character...<br>
+<span class="HOEnZb"><font color="#888888"><br>
+//JT<br>
+<br>
+--<br>
+Joshua Taylor, <a href="http://www.cs.rpi.edu/~tayloj/" target="_blank">http://www.cs.rpi.edu/~tayloj/</a><br>
+<br>
+_______________________________________________<br>
+Lisp Hug - the mailing list for LispWorks users<br>
+<a href="mailto:lisp-hug@lispworks.com">lisp-hug@lispworks.com</a><br>
+<a href="http://www.lispworks.com/support/lisp-hug.html" target="_blank">http://www.lispworks.com/support/lisp-hug.html</a><br>
+<br>
+</font></span></blockquote></div><br></div>
+
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Unescaping strings</h1>
+                 <pre>
+&gt For example:
+&gt
+&gt (coerce `(#\a #\b ,(code-char 1049)) 'string) ;=&gt ERROR!
+
+If you evaluate
+
+(set-default-character-element-type 'lw:simple-char)
+
+before you evaluate the above it works.
+
+You could also write
+
+(coerce '(#\a #\b #\U+0419) 'string)
+
+&gt (coerce `(#\a #\b ,(code-char 1049)) 'simple-text-string) ;=&gt ERROR!
+
+That works for me in LW 6.0.1 on Mac OS X even without the
+set-default-character-element-type call.
+
+    -tree
+
+-- 
+Tom Emerson
+tremerson@gmail.com
+http://www.dreamersrealm.net/tree
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Unescaping strings</h1>
+                 <pre>
+On Tue, Feb 26, 2013 at 9:50 AM, Jeff Massung &lt;massung@gmail.com&gt wrote:
+&gt Well, I'm parsing JSON, so I'm not trying to just use the Lisp reader. ;-)
+&gt
+&gt See https://github.com/massung/json
+&gt
+&gt So, while I've just parsed the strings and that was simple/fine (just hoping
+&gt CL had something built-in), this leads me to another string-related question
+&gt for LispWorks. How can I coerce a list of characters to a string when that
+&gt list can contain Unicode characters?
+&gt
+&gt For example:
+&gt
+&gt (coerce `(#\a #\b ,(code-char 1049)) 'string) ;=&gt ERROR!
+&gt
+&gt (format nil "~c" (code-char 1049)) ;=&gt WORKS!
+&gt
+&gt (format nil "~{~c~}" `(#\a #\b ,(code-char 1049))) ;=&gt WORKS!
+&gt
+&gt (type-of *) ;=&gt SIMPLE-TEXT-STRING
+&gt
+&gt (coerce `(#\a #\b ,(code-char 1049)) 'simple-text-string) ;=&gt ERROR!
+&gt
+&gt So, I think my question boils down to whether or not there is a type
+&gt specifier in LispWorks for Unicode/multi-byte strings that I can use with
+&gt COERCE, or if I'm stuck doing my FORMAT work-around?
+
+Two others have already written about changing the default character
+type, and that may be a suitable solution.  If you still want to
+concatenate without changing default types, the string type
+TEXT-STRING [1], which "is the string type that is guaranteed to
+always hold any character used in writing text (program text or
+natural language)," may be what you want:
+
+CL-USER 2 &gt (coerce `(#\a #\b ,(code-char 1049)) 'string)  ; problem you saw
+Error: #\Й is not of type BASE-CHAR.
+....
+
+CL-USER 4 &gt (coerce `(#\a #\b ,(code-char 1049)) 'text-string)
+"abЙ"
+
+//JT
+
+[1] http://www.lispworks.com/documentation/lw50/LWRM/html/lwref-353.htm#82128
+
+-- 
+Joshua Taylor, http://www.cs.rpi.edu/~tayloj/
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Unescaping strings</h1><div dir="ltr">Thank you all for the awesome information!<div><br></div><div>Jeff M.</div></div><div class="gmail_extra"><br><br><div class="gmail_quote">On Tue, Feb 26, 2013 at 9:13 AM, Joshua TAYLOR <span dir="ltr">&lt;<a href="mailto:joshuaaaron@gmail.com" target="_blank">joshuaaaron@gmail.com</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div class="im">On Tue, Feb 26, 2013 at 9:50 AM, Jeff Massung &lt;<a href="mailto:massung@gmail.com">massung@gmail.com</a>&gt; wrote:<br>
+
+&gt; Well, I&#39;m parsing JSON, so I&#39;m not trying to just use the Lisp reader. ;-)<br>
+&gt;<br>
+&gt; See <a href="https://github.com/massung/json" target="_blank">https://github.com/massung/json</a><br>
+&gt;<br>
+&gt; So, while I&#39;ve just parsed the strings and that was simple/fine (just hoping<br>
+&gt; CL had something built-in), this leads me to another string-related question<br>
+&gt; for LispWorks. How can I coerce a list of characters to a string when that<br>
+&gt; list can contain Unicode characters?<br>
+&gt;<br>
+&gt; For example:<br>
+&gt;<br>
+&gt; (coerce `(#\a #\b ,(code-char 1049)) &#39;string) ;=&gt; ERROR!<br>
+&gt;<br>
+&gt; (format nil &quot;~c&quot; (code-char 1049)) ;=&gt; WORKS!<br>
+&gt;<br>
+&gt; (format nil &quot;~{~c~}&quot; `(#\a #\b ,(code-char 1049))) ;=&gt; WORKS!<br>
+&gt;<br>
+&gt; (type-of *) ;=&gt; SIMPLE-TEXT-STRING<br>
+&gt;<br>
+&gt; (coerce `(#\a #\b ,(code-char 1049)) &#39;simple-text-string) ;=&gt; ERROR!<br>
+&gt;<br>
+&gt; So, I think my question boils down to whether or not there is a type<br>
+&gt; specifier in LispWorks for Unicode/multi-byte strings that I can use with<br>
+&gt; COERCE, or if I&#39;m stuck doing my FORMAT work-around?<br>
+<br>
+</div>Two others have already written about changing the default character<br>
+type, and that may be a suitable solution.  If you still want to<br>
+concatenate without changing default types, the string type<br>
+TEXT-STRING [1], which &quot;is the string type that is guaranteed to<br>
+always hold any character used in writing text (program text or<br>
+natural language),&quot; may be what you want:<br>
+<br>
+CL-USER 2 &gt; (coerce `(#\a #\b ,(code-char 1049)) &#39;string)  ; problem you saw<br>
+Error: #\Й is not of type BASE-CHAR.<br>
+....<br>
+<br>
+CL-USER 4 &gt; (coerce `(#\a #\b ,(code-char 1049)) &#39;text-string)<br>
+&quot;abЙ&quot;<br>
+<br>
+//JT<br>
+<br>
+[1] <a href="http://www.lispworks.com/documentation/lw50/LWRM/html/lwref-353.htm#82128" target="_blank">http://www.lispworks.com/documentation/lw50/LWRM/html/lwref-353.htm#82128</a><br>
+<div class="HOEnZb"><div class="h5"><br>
+--<br>
+Joshua Taylor, <a href="http://www.cs.rpi.edu/~tayloj/" target="_blank">http://www.cs.rpi.edu/~tayloj/</a><br>
+</div></div></blockquote></div><br></div>
+
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Unescaping strings</h1>
+                 <pre>
+Jeff Massung &lt;massung@gmail.com&gt writes:
+
+&gt Is there anything in the CLHS that deals with escaped strings?&nbsp;
+&gt
+&gt For example, in C: "\t\n", while in Lisp I seem forced to (format nil
+&gt "~c~c" #\tab #\newline).
+&gt
+&gt I can obviously write a function to handle escaped strings (more
+&gt importantly un-escaping them), but if something the spec deals with
+&gt this already, I'd rather use it... I just haven't found it yet.
+
+This was posted on http://paste.lisp.org once:
+
+
+;;;; -*- mode:lisp;coding:utf-8 -*-
+;;;;**************************************************************************
+;;;;FILE:               c-string-reader.lisp
+;;;;LANGUAGE:           Common-Lisp
+;;;;SYSTEM:             Common-Lisp
+;;;;USER-INTERFACE:     NONE
+;;;;DESCRIPTION
+;;;;    
+;;;;    A C string reader, implememting C string back-slash escapes.
+;;;;    Also includes a writer to print strings with C back-slash escapes.
+;;;;    
+;;;;AUTHORS
+;;;;    &lt;PJB&gt Pascal J. Bourguignon &lt;pjb@informatimago.com&gt
+;;;;MODIFICATIONS
+;;;;    2011-05-21 &lt;PJB&gt Updated from http://paste.lisp.org/display/69905
+;;;;BUGS
+;;;;LEGAL
+;;;;    GPL
+;;;;    
+;;;;    Copyright Pascal J. Bourguignon 2011 - 2011
+;;;;    
+;;;;    This program is free software; you can redistribute it and/or
+;;;;    modify it under the terms of the GNU General Public License
+;;;;    as published by the Free Software Foundation; either version
+;;;;    2 of the License, or (at your option) any later version.
+;;;;    
+;;;;    This program is distributed in the hope that it will be
+;;;;    useful, but WITHOUT ANY WARRANTY; without even the implied
+;;;;    warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+;;;;    PURPOSE.  See the GNU General Public License for more details.
+;;;;    
+;;;;    You should have received a copy of the GNU General Public
+;;;;    License along with this program; if not, write to the Free
+;;;;    Software Foundation, Inc., 59 Temple Place, Suite 330,
+;;;;    Boston, MA 02111-1307 USA
+;;;;**************************************************************************
+
+
+(defun write-c-string (string &amp;optional (stream *standard-output*))
+  "Prints the string as a C string, with C escape sequences."
+  (loop
+     :for ch :across string
+     :initially (princ "\"" stream)
+     :do (princ (case ch
+                  ((#\bell)               "\\a")
+                  ((#\backspace)         "\\b")
+                  ((#\page)               "\\f")
+                  ((#\newline #\linefeed) "\\n")
+                  ((#\return)             "\\r")
+                  ((#\tab)                "\\t")
+                  ((#\vt)                 "\\v")
+                  ((#\")                  "\\\"")
+                  ((#\\)                  "\\\\")
+                  (otherwise
+                   (if (&lt; (char-code ch) 32)
+                       (format nil "\\~3,'0o" (char-code ch))
+                       ch))) stream)
+     :finally (princ "\"" stream)))
+
+
+(defun read-c-string (stream)
+  "Read a C string from the STREAM
+The initial double-quote must have been read already."
+  (let ((buffer (make-array 80 :element-type 'character
+                            :adjustable t :fill-pointer 0))
+        (state :in-string)
+        (start  0))
+    (flet ((process-token (ch)
+             (ecase state
+               ((:in-string)
+                (setf state (case ch
+                              ((#\")     :out)
+                              ((#\\)     :escape)
+                              (otherwise (vector-push-extend ch buffer)
+                                         :in-string)))
+                nil)
+               ((:escape)
+                (setf state :in-string)
+                (case ch
+                  ((#\' #\" #\? #\\) (vector-push-extend ch buffer))
+                  ((#\a)  (vector-push-extend #\bell    buffer))
+                  ((#\b)  (vector-push-extend #\backspace buffer))
+                  ((#\f)  (vector-push-extend #\page    buffer))
+                  ((#\n)  (vector-push-extend #\newline buffer))
+                  ((#\newline) #|remove it|#)
+                  ((#\r)  (vector-push-extend #\return  buffer))
+                  ((#\t)  (vector-push-extend #\tab     buffer))
+                  ((#\v)  (vector-push-extend #\vt      buffer))
+                  ((#\x)
+                   (setf state :in-hexa
+                         start (fill-pointer buffer)))
+                  ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7)
+                   (setf state :in-octal
+                         start (fill-pointer buffer))
+                   (vector-push-extend ch buffer))
+                  (otherwise
+                   (error "Invalid escape character \\~C at position ~D"
+                          ch (fill-pointer buffer))))
+                nil)
+               ((:in-octal)
+                (flet ((insert-octal ()
+                         (setf (aref buffer start) (code-char (parse-integer buffer :start start :radix 8))
+                               (fill-pointer buffer) (1+ start) 
+                               state :in-string)))
+                 (case ch
+                   ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7)
+                    (vector-push-extend ch buffer)
+                    (when (&lt;= 3 (- (fill-pointer buffer) start))
+                      (insert-octal))
+                    nil)
+                   (otherwise
+                    (insert-octal)
+                    :again))))
+               ((:in-hexa)
+                (case ch
+                  ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9
+                        #\a #\b #\c #\d #\e #\f
+                        #\A #\B #\C #\D #\E #\F)
+                   (vector-push-extend ch buffer)
+                   nil)
+                  (otherwise
+                   (if (&lt; start (fill-pointer buffer))
+                       (setf (aref buffer start) (code-char (parse-integer buffer :start start :radix 16))
+                             (fill-pointer buffer) (1+ start))
+                       (error "Invalid hexadecimal digit at position ~A" (fill-pointer buffer)))
+                   (setf state :in-string)
+                   :again))))))
+      (loop
+         :for ch = (read-char stream)
+         :do (loop :while (process-token ch))
+         :until (eq state :out) 
+         :finally (return buffer)))))
+
+
+
+(defun test/read-c-string ()
+ (let ((*readtable*
+        (let ((rt (copy-readtable nil)))
+          (set-macro-character #\"
+                               (lambda (stream ch)
+                                 (declare (ignore ch))
+                                 (read-c-string stream))
+                               nil
+                               rt)
+          rt)))
+    (read-from-string "\"Hello, bell=\\a, backspace=\\b, page=\\f, newline=\\n, return=\\r, tab=\\t, vt=\\v, \\
+\\\"double-quotes\\\", \\'single-quotes\\', question\\?, backslash=\\\\, \\
+hexa=\\x3BB, octal=\\101, \\7\\77\\107\\3071\"")))
+
+
+;;;; THE END ;;;;
+
+-- 
+__Pascal Bourguignon__                     http://www.informatimago.com/
+A bad day in () is better than a good day in {}.
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: GPL license in posted code, was Re: Unescaping strings</h1>
+                 <pre>
+Rainer Joswig &lt;joswig@lisp.de&gt writes:
+
+&gt Hi,
+&gt
+&gt just a remark about the GPL license used in the code Pascal J. Bourguignon posted here.
+&gt
+&gt Note that I can't load this code into a Lispworks and distribute that
+&gt as an application. The GPL requires that the complete code (including
+&gt your app and the LispWorks code) needs to be available then. I would
+&gt need to get this code under a different license from him - even though
+&gt I could decide to make my code available, then still the LispWorks
+&gt code is not available.
+&gt
+&gt See http://www.cliki.net/LGPL for variants. Only the LLGPL, not even
+&gt the LGPL, would really make it possible for me to use such code with
+&gt something like LispWorks and being able to distribute an application.
+
+Indeed.  However, you can still use the code to learn how to do it.
+
+-- 
+__Pascal Bourguignon__                     http://www.informatimago.com/
+A bad day in () is better than a good day in {}.
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: GPL license in posted code, was Re: Unescaping strings</h1>Is this due to there being no Lispworks runtime library that applications link against?  The GPL FAQ states that GPL code is compatible with environments like Visual C++ as apps link against a separate runtime library<span></span>. <div>
+<br></div><div><br><br>On Wednesday, February 27, 2013, Rainer Joswig  wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><br>
+Hi,<br>
+<br>
+just a remark about the GPL license used in the code Pascal J. Bourguignon posted here.<br>
+<br>
+Note that I can&#39;t load this code into a Lispworks and distribute that as an application. The GPL requires that the complete code (including your app and the LispWorks code) needs to be available then. I would need to get this code under a different license from him - even though I could decide to make my code available, then still the LispWorks code is not available.<br>
+
+<br>
+See <a href="http://www.cliki.net/LGPL" target="_blank">http://www.cliki.net/LGPL</a>  for variants. Only the LLGPL, not even the LGPL,  would really make it possible for me to use such code with something like LispWorks and being able to distribute an application.<br>
+
+<br>
+Regards,<br>
+<br>
+Rainer Joswig<br>
+<br>
+<br>
+<br>
+Am 27.02.2013 um 20:38 schrieb &quot;Pascal J. Bourguignon&quot; &lt;<a href="javascript:;" onclick="_e(event, &#39;cvml&#39;, &#39;pjb@informatimago.com&#39;)">pjb@informatimago.com</a>&gt;:<br>
+<br>
+&gt; This was posted on <a href="http://paste.lisp.org" target="_blank">http://paste.lisp.org</a> once:<br>
+&gt; ;;;;AUTHORS<br>
+&gt; ;;;;    &lt;PJB&gt; Pascal J. Bourguignon &lt;<a href="javascript:;" onclick="_e(event, &#39;cvml&#39;, &#39;pjb@informatimago.com&#39;)">pjb@informatimago.com</a>&gt;<br>
+&gt; ;;;;MODIFICATIONS<br>
+&gt; ;;;;    2011-05-21 &lt;PJB&gt; Updated from <a href="http://paste.lisp.org/display/69905" target="_blank">http://paste.lisp.org/display/69905</a><br>
+&gt; ;;;;BUGS<br>
+&gt; ;;;;LEGAL<br>
+&gt; ;;;;    GPL<br>
+&gt; ;;;;<br>
+&gt; ;;;;    Copyright Pascal J. Bourguignon 2011 - 2011<br>
+&gt; ;;;;<br>
+&gt; ;;;;    This program is free software; you can redistribute it and/or<br>
+&gt; ;;;;    modify it under the terms of the GNU General Public License<br>
+&gt; ;;;;    as published by the Free Software Foundation; either version<br>
+&gt; ;;;;    2 of the License, or (at your option) any later version.<br>
+&gt; ;;;;<br>
+&gt; ;;;;    This program is distributed in the hope that it will be<br>
+&gt; ;;;;    useful, but WITHOUT ANY WARRANTY; without even the implied<br>
+&gt; ;;;;    warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR<br>
+&gt; ;;;;    PURPOSE.  See the GNU General Public License for more details.<br>
+&gt; ;;;;<br>
+&gt; ;;;;    You should have received a copy of the GNU General Public<br>
+&gt; ;;;;    License along with this program; if not, write to the Free<br>
+&gt; ;;;;    Software Foundation, Inc., 59 Temple Place, Suite 330,<br>
+&gt; ;;;;    Boston, MA 02111-1307 USA<br>
+&gt; ;;;;**************************************************************************<br>
+<br>
+<br>
+_______________________________________________<br>
+Lisp Hug - the mailing list for LispWorks users<br>
+<a href="javascript:;" onclick="_e(event, &#39;cvml&#39;, &#39;lisp-hug@lispworks.com&#39;)">lisp-hug@lispworks.com</a><br>
+<a href="http://www.lispworks.com/support/lisp-hug.html" target="_blank">http://www.lispworks.com/support/lisp-hug.html</a><br>
+<br>
+</blockquote></div>
+
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: GPL license in posted code, was Re: Unescaping strings</h1>
+                 <pre>
+2013/03/02 Luke Crook &lt;luke@...&gt:
+&gt Is this due to there being no Lispworks runtime library that applications
+&gt link against?  The GPL FAQ states that GPL code is compatible with
+&gt environments like Visual C++ as apps link against a separate runtime
+&gt library.
+
+In Common Lisp, you usually load code (*.lisp or *.fasl) into the
+current environment. I don't know how much of that can be considered
+just linking.
+
+Maybe if you use (declaim (ftype ...)) everywhere, so you can compile
+your code which invokes yet undefined functions, and load external
+Lisp code as late as possible. However, macros and reader (dispatch)
+macro characters don't seem to match this simple category, as their
+purpose is to do something in the context of the compiler and the
+reader, so they have an immediate effect on the environment instead of
+just in your final bundle.
+
+I don't know how this is thought of in the C world, where #defines can
+be simple constants, but they can also be complex macros that expand
+to non-trivial code or yet other macros.
+
+Given the ambiguity and the lack of actual trial of the licenses (GPL
+and LPGL), even in the scope of statically compiled/processed
+languages, I have to agree that the LLGPL is the only friendly
+"copyleft" license for Lisp in general.
+
+-- 
+Paulo Madeira
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:31 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

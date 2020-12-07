@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Strange problem with call-system, PATH, delivery, and errors</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Strange problem with call-system, PATH, delivery, and errors</h1>
+                <pre>Hi all,
+A strange error, and I've an idea what's going on, but not much of an
+idea how to deal with it,
+or why exactly it happens.
+
+I'm  on LWM 4.4.5 Pro, MacOS10.4.2
+
+I have a /usr/local/bin which is added to my PATH in my .bashrc file. 
+Terminal.app starts bash when creating a new window.
+I have a file called 'testing' in /usr/local/bin" which has the following
+contents
+--------------
+   #!/bin/bash
+   echo "Testing with the Path..."
+--------------
+and has the proper permissions set to execute.
+
+I have a delivery file that has the following contents:
+--------------
+(defun test-fn (&amp;rest r)
+  (declare (ignorable r))
+  (capi:contain (make-instance 'capi:display-pane
+                               :text
+                               (let* ((ret 0)
+                                      (op (with-output-to-string 
+(*standard-output*)
+                                           (setf ret
+(sys:call-system-showing-output "testing")))))
+                                 (capi:contain (make-instance
+'capi:display-pane
+                                                              :text
+op))
+                                 (unless (zerop ret)
+                                   (error "There was an error"))))))
+
+(defun deliver-fn ()
+  (capi:contain (make-instance 'capi:push-button
+                               :callback #'test-fn)))
+
+(load (make-pathname
+       :directory (pathname-directory (sys:lispworks-dir
+"examples/configuration/"))
+       :name "macos-application-bundle"))
+
+(deliver
+ #'deliver-fn
+ (write-macos-application-bundle
+  (make-pathname :directory (pathname-directory *load-truename*)
+                 :name "testing"))
+ 1
+ :interface :capi)
+----------
+It's not beautiful code, but it illustrates my problem. I get an
+Application bundle
+as a result when I deliver this. When I double cilck on the application 
+I get a small window with a button.
+
+The first time I press the button, I get a display-pane with the contents:
+
+; testing
+; testing: line 1 : testing : command not found
+
+As I would rather expect. The error opens a new Terminal window which has the 
+contents:
+--------
+Last login: Wed Aug 17 12:21:27 on ttyp3
+Welcome to Darwin!
+^_^ tayloj@Wright:~$ /tmp/LWtemp.Wright.9089.1.command; exit
+
+Error: There was an error
+  1 (abort) Quit process.
+
+Type :b for backtrace, :c &lt;option number&gt to proceed,  or :? for other options
+
+CL-USER 1 : 1 &gt 
+------
+
+Notice the bash prompt as well. If I abort from the error, that is, enter ":a", 
+control is returned, and I can press the button again. Pressing the button again
+gives me  a display pane with 
+; testing
+; Testing with the Path...
+which shows that  my .bashrc has been read, and the PATH being
+exported evidentally
+went all the way back to Lispworks. 
+
+At the beginning I made it clear that I started the Application by
+clicking on the icon. If I
+do 
+open testing.app 
+from a Terminal (in which I'm already running bash) the testing shell
+script is found
+on the first button press (and thus I know that /usr/local/bin is on the PATH). 
+
+So, I've got at least a few questions: 
+Certainly, call-system has PATH set to something, otherwise it
+wouldn't be able to
+work with things like 'ls', etc. However, it doesn't seem to spawn a
+shell under as my
+user, as the config files aren't being read. How can I control the
+PATH that call-system
+uses? 
+
+It's understandable that lispworks inherits the PATH from whatever
+launches is, hence
+/usr/loca/bin on the PATH when I lauch from Terminal, but does it make
+sense that a
+Terminal coming up in order to present the error continuations should
+be able to
+modify the PATH for subsequent calls to call-system?
+
+This is causing us a bit of a problem, and we're not really sure what
+to do about it.
+Thanks in advance!
+-- 
+=====================
+Joshua Taylor
+tayloj@rpi.edu
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Strange problem with call-system, PATH, delivery, and errors</h1>
+                 <p>
+                  Unable to parse email body. Email id is 4390
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Strange problem with call-system, PATH, delivery, and errors</h1>
+                 <pre>Actually, I run into some problems here...
+
+When I try to do
+
+ (capi:contain (make-instance 'capi:display-pane
+                              :text (with-output-to-string (*standard-output*)
+                                      (setf ret
+(sys:call-system-showing-output '("/usr/bin/env")))))
+               :title "env")
+
+say, from a Listener, all that happens is a new Terminal window opens
+with the contents:
+
+Last login: Mon Aug 22 08:36:56 on ttyp2
+/tmp/LWtemp.Wright.2021.1.command; exit
+Welcome to Darwin!
+^_^ tayloj@Wright:~$ /tmp/LWtemp.Wright.2021.1.command; exit
+
+but the form doesn't return...
+Any thoughts ?
+
+On 19/08/05, Martin Simmons &lt;martin@lispworks.com&gt wrote:
+&gt &gt&gt&gt&gt&gt On Wed, 17 Aug 2005 12:35:29 -0400, Joshua Taylor &lt;joshuaaaron@gmail.com&gt said:
+&gt 
+&gt   J&gt Hi all,
+&gt   J&gt A strange error, and I've an idea what's going on, but not much of an
+&gt   J&gt idea how to deal with it,
+&gt   J&gt or why exactly it happens.
+&gt 
+&gt   J&gt I'm  on LWM 4.4.5 Pro, MacOS10.4.2
+&gt 
+&gt   J&gt I have a /usr/local/bin which is added to my PATH in my .bashrc file.
+&gt   J&gt Terminal.app starts bash when creating a new window.
+&gt   J&gt I have a file called 'testing' in /usr/local/bin" which has the following
+&gt   J&gt contents
+&gt   J&gt --------------
+&gt   J&gt    #!/bin/bash
+&gt   J&gt    echo "Testing with the Path..."
+&gt   J&gt --------------
+&gt   J&gt and has the proper permissions set to execute.
+&gt 
+&gt   J&gt I have a delivery file that has the following contents:
+&gt   J&gt --------------
+&gt   J&gt (defun test-fn (&amp;rest r)
+&gt   J&gt   (declare (ignorable r))
+&gt   J&gt   (capi:contain (make-instance 'capi:display-pane
+&gt   J&gt                                :text
+&gt   J&gt                                (let* ((ret 0)
+&gt   J&gt                                       (op (with-output-to-string
+&gt   J&gt (*standard-output*)
+&gt   J&gt                                            (setf ret
+&gt   J&gt (sys:call-system-showing-output "testing")))))
+&gt   J&gt                                  (capi:contain (make-instance
+&gt   J&gt 'capi:display-pane
+&gt   J&gt                                                               :text
+&gt   J&gt op))
+&gt   J&gt                                  (unless (zerop ret)
+&gt   J&gt                                    (error "There was an error"))))))
+&gt 
+&gt   J&gt (defun deliver-fn ()
+&gt   J&gt   (capi:contain (make-instance 'capi:push-button
+&gt   J&gt                                :callback #'test-fn)))
+&gt 
+&gt   J&gt (load (make-pathname
+&gt   J&gt        :directory (pathname-directory (sys:lispworks-dir
+&gt   J&gt "examples/configuration/"))
+&gt   J&gt        :name "macos-application-bundle"))
+&gt 
+&gt   J&gt (deliver
+&gt   J&gt  #'deliver-fn
+&gt   J&gt  (write-macos-application-bundle
+&gt   J&gt   (make-pathname :directory (pathname-directory *load-truename*)
+&gt   J&gt                  :name "testing"))
+&gt   J&gt  1
+&gt   J&gt  :interface :capi)
+&gt   J&gt ----------
+&gt   J&gt It's not beautiful code, but it illustrates my problem. I get an
+&gt   J&gt Application bundle
+&gt   J&gt as a result when I deliver this. When I double cilck on the application
+&gt   J&gt I get a small window with a button.
+&gt 
+&gt   J&gt The first time I press the button, I get a display-pane with the contents:
+&gt 
+&gt   J&gt ; testing
+&gt   J&gt ; testing: line 1 : testing : command not found
+&gt 
+&gt   J&gt As I would rather expect. The error opens a new Terminal window which has the
+&gt   J&gt contents:
+&gt   J&gt --------
+&gt   J&gt Last login: Wed Aug 17 12:21:27 on ttyp3
+&gt   J&gt Welcome to Darwin!
+&gt   J&gt ^_^ tayloj@Wright:~$ /tmp/LWtemp.Wright.9089.1.command; exit
+&gt 
+&gt   J&gt Error: There was an error
+&gt   J&gt   1 (abort) Quit process.
+&gt 
+&gt   J&gt Type :b for backtrace, :c &lt;option number&gt to proceed,  or :? for other options
+&gt 
+&gt   J&gt CL-USER 1 : 1 &gt
+&gt   J&gt ------
+&gt 
+&gt   J&gt Notice the bash prompt as well. If I abort from the error, that is, enter ":a",
+&gt   J&gt control is returned, and I can press the button again. Pressing the button again
+&gt   J&gt gives me  a display pane with
+&gt   J&gt ; testing
+&gt   J&gt ; Testing with the Path...
+&gt   J&gt which shows that  my .bashrc has been read, and the PATH being
+&gt   J&gt exported evidentally
+&gt   J&gt went all the way back to Lispworks.
+&gt 
+&gt   J&gt At the beginning I made it clear that I started the Application by
+&gt   J&gt clicking on the icon. If I
+&gt   J&gt do
+&gt   J&gt open testing.app
+&gt   J&gt from a Terminal (in which I'm already running bash) the testing shell
+&gt   J&gt script is found
+&gt   J&gt on the first button press (and thus I know that /usr/local/bin is on the PATH).
+&gt 
+&gt   J&gt So, I've got at least a few questions:
+&gt   J&gt Certainly, call-system has PATH set to something, otherwise it
+&gt   J&gt wouldn't be able to
+&gt   J&gt work with things like 'ls', etc. However, it doesn't seem to spawn a
+&gt   J&gt shell under as my
+&gt   J&gt user, as the config files aren't being read.
+&gt 
+&gt Call-system does run a shell, but it is named as /bin/sh by default (see the
+&gt :SHELL-TYPE argument).
+&gt 
+&gt 
+&gt   J&gt                                              How can I control the PATH
+&gt   J&gt that call-system uses?
+&gt 
+&gt The function (SETF ENVIRONMENT-VARIABLE) can be used to set PATH.
+&gt 
+&gt 
+&gt   J&gt It's understandable that lispworks inherits the PATH from whatever
+&gt   J&gt launches is, hence
+&gt   J&gt /usr/loca/bin on the PATH when I lauch from Terminal, but does it make
+&gt   J&gt sense that a
+&gt   J&gt Terminal coming up in order to present the error continuations should
+&gt   J&gt be able to
+&gt   J&gt modify the PATH for subsequent calls to call-system?
+&gt 
+&gt No, I don't think that is happening (something would be very very wrong if
+&gt that was even possible on a BSD system).
+&gt 
+&gt What I think is happening is as follows:
+&gt 
+&gt 1) The first time you do call-system, /bin/sh (i.e. bash) notices that its
+&gt    stdin is connected to /dev/null (the default for a windowing application in
+&gt    Mac OS X).  It therefore doesn't read your .bashrc.
+&gt 
+&gt 2) When you get the error, LispWorks starts up the Terminal and connects its
+&gt    stdin to that Terminal.
+&gt 
+&gt 3) The second time you do call-system, /bin/sh (i.e. bash) sees that it's
+&gt    stdin is connected to something real so it reads you .bashrc.
+&gt 
+&gt E.g. if you add the following to the start of test-fn:
+&gt 
+&gt   (capi:contain (make-instance 'capi:display-pane
+&gt                                :text (with-output-to-string (*standard-output*)
+&gt                                        (setf ret (sys:call-system-showing-output '("/usr/bin/env")))))
+&gt                 :title "env")
+&gt   (capi:contain (make-instance 'capi:display-pane
+&gt                                :text (with-output-to-string (*standard-output*)
+&gt                                        (setf ret (sys:call-system-showing-output "set"))))
+&gt                 :title "set")
+&gt 
+&gt then you can see how the environment seen by the command changes between runs.
+&gt The first form passes a list to call-system-showing-output, which makes it run
+&gt that executable directly without the shell so you can see what LispWorks is
+&gt passing down.  The second form runs bash's "set" command and you can see that
+&gt this output changes to include everything set in your .bashrc on the second
+&gt attempt.
+&gt 
+&gt --
+&gt Martin Simmons                              Email: martin@lispworks.com
+&gt LispWorks Ltd, St John's Innovation Centre    TEL:   +44 1223 421860
+&gt Cowley Road, Cambridge CB4 0WS, England.      FAX:   +44 870 2206189
+&gt 
+
+
+-- 
+=====================
+Joshua Taylor
+tayloj@rpi.edu
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Strange problem with call-system, PATH, delivery, and errors</h1>
+                 <pre>Hmmm, the plot thickens... 
+If I put that contain form in a file
+and compile and load it, I get a tiny
+window with ; /bin/sh as I'd expect.
+In a Listener or with an Eval Last Form, 
+I get the behavior that I describe earlier. 
+Any ideas?
+
+On 22/08/05, Joshua Taylor &lt;joshuaaaron@gmail.com&gt wrote:
+&gt Actually, I run into some problems here...
+&gt 
+&gt When I try to do
+&gt 
+&gt  (capi:contain (make-instance 'capi:display-pane
+&gt                               :text (with-output-to-string (*standard-output*)
+&gt                                       (setf ret
+&gt (sys:call-system-showing-output '("/usr/bin/env")))))
+&gt                :title "env")
+&gt 
+&gt say, from a Listener, all that happens is a new Terminal window opens
+&gt with the contents:
+&gt 
+&gt Last login: Mon Aug 22 08:36:56 on ttyp2
+&gt /tmp/LWtemp.Wright.2021.1.command; exit
+&gt Welcome to Darwin!
+&gt ^_^ tayloj@Wright:~$ /tmp/LWtemp.Wright.2021.1.command; exit
+&gt 
+&gt but the form doesn't return...
+&gt Any thoughts ?
+&gt 
+&gt On 19/08/05, Martin Simmons &lt;martin@lispworks.com&gt wrote:
+&gt &gt &gt&gt&gt&gt&gt On Wed, 17 Aug 2005 12:35:29 -0400, Joshua Taylor &lt;joshuaaaron@gmail.com&gt said:
+&gt &gt
+&gt &gt   J&gt Hi all,
+&gt &gt   J&gt A strange error, and I've an idea what's going on, but not much of an
+&gt &gt   J&gt idea how to deal with it,
+&gt &gt   J&gt or why exactly it happens.
+&gt &gt
+&gt &gt   J&gt I'm  on LWM 4.4.5 Pro, MacOS10.4.2
+&gt &gt
+&gt &gt   J&gt I have a /usr/local/bin which is added to my PATH in my .bashrc file.
+&gt &gt   J&gt Terminal.app starts bash when creating a new window.
+&gt &gt   J&gt I have a file called 'testing' in /usr/local/bin" which has the following
+&gt &gt   J&gt contents
+&gt &gt   J&gt --------------
+&gt &gt   J&gt    #!/bin/bash
+&gt &gt   J&gt    echo "Testing with the Path..."
+&gt &gt   J&gt --------------
+&gt &gt   J&gt and has the proper permissions set to execute.
+&gt &gt
+&gt &gt   J&gt I have a delivery file that has the following contents:
+&gt &gt   J&gt --------------
+&gt &gt   J&gt (defun test-fn (&amp;rest r)
+&gt &gt   J&gt   (declare (ignorable r))
+&gt &gt   J&gt   (capi:contain (make-instance 'capi:display-pane
+&gt &gt   J&gt                                :text
+&gt &gt   J&gt                                (let* ((ret 0)
+&gt &gt   J&gt                                       (op (with-output-to-string
+&gt &gt   J&gt (*standard-output*)
+&gt &gt   J&gt                                            (setf ret
+&gt &gt   J&gt (sys:call-system-showing-output "testing")))))
+&gt &gt   J&gt                                  (capi:contain (make-instance
+&gt &gt   J&gt 'capi:display-pane
+&gt &gt   J&gt                                                               :text
+&gt &gt   J&gt op))
+&gt &gt   J&gt                                  (unless (zerop ret)
+&gt &gt   J&gt                                    (error "There was an error"))))))
+&gt &gt
+&gt &gt   J&gt (defun deliver-fn ()
+&gt &gt   J&gt   (capi:contain (make-instance 'capi:push-button
+&gt &gt   J&gt                                :callback #'test-fn)))
+&gt &gt
+&gt &gt   J&gt (load (make-pathname
+&gt &gt   J&gt        :directory (pathname-directory (sys:lispworks-dir
+&gt &gt   J&gt "examples/configuration/"))
+&gt &gt   J&gt        :name "macos-application-bundle"))
+&gt &gt
+&gt &gt   J&gt (deliver
+&gt &gt   J&gt  #'deliver-fn
+&gt &gt   J&gt  (write-macos-application-bundle
+&gt &gt   J&gt   (make-pathname :directory (pathname-directory *load-truename*)
+&gt &gt   J&gt                  :name "testing"))
+&gt &gt   J&gt  1
+&gt &gt   J&gt  :interface :capi)
+&gt &gt   J&gt ----------
+&gt &gt   J&gt It's not beautiful code, but it illustrates my problem. I get an
+&gt &gt   J&gt Application bundle
+&gt &gt   J&gt as a result when I deliver this. When I double cilck on the application
+&gt &gt   J&gt I get a small window with a button.
+&gt &gt
+&gt &gt   J&gt The first time I press the button, I get a display-pane with the contents:
+&gt &gt
+&gt &gt   J&gt ; testing
+&gt &gt   J&gt ; testing: line 1 : testing : command not found
+&gt &gt
+&gt &gt   J&gt As I would rather expect. The error opens a new Terminal window which has the
+&gt &gt   J&gt contents:
+&gt &gt   J&gt --------
+&gt &gt   J&gt Last login: Wed Aug 17 12:21:27 on ttyp3
+&gt &gt   J&gt Welcome to Darwin!
+&gt &gt   J&gt ^_^ tayloj@Wright:~$ /tmp/LWtemp.Wright.9089.1.command; exit
+&gt &gt
+&gt &gt   J&gt Error: There was an error
+&gt &gt   J&gt   1 (abort) Quit process.
+&gt &gt
+&gt &gt   J&gt Type :b for backtrace, :c &lt;option number&gt to proceed,  or :? for other options
+&gt &gt
+&gt &gt   J&gt CL-USER 1 : 1 &gt
+&gt &gt   J&gt ------
+&gt &gt
+&gt &gt   J&gt Notice the bash prompt as well. If I abort from the error, that is, enter ":a",
+&gt &gt   J&gt control is returned, and I can press the button again. Pressing the button again
+&gt &gt   J&gt gives me  a display pane with
+&gt &gt   J&gt ; testing
+&gt &gt   J&gt ; Testing with the Path...
+&gt &gt   J&gt which shows that  my .bashrc has been read, and the PATH being
+&gt &gt   J&gt exported evidentally
+&gt &gt   J&gt went all the way back to Lispworks.
+&gt &gt
+&gt &gt   J&gt At the beginning I made it clear that I started the Application by
+&gt &gt   J&gt clicking on the icon. If I
+&gt &gt   J&gt do
+&gt &gt   J&gt open testing.app
+&gt &gt   J&gt from a Terminal (in which I'm already running bash) the testing shell
+&gt &gt   J&gt script is found
+&gt &gt   J&gt on the first button press (and thus I know that /usr/local/bin is on the PATH).
+&gt &gt
+&gt &gt   J&gt So, I've got at least a few questions:
+&gt &gt   J&gt Certainly, call-system has PATH set to something, otherwise it
+&gt &gt   J&gt wouldn't be able to
+&gt &gt   J&gt work with things like 'ls', etc. However, it doesn't seem to spawn a
+&gt &gt   J&gt shell under as my
+&gt &gt   J&gt user, as the config files aren't being read.
+&gt &gt
+&gt &gt Call-system does run a shell, but it is named as /bin/sh by default (see the
+&gt &gt :SHELL-TYPE argument).
+&gt &gt
+&gt &gt
+&gt &gt   J&gt                                              How can I control the PATH
+&gt &gt   J&gt that call-system uses?
+&gt &gt
+&gt &gt The function (SETF ENVIRONMENT-VARIABLE) can be used to set PATH.
+&gt &gt
+&gt &gt
+&gt &gt   J&gt It's understandable that lispworks inherits the PATH from whatever
+&gt &gt   J&gt launches is, hence
+&gt &gt   J&gt /usr/loca/bin on the PATH when I lauch from Terminal, but does it make
+&gt &gt   J&gt sense that a
+&gt &gt   J&gt Terminal coming up in order to present the error continuations should
+&gt &gt   J&gt be able to
+&gt &gt   J&gt modify the PATH for subsequent calls to call-system?
+&gt &gt
+&gt &gt No, I don't think that is happening (something would be very very wrong if
+&gt &gt that was even possible on a BSD system).
+&gt &gt
+&gt &gt What I think is happening is as follows:
+&gt &gt
+&gt &gt 1) The first time you do call-system, /bin/sh (i.e. bash) notices that its
+&gt &gt    stdin is connected to /dev/null (the default for a windowing application in
+&gt &gt    Mac OS X).  It therefore doesn't read your .bashrc.
+&gt &gt
+&gt &gt 2) When you get the error, LispWorks starts up the Terminal and connects its
+&gt &gt    stdin to that Terminal.
+&gt &gt
+&gt &gt 3) The second time you do call-system, /bin/sh (i.e. bash) sees that it's
+&gt &gt    stdin is connected to something real so it reads you .bashrc.
+&gt &gt
+&gt &gt E.g. if you add the following to the start of test-fn:
+&gt &gt
+&gt &gt   (capi:contain (make-instance 'capi:display-pane
+&gt &gt                                :text (with-output-to-string (*standard-output*)
+&gt &gt                                        (setf ret (sys:call-system-showing-output '("/usr/bin/env")))))
+&gt &gt                 :title "env")
+&gt &gt   (capi:contain (make-instance 'capi:display-pane
+&gt &gt                                :text (with-output-to-string (*standard-output*)
+&gt &gt                                        (setf ret (sys:call-system-showing-output "set"))))
+&gt &gt                 :title "set")
+&gt &gt
+&gt &gt then you can see how the environment seen by the command changes between runs.
+&gt &gt The first form passes a list to call-system-showing-output, which makes it run
+&gt &gt that executable directly without the shell so you can see what LispWorks is
+&gt &gt passing down.  The second form runs bash's "set" command and you can see that
+&gt &gt this output changes to include everything set in your .bashrc on the second
+&gt &gt attempt.
+&gt &gt
+&gt &gt --
+&gt &gt Martin Simmons                              Email: martin@lispworks.com
+&gt &gt LispWorks Ltd, St John's Innovation Centre    TEL:   +44 1223 421860
+&gt &gt Cowley Road, Cambridge CB4 0WS, England.      FAX:   +44 870 2206189
+&gt &gt
+&gt 
+&gt 
+&gt --
+&gt =====================
+&gt Joshua Taylor
+&gt tayloj@rpi.edu
+&gt 
+
+
+-- 
+=====================
+Joshua Taylor
+tayloj@rpi.edu
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:47 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

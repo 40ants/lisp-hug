@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Compiling Ironclad library with LW</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Compiling Ironclad library with LW</h1>
+                <pre>
+I am unable to compile the ironclad library &lt;
+http://method-combination.net/lisp/ironclad/ &gt with Lispworks,
+although
+it compiles with no issues in SBCL.
+
+Has anyone found a solution?
+
+My best,
+
+Fred Gibson
+
+Founder / Software Developer
+http://www.streamfocus.com
+
+(c)2010 Organon Technologies LLC
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Compiling Ironclad library with LW</h1>
+                 <pre>Then show your error backtrace please. Ironclad compiles fine and always fine on my LW.
+
+--binghe
+
+&gt 
+&gt I am unable to compile the ironclad library &lt;
+&gt http://method-combination.net/lisp/ironclad/ &gt with Lispworks,
+&gt although
+&gt it compiles with no issues in SBCL.
+&gt 
+&gt Has anyone found a solution?
+&gt 
+&gt My best,
+&gt 
+&gt Fred Gibson
+&gt 
+&gt Founder / Software Developer
+&gt http://www.streamfocus.com
+&gt 
+&gt (c)2010 Organon Technologies LLC
+&gt 
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Compiling Ironclad library with LW</h1>
+                 <pre>
+I'm running LW 4.4.6 - could this earlier version be the problem?
+
+I noticed in the ironclad.asd file that exceptions where made for sbcl
+and cmu.  Could there be a workaround for this earlier LW version as
+well?
+
+(defmethod perform :around ((op compile-op) (c ironclad-source-file))
+  (let ((*readtable* *ironclad-readtable*)
+        (*print-base* 10)               ; INTERN'ing FORMAT'd symbols
+        (*print-case* :upcase)
+        #+sbcl (sb-ext:*inline-expansion-limit* (max
+sb-ext:*inline-expansion-limit* 1000))
+        #+sbcl (*features* (list* sb-c:*backend-byte-order*
+                                  (if (= sb-vm:n-word-bits 32)
+                                      :32-bit
+                                      :64-bit)
+                                  *features*))
+        #+cmu (ext:*inline-expansion-limit* (max
+ext:*inline-expansion-limit* 1000))
+        #+cmu (*features* (list* (c:backend-byte-order c:*target-backend*)
+                                 (if (= vm:word-bits 32)
+                                     :32-bit
+                                     :64-bit)
+                                 *features*)))
+    (do-silently (call-next-method))))
+
+The beginning of the code that fails to compile is this:
+
+(defconst +sha256-round-constants+
+#32@(#x428A2F98 #x71374491 #xB5C0FBCF #xE9B5DBA5 #x3956C25B #x59F111F1
+ #x923F82A4 #xAB1C5ED5 #xD807AA98 #x12835B01 #x243185BE #x550C7DC3
+ #x72BE5D74 #x80DEB1FE #x9BDC06A7 #xC19BF174 #xE49B69C1 #xEFBE4786
+ #x0FC19DC6 #x240CA1CC #x2DE92C6F #x4A7484AA #x5CB0A9DC #x76F988DA
+ #x983E5152 #xA831C66D #xB00327C8 #xBF597FC7 #xC6E00BF3 #xD5A79147
+ #x06CA6351 #x14292967 #x27B70A85 #x2E1B2138 #x4D2C6DFC #x53380D13
+ #x650A7354 #x766A0ABB #x81C2C92E #x92722C85 #xA2BFE8A1 #xA81A664B
+ #xC24B8B70 #xC76C51A3 #xD192E819 #xD6990624 #xF40E3585 #x106AA070
+ #x19A4C116 #x1E376C08 #x2748774C #x34B0BCB5 #x391C0CB3 #x4ED8AA4A
+ #x5B9CCA4F #x682E6FF3 #x748F82EE #x78A5636F #x84C87814 #x8CC70208
+ #x90BEFFFA #xA4506CEB #xBEF9A3F7 #xC67178F2))
+
+Backtrace:
+
+erred while invoking #&lt;ASDF:COMPILE-OP NIL 26D83764&gt on
+#&lt;IRONCLAD-SYSTEM::IRONCLAD-SOURCE-FILE "sha256" 2169A3C4&gt
+   [Condition of type ASDF:COMPILE-ERROR]
+
+Restarts:
+ 0: [DEFAULT-DEBUGGER] Use default debugger.
+ 1: [RETRY] Retry performing #&lt;ASDF:COMPILE-OP NIL 26D83764&gt on
+#&lt;IRONCLAD-SYSTEM::IRONCLAD-SOURCE-FILE "sha256" 2169A3C4&gt.
+ 2: [ACCEPT] Continue, treating #&lt;ASDF:COMPILE-OP NIL 26D83764&gt on
+#&lt;IRONCLAD-SYSTEM::IRONCLAD-SOURCE-FILE "sha256" 2169A3C4&gt as having
+been successful.
+ 3: [ABORT] Return to SLIME's top level.
+ 4: [ABORT] Quit process.
+
+Backtrace:
+  0: CONDITIONS::CONDITIONS-ERROR (:INVISIBLEP T ASDF:COMPILE-ERROR
+(:COMPONENT #&lt;IRONCLAD-SYSTEM::IRONCL..
+      Locals:
+        CONDITIONS::DATUM = ASDF:COMPILE-ERROR
+        CONDITIONS::ARGUMENTS = (:COMPONENT ..)
+  1: (METHOD ASDF:PERFORM (ASDF:COMPILE-OP ASDF:CL-SOURCE-FILE)) NIL
+      Locals:
+        ASDF:OPERATION = #&lt;ASDF:COMPILE-OP NIL 26D83764&gt
+        ASDF::C = #&lt;IRONCLAD-SYSTEM::IRONCLAD-SOURCE-FILE "sha256" 2169A3C4&gt
+        #:G6769 = (#&lt;"closure" (SUBFUNCTION 1
+CLOS::ENSURE-COMPILED-FUNCTION) 234C3932&gt)
+        #:G6770 = #&lt;ASDF:COMPILE-OP NIL 26D83764&gt
+        #:G6771 = #&lt;IRONCLAD-SYSTEM::IRONCLAD-SOURCE-FILE "sha256" 2169A3C4&gt
+        CALL-NEXT-METHOD = #&lt;interpreted closure (LAMBDA (&amp;OPTIONAL
+#:G6773 #:G6772) ..)
+        NEXT-METHOD-P = #&lt;interpreted closure (LAMBDA () ..)
+        ASDF:SOURCE-FILE = #P"C:/Otech/sf/lib/ironclad_0.27/sha256.lisp"
+        ASDF::OUTPUT-FILE = #P"C:/Otech/sf/lib/ironclad_0.27/sha256.fsl"
+        ASDF::OUTPUT = NIL
+        ASDF::WARNINGS-P = ((IRONCLAD::UPDATE-SHA256-BLOCK
+#&lt;SIMPLE-ERROR 26D72954&gt) ..)
+        ASDF::FAILURE-P = T
+  2: (SUBFUNCTION 1 CLOS::ENSURE-COMPILED-FUNCTION) (:INVISIBLEP T
+&amp;REST (#&lt;ASDF:COMPILE-OP NIL 26D83764&gt..
+  3: #&lt;function 203D9852&gt NIL
+  4: CLOS::CALL-NEXT-METHOD-WITH-ORIGINAL (NIL ..)
+  5: SYSTEM::ANONYMOUS-LAMBDA NIL
+  6: (METHOD ASDF:PERFORM :AROUND (ASDF:COMPILE-OP
+IRONCLAD-SYSTEM::IRONCLAD-SOURCE-FILE)) NIL
+      Locals:
+        IRONCLAD-SYSTEM::OP = #&lt;ASDF:COMPILE-OP NIL 26D83764&gt
+        IRONCLAD-SYSTEM::C = #&lt;IRONCLAD-SYSTEM::IRONCLAD-SOURCE-FILE
+"sha256" 2169A3C4&gt
+        #:G5117 = (#&lt;closure 234C3992&gt)
+        #:G5118 = #&lt;ASDF:COMPILE-OP NIL 26D83764&gt
+        #:G5119 = #&lt;IRONCLAD-SYSTEM::IRONCLAD-SOURCE-FILE "sha256" 2169A3C4&gt
+        CALL-NEXT-METHOD = #&lt;interpreted closure (LAMBDA (&amp;OPTIONAL
+#:G5121 #:G5120) ..)
+        NEXT-METHOD-P = #&lt;interpreted closure (LAMBDA () ..)
+        *READTABLE* = #&lt;READTABLE 2244BF94&gt
+        *PRINT-BASE* = 10
+        *PRINT-CASE* = :UPCASE
+        #:G5122 = #&lt;"function" MUFFLE-WARNING 202C0C82&gt
+        CONDITIONS::*HANDLER-CLUSTERS* = (((SWANK-BACKEND:SLDB-CONDITION ..)))
+  7: (SUBFUNCTION 1 CLOS::ENSURE-COMPILED-FUNCTION) (:INVISIBLEP T
+&amp;REST (#&lt;ASDF:COMPILE-OP NIL 26D83764&gt..
+  8: #&lt;function 203D86E2&gt NIL
+  9: SYSTEM::ANONYMOUS-LAMBDA NIL
+
+On Sun, Jan 3, 2010 at 9:57 AM, Chun Tian (binghe)
+&lt;binghe.lisp@gmail.com&gt wrote:
+&gt Then show your error backtrace please. Ironclad compiles fine and always fine on my LW.
+&gt
+&gt --binghe
+&gt
+&gt&gt
+&gt&gt I am unable to compile the ironclad library &lt;
+&gt&gt http://method-combination.net/lisp/ironclad/ &gt with Lispworks,
+&gt&gt although
+&gt&gt it compiles with no issues in SBCL.
+&gt&gt
+&gt&gt Has anyone found a solution?
+&gt&gt
+&gt&gt My best,
+&gt&gt
+&gt&gt Fred Gibson
+&gt&gt
+&gt&gt Founder / Software Developer
+&gt&gt http://www.streamfocus.com
+&gt&gt
+&gt&gt (c)2010 Organon Technologies LLC
+&gt&gt
+&gt
+&gt
+
+
+
+-- 
+Fred Gibson
+
+Founder / Software Developer
+http://www.streamfocus.com
+
+(c)2010 Organon Technologies LLC
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Compiling Ironclad library with LW</h1>
+                 <p>
+                  Unable to parse email body. Email id is 9636
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Compiling Ironclad library with LW</h1>
+                 <pre>
+"Chun Tian (binghe)" &lt;binghe.lisp@gmail.com&gt writes:
+
+&gt It's possible that latest Ironclad code cannot compile correctly on LW 4.4.6, but I can't confirm this.
+&gt
+&gt By the way, the backtrace you showed is useless: the actual issue in hidden by ASDF, I think you can use following steps to get a useful backtrace:
+&gt
+&gt 1) Stop ASDF loading process when it stops at "sha256.lisp"
+&gt 2) Call something like (compile-file "sha256.lisp") manually
+&gt 3) Get the error backtrace and paste here.
+
+No he can't do that because ironclad.asd defines an :AROUND method on
+COMPILE-OP as shown in his previous mail. That around method binds
+*READTABLE* for the #@ reader macro to work.
+
+He'd have to also bind *READTABLE* appropriately on his call to
+COMPILE-FILE.
+
+Ideally, Ironclad used named-readtables available at
+
+  http://common-lisp.net/project/editor-hints/darcs/named-readtables/doc/named-readtables.html
+
+  -T.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Compiling Ironclad library with LW</h1>
+                 <pre>
+Jochen Schmidt &lt;jsc@crispylogics.com&gt writes:
+
+&gt Am 03.01.2010 um 18:57 schrieb Chun Tian (binghe):
+&gt
+&gt &gt Then show your error backtrace please. Ironclad compiles fine and
+&gt always fine on my LW.
+&gt
+&gt It did compile here too - so further details (backtrace, LW version
+&gt a.s.o.) would be needed to investigate this further.
+&gt
+&gt But: The compilation conditions tool shows alot of warnings which
+&gt after short introspection of the code should be revised:
+&gt
+&gt 1) Some instantiations of instances use initargs not defined in the
+&gt class (e.g. PBKDF1 doesn't have :digest). 
+
+I think that one is bogus. See my other posting.
+
+  -T.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Compiling Ironclad library with LW</h1>
+                 <pre>
+On Sun, Jan 3, 2010 at 1:32 PM, Jochen Schmidt &lt;js@crispylogics.com&gt wrote:
+&gt 1) Some instantiations of instances use initargs not defined in the class (e.g. PBKDF1 doesn't have :digest).
+&gt 2) Inline expansions are missing for XOR-BLOCK which happens to be a compilation order problem (e.g., modes.lisp, where XOR-BLOCK is defined is not a dependeny for hmac.lisp were it is used).
+&gt 3) Some variables were defined but not used.
+
+I've tried to fix the last two problems and some of the other problems
+(e.g. code bloat in the sha256 implementation) mentioned in this
+thread.  I'll try to get a 0.27.1 release out by the end of the week.
+Otherwise, the code can be found on github:
+http://github.com/froydnj/ironclad (clone from
+git://github.com/froydnj/ironclad.git).
+
+I have to say, people using Lispworks have been extremely helpful in
+ironing out some of the portability issues and outright bugs in
+Ironclad.  Please keep sending along problems as you find them!  (And
+if the Lispworks hackers want to implement things like unsigned int32
+shifts, that would be extremely helpful in opening doors for making
+Ironclad faster on Lispworks...)
+
+Thanks,
+-Nathan
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:36 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Reference-return</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Reference-return</h1><HTML>
+<HEAD>
+<TITLE>Reference-return</TITLE>
+</HEAD>
+<BODY>
+<FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'>Hi,<BR>
+<BR>
+I have to define a foreign function for a C function where an argument can return by reference different kind of types. <BR>
+This argument is declared in the header of the C source code as: *void outData, &nbsp;. <BR>
+<BR>
+When looking for a string, declaration of arg in fli:define-foreign-function (outData (:reference-return (:ef-mb-string :limit 31 :null-terminated-p t))) works well. When looking for a integer (outData (:reference-return :int)) works fine.<BR>
+<BR>
+When looking for anything &#8211;witch is the goal in fact- (outData (:reference-return (:pointer :void))) works also, but the problem is after : I don&#8217;t know how to coerce this pointer to the right type and dereference it correctly...<BR>
+<BR>
+Which operation is automatically done by the :reference-return argument when choosing for instance (:ef-mb-string :limit 31 :null-terminated-p t) as type ? Is it possible to do this operation after I get the pointer ? I didn&#8217;t see this very clearly in the manual...<BR>
+<BR>
+Thanks<BR>
+<BR>
+Denis<BR>
+<BR>
+<BR>
+-------------------------------------------------------<BR>
+Denis Pousseur<BR>
+70 rue de Wansijn<BR>
+1180 Bruxelles, Belgique<BR>
+<BR>
+Tel : 32 (0)2 219 31 09<BR>
+Mail : &nbsp;denis.pousseur@compositeurs.be<BR>
+Website : <a href="http://compositeurs.be/pousseur">http://compositeurs.be/pousseur</a><BR>
+-------------------------------------------------------<BR>
+<BR>
+</SPAN></FONT>
+</BODY>
+</HTML>
+
+
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Reference-return</h1>
+                 <pre>
+On Friday 20 October 2006 10:46 am, Denis Pousseur wrote:
+&gt This argument is declared in the header of the C source code as: *void
+&gt outData,  .
+
+If I understood your question correctly, I think that you want to declare the 
+return type as 
+
+(outData (:reference-return (:pointer :void)))
+
+just like the C header, and then use fli:dereference using the :type keyword 
+(to "coerce" the pointer to a different type).
+
+Then, your program logic must determine which type is being returned and 
+coerce the void* appropriately (maybe in a "case" statement).
+
+Here is a small sample:
+
+;; create a foreign object, like the one which
+;; might be returned from a C function
+(setq intp (fli:allocate-foreign-object :type :int))
+(setf (fli:dereference intp) 12)
+;; check that it dereferences correctly
+(fli:dereference intp)
+
+;; create a void*
+(setq voidp (fli:allocate-foreign-object :type '(:pointer :void)))
+
+;; put the address of the above int into the void*, which is 
+;; how C will return it (an int*, put inside a void*)
+(setf (fli:pointer-address voidp) (fli:pointer-address intp))
+
+;; coerce the void* to an int and dereference it
+;; the answer should be 12
+(fli:dereference voidp :type :int)
+
+The above, translated into C looks kind of like this:
+
+int* intp;
+*intp = 12;
+printf ("%d\n", *intp);
+void* voidp;
+voidp = intp;
+printf ("%d\n", *(int*)voidp);
+
+If it's still not clear, feel free to ask me for more help.
+pt
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: Reference-return</h1>
+                  <pre>
+Well, thanks. It seems logical, but in fact it doesn't work for me.
+
+If I declare the foreign-function with the argument (outData
+(:reference-return Uint32)) the result is perfectly normal...
+But if I do the same with (outData (:reference-return (:pointer :void)))
+get the pointer and than do : (dereference thisPointer :type :int)
+LW crashes, with a error message of type :
+"signal A [code 0] at 20671181 {inside #&lt;Function ((TOP-LEVEL-FORM 22) . 1)
+20671172&gt}
+Eax 0;ebx 0;ecx 200;edx 16C esp21385830;esb2138587C;esi EB;edi EB"
+
+In this case (it seems to be the problem even if I don't understand exactly)
+the void pointer returned by the function has the address of the number I
+need... (if this number is zero the pointer is a null pointer...).
+So, with fli:pointer-adress I can get it (but this works only for unsigned
+integer, naturally)
+
+Denis
+
+
+Le 20/10/06 17:51, «&nbsp;[NOM]&nbsp;» &lt;[ADRESSE]&gt a écrit&nbsp;:
+
+&gt On Friday 20 October 2006 10:46 am, Denis Pousseur wrote:
+&gt&gt This argument is declared in the header of the C source code as: *void
+&gt&gt outData,  .
+&gt 
+&gt If I understood your question correctly, I think that you want to declare the
+&gt return type as 
+&gt 
+&gt (outData (:reference-return (:pointer :void)))
+&gt 
+&gt just like the C header, and then use fli:dereference using the :type keyword
+&gt (to "coerce" the pointer to a different type).
+&gt 
+&gt Then, your program logic must determine which type is being returned and
+&gt coerce the void* appropriately (maybe in a "case" statement).
+&gt 
+&gt Here is a small sample:
+&gt 
+&gt ;; create a foreign object, like the one which
+&gt ;; might be returned from a C function
+&gt (setq intp (fli:allocate-foreign-object :type :int))
+&gt (setf (fli:dereference intp) 12)
+&gt ;; check that it dereferences correctly
+&gt (fli:dereference intp)
+&gt 
+&gt ;; create a void*
+&gt (setq voidp (fli:allocate-foreign-object :type '(:pointer :void)))
+&gt 
+&gt ;; put the address of the above int into the void*, which is
+&gt ;; how C will return it (an int*, put inside a void*)
+&gt (setf (fli:pointer-address voidp) (fli:pointer-address intp))
+&gt 
+&gt ;; coerce the void* to an int and dereference it
+&gt ;; the answer should be 12
+&gt (fli:dereference voidp :type :int)
+&gt 
+&gt The above, translated into C looks kind of like this:
+&gt 
+&gt int* intp;
+&gt *intp = 12;
+&gt printf ("%d\n", *intp);
+&gt void* voidp;
+&gt voidp = intp;
+&gt printf ("%d\n", *(int*)voidp);
+&gt 
+&gt If it's still not clear, feel free to ask me for more help.
+&gt pt
+&gt 
+
+
+
+-------------------------------------------------------
+Denis Pousseur
+70 rue de Wansijn
+1180 Bruxelles, Belgique
+
+Tel : 32 (0)2 219 31 09
+Mail :  denis.pousseur@compositeurs.be
+Website : http://compositeurs.be/pousseur
+-------------------------------------------------------
+
+
+
+
+
+</pre>
+                 </article>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>Re: Reference-return</h1>
+                   <pre>
+On Friday 20 October 2006 01:34 pm, Denis Pousseur wrote:
+&gt Well, thanks. It seems logical, but in fact it doesn't work for me.
+&gt
+&gt If I declare the foreign-function with the argument (outData
+&gt (:reference-return Uint32)) the result is perfectly normal...
+&gt But if I do the same with (outData (:reference-return (:pointer :void)))
+&gt get the pointer and than do : (dereference thisPointer :type :int)
+&gt LW crashes, with a error message of type :
+
+I looked at it a bit more carefully.
+
+Your problem is that :reference-return automatically converts from C to lisp 
+on the way back, but, LW cannot know which type to convert it to (since there 
+is more than one possible type).
+
+According to my understanding of your problem, the following piece of code 
+seems to do what you want.  The calling function - your lisp program - must 
+allocate memory which the C function pokes results into.  You allocate the 
+memory as "foreign" and then convert it back to lisp when you want to use the 
+results in lisp.
+
+For your problem, the interesting function is "lisp-calls-c".  All of the 
+other cruft is just a test harness that creates the effect of two c-like 
+foreign functions (in lisp) that perform the c-like operations on the 
+pointers.
+
+
+
+;;; a faked C function that takes a pointer
+;;; as a arg and pokes an int into it
+(fli:define-foreign-function pokeint ((p (:pointer :void)))
+  :result-type :void)
+
+(fli:define-foreign-callable
+    ("pokeint" :result-type :void)
+    ((p (:pointer :int)))
+  (setf (fli:dereference p :type :int) 42))
+
+;;; a faked C function that takes a pointer
+;;; as a arg and treats it like a C string (an array of bytes)
+(fli:define-foreign-function pokestring ((p (:pointer :void)))
+  :result-type :void)
+
+(fli:define-foreign-callable
+    ("pokestring" :result-type :void)
+    ((ptr (:pointer :void)))
+  (fli:with-coerced-pointer (p :type '(:unsigned :byte)) ptr
+    (setf (fli:dereference p) #\H)
+    (fli:incf-pointer p)
+    (setf (fli:dereference p) #\i)
+    (fli:incf-pointer p)
+    (setf (fli:dereference p) #\Null)
+    (fli:incf-pointer p)))
+  
+;;; a lisp function that creates a C int and a C string
+;;; then passes these, as void* pointers, to C functions which
+;;; poke results into variables
+(defun lisp-calls-c ()
+  (let ((intp (fli:allocate-foreign-object :type :int))
+        (strp (fli:allocate-foreign-object :type '(:unsigned :byte) :nelems 32
+                                        :initial-contents '(49 50 51 52 0))))
+    ;;
+    (setf (fli:dereference intp) 12)
+    (format t "The original int is ~A~%" (fli:dereference intp))
+    (format t "The original string is /~A/~%" 
+                 (fli:convert-from-foreign-string strp))
+    ;; now call the C functions and print the new results
+    (pokeint intp)
+    (format t "The int is ~A~%" (fli:dereference intp))
+    (pokestring strp)
+    (format t "The string is /~A/~%" (fli:convert-from-foreign-string strp))))
+
+pt
+
+
+</pre>
+                  </article>
+                  <section class=tree>
+                   <article class=email>
+                    <h1>Re: Reference-return</h1>
+                    <pre>
+That's it!
+
+Thanks a lot Paul !
+
+Denis
+
+-------------------------------------------------------
+Denis Pousseur
+70 rue de Wansijn
+1180 Bruxelles, Belgique
+
+Tel : 32 (0)2 219 31 09
+Mail :  denis.pousseur@compositeurs.be
+Website : http://compositeurs.be/pousseur
+-------------------------------------------------------
+
+Le 20/10/06 22:18, «&nbsp;[NOM]&nbsp;» &lt;[ADRESSE]&gt a écrit&nbsp;:
+
+&gt On Friday 20 October 2006 01:34 pm, Denis Pousseur wrote:
+&gt&gt Well, thanks. It seems logical, but in fact it doesn't work for me.
+&gt&gt 
+&gt&gt If I declare the foreign-function with the argument (outData
+&gt&gt (:reference-return Uint32)) the result is perfectly normal...
+&gt&gt But if I do the same with (outData (:reference-return (:pointer :void)))
+&gt&gt get the pointer and than do : (dereference thisPointer :type :int)
+&gt&gt LW crashes, with a error message of type :
+&gt 
+&gt I looked at it a bit more carefully.
+&gt 
+&gt Your problem is that :reference-return automatically converts from C to lisp
+&gt on the way back, but, LW cannot know which type to convert it to (since there
+&gt is more than one possible type).
+&gt 
+&gt According to my understanding of your problem, the following piece of code
+&gt seems to do what you want.  The calling function - your lisp program - must
+&gt allocate memory which the C function pokes results into.  You allocate the
+&gt memory as "foreign" and then convert it back to lisp when you want to use the
+&gt results in lisp.
+&gt 
+&gt For your problem, the interesting function is "lisp-calls-c".  All of the
+&gt other cruft is just a test harness that creates the effect of two c-like
+&gt foreign functions (in lisp) that perform the c-like operations on the
+&gt pointers.
+&gt 
+&gt 
+&gt 
+&gt ;;; a faked C function that takes a pointer
+&gt ;;; as a arg and pokes an int into it
+&gt (fli:define-foreign-function pokeint ((p (:pointer :void)))
+&gt   :result-type :void)
+&gt 
+&gt (fli:define-foreign-callable
+&gt     ("pokeint" :result-type :void)
+&gt     ((p (:pointer :int)))
+&gt   (setf (fli:dereference p :type :int) 42))
+&gt 
+&gt ;;; a faked C function that takes a pointer
+&gt ;;; as a arg and treats it like a C string (an array of bytes)
+&gt (fli:define-foreign-function pokestring ((p (:pointer :void)))
+&gt   :result-type :void)
+&gt 
+&gt (fli:define-foreign-callable
+&gt     ("pokestring" :result-type :void)
+&gt     ((ptr (:pointer :void)))
+&gt   (fli:with-coerced-pointer (p :type '(:unsigned :byte)) ptr
+&gt     (setf (fli:dereference p) #\H)
+&gt     (fli:incf-pointer p)
+&gt     (setf (fli:dereference p) #\i)
+&gt     (fli:incf-pointer p)
+&gt     (setf (fli:dereference p) #\Null)
+&gt     (fli:incf-pointer p)))
+&gt   
+&gt ;;; a lisp function that creates a C int and a C string
+&gt ;;; then passes these, as void* pointers, to C functions which
+&gt ;;; poke results into variables
+&gt (defun lisp-calls-c ()
+&gt   (let ((intp (fli:allocate-foreign-object :type :int))
+&gt         (strp (fli:allocate-foreign-object :type '(:unsigned :byte) :nelems 32
+&gt                                         :initial-contents '(49 50 51 52 0))))
+&gt     ;;
+&gt     (setf (fli:dereference intp) 12)
+&gt     (format t "The original int is ~A~%" (fli:dereference intp))
+&gt     (format t "The original string is /~A/~%"
+&gt                  (fli:convert-from-foreign-string strp))
+&gt     ;; now call the C functions and print the new results
+&gt     (pokeint intp)
+&gt     (format t "The int is ~A~%" (fli:dereference intp))
+&gt     (pokestring strp)
+&gt     (format t "The string is /~A/~%" (fli:convert-from-foreign-string strp))))
+&gt 
+&gt pt
+&gt 
+
+
+
+
+
+
+
+
+
+</pre>
+                   </article>
+                  </section>
+                 </section>
+                </section>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:44 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

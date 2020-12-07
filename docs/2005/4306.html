@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>pathname with blank inside to open-pipe, LWw</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>pathname with blank inside to open-pipe, LWw</h1>
+                <pre>Hello,
+
+How to pass to open-pipe a pathname that has a blank inside (LWw Pro 4.4)?
+
+(with-open-stream
+     (s (sys:open-pipe
+         (string-append
+          (namestring
+           "C:/Program Files/emacs/setup/bin/gnuclientw.exe")
+          " -sqfw g:/pe/test.lisp")))
+   (loop while (print (read-line s nil nil)))
+   s)
+ &gt
+"'C:\\Program' n'est pas reconnu en tant que commande interne"
+   (means 'C:\\Program' is unknown)
+#&lt;win32::two-way-pipe-stream 2067FFFC&gt
+
+
+(namestring "C:/Program Files/emacs/setup/bin/gnuclientw.exe")
+returns
+"C:\\Program Files\\emacs\\setup\\bin\\gnuclientw.exe"
+
+
+Francis
+
+
+______________________________________________________________________
+This email has been scanned by the MessageLabs Email Security System.
+For more information please visit http://www.messagelabs.com/email 
+______________________________________________________________________
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: pathname with blank inside to open-pipe, LWw</h1>
+                 <pre>On Mon, 08 Aug 2005 16:11:18 +0200, Francis Leboutte &lt;f.leboutte@algo.be&gt wrote:
+
+&gt How to pass to open-pipe a pathname that has a blank inside (LWw Pro 4.4)?
+
+Try this:
+
+  (with-open-stream
+       (s (sys:open-pipe
+            '("C:/Program Files/emacs/setup/bin/gnuclientw.exe"
+              "-sqfw" "g:/pe/test.lisp")))
+    (loop while (print (read-line s nil nil)))
+    s)
+
+Cheers,
+Edi.
+
+______________________________________________________________________
+This email has been scanned by the MessageLabs Email Security System.
+For more information please visit http://www.messagelabs.com/email 
+______________________________________________________________________
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: pathname with blank inside to open-pipe, LWw</h1>
+                 <pre>At 8/08/2005 16:38, Edi Weitz wrote:
+&gtOn Mon, 08 Aug 2005 16:11:18 +0200, Francis Leboutte &lt;f.leboutte@algo.be&gt wrote:
+&gt
+&gt &gt How to pass to open-pipe a pathname that has a blank inside (LWw Pro 4.4)?
+&gt
+&gtTry this:
+&gt
+&gt   (with-open-stream
+&gt        (s (sys:open-pipe
+&gt             '("C:/Program Files/emacs/setup/bin/gnuclientw.exe"
+&gt               "-sqfw" "g:/pe/test.lisp")))
+&gt     (loop while (print (read-line s nil nil)))
+&gt     s)
+
+Still problematic:
+- emacs doesn't start (crashes, error is "-sqfw: unable to connect to server")
+- if emacs is already running, test.lisp is opened in emacs but 
+the emacs server doesn't notice it
+
+Finally, if I put C:/Program Files/emacs/setup/bin in the path, this is working:
+
+(sys:open-pipe "gnuclientw.exe -sqfw g:/pe/test.lisp")
+
+Looks like a bug.
+
+Thanks Edi,
+
+Francis
+
+
+&gtCheers,
+&gtEdi.
+&gt
+&gt______________________________________________________________________
+&gtThis email has been scanned by the MessageLabs Email Security System.
+&gtFor more information please visit http://www.messagelabs.com/email
+&gt______________________________________________________________________
+
+
+______________________________________________________________________
+This email has been scanned by the MessageLabs Email Security System.
+For more information please visit http://www.messagelabs.com/email 
+______________________________________________________________________
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>RE: pathname with blank inside to open-pipe, LWw</h1>
+                 <pre>Francis Leboutte wrote:
+ 
+&gt How to pass to open-pipe a pathname that has a blank inside 
+&gt (LWw Pro 4.4)?
+
+I think this will work:
+
+(concatenate 'string
+             "\""
+             (namestring "C:/Program
+Files/emacs/setup/bin/gnuclientw.exe")
+             "\"")
+
+Simon
+
+
+
+______________________________________________________________________
+This email has been scanned by the MessageLabs Email Security System.
+For more information please visit http://www.messagelabs.com/email 
+______________________________________________________________________
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>RE: pathname with blank inside to open-pipe, LWw</h1>
+                 <pre>At 9/08/2005 10:45, Simon Katz wrote:
+&gtFrancis Leboutte wrote:
+&gt
+&gt &gt How to pass to open-pipe a pathname that has a blank inside
+&gt &gt (LWw Pro 4.4)?
+&gt
+&gtI think this will work:
+&gt
+&gt(concatenate 'string
+&gt              "\""
+&gt              (namestring "C:/Program
+&gtFiles/emacs/setup/bin/gnuclientw.exe")
+&gt              "\"")
+&gt
+&gtSimon
+
+No, it shows the same symptoms as the suggestion of Edi.
+
+e.g. if emacs is not running:
+(with-open-stream
+     (s (sys:open-pipe
+         (list
+          (concatenate 'string
+                       "\""
+                       (namestring "C:/Program Files/emacs/setup/bin/gnuclientw.exe")
+                       "\"")
+          "-sqfw" "g:/pe/test.lisp") ))
+   (loop while (print (read-line s nil nil)))
+   s)
+ &gt
+"Syntaxe du nom de fichier, de r?pertoire ou de volume incorrecte."
+  (means bad syntax)
+
+If emacs is already running, test.lisp file is opened in emacs 
+but emacs server isn't aware of its presence.
+
+Thanks,
+
+Francis
+
+
+&gt______________________________________________________________________
+&gtThis email has been scanned by the MessageLabs Email Security System.
+&gtFor more information please visit http://www.messagelabs.com/email
+&gt______________________________________________________________________
+
+
+______________________________________________________________________
+This email has been scanned by the MessageLabs Email Security System.
+For more information please visit http://www.messagelabs.com/email 
+______________________________________________________________________
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>RE: pathname with blank inside to open-pipe, LWw</h1>
+                  <pre>Francis Leboutte wrote:
+&gt At 9/08/2005 10:45, Simon Katz wrote:
+&gt &gtFrancis Leboutte wrote:
+&gt &gt
+&gt &gt &gt How to pass to open-pipe a pathname that has a blank inside
+&gt &gt &gt (LWw Pro 4.4)?
+&gt &gt
+&gt &gtI think this will work:
+&gt &gt
+&gt &gt(concatenate 'string
+&gt &gt              "\""
+&gt &gt              (namestring "C:/Program
+&gt &gtFiles/emacs/setup/bin/gnuclientw.exe")
+&gt &gt              "\"")
+&gt &gt
+&gt &gtSimon
+&gt 
+&gt No, it shows the same symptoms as the suggestion of Edi.
+&gt 
+&gt e.g. if emacs is not running:
+&gt (with-open-stream
+&gt      (s (sys:open-pipe
+&gt          (list
+&gt           (concatenate 'string
+&gt                        "\""
+&gt                        (namestring "C:/Program 
+&gt Files/emacs/setup/bin/gnuclientw.exe")
+&gt                        "\"")
+&gt           "-sqfw" "g:/pe/test.lisp") ))
+&gt    (loop while (print (read-line s nil nil)))
+&gt    s)
+&gt  &gt
+&gt "Syntaxe du nom de fichier, de r?pertoire ou de volume incorrecte."
+&gt   (means bad syntax)
+&gt 
+&gt If emacs is already running, test.lisp file is opened in emacs 
+&gt but emacs server isn't aware of its presence.
+
+Perhaps this will work:
+
+(with-open-stream
+    (s (sys:open-pipe
+        (concatenate
+         'string
+         "\""
+         (namestring "C:/Program
+Files/emacs/setup/bin/gnuclientw.exe")
+         "\""
+         " "
+         "-sqfw"
+         " "
+         "g:/pe/test.lisp")))
+  (loop while (print (read-line s nil nil)))
+  s)
+
+I don't have emacs installed, so I can't try it. But for me
+the first of the following does not work but the second one
+does:
+
+(sys:open-pipe
+ (namestring "C:/Program Files/TextPad 4/textpad.exe"))
+
+(sys:open-pipe
+ (concatenate
+  'string
+  "\""
+  (namestring "C:/Program Files/TextPad 4/textpad.exe")
+  "\""))
+
+FWIW, SYS:CALL-SYSTEM-SHOWING-OUTPUT seems to be less fussy.
+
+Simon
+
+
+
+______________________________________________________________________
+This email has been scanned by the MessageLabs Email Security System.
+For more information please visit http://www.messagelabs.com/email 
+______________________________________________________________________
+
+
+</pre>
+                 </article>
+                </section>
+                <section class=tree>
+                 <article class=email>
+                  <h1>RE: pathname with blank inside to open-pipe, LWw</h1>
+                  <pre>At 9/08/2005 14:07, Simon Katz wrote:
+&gtFrancis Leboutte wrote:
+&gt &gt At 9/08/2005 10:45, Simon Katz wrote:
+&gt &gt &gtFrancis Leboutte wrote:
+&gt &gt &gt
+&gt &gt &gt &gt How to pass to open-pipe a pathname that has a blank inside
+&gt &gt &gt &gt (LWw Pro 4.4)?
+&gt &gt &gt
+&gt &gt &gtI think this will work:
+&gt &gt &gt
+&gt &gt &gt(concatenate 'string
+&gt &gt &gt              "\""
+&gt &gt &gt              (namestring "C:/Program
+&gt &gt &gtFiles/emacs/setup/bin/gnuclientw.exe")
+&gt &gt &gt              "\"")
+&gt &gt &gt
+&gt &gt &gtSimon
+&gt &gt
+&gt &gt No, it shows the same symptoms as the suggestion of Edi.
+&gt &gt
+&gt &gt e.g. if emacs is not running:
+&gt &gt (with-open-stream
+&gt &gt      (s (sys:open-pipe
+&gt &gt          (list
+&gt &gt           (concatenate 'string
+&gt &gt                        "\""
+&gt &gt                        (namestring "C:/Program
+&gt &gt Files/emacs/setup/bin/gnuclientw.exe")
+&gt &gt                        "\"")
+&gt &gt           "-sqfw" "g:/pe/test.lisp") ))
+&gt &gt    (loop while (print (read-line s nil nil)))
+&gt &gt    s)
+&gt &gt  &gt
+&gt &gt "Syntaxe du nom de fichier, de r?pertoire ou de volume incorrecte."
+&gt &gt   (means bad syntax)
+&gt &gt
+&gt &gt If emacs is already running, test.lisp file is opened in emacs
+&gt &gt but emacs server isn't aware of its presence.
+&gt
+&gtPerhaps this will work:
+&gt
+&gt(with-open-stream
+&gt     (s (sys:open-pipe
+&gt         (concatenate
+&gt          'string
+&gt          "\""
+&gt          (namestring "C:/Program
+&gtFiles/emacs/setup/bin/gnuclientw.exe")
+&gt          "\""
+&gt          " "
+&gt          "-sqfw"
+&gt          " "
+&gt          "g:/pe/test.lisp")))
+&gt   (loop while (print (read-line s nil nil)))
+&gt   s)
+&gt
+&gtI don't have emacs installed, so I can't try it. But for me
+&gtthe first of the following does not work but the second one
+&gtdoes:
+&gt
+&gt(sys:open-pipe
+&gt  (namestring "C:/Program Files/TextPad 4/textpad.exe"))
+&gt
+&gt(sys:open-pipe
+&gt  (concatenate
+&gt   'string
+&gt   "\""
+&gt   (namestring "C:/Program Files/TextPad 4/textpad.exe")
+&gt   "\""))
+
+On my machine too (same example, I use textpad too :-)
+
+It has maybe to do with how the arguments are managed by open-pipe or gnuclientw.exe
+
+Anyway, at present time it's enough for me to just put C:/Program 
+Files/emacs/setup/bin in the path and use (sys:open-pipe 
+"gnuclientw.exe -sqfw g:/pe/test.lisp") that does work.
+
+
+&gtFWIW, SYS:CALL-SYSTEM-SHOWING-OUTPUT seems to be less fussy.
+
+Will keep this in mind.
+
+Thanks for helping,
+
+Francis
+
+
+&gtSimon
+&gt
+&gt
+&gt
+&gt______________________________________________________________________
+&gtThis email has been scanned by the MessageLabs Email Security System.
+&gtFor more information please visit http://www.messagelabs.com/email
+&gt______________________________________________________________________
+
+
+______________________________________________________________________
+This email has been scanned by the MessageLabs Email Security System.
+For more information please visit http://www.messagelabs.com/email 
+______________________________________________________________________
+
+
+</pre>
+                 </article>
+                </section>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:47 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

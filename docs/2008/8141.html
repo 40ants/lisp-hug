@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Disassembling a method</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Disassembling a method</h1>
+                <pre>
+Is there an easy way that I'm missing to disassemble a specific
+method?  I can go from the generic function to the specific method and
+its associated functional object via the MOP and/or the inspector and
+disassemble it (see below), but I'm looking for a direct invocation.
+"Disassemble Definition" in the IDE seem to work only for plain
+functions and I wouldn't know what to hand over to the CL:DISASSEMBLE
+function to do this in one step.  Any ideas?
+
+Thanks,
+Edi.
+
+
+  CL-USER 1 &gt (defmethod foo ((a integer))
+                (1+ a))
+  #&lt;STANDARD-METHOD FOO NIL (INTEGER) 221AFAC7&gt
+
+  CL-USER 2 &gt (disassemble (method-function (first (generic-function-methods #'foo))))
+  221713EA:
+         0:      55               push  ebp
+         1:      89E5             move  ebp, esp
+         3:      A803             testb al, 3
+         5:      750C             jne   L1
+         7:      89C7             move  edi, eax
+         9:      83C704           add   edi, 4
+        12:      7005             jo    L1
+        14:      FD               std   
+        15:      89F8             move  eax, edi
+        17:      C9               leave 
+        18:      C3               ret   
+  L1:   19:      C9               leave 
+        20:      E977ECF9FD       jmp   2011007A         ; #&lt;Function SYSTEM::*%1+$ANY-STUB 2011007A&gt
+        25:      90               nop   
+  NIL
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Disassembling a method</h1>
+                 <pre>
+On Sun, May 18, 2008 at 01:18:56PM +0200, Edi Weitz wrote:
+&gt Is there an easy way that I'm missing to disassemble a specific
+&gt method?  I can go from the generic function to the specific method
+&gt and its associated functional object via the MOP and/or the
+&gt inspector and disassemble it (see below), but I'm looking for a
+&gt direct invocation.  "Disassemble Definition" in the IDE seem to work
+&gt only for plain functions and I wouldn't know what to hand over to
+&gt the CL:DISASSEMBLE function to do this in one step.  Any ideas?
+&gt 
+[snip]
+&gt 
+&gt   CL-USER 1 &gt (defmethod foo ((a integer))
+&gt                 (1+ a))
+&gt   #&lt;STANDARD-METHOD FOO NIL (INTEGER) 221AFAC7&gt
+&gt 
+&gt   CL-USER 2 &gt (disassemble (method-function (first (generic-function-methods #'foo))))
+[output snipped]
+
+Frankly I'm not sure what you're looking for but I'll take my best
+shot.  :)
+
+Poking at the listener and the inspector came up with this:
+
+  CL-USER 35 &gt (defmethod foo ((a integer)) (1+ a))
+  #&lt;STANDARD-METHOD FOO NIL (INTEGER) 22535AF3&gt
+
+  CL-USER 36 &gt (disassemble (slot-value * 'function))
+  225464C2:
+	 0:      55               push  ebp
+  [ ... etc ... ]
+
+Or maybe you want this?
+
+  (disassemble 
+    (slot-value (find-method #'foo '() (list (find-class 'integer)))
+		'function))
+
+Or something else?  IOW what's your ideal call sequence to get what
+you want?
+
+(This use of slot-value may be LW-specific, but the find-method came
+right out of the CLHS.)
+
+-- L
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Disassembling a method</h1>
+                 <pre>
+On Sun, 18 May 2008 08:26:31 -0400, Larry Clapp &lt;larry@theclapp.org&gt wrote:
+
+&gt Frankly I'm not sure what you're looking for
+
+A /convenient/ way to see the disassembly of the method.  If you've
+identified a specific function FOO as a bottleneck and you want to
+optimize it, then it sometimes makes sense to look at its disassembly.
+The usual cycle for me might be to change the function's definition in
+the source file, then "Compile Defun", then to disassemble it either
+with "Disassemble Definition" or with typing
+
+  (disassemble 'foo)
+
+into the listener (and maybe repeat this with M-p after
+recompilation).  With methods, the first variant ("Disassemble
+Definition") doesn't work.  For the second variant, I'm looking for
+something I can type into the REPL which is short and unambiguous.
+
+&gt CL-USER 36 &gt (disassemble (slot-value * 'function))
+
+This'll only help if you define your methods in the listener which I
+usually don't do.
+
+&gt   (disassemble 
+&gt     (slot-value (find-method #'foo '() (list (find-class 'integer)))
+&gt 		'function))
+
+That's more like it albeit a bit bulky.  I had hoped that I could
+maybe use the DSPEC stuff to identify the specific method.
+
+&gt (This use of slot-value may be LW-specific, but the find-method came
+&gt right out of the CLHS.)
+
+Yeah, I'm aware that any such solution will be LW-specific.  That's
+fine.
+
+Thanks,
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Disassembling a method</h1>
+                 <pre>
+On Sun, 18 May 2008 11:09:09 -0400, Larry Clapp &lt;larry@theclapp.org&gt wrote:
+
+&gt How about
+&gt
+&gt   (defadvice (disassemble do-methods :around) (function)
+&gt     (if (consp function)
+&gt       (call-next-advice (slot-value
+&gt 			 (find-method (symbol-function (car function))
+&gt 				      '()
+&gt 				      (mapcar #'find-class (cdr function)))
+&gt 			 'function))
+&gt       (call-next-advice function)))
+&gt
+&gt   CL-USER 98 &gt (disassemble '(foo integer))
+&gt   200A8D62:
+&gt 	 0:      55               push  ebp
+&gt   [ ... etc ... ]
+&gt
+&gt This even works with "Disassemble Definition" -- tell it "(foo
+&gt integer)" instead of just "foo".
+
+That's very helpful, thanks!
+
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Disassembling a method</h1>
+                 <pre>
+On Mon, 19 May 2008 09:53:48 +0200, "John Thingstad" &lt;jpthing@online.no&gt wrote:
+
+&gt As a side note: fdefinition is a generalization of symbol-function
+&gt that is made to work with method setf expanders. (Use as a
+&gt replacement for symbol-function)
+
+Would something change for the better if one replaced symbol-function
+with fdefinition in Larry's code?
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:39 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

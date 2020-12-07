@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>fasl loader usage in a delivered image</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>fasl loader usage in a delivered image</h1>
+                <pre>
+I have an application that writes out CLOS instances into a source
+code file which is subsequently compiled.  This is to allow the
+instances to be reloaded quickly using the standard LOAD function (of
+course you have to define MAKE-LOAD-FORM methods for this to work).
+
+Unfortunately, I don't think that I can get this idiom to work using a
+delivered lispworks image because the file compiler has been removed.
+It works fine with LWL 4.2.7 when I am running out of the IDE.
+
+Is there any work around so that I can get the desired functionality?
+As of right now, I'm using LWL 4.2.7, but I don't think that this is
+version specific.
+
+Here is some example code that shows that idiom:
+
+(defun load-web-data (&amp;key (dir *web-dir*)
+                           (name "web-data"))
+  (load (compile-file-pathname
+   (make-pathname :defaults dir
+                            :name name)))
+  (setf *web-id*
+        (max *web-id*
+             (1+ (loop for instance in *web-instances*
+                       maximize (web-id instance))))))
+
+(defun dump-web-data (&amp;key (dir *web-dir*)
+                           (name "web-data"))
+  (let ((cf (make-pathname :defaults dir
+                           :name name
+                           :type "lisp")))
+    (with-open-file (s cf
+                       :direction :output
+                       :if-exists :supersede
+                       :if-does-not-exist :create)
+      (dolist (var '(*web-instances*))
+      (format s "(SETF ~S '#.~S)" var var)))
+    (compile-file cf :output-file
+                  (compile-file-pathname
+                   (make-pathname :defaults cf :type nil)))))
+
+And here is the contents of one of the files that gets compiled and
+then loaded:
+
+(SETF ORG.CL-USER::*WEB-INSTANCES* '#.ORG.CL-USER::*WEB-INSTANCES*)
+
+-russ
+
+
+______________________________________________________________________
+This email has been scanned by the MessageLabs Email Security System.
+For more information please visit http://www.messagelabs.com/email 
+______________________________________________________________________
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: fasl loader usage in a delivered image</h1>
+                 <pre>hey,
+
+Though I havn't tried it, you can try making the COMPILE a part of your load
+form, e.g.:
+
+ (compile nil #'(lambda () (defclass my-class () ...)))
+
+or
+
+ (compile nil #'(lambda () (make-instance 'my-class ...)))
+
+This should adapt to just about any given load form.
+
+LispWorks doesn't include the file compiler, but they do include the COMPILE
+function.  As far as the performance gain, though, I don't know what you can
+expect.  I've heard that some [other?] Lisp implementations tend to compile
+CLOS forms, even when they're evaluated.
+
+dave
+
+--- Russell McManus &lt;russell_mcmanus@yahoo.com&gt wrote:
+
+&gt 
+&gt I have an application that writes out CLOS instances into a source
+&gt code file which is subsequently compiled.  This is to allow the
+&gt instances to be reloaded quickly using the standard LOAD function (of
+&gt course you have to define MAKE-LOAD-FORM methods for this to work).
+&gt 
+&gt Unfortunately, I don't think that I can get this idiom to work using a
+&gt delivered lispworks image because the file compiler has been removed.
+&gt It works fine with LWL 4.2.7 when I am running out of the IDE.
+&gt 
+&gt Is there any work around so that I can get the desired functionality?
+&gt As of right now, I'm using LWL 4.2.7, but I don't think that this is
+&gt version specific.
+&gt 
+&gt Here is some example code that shows that idiom:
+&gt 
+&gt (defun load-web-data (&amp;key (dir *web-dir*)
+&gt                            (name "web-data"))
+&gt   (load (compile-file-pathname
+&gt    (make-pathname :defaults dir
+&gt                             :name name)))
+&gt   (setf *web-id*
+&gt         (max *web-id*
+&gt              (1+ (loop for instance in *web-instances*
+&gt                        maximize (web-id instance))))))
+&gt 
+&gt (defun dump-web-data (&amp;key (dir *web-dir*)
+&gt                            (name "web-data"))
+&gt   (let ((cf (make-pathname :defaults dir
+&gt                            :name name
+&gt                            :type "lisp")))
+&gt     (with-open-file (s cf
+&gt                        :direction :output
+&gt                        :if-exists :supersede
+&gt                        :if-does-not-exist :create)
+&gt       (dolist (var '(*web-instances*))
+&gt       (format s "(SETF ~S '#.~S)" var var)))
+&gt     (compile-file cf :output-file
+&gt                   (compile-file-pathname
+&gt                    (make-pathname :defaults cf :type nil)))))
+&gt 
+&gt And here is the contents of one of the files that gets compiled and
+&gt then loaded:
+&gt 
+&gt (SETF ORG.CL-USER::*WEB-INSTANCES* '#.ORG.CL-USER::*WEB-INSTANCES*)
+&gt 
+&gt -russ
+&gt 
+&gt 
+&gt ______________________________________________________________________
+&gt This email has been scanned by the MessageLabs Email Security System.
+&gt For more information please visit http://www.messagelabs.com/email 
+&gt ______________________________________________________________________
+&gt 
+&gt 
+
+
+______________________________________________________________________
+This email has been scanned by the MessageLabs Email Security System.
+For more information please visit http://www.messagelabs.com/email 
+______________________________________________________________________
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: fasl loader usage in a delivered image</h1>
+                 <pre>Russell McManus &lt;russell_mcmanus@yahoo.com&gt writes:
+
+&gt I have an application that writes out CLOS instances into a source
+&gt code file which is subsequently compiled.  This is to allow the
+&gt instances to be reloaded quickly using the standard LOAD function (of
+&gt course you have to define MAKE-LOAD-FORM methods for this to work).
+
+&lt;shameless_plug&gt
+If you aren't particularly attached to using load to get your
+instances back you could always use cl-store (http://cliki.net/cl-store). 
+
+(defun load-web-data (&amp;key (dir *web-dir*)
+                           (name "web-data"))
+  (let ((path (make-pathname :defaults dir :name name :type "dat")))
+    (setf *web-id*
+          (max *web-id*
+               (1+ (loop for instance in (cl-store:restore path)
+                         maximize (web-id instance)))))))
+
+(defun dump-web-data (&amp;key (dir *web-dir*)
+                           (name "web-data"))
+  (let ((cf (make-pathname :defaults dir :name name :type "dat")))
+    (cl-store:store *web-instances* cf)))
+
+&lt;/shameless_plug&gt
+
+
+Regards,
+  Sean.
+
+-- 
+"My doctor says that I have a malformed public-duty gland and a
+ natural  deficiency in moral fibre," he muttered to himself, "and
+ that I am therefore excused from saving Universes."
+ - Life, the Universe, and Everything     Douglas Adams.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: fasl loader usage in a delivered image</h1>
+                 <pre>Hello Russell,
+
+| I have an application that writes out CLOS instances into a source
+| code file which is subsequently compiled.  This is to allow the
+| instances to be reloaded quickly using the standard LOAD function (of
+| course you have to define MAKE-LOAD-FORM methods for this to work).
+|
+| Unfortunately, I don't think that I can get this idiom to work using a
+| delivered lispworks image because the file compiler has been removed.
+| It works fine with LWL 4.2.7 when I am running out of the IDE.
+|
+| Is there any work around so that I can get the desired functionality?
+| As of right now, I'm using LWL 4.2.7, but I don't think that this is
+| version specific.
+|...snip...|
+
+I would recommend using hcl:dump-forms-to-file and sys:load-data-file. They
+work fine in a delivered image and do not need the file compiler.
+
+Moreover, in my exepriece, the binary _data_ files are upward compatible
+among LispWorks version, despite of what readme-4400.txt says:
+
+  11.9  Binary Incompatibilty
+  If you have binaries (fasl files) which were compiled using
+  LispWorks 4.3 or previous versions, please note that these
+  are not compatible with this release.
+
+I am not sure whether they will retain this kind of upgrade compatibility in
+the future, but I hope so.
+--
+Sincerely,
+Dmitri Ivanov
+lisp.ystok.ru
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:49 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

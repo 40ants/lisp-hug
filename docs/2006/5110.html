@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Problem with com:invoke-dispatch-method</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Problem with com:invoke-dispatch-method</h1>
+                <pre>
+Hello All,
+
+I'm having a problem and I hope someone can help me.  I'm trying to
+interact with the WebBrowser ActiveX control in a similar fashion to
+the html-viewer.lisp sample that ships with LWW.  I am able to call
+almost all the methods I need with com:invoke-dispatch-method. 
+However, I have a requirement to be able to print from the control. 
+In order to do this, I need to call the ExecWB method and pass in some
+parameters (see
+http://msdn.microsoft.com/library/default.asp?url=/workshop/browser/webbrowser/reference/Objects/WebBrowser.asp).
+  It takes 4 parameters - an OLECMDID, an OLECMDEXECOPT, a Variant,
+and a Variant.  In the case of printing, you use OLECMDID with a value
+of IDM_PRINT (http://msdn.microsoft.com/workshop/browser/mshtml/reference/constants/idm_print.asp)
+and away you go (the last 2 parameters are optional).
+
+I have tried adding a Print button to the html-viewer.lisp sample and
+a corresponding callback function that looks like this:
+
+(defun html-viewer-demo-print (self)
+  (com:invoke-dispatch-method (html-viewer-demo-dispatch self)
+                              "ExecWB"
+                              27 ; IDM_PRINT
+                              1 ; OLECMDEXECOPT_PROMPTUSER))
+
+But I get an error:
+
+Missing value for in/out arg 3.
+
+I try supplying all 4 parameters with a function that looks like this:
+
+(defun html-viewer-demo-print (self)
+  (let ((temp nil)
+        (temp2 nil))
+    (com:invoke-dispatch-method (html-viewer-demo-dispatch self)
+                                "ExecWB"
+                                27 ; IDM_PRINT
+                                1 ; OLECMDEXECOPT_PROMPTUSER
+                                temp
+                                temp2)))
+
+But I get an error:
+
+#&lt;Pointer to type COM:VARIANT = #x008C0108&gt is not of type CONS.
+
+I've tried various versions of this with temp and temp2 having values
+made by make-lisp-variant, fli:allocate-foreign-object, arrays, lists
+and I haven't been able to get past the "Pointer to type..." error.  I
+feel like I'm just missing it somehow.
+
+Can someone please help?  I've included a patch below with my changes
+to html-viewer.lisp.
+
+Thanks!
+Tom
+
+------
+
+--- orig/html-viewer.lisp       2006-01-01 15:34:16.111235200 -0600
++++ print-test/html-viewer.lisp 2006-01-01 15:20:16.564025600 -0600
+@@ -32,10 +32,14 @@
+    (go-button capi:push-button
+               :text "Go"
+               :callback 'html-viewer-demo-go
+-              :callback-type :interface))
++              :callback-type :interface)
++   (print-button capi:push-button
++                 :text "Print"
++                 :callback 'html-viewer-demo-print
++                 :callback-type :interface))
+   (:layouts
+    (controls-layout capi:row-layout
+-                    '(address go-button))
++                    '(address go-button print-button))
+    (main-layout capi:column-layout
+                 '(controls-layout html-pane)))
+   (:default-initargs
+@@ -54,6 +58,16 @@
+                               (capi:text-input-pane-text
+                                (slot-value self 'address))))
+
++(defun html-viewer-demo-print (self)
++  (let ((temp nil)
++        (temp2 nil))
++    (com:invoke-dispatch-method (html-viewer-demo-dispatch self)
++                                "ExecWB"
++                                27 ; IDM_PRINT
++                                1 ; OLECMDEXECOPT_PROMPTUSER
++                                temp
++                                temp2)))
++
+ (defun test-html-viewer-demo ()
+   (capi:display (make-instance 'html-viewer-demo)))
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Problem with com:invoke-dispatch-method</h1>OK, following up to myself here.&nbsp; Turns out I had the wrong value for IDM_PRINT - it should be 6 instead of 27.&nbsp; The html-viewer-demo-print function should now looks like:<br><br>(defun html-viewer-demo-print (self)<br>&nbsp; (com:invoke-dispatch-method (html-viewer-demo-dispatch self)
+<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &quot;ExecWB&quot;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 6 ; IDM_PRINT<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 1 ; OLECMDEXECOPT_PROMPTUSER<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; nil<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; nil))
+<br><br>This causes the WebBrowser control to print, but still gives the error (backtrace included): <br><br><div style="margin-left: 40px;">Error: #&lt;Pointer to type COM:VARIANT = #x008C9960&gt; is not of type CONS.<br>
+&nbsp; 1 (abort) Return to event loop.<br><br>Type :b for backtrace, :c &lt;option number&gt; to proceed,&nbsp; or :? for other options<br><br>CL-USER 1 : 1 &gt; :b<br>Call to SEQ::CADDR-1ARG<br>Call to COM:INVOKE<br>Call to COM:INVOKE-DISPATCH-METHOD
+<br>Call to CAPI::EXECUTE-CALLBACK<br>Call to CAPI:EXECUTE-WITH-INTERFACE<br>Call to (SUBFUNCTION 1 (WIN32:DEFINE-TYPE-NOTIFICATION-FUNCTION CAPI-WIN32-LIB::R-BUTTON WIN32:BN_CLICKED))<br>Call to WIN32::WND-PROC<br>Call to FLI::FOREIGN-CALLABLE-ENTRY-POINT-AUX-NESTED
+<br>Call to WIN32::CALL-WINDOW-PROC$RAW<br>Call to WIN32::WND-PROC<br>Call to FLI::FOREIGN-CALLABLE-ENTRY-POINT-AUX-NESTED<br>Call to WIN32:DISPATCH-MESSAGE<br>Call to WIN32::PROCESS-MESSAGES<br>Call to MP::WIN32-PROCESS-WAIT-FOR-EVENT
+<br>Call to MP:PROCESS-READ-EVENT<br>Call to CAPI-INTERNALS:LOOP-PROCESS-EVENTS<br>Call to CAPI::INTERFACE-EVENT-LOOP<br>Call to CAPI::INITIALIZE-AND-PROCESS-EVENTS<br>Call to (SUBFUNCTION MP::PROCESS-SG-FUNCTION MP::INITIALIZE-PROCESS-STACK)
+<br></div><br><br><br><div><span class="gmail_quote">On 1/1/06, <b class="gmail_sendername">Tom Pierce</b> &lt;<a href="mailto:t.pierce@computer.org">t.pierce@computer.org</a>&gt; wrote:</span><blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+Hello All,<br><br>I'm having a problem and I hope someone can help me.&nbsp;&nbsp;I'm trying to<br>interact with the WebBrowser ActiveX control in a similar fashion to<br>the html-viewer.lisp sample that ships with LWW.&nbsp;&nbsp;I am able to call
+<br>almost all the methods I need with com:invoke-dispatch-method.<br>However, I have a requirement to be able to print from the control.<br>In order to do this, I need to call the ExecWB method and pass in some<br>parameters (see
+<br><a href="http://msdn.microsoft.com/library/default.asp?url=/workshop/browser/webbrowser/reference/Objects/WebBrowser.asp)">http://msdn.microsoft.com/library/default.asp?url=/workshop/browser/webbrowser/reference/Objects/WebBrowser.asp)
+</a>.<br>&nbsp;&nbsp;It takes 4 parameters - an OLECMDID, an OLECMDEXECOPT, a Variant,<br>and a Variant.&nbsp;&nbsp;In the case of printing, you use OLECMDID with a value<br>of IDM_PRINT (<a href="http://msdn.microsoft.com/workshop/browser/mshtml/reference/constants/idm_print.asp">
+http://msdn.microsoft.com/workshop/browser/mshtml/reference/constants/idm_print.asp</a>)<br>and away you go (the last 2 parameters are optional).<br><br>I have tried adding a Print button to the html-viewer.lisp sample and
+<br>a corresponding callback function that looks like this:<br><br>(defun html-viewer-demo-print (self)<br>&nbsp;&nbsp;(com:invoke-dispatch-method (html-viewer-demo-dispatch self)<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;ExecWB&quot;
+<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;27 ; IDM_PRINT<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1 ; OLECMDEXECOPT_PROMPTUSER))<br><br>But I get an error:<br><br>Missing value for in/out arg 3.<br><br>I try supplying all 4 parameters with a function that looks like this:
+<br><br>(defun html-viewer-demo-print (self)<br>&nbsp;&nbsp;(let ((temp nil)<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(temp2 nil))<br>&nbsp;&nbsp;&nbsp;&nbsp;(com:invoke-dispatch-method (html-viewer-demo-dispatch self)<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;ExecWB&quot;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;27 ; IDM_PRINT
+<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1 ; OLECMDEXECOPT_PROMPTUSER<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;temp<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;temp2)))<br><br>But I get an error:<br><br>#&lt;Pointer to type COM:VARIANT = #x008C0108&gt; is not of type CONS.
+<br><br>I've tried various versions of this with temp and temp2 having values<br>made by make-lisp-variant, fli:allocate-foreign-object, arrays, lists<br>and I haven't been able to get past the &quot;Pointer to type...&quot; error.&nbsp;&nbsp;I
+<br>feel like I'm just missing it somehow.<br><br>Can someone please help?&nbsp;&nbsp;I've included a patch below with my changes<br>to html-viewer.lisp.<br><br>Thanks!<br>Tom<br><br>------<br><br>--- orig/html-viewer.lisp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 2006-01-01 15:34:
+16.111235200 -0600<br>+++ print-test/html-viewer.lisp 2006-01-01 15:20:16.564025600 -0600<br>@@ -32,10 +32,14 @@<br>&nbsp;&nbsp;&nbsp;&nbsp;(go-button capi:push-button<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; :text &quot;Go&quot;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; :callback 'html-viewer-demo-go
+<br>-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:callback-type :interface))<br>+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:callback-type :interface)<br>+&nbsp;&nbsp; (print-button capi:push-button<br>+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; :text &quot;Print&quot;<br>+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; :callback 'html-viewer-demo-print
+<br>+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; :callback-type :interface))<br>&nbsp;&nbsp; (:layouts<br>&nbsp;&nbsp;&nbsp;&nbsp;(controls-layout capi:row-layout<br>-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'(address go-button))<br>+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'(address go-button print-button))<br>&nbsp;&nbsp;&nbsp;&nbsp;(main-layout capi:column-layout
+<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; '(controls-layout html-pane)))<br>&nbsp;&nbsp; (:default-initargs<br>@@ -54,6 +58,16 @@<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (capi:text-input-pane-text<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(slot-value self 'address))))
+<br><br>+(defun html-viewer-demo-print (self)<br>+&nbsp;&nbsp;(let ((temp nil)<br>+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(temp2 nil))<br>+&nbsp;&nbsp;&nbsp;&nbsp;(com:invoke-dispatch-method (html-viewer-demo-dispatch self)<br>+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;ExecWB&quot;<br>
++&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;27 ; IDM_PRINT<br>+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1 ; OLECMDEXECOPT_PROMPTUSER<br>+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;temp<br>+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;temp2)))<br>+<br> (defun test-html-viewer-demo ()
+<br>&nbsp;&nbsp; (capi:display (make-instance 'html-viewer-demo)))<br></blockquote></div><br>
+
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Problem with com:invoke-dispatch-method</h1>Thanks, Martin.&nbsp; I'm going to put an ignore-errors around it for now.<br><br><div><span class="gmail_quote">On 1/5/06, <b class="gmail_sendername">Martin Simmons</b> &lt;<a href="mailto:martin@lispworks.com">martin@lispworks.com
+</a>&gt; wrote:</span><blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;"><br>&gt;&gt;&gt;&gt;&gt; On Mon, 2 Jan 2006 21:24:24 -0600, Tom Pierce &lt;
+<a href="mailto:t.pierce@computer.org">t.pierce@computer.org</a>&gt; said:<br><br>&nbsp;&nbsp;Tom&gt; OK, following up to myself here.&nbsp;&nbsp;Turns out I had the wrong value for<br>&nbsp;&nbsp;Tom&gt; IDM_PRINT - it should be 6 instead of 27.&nbsp;&nbsp;The html-viewer-demo-print
+<br>&nbsp;&nbsp;Tom&gt; function should now looks like:<br><br>&nbsp;&nbsp;Tom&gt; (defun html-viewer-demo-print (self)<br>&nbsp;&nbsp;Tom&gt;&nbsp;&nbsp; (com:invoke-dispatch-method (html-viewer-demo-dispatch self)<br>&nbsp;&nbsp;Tom&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &quot;ExecWB&quot;
+<br>&nbsp;&nbsp;Tom&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 6 ; IDM_PRINT<br>&nbsp;&nbsp;Tom&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 1 ; OLECMDEXECOPT_PROMPTUSER<br>&nbsp;&nbsp;Tom&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; nil<br>&nbsp;&nbsp;Tom&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; nil))
+<br><br>&nbsp;&nbsp;Tom&gt; This causes the WebBrowser control to print, but still gives the error<br>&nbsp;&nbsp;Tom&gt; (backtrace included):<br><br>&nbsp;&nbsp;Tom&gt; Error: #&lt;Pointer to type COM:VARIANT =3D #x008C9960&gt; is not of type CONS.<br>
+<br>It looks like there is some problem with variant args at the moment.&nbsp;&nbsp;We will<br>look at fixing this.<br><br>--<br>Martin Simmons&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Email: <a href="mailto:martin@lispworks.com">martin@lispworks.com
+</a><br>LispWorks Ltd, St John's Innovation Centre&nbsp;&nbsp;&nbsp;&nbsp;TEL:&nbsp;&nbsp; +44 1223 421860<br>Cowley Road, Cambridge CB4 0WS, England.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FAX:&nbsp;&nbsp; +44 870 2206189<br><br></blockquote></div><br>
+
+
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:46 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Drawing rotated text in CAPI</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Drawing rotated text in CAPI</h1>
+                <pre>Hi,
+
+I'm working on a CAPI-based library for drawing scientific graphs.
+As part of that, I want to draw some rotated text (e.g. I'd like
+the label for the y-axis to be rotated 90 degrees, and I'd like to
+have the option of rotating 'tick labels' for the x-axis by 45 degrees).
+
+I can't find any way to do that. Here are some things I've considerd:
+
+- My first idea was to use graphics-port transforms (e.g.
+  GP:WITH-GRAPHICS-ROTATION). This works nicely with drawing functions
+  like GP:DRAW-RECTANGLE &amp; friends, but does not do what I'd hope
+  with GP:DRAW-STRING.
+
+- My second idea was to draw the string to a pixmap, and then copy
+  the resulting pixmap to the graphics port that has my graph in it.
+  That doesn't work either, because I can't specify a rotation when
+  copying a pixmap to a port (which is probably quite understandable,
+  but that doesn't help me).
+
+- My third idea is to specify a rotation angle when creating a font.
+  Windows, the platform I'm most interested in at the moment, lets
+  you create fonts with a rotation angle. But I can't find anything
+  in the CAPI documentation that tells me how to specify a rotation
+  angle or, alternatively, how I can create a CAPI font based on
+  a Windows font that I could create myself (e.g. using the FLI).
+
+- My last resort would be to make this totally Windows-specific and
+  use the FLI both to create a font and to draw the string. I'd rather
+  not do that, so I'd appreciate any suggestions for a more portable
+  solution.
+
+Thanks a lot in advance,
+
+Arthur Lemmens
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Drawing rotated text in CAPI</h1>
+                 <pre>Just in case a *completely* tangential solution would be acceptable - cl-pdf 
+seems to do what you seem to  want (except that the output is pdf and not 
+interactive).  www.fractalconcept.com.  I guess that the opengl stuff would 
+do it too.  I would be interested, too, to know how to do it in capi.
+pt
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Drawing rotated text in CAPI</h1>
+                 <pre>&gt 
+&gt Yes, that may be a better idea; interactivity and integration with the
+&gt rest of my (CAPI-based) programs would be possible in OpenGL, I suppose.
+&gt 
+&gt I'd still prefer to do it in CAPI though.
+&gt 
+
+First, I don't use CAPI.  
+
+If you can get and set a pixel in an image, you can rotate a string
+90 degrees counterclockwise in the following brute force approach:
+
+(let ((pixmap (make-pixmap width height ...)))
+  (clean-up-junk-bits pixmap ...)
+  (draw-string pixmap "vertical" ...)
+  (let ((horizontal-image (image-get pixmap 0 0 width height))
+	(vertical-image (image-new height width ...)))
+    (dotimes (i width)
+      (dotimes (j height)
+	(image-put-pixel vertical-image
+			 j
+			 (- width i 1)
+			 (image-get-pixel horizontal-image i j))))
+    ;; do whatever you want with the vertical image
+    ...))
+
+For drawing vertical axis and tic labels, this approach is adequate.
+
+If you can get and set a pixel in a pixmap, that's even better.
+
+Best,
+
+-cph
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Drawing rotated text in CAPI</h1>
+                 <p>
+                  Unable to parse email body. Email id is 1688
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Drawing rotated text in CAPI</h1>
+                 <pre>I wrote:
+
+&gt I'm working on a CAPI-based library for drawing scientific graphs.
+&gt As part of that, I want to draw some rotated text (e.g. I'd like
+&gt the label for the y-axis to be rotated 90 degrees, and I'd like to
+&gt have the option of rotating 'tick labels' for the x-axis by 45 degrees).
+
+Thanks to everyone who replied to this.
+
+I've decided to forget about 45-degrees rotation for the time being,
+and to implement 90-degrees rotation by drawing the string horizontally
+to a pixmap and then copying the pixels vertically (following Chisheng
+Huang's suggestion).
+
+Then I wrapped this up in a function I called DRAW-STRING-IN-RECTANGLE.
+You can specify x-alignment (:left, :center or :right), y-alignment (:top,
+:center or :bottom) and direction (:left-right, :bottom-top or :top-bottom).
+
+A couple of people expressed interest in this problem, so I've included
+my solution (see the attachment). I hope this is useful to someone.
+
+Regards,
+
+Arthur Lemmens
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:54 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

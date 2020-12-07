@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>most specific class instantiation</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>most specific class instantiation</h1>
+                <pre>
+Hello all,
+
+Be forewarned, this is not a Lispworks specific question. There are a
+number of very
+skilled people who read this list however, and I hope that someone
+might be able to
+help me with what I'm about to ask.
+
+In using methods and classes which inherit from others, it's seems
+easy to come up with
+a hierarchy similar to the following.
+
+Class virtual-A is a container which can contain items of type
+Virtual-B. There are various actions that can happen to contents of a
+virtual-A, and some of them might affect other contents
+in the instance. For instance, inserting a virtual-b into a virtual-a
+means that every item in the virtual-a needs to be frobbed.
+That might wrriten
+
+(defmethod insert ((a virtual-a) (b virtual-b))
+   ...
+   (dolist (item (contents a))
+       (frob item))
+   ...)
+
+Now perhaps I make a concrete-a and concrete-b, which inherit from their virtual
+counterparts. When a concrete-b is inserted into a concrete-a, the
+frobbing still
+needs to happen, but there is no additional action necessary. The same insert
+method used above will work.
+
+Now, suppose I have an import procedure which takes an A (either
+virtual or concrete)
+and a  list of items from which B's (virtual or concrete) can be
+construcred and constructs
+the objects and inserts them. It seems wasteful to have two, almost
+identical methods:
+
+(defmethod import ((a virtual-a) l)
+    (dolist (item l)
+        (insert a (make-instance 'virtual-b :item item))))
+
+(defmethod import ((a concrete-a) l)
+   (dolist (item l)
+       (insert a (make-instance 'virtual-b :item item))))
+
+One approach would be to not use make-instance, but rather some sort of
+make-corresponding-b, so as to write:
+
+(defmethod import ((a virtual-a) l)
+   (dolist (item l)
+       (insert a (make-corresponding-b a :item item))))
+
+where the idea is that make-corresponding-b would be overridden to
+make whatever type of
+B was suited to whatever type of A was provided. That seems somewhat
+hackish to me
+though.
+
+The issue seems to be that methods are usually written for the most
+general case, so as to
+keep special cases in the special methods where they belong. However,
+what I'm looking for
+here is some way to get the most specific type possible, but in a general way.
+
+I'm going to continue researching into this sort of thing, but if
+anyone knows of any approach
+to this problem, or an alternative, or could just tell me why this is
+a *wrong* way to do something,
+I'm all ears and would be greatly appreciative!
+
+Thanks!
+
+-- 
+=====================
+Joshua Taylor
+tayloj@rpi.edu
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: most specific class instantiation</h1>
+                 <pre>
+On 7/25/06, Lieven Marchand &lt;mal@wyrd.be&gt wrote:
+&gt
+&gt "Taylor, Joshua" &lt;tayloj@rpi.edu&gt writes:
+&gt
+&gt &gt Hello all,
+&gt &gt
+&gt &gt Be forewarned, this is not a Lispworks specific question. There are a
+&gt &gt number of very
+&gt &gt skilled people who read this list however, and I hope that someone
+&gt &gt might be able to
+&gt &gt help me with what I'm about to ask.
+&gt &gt
+&gt &gt In using methods and classes which inherit from others, it's seems
+&gt &gt easy to come up with
+&gt &gt a hierarchy similar to the following.
+&gt &gt
+&gt &gt Class virtual-A is a container which can contain items of type
+&gt &gt Virtual-B. There are various actions that can happen to contents of a
+&gt &gt virtual-A, and some of them might affect other contents
+&gt &gt in the instance. For instance, inserting a virtual-b into a virtual-a
+&gt &gt means that every item in the virtual-a needs to be frobbed.
+&gt &gt That might wrriten
+&gt &gt
+&gt &gt (defmethod insert ((a virtual-a) (b virtual-b))
+&gt &gt   ...
+&gt &gt   (dolist (item (contents a))
+&gt &gt       (frob item))
+&gt &gt   ...)
+&gt &gt
+&gt &gt Now perhaps I make a concrete-a and concrete-b, which inherit from their virtual
+&gt &gt counterparts. When a concrete-b is inserted into a concrete-a, the
+&gt &gt frobbing still
+&gt &gt needs to happen, but there is no additional action necessary. The same insert
+&gt &gt method used above will work.
+&gt &gt
+&gt &gt Now, suppose I have an import procedure which takes an A (either
+&gt &gt virtual or concrete)
+&gt &gt and a  list of items from which B's (virtual or concrete) can be
+&gt &gt construcred and constructs
+&gt &gt the objects and inserts them. It seems wasteful to have two, almost
+&gt &gt identical methods:
+&gt &gt
+&gt &gt (defmethod import ((a virtual-a) l)
+&gt &gt    (dolist (item l)
+&gt &gt        (insert a (make-instance 'virtual-b :item item))))
+&gt &gt
+&gt &gt (defmethod import ((a concrete-a) l)
+&gt &gt   (dolist (item l)
+&gt &gt       (insert a (make-instance 'virtual-b :item item))))
+&gt
+&gt As far as I can see these method bodies are identical and you only
+&gt need the first one.
+
+Yes, that's exactly what I meant. I made a typo.
+
+&gt
+&gt Assuming you meant the second one to do (make-instance 'concrete-b ...)
+&gt I'd say refactor.
+&gt
+&gt &gt One approach would be to not use make-instance, but rather some sort of
+&gt &gt make-corresponding-b, so as to write:
+&gt &gt
+&gt &gt (defmethod import ((a virtual-a) l)
+&gt &gt   (dolist (item l)
+&gt &gt       (insert a (make-corresponding-b a :item item))))
+&gt &gt
+&gt &gt where the idea is that make-corresponding-b would be overridden to
+&gt &gt make whatever type of
+&gt &gt B was suited to whatever type of A was provided. That seems somewhat
+&gt &gt hackish to me
+&gt &gt though.
+&gt
+&gt This is something of a refactoring. Personally I'd go for
+&gt
+&gt (insert a (make-instance (correct-insertion-type-of a) :item item))
+&gt
+&gt where correct-insertion-type-of is either a method or a slot of class
+&gt allocation type.
+&gt
+&gt &gt The issue seems to be that methods are usually written for the most
+&gt &gt general case, so as to
+&gt &gt keep special cases in the special methods where they belong. However,
+&gt &gt what I'm looking for
+&gt &gt here is some way to get the most specific type possible, but in a general way.
+&gt &gt
+&gt &gt I'm going to continue researching into this sort of thing, but if
+&gt &gt anyone knows of any approach
+&gt &gt to this problem, or an alternative, or could just tell me why this is
+&gt &gt a *wrong* way to do something,
+&gt &gt I'm all ears and would be greatly appreciative!
+&gt
+&gt Perhaps you could give us a more concrete example (no pun intended)
+&gt because I have a problem picturing the situation in real code.
+
+Without going into too much detail, the issue can come up when there
+are parallel
+class hierarchies.. E.g. (from http://lambda-the-ultimate.org/node/1621)
+
+"
+class Doc {
+	void register(View view) { ... }
+	void notify(Notification n) { ... }
+}
+
+abstract class View {
+	abstract void paint(Doc doc);
+	abstract void update(Notification n);
+}
+
+class MyDoc extends Doc {
+	void register(View view) {
+		if (!(view instanceof MyView)) throw new IllegalViewError(...);
+		super.register(view);
+	}
+}
+
+class MyView extends View {
+	void paint(Doc _doc) {
+		MyDoc doc = (MyDoc)_doc;
+		... // paint with 'doc'
+	}
+
+	void update(Notification n) {
+		...
+	}
+}
+"
+
+But my issue arises from the fact that with LISP methods, I  don't
+have to merely specify
+an interface and then implement it. If some part, in this example, of
+register and notify are
+common to all Doc and View instances, there's no reason not to put
+that in one method, and
+then have more specific methods doing the more specific things plus a
+call-next-method.
+
+In that register:
+	void register(View view) {
+		if (!(view instanceof MyView)) throw new IllegalViewError(...);
+		super.register(view);
+	}
+
+there's an error thrown for the view not being an instance of MyView.
+Let's say I wanted
+one more function in the Doc class, implemented at the more general
+level, that made a call
+to register. That method at the general level would have to ensure
+that it passed a particular
+sort of view to register, depending on what the most *specific* type
+of the Doc was.
+
+One way to do that is, as was shown above, something like
+
+&gt (insert a (make-instance (correct-insertion-type-of a) :item item))
+
+and that is what I am using at the moment. However, it does seem a
+little awkward an
+inelegant. I'm just wondering if there are theoretic or pragmatic
+approaches that I'm not
+aware of that address this, or if I'm working in a flawed object hierarchy.
+
+Thanks!
+
+&gt
+&gt --
+&gt Caedite eos! Novit enim Dominus qui sunt eius!
+&gt
+
+
+-- 
+=====================
+Joshua Taylor
+tayloj@rpi.edu
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: most specific class instantiation</h1>
+                 <pre>
+Hi,
+
+This is an instance of the "make isn't generic" problem - see http:// 
+www2.parc.com/csl/groups/sda/publications/papers/Kiczales-ISOTAS93/
+
+(With "make" they mean something like "make-instance" here.)
+
+Your approach is probably good enough for your concrete problem at  
+hand. It appears to be inelegant because this is actually a case of a  
+hidden dependency on control flow. This becomes clearer when the code  
+is broken down into smaller parts:
+
+(defmethod import ((a virtual-a) l)
+   (dolist (item l)
+     (insert a (create-b item))))
+
+(defun create-b (item) ...)
+
+In this version, create-b cannot decide anymore which kind of b to  
+instantiate. To be able to do this, a has to be passed as another  
+parameter:
+
+(defmethod import ((a virtual-a) l)
+   (dolist (item l)
+     (insert a (create-b a item))))
+
+(defun create-b (a item)
+   (make-corresponding-b a :item item))
+
+Whenever a parameter has to be passed around down a call chain,  
+without changing it, we are actually simulating dynamic scoping:
+
+(defvar *a*) ; now a special variable
+
+(defmethod import ((*a* virtual-a) l)
+   (dolist (item l)
+     (insert *a* (create-b item))))
+
+(defun create-b (item)
+   (make-corresponding-b *a* :item item))
+
+This is the reason why the paper above essentially turns make- 
+instance / make into something similar to a dynamically scoped  
+function, because this allows changing its behavior based on the  
+control flow.
+
+In a Java setting, you could use AspectJ and define a cflow-style  
+pointcut to modify invocations of "new". In Common Lisp, you could  
+use ContextL and put all behavior related to virtual types in one  
+layer and all behavior related to concrete types in another, and then  
+use dynamically scoped activation/deactivation of layers to control  
+instance creation. (You would have to use a replacement for make- 
+instance that is defined as a layered function to make this work.)
+
+Note that the code above (with the special variable *a*) is only for  
+illustration - I am not arguing that this is good programming  
+style. ;) AspectJ or ContextL would work, but are probably overkill  
+for your specific case.
+
+
+Pascal
+
+
+On 25 Jul 2006, at 19:29, Taylor, Joshua wrote:
+
+&gt Hello all,
+&gt
+&gt Be forewarned, this is not a Lispworks specific question. There are a
+&gt number of very
+&gt skilled people who read this list however, and I hope that someone
+&gt might be able to
+&gt help me with what I'm about to ask.
+&gt
+&gt In using methods and classes which inherit from others, it's seems
+&gt easy to come up with
+&gt a hierarchy similar to the following.
+&gt
+&gt Class virtual-A is a container which can contain items of type
+&gt Virtual-B. There are various actions that can happen to contents of a
+&gt virtual-A, and some of them might affect other contents
+&gt in the instance. For instance, inserting a virtual-b into a virtual-a
+&gt means that every item in the virtual-a needs to be frobbed.
+&gt That might wrriten
+&gt
+&gt (defmethod insert ((a virtual-a) (b virtual-b))
+&gt   ...
+&gt   (dolist (item (contents a))
+&gt       (frob item))
+&gt   ...)
+&gt
+&gt Now perhaps I make a concrete-a and concrete-b, which inherit from  
+&gt their virtual
+&gt counterparts. When a concrete-b is inserted into a concrete-a, the
+&gt frobbing still
+&gt needs to happen, but there is no additional action necessary. The  
+&gt same insert
+&gt method used above will work.
+&gt
+&gt Now, suppose I have an import procedure which takes an A (either
+&gt virtual or concrete)
+&gt and a  list of items from which B's (virtual or concrete) can be
+&gt construcred and constructs
+&gt the objects and inserts them. It seems wasteful to have two, almost
+&gt identical methods:
+&gt
+&gt (defmethod import ((a virtual-a) l)
+&gt    (dolist (item l)
+&gt        (insert a (make-instance 'virtual-b :item item))))
+&gt
+&gt (defmethod import ((a concrete-a) l)
+&gt   (dolist (item l)
+&gt       (insert a (make-instance 'virtual-b :item item))))
+&gt
+&gt One approach would be to not use make-instance, but rather some  
+&gt sort of
+&gt make-corresponding-b, so as to write:
+&gt
+&gt (defmethod import ((a virtual-a) l)
+&gt   (dolist (item l)
+&gt       (insert a (make-corresponding-b a :item item))))
+&gt
+&gt where the idea is that make-corresponding-b would be overridden to
+&gt make whatever type of
+&gt B was suited to whatever type of A was provided. That seems somewhat
+&gt hackish to me
+&gt though.
+&gt
+&gt The issue seems to be that methods are usually written for the most
+&gt general case, so as to
+&gt keep special cases in the special methods where they belong. However,
+&gt what I'm looking for
+&gt here is some way to get the most specific type possible, but in a  
+&gt general way.
+&gt
+&gt I'm going to continue researching into this sort of thing, but if
+&gt anyone knows of any approach
+&gt to this problem, or an alternative, or could just tell me why this is
+&gt a *wrong* way to do something,
+&gt I'm all ears and would be greatly appreciative!
+&gt
+&gt Thanks!
+&gt
+&gt -- 
+&gt =====================
+&gt Joshua Taylor
+&gt tayloj@rpi.edu
+&gt
+
+-- 
+Pascal Costanza, mailto:pc@p-cos.net, http://p-cos.net
+Vrije Universiteit Brussel, Programming Technology Lab
+Pleinlaan 2, B-1050 Brussel, Belgium
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: most specific class instantiation</h1>
+                 <pre>
+"Taylor, Joshua" &lt;tayloj@rpi.edu&gt writes:
+
+&gt "
+&gt class Doc {
+&gt 	void register(View view) { ... }
+&gt 	void notify(Notification n) { ... }
+&gt }
+&gt
+&gt abstract class View {
+&gt 	abstract void paint(Doc doc);
+&gt 	abstract void update(Notification n);
+&gt }
+&gt
+&gt class MyDoc extends Doc {
+&gt 	void register(View view) {
+&gt 		if (!(view instanceof MyView)) throw new IllegalViewError(...);
+&gt 		super.register(view);
+&gt 	}
+&gt }
+&gt
+&gt class MyView extends View {
+&gt 	void paint(Doc _doc) {
+&gt 		MyDoc doc = (MyDoc)_doc;
+&gt 		... // paint with 'doc'
+&gt 	}
+&gt
+&gt 	void update(Notification n) {
+&gt 		...
+&gt 	}
+&gt }
+&gt "
+&gt
+&gt But my issue arises from the fact that with LISP methods, I  don't
+&gt have to merely specify
+&gt an interface and then implement it. If some part, in this example, of
+&gt register and notify are
+&gt common to all Doc and View instances, there's no reason not to put
+&gt that in one method, and
+&gt then have more specific methods doing the more specific things plus a
+&gt call-next-method.
+&gt
+&gt In that register:
+&gt 	void register(View view) {
+&gt 		if (!(view instanceof MyView)) throw new IllegalViewError(...);
+&gt 		super.register(view);
+&gt 	}
+&gt
+&gt there's an error thrown for the view not being an instance of MyView.
+&gt Let's say I wanted
+&gt one more function in the Doc class, implemented at the more general
+&gt level, that made a call
+&gt to register. That method at the general level would have to ensure
+&gt that it passed a particular
+&gt sort of view to register, depending on what the most *specific* type
+&gt of the Doc was.
+&gt
+&gt One way to do that is, as was shown above, something like
+&gt
+&gt&gt (insert a (make-instance (correct-insertion-type-of a) :item item))
+&gt
+&gt and that is what I am using at the moment. However, it does seem a
+&gt little awkward an
+&gt inelegant. I'm just wondering if there are theoretic or pragmatic
+&gt approaches that I'm not
+&gt aware of that address this, or if I'm working in a flawed object hierarchy.
+
+I'll have to think a bit more about this one. Note that the MOP itself
+has a similar problem where it uses validate-superclass for.
+
+
+-- 
+Caedite eos! Novit enim Dominus qui sunt eius!
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:44 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

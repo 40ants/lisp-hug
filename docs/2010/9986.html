@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>LW DRIBBLE (&amp; Tab Completion)</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>LW DRIBBLE (&amp; Tab Completion)</h1>
+                <pre>
+Hi all, I'm on LWM6.0 (and use tab completion) and was a bit surprised
+at what DRIBBLE put in its output file.  Anyone know if this is
+intended behavior or just a quirk?  "dribble is intended to create a
+readable record of an interactive session" [1], and there's a sense in
+DRIBBLE's output qualifies, but this diminishes in even slightly more
+complex cases.  Illustrations follow.  (This isn't a huge issue for
+me;  the only reason I was using DRIBBLE at all was that I was trying
+to record a session that hangs the IDE, and so from which I can't copy
+and paste the Listener session after the bug.)
+
+[1] http://www.lispworks.com/documentation/HyperSpec/Body/f_dribbl.htm
+
+A session in the Listener:
+
+CL-USER 1 &gt
+(dribble "~/Desktop/dribble2.txt")
+; Loading /Applications/LispWorks
+6.0/Library/lib/6-0-0-0/load-on-demand/ccl/dribble.xfasl on demand...
+Error while reading: Symbol "MAKE-IN" not found at all in the CAPI package.
+
+"""
+CL-USER 2 &gt
+(defparameter *interface*
+  (capi:display (make-instance 'capi:interface)))
+*INTERFACE*
+
+CL-USER 3 &gt
+(capi:prompt-for-file "pick a file" :owner *interface*)
+NIL
+NIL
+NIL
+
+CL-USER 4 &gt
+(dribble)
+; Closed dribble to "~/Desktop/dribble2.txt"
+"""
+
+The corresponding dribble output:
+
+"""
+CL-USER 2 &gt
+(defpar
+(defparameter *interface*
+  (capi:displa
+(defparameter *interface*
+  (capi:display (make-in
+(defparameter *interface*
+  (capi:display (make-instance 'capi:interf
+(defparameter *interface*
+  (capi:display (make-instance 'capi:interface)))
+*INTERFACE*
+
+CL-USER 3 &gt
+(capi:prom
+(capi:prompt-fo
+(capi:prompt-for-fi
+(capi:prompt-for-file "pick a file" :owne
+(capi:prompt-for-file "pick a file" :owner *interf
+(capi:prompt-for-file "pick a file" :owner *interface*)
+NIL
+NIL
+NIL
+
+CL-USER 4 &gt
+(dribb
+(dribble)
+"""
+
+A more complex example.  (Comments are added in afterward, and are not
+part of the original session).
+
+"""
+CL-USER 6 &gt
+(defun factorial (n)
+  (labels ((fac (n acc)
+             (if (&lt;= n 0)
+
+(defun factorial (n)
+  (labels ((fac (n acc)
+             (if (&lt;= n 0) acc
+               (fac (1- n)))))
+    (fac ; oh wait, make acc optional, and the base case 1, and pass acc to fac
+(defun factorial (n)
+  (labels ((fac (n &amp;optional (acc 1))
+             (if (&lt;= n 1) acc
+               (fac (1- n) acc))))
+    (fac n)))
+FACTORIAL
+
+CL-USER 7 &gt (factorial 10)
+1 ; oops, forgot to multiply
+
+CL-USER 8 &gt (factorial 10) ; Ctrl-C Ctrl-P for previous form
+(defun factorial (n) ; and again to get the defun
+  (labels ((fac (n &amp;optional (acc 1))
+             (if (&lt;= n 1) acc
+               (fac (1- n) acc))))
+    (fac n)))
+(defun factorial (n)
+  (labels ((fac (n &amp;optional (acc 1))
+             (if (&lt;= n 1) acc
+               (fac (1- n) (* n acc))))) ; add in the multiplication
+    (fac n)))
+FACTORIAL
+
+CL-USER 9 &gt
+(defun factorial (n)
+  (labels ((fac (n &amp;optional (acc 1))
+             (if (&lt;= n 1) acc
+               (fac (1- n) (* n acc)))))
+    (fac n)))(factorial 10)
+3628800
+
+CL-USER 10 &gt (dribble)
+"""
+
+-- 
+Joshua Taylor, http://www.cs.rpi.edu/~tayloj/
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LW DRIBBLE (&amp; Tab Completion)</h1>
+                 <pre>
+
+On Feb 25, 2010, at 10:18 AM, Joshua TAYLOR wrote:
+
+&gt Anyone know if this is
+&gt intended behavior or just a quirk?
+
+
+So LWM dribble is actually a keylogger? Even more useful! This way when you have an "I thought I was wrong once, but it turns out I was mistaken" moment, you have a record of it.
+
+warmest regards,
+
+Ralph
+
+
+Raffael Cavallaro
+raffaelcavallaro@me.com
+
+
+
+
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:36 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

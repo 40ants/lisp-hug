@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Breakpoints not firing in CAPI callbacks?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Breakpoints not firing in CAPI callbacks?</h1>
+                <pre>
+Lispworks 5.0.1 on OS X.  Here is a trivial CAPI interface:
+
+----
+(defpackage :foo (:use :cl :capi))
+(in-package :foo)
+
+(define-interface foo ()
+  ()
+  (:panes
+   (foo
+    text-input-pane
+    :callback-type :interface-item
+    :callback (lambda (interface item)
+                (display-message "~A ~A" interface item))))
+  (:layouts
+   (main column-layout '(foo))))
+
+(capi:display (make-instance 'foo))
+-----
+
+If I toggle a breakpoint at the beginning of the display-message form,
+I never get dropped into the stepper when I trigger the callback.  The
+DISPLAY-MESSAGE call does get evaluated, so I'm trying to figure out
+why the breakpoint seems to be ignored.  In code that doesn't involve
+CAPI, breakpoints fire without issue.
+
+-- 
+Bill Atkins
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>RE: Breakpoints not firing in CAPI callbacks?</h1>
+                 <pre>
+&gt From: owner-lisp-hug@lispworks.com 
+&gt [mailto:owner-lisp-hug@lispworks.com] On Behalf Of Bill Atkins
+&gt Sent: 22 December 2006 06:31
+&gt To: Lisp HUG
+&gt Subject: Breakpoints not firing in CAPI callbacks?
+&gt 
+&gt 
+&gt Lispworks 5.0.1 on OS X.  Here is a trivial CAPI interface:
+&gt 
+&gt ----
+&gt (defpackage :foo (:use :cl :capi))
+&gt (in-package :foo)
+&gt 
+&gt (define-interface foo ()
+&gt   ()
+&gt   (:panes
+&gt    (foo
+&gt     text-input-pane
+&gt     :callback-type :interface-item
+&gt     :callback (lambda (interface item)
+&gt                 (display-message "~A ~A" interface item))))
+&gt   (:layouts
+&gt    (main column-layout '(foo))))
+&gt 
+&gt (capi:display (make-instance 'foo))
+&gt -----
+&gt 
+&gt If I toggle a breakpoint at the beginning of the display-message
+form,
+&gt I never get dropped into the stepper when I trigger the callback.
+The
+&gt DISPLAY-MESSAGE call does get evaluated, so I'm trying to figure out
+&gt why the breakpoint seems to be ignored.  In code that doesn't
+involve
+&gt CAPI, breakpoints fire without issue.
+&gt 
+&gt -- 
+&gt Bill Atkins
+
+I get the same behaviour if I compile the code and enter
+something in the resulting TEXT-INPUT-PANE.  But if I evaluate
+the CAPI:DISPLAY form after compiling the rest of the code, all
+is ok.
+(LW 5.0.0 on Windows.)
+
+Simon
+
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>RE: Breakpoints not firing in CAPI callbacks?</h1>
+                  <pre>
+&gt From: owner-lisp-hug@lispworks.com 
+&gt [mailto:owner-lisp-hug@lispworks.com] On Behalf Of Simon Katz
+&gt Sent: 22 December 2006 11:38
+&gt To: 'Lisp HUG'
+&gt Subject: RE: Breakpoints not firing in CAPI callbacks?
+&gt 
+&gt 
+&gt &gt From: owner-lisp-hug@lispworks.com 
+&gt &gt [mailto:owner-lisp-hug@lispworks.com] On Behalf Of Bill Atkins
+&gt &gt Sent: 22 December 2006 06:31
+&gt &gt To: Lisp HUG
+&gt &gt Subject: Breakpoints not firing in CAPI callbacks?
+&gt &gt 
+&gt &gt 
+&gt &gt Lispworks 5.0.1 on OS X.  Here is a trivial CAPI interface:
+&gt &gt 
+&gt &gt ----
+&gt &gt (defpackage :foo (:use :cl :capi))
+&gt &gt (in-package :foo)
+&gt &gt 
+&gt &gt (define-interface foo ()
+&gt &gt   ()
+&gt &gt   (:panes
+&gt &gt    (foo
+&gt &gt     text-input-pane
+&gt &gt     :callback-type :interface-item
+&gt &gt     :callback (lambda (interface item)
+&gt &gt                 (display-message "~A ~A" interface item))))
+&gt &gt   (:layouts
+&gt &gt    (main column-layout '(foo))))
+&gt &gt 
+&gt &gt (capi:display (make-instance 'foo))
+&gt &gt -----
+&gt &gt 
+&gt &gt If I toggle a breakpoint at the beginning of the display-message
+&gt form,
+&gt &gt I never get dropped into the stepper when I trigger the callback.
+&gt The
+&gt &gt DISPLAY-MESSAGE call does get evaluated, so I'm trying to figure
+out
+&gt &gt why the breakpoint seems to be ignored.  In code that doesn't
+&gt involve
+&gt &gt CAPI, breakpoints fire without issue.
+&gt &gt 
+&gt &gt -- 
+&gt &gt Bill Atkins
+&gt 
+&gt I get the same behaviour if I compile the code and enter
+&gt something in the resulting TEXT-INPUT-PANE.  But if I evaluate
+&gt the CAPI:DISPLAY form after compiling the rest of the code, all
+&gt is ok.
+&gt (LW 5.0.0 on Windows.)
+&gt 
+&gt Simon
+
+Further to that, I only have the problem if I display the interface
+and then set the breakpoint.  If I set the breakpoint and then
+display the interface all is ok.  But after I've seen one stepper
+window, subsequently there is no problem -- I can toggle the
+breakpoint and display new interfaces in any order and the
+stepper window appears as expected.
+
+Simon
+
+
+
+</pre>
+                 </article>
+                </section>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: Breakpoints not firing in CAPI callbacks?</h1>
+                  <pre>
+On 12/22/06, Simon Katz &lt;sk@nomistech.com&gt wrote:
+&gt
+&gt &gt From: owner-lisp-hug@lispworks.com
+&gt &gt [mailto:owner-lisp-hug@lispworks.com] On Behalf Of Simon Katz
+&gt &gt Sent: 22 December 2006 11:38
+&gt &gt To: 'Lisp HUG'
+&gt &gt Subject: RE: Breakpoints not firing in CAPI callbacks?
+&gt &gt
+&gt &gt
+&gt &gt &gt From: owner-lisp-hug@lispworks.com
+&gt &gt &gt [mailto:owner-lisp-hug@lispworks.com] On Behalf Of Bill Atkins
+&gt &gt &gt Sent: 22 December 2006 06:31
+&gt &gt &gt To: Lisp HUG
+&gt &gt &gt Subject: Breakpoints not firing in CAPI callbacks?
+&gt &gt &gt
+&gt &gt &gt
+&gt &gt &gt Lispworks 5.0.1 on OS X.  Here is a trivial CAPI interface:
+&gt &gt &gt
+&gt &gt &gt ----
+&gt &gt &gt (defpackage :foo (:use :cl :capi))
+&gt &gt &gt (in-package :foo)
+&gt &gt &gt
+&gt &gt &gt (define-interface foo ()
+&gt &gt &gt   ()
+&gt &gt &gt   (:panes
+&gt &gt &gt    (foo
+&gt &gt &gt     text-input-pane
+&gt &gt &gt     :callback-type :interface-item
+&gt &gt &gt     :callback (lambda (interface item)
+&gt &gt &gt                 (display-message "~A ~A" interface item))))
+&gt &gt &gt   (:layouts
+&gt &gt &gt    (main column-layout '(foo))))
+&gt &gt &gt
+&gt &gt &gt (capi:display (make-instance 'foo))
+&gt &gt &gt -----
+&gt &gt &gt
+&gt &gt &gt If I toggle a breakpoint at the beginning of the display-message
+&gt &gt form,
+&gt &gt &gt I never get dropped into the stepper when I trigger the callback.
+&gt &gt The
+&gt &gt &gt DISPLAY-MESSAGE call does get evaluated, so I'm trying to figure
+&gt out
+&gt &gt &gt why the breakpoint seems to be ignored.  In code that doesn't
+&gt &gt involve
+&gt &gt &gt CAPI, breakpoints fire without issue.
+&gt &gt &gt
+&gt &gt &gt --
+&gt &gt &gt Bill Atkins
+&gt &gt
+&gt &gt I get the same behaviour if I compile the code and enter
+&gt &gt something in the resulting TEXT-INPUT-PANE.  But if I evaluate
+&gt &gt the CAPI:DISPLAY form after compiling the rest of the code, all
+&gt &gt is ok.
+&gt &gt (LW 5.0.0 on Windows.)
+&gt &gt
+&gt &gt Simon
+&gt
+&gt Further to that, I only have the problem if I display the interface
+&gt and then set the breakpoint.  If I set the breakpoint and then
+&gt display the interface all is ok.  But after I've seen one stepper
+&gt window, subsequently there is no problem -- I can toggle the
+&gt breakpoint and display new interfaces in any order and the
+&gt stepper window appears as expected.
+&gt
+&gt Simon
+
+I don't get the Stepper in any of those cases.  Incidentally, creating
+a new function, setting a breakpoint in that, and calling it from the
+DEFINE-INTERFACE callback doesn'
+t seem to help.
+
+I have a suspicion that the problem has to do with Cocoa not being
+thread-safe.  If I put the breakpoint in a non-CAPI thread, the
+Stepper does come up:
+
+(define-interface foo ()
+ ()
+ (:panes
+  (foo
+   text-input-pane
+   :callback (lambda (interface item)
+               (mp:process-run-function "foo" '()
+                (lambda ()
+                  (format t "~D" (+ 1 (* 2 3)))))))))
+
+I can place a breakpoint on the format and step to my heart's content.
+ I hope that problems with Cocoa threading aren't the reason, though,
+because then it's Cocoa's fault and not something I can work around.
+:)
+
+-- 
+Bill Atkins
+
+
+</pre>
+                 </article>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>Pane still accepts focus when :accepts-focus-p is nil</h1>
+                   <pre>
+In this function to display a color palette, why do the color display-panes
+accept the focus and are tab stops even though :accepts-focus-p is nil.
+This is with LW 4.4.6.  Thanks for any help.
+
+Mitch
+
+(defun palette-display ()
+  (let ((color-list (color:apropos-color-names ""))
+        (color-pane-list nil))
+    (setf color-pane-list (mapcar #'(lambda (z)
+                                      (make-instance
+                                       'capi:display-pane
+                                       :text nil
+                                       :title (symbol-name z)
+                                       :accepts-focus-p nil
+                                       :title-position :right
+                                       :external-min-height 30
+                                       :external-min-width 100
+                                       :background z)) color-list))
+    (capi:contain
+     (make-instance
+      'capi:column-layout
+      :internal-max-height 800
+      :vertical-scroll t
+      :description
+      color-pane-list)))) 
+
+
+</pre>
+                  </article>
+                 </section>
+                </section>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Breakpoints not firing in CAPI callbacks?</h1>
+                 <pre>
+I think this a limitation of LispWorks on OS X. All interfaces  
+(including LW interfaces) run in a single thread, so you can't use  
+the stepper on interface code. I also suppose this is the reason that  
+the interface building tool is not offered on OS X.
+
+
+John
+
+
+
+On Dec 22, 2006, at 1:31 AM, Bill Atkins wrote:
+
+&gt
+&gt Lispworks 5.0.1 on OS X.  Here is a trivial CAPI interface:
+
+
+
+John DeSoi, Ph.D.
+http://pgedit.com/
+Power Tools for PostgreSQL
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:43 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Fastest array-as-image?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Fastest array-as-image?</h1>
+                <pre>I have an array of ARGB values, representing an image. What's the 
+fastest way to display that in a port?
+
+The only way I've found to do this is to loop over the image and call 
+gp:draw-rectangle, with a 1x1 rectangle, and with a :foreground color 
+made from each array pixel ARGB values. This is very slow. I can't use 
+gp:draw-point (which might be somewhat faster), since it ignores the 
+foreground color.
+
+I'm also trying to display an ARGB image that's computed as a function 
+of x and y, but I assume that would be a similar solution to the 1st 
+problem.
+
+TIA for any help.
+
+I'm using LW 4.3.7 on Mac OS X, if that matters.
+
+  - Stoney
+
+-- 
+Stonewall Ballard
+stoney@sb.org           http://stoney.sb.org/
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Fastest array-as-image?</h1>
+                 <pre>On Thu, Sep 02, 2004, 14:25, Stonewall Ballard &lt;sb.list@sb.org&gt wrote
+&gtI have an array of ARGB values, representing an image. What's the 
+&gtfastest way to display that in a port?
+&gt
+&gtThe only way I've found to do this is to loop over the image and call 
+&gtgp:draw-rectangle, with a 1x1 rectangle, and with a :foreground color 
+&gtmade from each array pixel ARGB values. This is very slow. I can't use 
+&gtgp:draw-point (which might be somewhat faster), since it ignores the 
+&gtforeground color.
+&gt
+&gtI'm also trying to display an ARGB image that's computed as a function 
+&gtof x and y, but I assume that would be a similar solution to the 1st 
+&gtproblem.
+&gt
+&gtTIA for any help.
+&gt
+&gtI'm using LW 4.3.7 on Mac OS X, if that matters.
+
+Look at GP:DRAW-IMAGE.  You'll need to do some undocumented hack to get an 
+IMAGE from you data.  I thiink you can make an instance of GP:EXTERNAL-IMAGE, 
+passing your array as the value of the :DATA initarg.
+
+Once you have an EXTERNAL-IMAGE you'll need to feed it to 
+GP:CONVERT-EXTERNAL-IMAGE to get an image you can display.
+
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: Fastest array-as-image?</h1>
+                  <pre>
+On Sep 2, 2004, at 3:13 PM, Mark Nahabedian wrote:
+
+&gt On Thu, Sep 02, 2004, 14:25, Stonewall Ballard &lt;sb.list@sb.org&gt wrote
+&gt&gt I have an array of ARGB values, representing an image. What's the
+&gt&gt fastest way to display that in a port?
+&gt&gt
+&gt&gt The only way I've found to do this is to loop over the image and call
+&gt&gt gp:draw-rectangle, with a 1x1 rectangle, and with a :foreground color
+&gt&gt made from each array pixel ARGB values. This is very slow. I can't use
+&gt&gt gp:draw-point (which might be somewhat faster), since it ignores the
+&gt&gt foreground color.
+&gt&gt
+&gt&gt I'm also trying to display an ARGB image that's computed as a function
+&gt&gt of x and y, but I assume that would be a similar solution to the 1st
+&gt&gt problem.
+&gt&gt
+&gt&gt TIA for any help.
+&gt&gt
+&gt&gt I'm using LW 4.3.7 on Mac OS X, if that matters.
+&gt
+&gt Look at GP:DRAW-IMAGE.  You'll need to do some undocumented hack to 
+&gt get an
+&gt IMAGE from you data.  I thiink you can make an instance of 
+&gt GP:EXTERNAL-IMAGE,
+&gt passing your array as the value of the :DATA initarg.
+&gt
+&gt Once you have an EXTERNAL-IMAGE you'll need to feed it to
+&gt GP:CONVERT-EXTERNAL-IMAGE to get an image you can display.
+
+This was a good idea. There wasn't any need to call 
+convert-external-image. I just used load-image with a DIB (.bmp) format 
+array derived from the original ARGB array. An extra copy, but it's 
+still fairly fast.
+
+BTW, I also tried using an image-access to draw the array into the 
+image. It was slightly faster than using draw-rectangle, but not by 
+much.
+
+Thanks!
+
+  - Stoney
+
+-- 
+Stonewall Ballard
+stoney@sb.org           http://stoney.sb.org/
+
+
+</pre>
+                 </article>
+                </section>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: Fastest array-as-image?</h1>
+                  <pre>
+Hi,
+
+I am building an application that needs to capture pixel arrays from  
+the screen.  I'm using LWM 4.4.5/OS X.  Using FFI &amp; Cocoa, I can get  
+access to the screen data and build a pixel array in LispWorks, but  
+now I am struggling to efficiently display the image array using CAPI.
+
+I am now examining the possibility of manually constructing an  
+external-image, and then converting and displaying the image in one  
+shot.  I know the graphics-ports:external-image class has a :DATA  
+slot, and that the data slot accepts a vector of type (SIMPLE-ARRAY  
+(UNSIGNED-BYTE 8)).  However, I am stuck on the format of this  
+vector.  Is it RGB, RGBA, etc, does it store image size or other  
+header information?
+
+I found this hint from a year ago, but I don't think the question of  
+the :DATA format has ever been answered.  Unlike the other  
+approaches, loading an image in from disk is not an option in this case.
+
+Thanks in advance for any help,
+-Chris
+
+On Sep 2, 2004, at 3:13 PM, Mark Nahabedian wrote:
+
+&gt On Thu, Sep 02, 2004, 14:25, Stonewall Ballard &lt;sb.list@sb.org&gt wrote
+&gt&gt I have an array of ARGB values, representing an image. What's the
+&gt&gt fastest way to display that in a port?
+&gt&gt
+&gt&gt The only way I've found to do this is to loop over the image and call
+&gt&gt gp:draw-rectangle, with a 1x1 rectangle, and with a :foreground color
+&gt&gt made from each array pixel ARGB values. This is very slow. I can't  
+&gt&gt use
+&gt&gt gp:draw-point (which might be somewhat faster), since it ignores the
+&gt&gt foreground color.
+&gt&gt
+&gt&gt I'm also trying to display an ARGB image that's computed as a  
+&gt&gt function
+&gt&gt of x and y, but I assume that would be a similar solution to the 1st
+&gt&gt problem.
+&gt&gt
+&gt&gt TIA for any help.
+&gt&gt
+&gt&gt I'm using LW 4.3.7 on Mac OS X, if that matters.
+&gt
+&gt Look at GP:DRAW-IMAGE.  You'll need to do some undocumented hack to  
+&gt get an
+&gt IMAGE from you data.  I thiink you can make an instance of  
+&gt GP:EXTERNAL-IMAGE,
+&gt passing your array as the value of the :DATA initarg.
+&gt
+&gt Once you have an EXTERNAL-IMAGE you'll need to feed it to
+&gt GP:CONVERT-EXTERNAL-IMAGE to get an image you can display.
+&gt
+&gt
+
+
+______________________________________________________________________
+This email has been scanned by the MessageLabs Email Security System.
+For more information please visit http://www.messagelabs.com/email 
+______________________________________________________________________
+
+
+</pre>
+                 </article>
+                </section>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:51 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

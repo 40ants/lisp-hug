@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Deliver subclasses of appKit classes</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Deliver subclasses of appKit classes</h1>
+                <pre>
+Hi list,
+
+I'm trying to deliver a "pure Cocoa application" in which all the UI classes
+(controllers and views) are defined with "define-objc-class".
+
+I launch the objective-c runtime with ensure-objc-initialized in the
+³init-function² as explained in the doc. At this moment, all the compiled
+objective-c classes and methods declared in my codes seems to be ³linked²
+with the runtime. But after this procedure all the classes inherited from
+appKit classes (NSView, NSControl, and so on) are inexistent in the system
+when the controllers inherited from NSObject work normally.
+
+For instance, supposing that MyView is a class which inherit from NSView,
+calling this form after ensure-objc-initialized in the init-function return
+nil :
+(ignore-errors (invoke ³MyView² ³class²)) =&gt NIL.
+So, naturally, my UI can't start normally.
+
+Nevertheless, when I work inside the LW environment, all my objective-c
+classes and methods work correctly.
+
+Any advice could be very helpful.
+
+Thanks in advance and happy new year to everybody !
+
+Denis
+
+
+-------------------------------------------------------
+Denis Pousseur
+70 rue de Wansijn
+1180 Bruxelles, Belgium
+
+Tel : 32 (0)2 219 31 09
+Email :  denis.pousseur@gmail.com
+Website : http://www.denispousseur.com
+-------------------------------------------------------
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Deliver subclasses of appKit classes</h1>
+                 <pre>
+the problem was that I have to keep explicitly the names of my objective-c
+classes in the image with the deliver function argument :keep-symbol.
+Controllers are more used in the lisp codes, even with lisp methods, so they
+are referenced, I suppose it's why it is not necessarily for them.
+
+Sorry for the noise
+
+Denis
+
+
+Le 1/01/12 14:11, «&nbsp;[NOM]&nbsp;» &lt;[ADRESSE]&gt a écrit&nbsp;:
+
+&gt 
+&gt Hi list,
+&gt 
+&gt I'm trying to deliver a "pure Cocoa application" in which all the UI classes
+&gt (controllers and views) are defined with "define-objc-class".
+&gt 
+&gt I launch the objective-c runtime with ensure-objc-initialized in the
+&gt ³init-function² as explained in the doc. At this moment, all the compiled
+&gt objective-c classes and methods declared in my codes seems to be ³linked²
+&gt with the runtime. But after this procedure all the classes inherited from
+&gt appKit classes (NSView, NSControl, and so on) are inexistent in the system
+&gt when the controllers inherited from NSObject work normally.
+&gt 
+&gt For instance, supposing that MyView is a class which inherit from NSView,
+&gt calling this form after ensure-objc-initialized in the init-function return
+&gt nil :
+&gt (ignore-errors (invoke ³MyView² ³class²)) =&gt NIL.
+&gt So, naturally, my UI can't start normally.
+&gt 
+&gt Nevertheless, when I work inside the LW environment, all my objective-c
+&gt classes and methods work correctly.
+&gt 
+&gt Any advice could be very helpful.
+&gt 
+&gt Thanks in advance and happy new year to everybody !
+&gt 
+&gt Denis
+&gt 
+&gt 
+&gt -------------------------------------------------------
+&gt Denis Pousseur
+&gt 70 rue de Wansijn
+&gt 1180 Bruxelles, Belgium
+&gt 
+&gt Tel : 32 (0)2 219 31 09
+&gt Email :  denis.pousseur@gmail.com
+&gt Website : http://www.denispousseur.com
+&gt -------------------------------------------------------
+&gt 
+&gt 
+
+-------------------------------------------------------
+Denis Pousseur
+70 rue de Wansijn
+1180 Bruxelles, Belgium
+
+Tel : 32 (0)2 219 31 09
+Email :  denis.pousseur@gmail.com
+Website : http://www.denispousseur.com
+-------------------------------------------------------
+
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: Deliver subclasses of appKit classes</h1>
+                  <pre>
+Hi Denis,
+
+Yes, that's correct.  To make it more modular, you can keep the symbol on the
+plist of some other symbol.
+
+E.g. we do this for a few helper classes in CAPI:
+
+(objc:define-objc-class lw-slider ()
+    ()
+  (:objc-class-name "LWSlider")
+  (:objc-superclass-name "NSSlider"))
+
+(setf (get 'slider-representation 'owner-class) 'lw-slider)
+
+In this case, the code for slider-representation is the only thing that makes
+the LWSlider object, so it is the best place to retain it (i.e. only if
+slider-representation is retained).
+
+-- 
+Martin Simmons
+LispWorks Ltd
+http://www.lispworks.com/
+
+
+
+
+&gt&gt&gt&gt&gt On Sun, 01 Jan 2012 17:57:47 +0100, Denis Pousseur said:
+&gt 
+&gt the problem was that I have to keep explicitly the names of my objective-c
+&gt classes in the image with the deliver function argument :keep-symbol.
+&gt Controllers are more used in the lisp codes, even with lisp methods, so they
+&gt are referenced, I suppose it's why it is not necessarily for them.
+&gt 
+&gt Sorry for the noise
+&gt 
+&gt Denis
+&gt 
+&gt 
+&gt Le 1/01/12 14:11, «&nbsp;[NOM]&nbsp;» &lt;[ADRESSE]&gt a écrit&nbsp;:
+&gt 
+&gt &gt 
+&gt &gt Hi list,
+&gt &gt 
+&gt &gt I'm trying to deliver a "pure Cocoa application" in which all the UI classes
+&gt &gt (controllers and views) are defined with "define-objc-class".
+&gt &gt 
+&gt &gt I launch the objective-c runtime with ensure-objc-initialized in the
+&gt &gt ³init-function² as explained in the doc. At this moment, all the compiled
+&gt &gt objective-c classes and methods declared in my codes seems to be ³linked²
+&gt &gt with the runtime. But after this procedure all the classes inherited from
+&gt &gt appKit classes (NSView, NSControl, and so on) are inexistent in the system
+&gt &gt when the controllers inherited from NSObject work normally.
+&gt &gt 
+&gt &gt For instance, supposing that MyView is a class which inherit from NSView,
+&gt &gt calling this form after ensure-objc-initialized in the init-function return
+&gt &gt nil :
+&gt &gt (ignore-errors (invoke ³MyView² ³class²)) =&gt NIL.
+&gt &gt So, naturally, my UI can't start normally.
+&gt &gt 
+&gt &gt Nevertheless, when I work inside the LW environment, all my objective-c
+&gt &gt classes and methods work correctly.
+&gt &gt 
+&gt &gt Any advice could be very helpful.
+&gt &gt 
+&gt &gt Thanks in advance and happy new year to everybody !
+&gt &gt 
+&gt &gt Denis
+&gt &gt 
+&gt &gt 
+&gt &gt -------------------------------------------------------
+&gt &gt Denis Pousseur
+&gt &gt 70 rue de Wansijn
+&gt &gt 1180 Bruxelles, Belgium
+&gt &gt 
+&gt &gt Tel : 32 (0)2 219 31 09
+&gt &gt Email :  denis.pousseur@gmail.com
+&gt &gt Website : http://www.denispousseur.com
+&gt &gt -------------------------------------------------------
+&gt &gt 
+&gt &gt 
+&gt 
+&gt -------------------------------------------------------
+&gt Denis Pousseur
+&gt 70 rue de Wansijn
+&gt 1180 Bruxelles, Belgium
+&gt 
+&gt Tel : 32 (0)2 219 31 09
+&gt Email :  denis.pousseur@gmail.com
+&gt Website : http://www.denispousseur.com
+&gt -------------------------------------------------------
+&gt 
+&gt 
+
+
+</pre>
+                 </article>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>Re: Deliver subclasses of appKit classes</h1>
+                   <pre>
+Add 'lw-slider to the plist of 'slider-representation (which is the name of
+a referenced lisp class ?) ensures that lw-slider will also be referenced.
+Is it correct&nbsp;?
+
+Thanks
+
+Denis
+
+
+Le 3/01/12 14:40, «&nbsp;[NOM]&nbsp;» &lt;[ADRESSE]&gt a écrit&nbsp;:
+
+&gt 
+&gt Hi Denis,
+&gt 
+&gt Yes, that's correct.  To make it more modular, you can keep the symbol on the
+&gt plist of some other symbol.
+&gt 
+&gt E.g. we do this for a few helper classes in CAPI:
+&gt 
+&gt (objc:define-objc-class lw-slider ()
+&gt     ()
+&gt   (:objc-class-name "LWSlider")
+&gt   (:objc-superclass-name "NSSlider"))
+&gt 
+&gt (setf (get 'slider-representation 'owner-class) 'lw-slider)
+&gt 
+&gt In this case, the code for slider-representation is the only thing that makes
+&gt the LWSlider object, so it is the best place to retain it (i.e. only if
+&gt slider-representation is retained).
+
+-------------------------------------------------------
+Denis Pousseur
+70 rue de Wansijn
+1180 Bruxelles, Belgium
+
+Tel : 32 (0)2 219 31 09
+Email :  denis.pousseur@gmail.com
+Website : http://www.denispousseur.com
+-------------------------------------------------------
+
+
+
+</pre>
+                  </article>
+                  <section class=tree>
+                   <article class=email>
+                    <h1>Re: Deliver subclasses of appKit classes</h1>
+                    <pre>
+Yes, that's correct.
+
+-- 
+Martin Simmons
+LispWorks Ltd
+http://www.lispworks.com/
+
+
+&gt&gt&gt&gt&gt On Wed, 04 Jan 2012 11:06:08 +0100, Denis Pousseur said:
+&gt 
+&gt Add 'lw-slider to the plist of 'slider-representation (which is the name of
+&gt a referenced lisp class ?) ensures that lw-slider will also be referenced.
+&gt Is it correct&nbsp;?
+&gt 
+&gt Thanks
+&gt 
+&gt Denis
+&gt 
+&gt 
+&gt Le 3/01/12 14:40, «&nbsp;[NOM]&nbsp;» &lt;[ADRESSE]&gt a écrit&nbsp;:
+&gt 
+&gt &gt 
+&gt &gt Hi Denis,
+&gt &gt 
+&gt &gt Yes, that's correct.  To make it more modular, you can keep the symbol on the
+&gt &gt plist of some other symbol.
+&gt &gt 
+&gt &gt E.g. we do this for a few helper classes in CAPI:
+&gt &gt 
+&gt &gt (objc:define-objc-class lw-slider ()
+&gt &gt     ()
+&gt &gt   (:objc-class-name "LWSlider")
+&gt &gt   (:objc-superclass-name "NSSlider"))
+&gt &gt 
+&gt &gt (setf (get 'slider-representation 'owner-class) 'lw-slider)
+&gt &gt 
+&gt &gt In this case, the code for slider-representation is the only thing that makes
+&gt &gt the LWSlider object, so it is the best place to retain it (i.e. only if
+&gt &gt slider-representation is retained).
+&gt 
+&gt -------------------------------------------------------
+&gt Denis Pousseur
+&gt 70 rue de Wansijn
+&gt 1180 Bruxelles, Belgium
+&gt 
+&gt Tel : 32 (0)2 219 31 09
+&gt Email :  denis.pousseur@gmail.com
+&gt Website : http://www.denispousseur.com
+&gt -------------------------------------------------------
+&gt 
+&gt 
+
+
+</pre>
+                   </article>
+                  </section>
+                 </section>
+                </section>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:33 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

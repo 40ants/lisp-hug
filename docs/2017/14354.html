@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Calling AppleScript from LispWorks macOS</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Calling AppleScript from LispWorks macOS</h1>
+                <pre>Hello,
+
+Are there any examples of calling AppleScript on macOS using LispWorks?
+
+Burton
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Calling AppleScript from LispWorks macOS</h1>
+                 <pre>
+&gt On May 14, 2017, at 11:08 PM, BusFactor1 Inc. &lt;busfactor1@gmail.com&gt wrote:
+&gt 
+&gt Are there any examples of calling AppleScript on macOS using LispWorks?
+
+
+The easiest way is probably system:call-system-showing-output. Build your AppleScript command line using osascript.  Type "man osascript" in Terminal to see the options.
+
+John DeSoi, Ph.D.
+
+
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Calling AppleScript from LispWorks macOS</h1>
+                 <pre>Hi Burton,
+
+I would recommend using the Objective-C class NSAppleScript. It should be pretty easy to interface with your LispWorks code, and spares you from text encoding issues when calling external programs.
+
+
+Best,
+Cam
+
+
+&gt On 15 May 2017, at 06:08, BusFactor1 Inc. &lt;busfactor1@gmail.com&gt wrote:
+&gt 
+&gt Hello,
+&gt 
+&gt Are there any examples of calling AppleScript on macOS using LispWorks?
+&gt 
+&gt Burton
+&gt 
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Calling AppleScript from LispWorks macOS</h1>
+                 <pre>Thank you, that sounds like good advice to follow. I’ll look into it.
+
+Thanks everyone else for your suggestions and help as well.
+
+Burton
+
+&gt On Jun 5, 2017, at 3:24 PM, Camille Troillard &lt;camille.troillard@icloud.com&gt wrote:
+&gt 
+&gt Hi Burton,
+&gt 
+&gt I would recommend using the Objective-C class NSAppleScript. It should be pretty easy to interface with your LispWorks code, and spares you from text encoding issues when calling external programs.
+&gt 
+&gt 
+&gt Best,
+&gt Cam
+&gt 
+&gt 
+&gt&gt On 15 May 2017, at 06:08, BusFactor1 Inc. &lt;busfactor1@gmail.com&gt wrote:
+&gt&gt 
+&gt&gt Hello,
+&gt&gt 
+&gt&gt Are there any examples of calling AppleScript on macOS using LispWorks?
+&gt&gt 
+&gt&gt Burton
+&gt&gt 
+&gt&gt _______________________________________________
+&gt&gt Lisp Hug - the mailing list for LispWorks users
+&gt&gt lisp-hug@lispworks.com
+&gt&gt http://www.lispworks.com/support/lisp-hug.html
+&gt 
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Calling AppleScript from LispWorks macOS</h1>
+                 <pre>And a little googling turned up this old post from 3 years ago with the following working code!
+
+(defun applescript (applescript-code)
+  "Calls APPLESCRIPT-CODE via LW objc-bridge. TODO: handle error message"
+  (let ((err-ptr (fli:allocate-foreign-object :type 'objc:objc-object-pointer))
+        (nsas (objc:invoke
+               (objc:invoke "NSAppleScript" "alloc")
+               "initWithSource:" applescript-code)))
+    (when (fli:null-pointer-p (objc:invoke nsas "executeAndReturnError:" err-ptr))
+      (let ((dict (fli:dereference err-ptr)))
+        (unwind-protect
+            (loop for a across (objc:invoke-into 'objc::array dict "allValues") ;&lt;==== the returned object is not a lisp array but an NSArray so you have to ask lw to convert it
+                  do (print a))
+          (objc:release dict))))
+    (objc:release nsas)
+    (fli:free err-ptr)))
+
+Calling (applescript “say \”This works!\”) does the right thing.  Not sure how to handle the return values yet, but this is a good start. 
+
+Burton Samograd
+
+&gt On Jun 5, 2017, at 3:24 PM, Camille Troillard &lt;camille.troillard@icloud.com&gt wrote:
+&gt 
+&gt Hi Burton,
+&gt 
+&gt I would recommend using the Objective-C class NSAppleScript. It should be pretty easy to interface with your LispWorks code, and spares you from text encoding issues when calling external programs.
+&gt 
+&gt 
+&gt Best,
+&gt Cam
+&gt 
+&gt 
+&gt&gt On 15 May 2017, at 06:08, BusFactor1 Inc. &lt;busfactor1@gmail.com&gt wrote:
+&gt&gt 
+&gt&gt Hello,
+&gt&gt 
+&gt&gt Are there any examples of calling AppleScript on macOS using LispWorks?
+&gt&gt 
+&gt&gt Burton
+&gt&gt 
+&gt&gt _______________________________________________
+&gt&gt Lisp Hug - the mailing list for LispWorks users
+&gt&gt lisp-hug@lispworks.com
+&gt&gt http://www.lispworks.com/support/lisp-hug.html
+&gt 
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:26 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

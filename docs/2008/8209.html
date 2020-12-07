@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Funcall setf forms</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Funcall setf forms</h1>
+                <pre>
+Hello,
+
+To make some setf forms funcallable, I use
+
+(defun mySetter (accessor object nwval)
+    (funcall (fdefinition (list 'setf accessor)) nwval object))
+
+It works, but after delivering at level 4 (with :compact t) I encountered
+this error :
+
+Undefined function SETF::\"MYPACKAGE\"\ \"MYFUNCTION\" in form
+(SYMBOL-FUNCTION SETF::\" MYPACKAGE\"\ \" MYFUNCTION\")
+
+However, MYPACKAGE and MYFUNCTION are correct and works well when not
+delivered.
+
+What I need is simply the possibility to use setf dynamically on accessors.
+Is it a better method to do this ?
+
+Thanks
+
+Denis
+
+-------------------------------------------------------
+Denis Pousseur
+70 rue de Wansijn
+1180 Bruxelles, Belgique
+
+Tel : 32 (0)2 219 31 09
+Mail :  denis.pousseur@gmail.com
+-------------------------------------------------------
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Funcall setf forms</h1>
+                 <pre>
+On Fri, 13 Jun 2008 11:29:18 +0200, Denis Pousseur &lt;denis.pousseur@gmail.com&gt wrote:
+
+&gt To make some setf forms funcallable, I use
+&gt
+&gt (defun mySetter (accessor object nwval)
+&gt     (funcall (fdefinition (list 'setf accessor)) nwval object))
+&gt
+&gt It works, but after delivering at level 4 (with :compact t) I encountered
+&gt this error :
+&gt
+&gt Undefined function SETF::\"MYPACKAGE\"\ \"MYFUNCTION\" in form
+&gt (SYMBOL-FUNCTION SETF::\" MYPACKAGE\"\ \" MYFUNCTION\")
+&gt
+&gt However, MYPACKAGE and MYFUNCTION are correct and works well when not
+&gt delivered.
+&gt
+&gt What I need is simply the possibility to use setf dynamically on accessors.
+&gt Is it a better method to do this ?
+
+This won't work for you?
+
+  CL-USER 1 &gt (defun my-first (list)
+                (first list))
+  MY-FIRST
+
+  CL-USER 2 &gt (defun (setf my-first) (new-value list)
+                (setf (first list) new-value))
+  (SETF MY-FIRST)
+
+  CL-USER 3 &gt (defparameter *list* (list 1 2 3))
+  *LIST*
+
+  CL-USER 4 &gt (setf (my-first *list*) 42)
+  42
+
+  CL-USER 5 &gt *list*
+  (42 2 3)
+
+  CL-USER 6 &gt (funcall #'(setf my-first) 43 *list*)
+  43
+
+  CL-USER 7 &gt *list*
+  (43 2 3)
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: Funcall setf forms</h1>
+                  <pre>
+Hi Edi,
+
+The problem is that the name of the function is a variable, as for instance:
+
+(let ((fun 'my-fisrt))
+  (funcall #'(setf fun) 43 *list*)
+
+Naturally it doesn't work :
+
+=&gt Error: Undefined function (SETF FUN) in form (FUNCTION (SETF FUN))
+
+Is there something to do with a backquoted expression ? I really can't find
+the right syntax...
+
+
+Le 13/06/08 11:53, «&nbsp;[NOM]&nbsp;» &lt;[ADRESSE]&gt a écrit&nbsp;:
+
+&gt On Fri, 13 Jun 2008 11:29:18 +0200, Denis Pousseur &lt;denis.pousseur@gmail.com&gt
+&gt wrote:
+&gt 
+&gt&gt To make some setf forms funcallable, I use
+&gt&gt 
+&gt&gt (defun mySetter (accessor object nwval)
+&gt&gt     (funcall (fdefinition (list 'setf accessor)) nwval object))
+&gt&gt 
+&gt&gt It works, but after delivering at level 4 (with :compact t) I encountered
+&gt&gt this error :
+&gt&gt 
+&gt&gt Undefined function SETF::\"MYPACKAGE\"\ \"MYFUNCTION\" in form
+&gt&gt (SYMBOL-FUNCTION SETF::\" MYPACKAGE\"\ \" MYFUNCTION\")
+&gt&gt 
+&gt&gt However, MYPACKAGE and MYFUNCTION are correct and works well when not
+&gt&gt delivered.
+&gt&gt 
+&gt&gt What I need is simply the possibility to use setf dynamically on accessors.
+&gt&gt Is it a better method to do this ?
+&gt 
+&gt This won't work for you?
+&gt 
+&gt   CL-USER 1 &gt (defun my-first (list)
+&gt                 (first list))
+&gt   MY-FIRST
+&gt 
+&gt   CL-USER 2 &gt (defun (setf my-first) (new-value list)
+&gt                 (setf (first list) new-value))
+&gt   (SETF MY-FIRST)
+&gt 
+&gt   CL-USER 3 &gt (defparameter *list* (list 1 2 3))
+&gt   *LIST*
+&gt 
+&gt   CL-USER 4 &gt (setf (my-first *list*) 42)
+&gt   42
+&gt 
+&gt   CL-USER 5 &gt *list*
+&gt   (42 2 3)
+&gt 
+&gt   CL-USER 6 &gt (funcall #'(setf my-first) 43 *list*)
+&gt   43
+&gt 
+&gt   CL-USER 7 &gt *list*
+&gt   (43 2 3)
+
+-------------------------------------------------------
+Denis Pousseur
+70 rue de Wansijn
+1180 Bruxelles, Belgique
+
+Tel : 32 (0)2 219 31 09
+Mail :  denis.pousseur@gmail.com
+-------------------------------------------------------
+
+
+
+</pre>
+                 </article>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>Re: Funcall setf forms</h1>
+                   <pre>
+
+Am 13.06.2008 um 12:21 schrieb Denis Pousseur:
+
+&gt
+&gt Hi Edi,
+&gt
+&gt The problem is that the name of the function is a variable, as for  
+&gt instance:
+&gt
+&gt (let ((fun 'my-fisrt))
+&gt  (funcall #'(setf fun) 43 *list*)
+&gt
+&gt Naturally it doesn't work :
+&gt
+&gt =&gt Error: Undefined function (SETF FUN) in form (FUNCTION (SETF FUN))
+&gt
+&gt Is there something to do with a backquoted expression ? I really  
+&gt can't find
+&gt the right syntax...
+
+Just guessing: your function is gone in delivery while treeshaking.
+
+Say you have a function #'(setf foo)  and #'(setf bar) .
+
+Say you have
+
+(defparameter *setters* (list #'(setf foo)))
+
+Then after treeshaking it could be the #'(setf bar) is gone when it is  
+referenced nowhere.
+Your code might not reference it, since you compute the name.
+
+#'(setf foo) might still be there since it is referenced in a list by  
+a global variable.
+
+Regards,
+
+Rainer Joswig
+
+
+&gt
+&gt
+&gt
+&gt Le 13/06/08 11:53, « [NOM] » &lt;[ADRESSE]&gt a écrit :
+&gt
+&gt&gt On Fri, 13 Jun 2008 11:29:18 +0200, Denis Pousseur &lt;denis.pousseur@gmail.com 
+&gt&gt &gt
+&gt&gt wrote:
+&gt&gt
+&gt&gt&gt To make some setf forms funcallable, I use
+&gt&gt&gt
+&gt&gt&gt (defun mySetter (accessor object nwval)
+&gt&gt&gt    (funcall (fdefinition (list 'setf accessor)) nwval object))
+&gt&gt&gt
+&gt&gt&gt It works, but after delivering at level 4 (with :compact t) I  
+&gt&gt&gt encountered
+&gt&gt&gt this error :
+&gt&gt&gt
+&gt&gt&gt Undefined function SETF::\"MYPACKAGE\"\ \"MYFUNCTION\" in form
+&gt&gt&gt (SYMBOL-FUNCTION SETF::\" MYPACKAGE\"\ \" MYFUNCTION\")
+&gt&gt&gt
+&gt&gt&gt However, MYPACKAGE and MYFUNCTION are correct and works well when  
+&gt&gt&gt not
+&gt&gt&gt delivered.
+&gt&gt&gt
+&gt&gt&gt What I need is simply the possibility to use setf dynamically on  
+&gt&gt&gt accessors.
+&gt&gt&gt Is it a better method to do this ?
+&gt&gt
+&gt&gt This won't work for you?
+&gt&gt
+&gt&gt  CL-USER 1 &gt (defun my-first (list)
+&gt&gt                (first list))
+&gt&gt  MY-FIRST
+&gt&gt
+&gt&gt  CL-USER 2 &gt (defun (setf my-first) (new-value list)
+&gt&gt                (setf (first list) new-value))
+&gt&gt  (SETF MY-FIRST)
+&gt&gt
+&gt&gt  CL-USER 3 &gt (defparameter *list* (list 1 2 3))
+&gt&gt  *LIST*
+&gt&gt
+&gt&gt  CL-USER 4 &gt (setf (my-first *list*) 42)
+&gt&gt  42
+&gt&gt
+&gt&gt  CL-USER 5 &gt *list*
+&gt&gt  (42 2 3)
+&gt&gt
+&gt&gt  CL-USER 6 &gt (funcall #'(setf my-first) 43 *list*)
+&gt&gt  43
+&gt&gt
+&gt&gt  CL-USER 7 &gt *list*
+&gt&gt  (43 2 3)
+&gt
+&gt -------------------------------------------------------
+&gt Denis Pousseur
+&gt 70 rue de Wansijn
+&gt 1180 Bruxelles, Belgique
+&gt
+&gt Tel : 32 (0)2 219 31 09
+&gt Mail :  denis.pousseur@gmail.com
+&gt -------------------------------------------------------
+&gt
+
+Rainer Joswig, Hamburg, Germany
+http://lispm.dyndns.org/
+mailto:joswig@lisp.de
+
+
+
+
+</pre>
+                  </article>
+                  <section class=tree>
+                   <article class=email>
+                    <h1>Re: Funcall setf forms</h1>
+                    <pre>
+
+&gt Just guessing: your function is gone in delivery while treeshaking.
+&gt 
+&gt Say you have a function #'(setf foo)  and #'(setf bar) .
+&gt 
+&gt Say you have
+&gt 
+&gt (defparameter *setters* (list #'(setf foo)))
+&gt 
+&gt Then after treeshaking it could be the #'(setf bar) is gone when it is
+&gt referenced nowhere.
+
+But is not the declaration of the setf method a kind of reference ?
+
+(defmethod (setf my-method) (nwval (object type)) (do-something))
+
+&gt Your code might not reference it, since you compute the name.
+
+I precise that I do not compute the name dynamically : The methods are
+declared normally. The name is just variable because it follows the context
+of the application at different moments (accessing one place or another with
+some existing methods).
+
+&gt #'(setf foo) might still be there since it is referenced in a list by
+&gt a global variable.
+
+Well, in my case it's a lot of works...
+&gt 
+&gt Regards,
+&gt 
+&gt Rainer Joswig
+
+
+Best
+
+Denis
+&gt&gt 
+&gt&gt Le 13/06/08 11:53, « [NOM] » &lt;[ADRESSE]&gt a écrit :
+&gt&gt 
+&gt&gt&gt On Fri, 13 Jun 2008 11:29:18 +0200, Denis Pousseur &lt;denis.pousseur@gmail.com
+&gt&gt&gt&gt 
+&gt&gt&gt wrote:
+&gt&gt&gt 
+&gt&gt&gt&gt To make some setf forms funcallable, I use
+&gt&gt&gt&gt 
+&gt&gt&gt&gt (defun mySetter (accessor object nwval)
+&gt&gt&gt&gt    (funcall (fdefinition (list 'setf accessor)) nwval object))
+&gt&gt&gt&gt 
+&gt&gt&gt&gt It works, but after delivering at level 4 (with :compact t) I
+&gt&gt&gt&gt encountered
+&gt&gt&gt&gt this error :
+&gt&gt&gt&gt 
+&gt&gt&gt&gt Undefined function SETF::\"MYPACKAGE\"\ \"MYFUNCTION\" in form
+&gt&gt&gt&gt (SYMBOL-FUNCTION SETF::\" MYPACKAGE\"\ \" MYFUNCTION\")
+&gt&gt&gt&gt 
+&gt&gt&gt&gt However, MYPACKAGE and MYFUNCTION are correct and works well when
+&gt&gt&gt&gt not
+&gt&gt&gt&gt delivered.
+&gt&gt&gt&gt 
+&gt&gt&gt&gt What I need is simply the possibility to use setf dynamically on
+&gt&gt&gt&gt accessors.
+&gt&gt&gt&gt Is it a better method to do this ?
+&gt&gt&gt 
+&gt&gt&gt This won't work for you?
+&gt&gt&gt 
+&gt&gt&gt  CL-USER 1 &gt (defun my-first (list)
+&gt&gt&gt                (first list))
+&gt&gt&gt  MY-FIRST
+&gt&gt&gt 
+&gt&gt&gt  CL-USER 2 &gt (defun (setf my-first) (new-value list)
+&gt&gt&gt                (setf (first list) new-value))
+&gt&gt&gt  (SETF MY-FIRST)
+&gt&gt&gt 
+&gt&gt&gt  CL-USER 3 &gt (defparameter *list* (list 1 2 3))
+&gt&gt&gt  *LIST*
+&gt&gt&gt 
+&gt&gt&gt  CL-USER 4 &gt (setf (my-first *list*) 42)
+&gt&gt&gt  42
+&gt&gt&gt 
+&gt&gt&gt  CL-USER 5 &gt *list*
+&gt&gt&gt  (42 2 3)
+&gt&gt&gt 
+&gt&gt&gt  CL-USER 6 &gt (funcall #'(setf my-first) 43 *list*)
+&gt&gt&gt  43
+&gt&gt&gt 
+&gt&gt&gt  CL-USER 7 &gt *list*
+&gt&gt&gt  (43 2 3)
+&gt&gt 
+&gt&gt -------------------------------------------------------
+&gt&gt Denis Pousseur
+&gt&gt 70 rue de Wansijn
+&gt&gt 1180 Bruxelles, Belgique
+&gt&gt 
+&gt&gt Tel : 32 (0)2 219 31 09
+&gt&gt Mail :  denis.pousseur@gmail.com
+&gt&gt -------------------------------------------------------
+&gt&gt 
+&gt 
+&gt Rainer Joswig, Hamburg, Germany
+&gt http://lispm.dyndns.org/
+&gt mailto:joswig@lisp.de
+&gt 
+&gt 
+&gt 
+
+-------------------------------------------------------
+Denis Pousseur
+70 rue de Wansijn
+1180 Bruxelles, Belgique
+
+Tel : 32 (0)2 219 31 09
+Mail :  denis.pousseur@gmail.com
+-------------------------------------------------------
+
+
+
+</pre>
+                   </article>
+                   <section class=tree>
+                    <article class=email>
+                     <h1>Re: Funcall setf forms</h1>
+                     <pre>
+
+Am 13.06.2008 um 13:26 schrieb Denis Pousseur:
+
+&gt
+&gt
+&gt&gt Just guessing: your function is gone in delivery while treeshaking.
+&gt&gt
+&gt&gt Say you have a function #'(setf foo)  and #'(setf bar) .
+&gt&gt
+&gt&gt Say you have
+&gt&gt
+&gt&gt (defparameter *setters* (list #'(setf foo)))
+&gt&gt
+&gt&gt Then after treeshaking it could be the #'(setf bar) is gone when it  
+&gt&gt is
+&gt&gt referenced nowhere.
+&gt
+&gt But is not the declaration of the setf method a kind of reference ?
+&gt
+&gt
+&gt (defmethod (setf my-method) (nwval (object type)) (do-something))
+
+Does your code ever use that method (directly!)? If not, why shouldn't  
+it be deleted during treeshaking?
+
+&gt
+&gt&gt Your code might not reference it, since you compute the name.
+&gt
+&gt I precise that I do not compute the name dynamically : The methods are
+&gt declared normally. The name is just variable because it follows the  
+&gt context
+&gt of the application at different moments (accessing one place or  
+&gt another with
+&gt some existing methods).
+
+Declaration is one thing. But do you use it somewhere? The function  
+name is
+computed: (list 'setf my-name) . So that's not a direct reference of  
+the function.
+
+I guess you need to tell the Lisp system not to remove the definition  
+of these
+functions and/or the function names.
+
+See:
+
+http://www.lispworks.com/documentation/lw51/DV/html/deluser-71.htm#pgfId-852176
+
+Regards,
+
+Rainer Joswig
+
+
+&gt
+&gt
+&gt&gt #'(setf foo) might still be there since it is referenced in a list by
+&gt&gt a global variable.
+&gt
+&gt Well, in my case it's a lot of works...
+&gt&gt
+&gt&gt Regards,
+&gt&gt
+&gt&gt Rainer Joswig
+&gt
+&gt
+&gt Best
+&gt
+&gt Denis
+&gt&gt&gt
+&gt&gt&gt Le 13/06/08 11:53, « [NOM] » &lt;[ADRESSE]&gt a écrit :
+&gt&gt&gt
+&gt&gt&gt&gt On Fri, 13 Jun 2008 11:29:18 +0200, Denis Pousseur &lt;denis.pousseur@gmail.com
+&gt&gt&gt&gt&gt
+&gt&gt&gt&gt wrote:
+&gt&gt&gt&gt
+&gt&gt&gt&gt&gt To make some setf forms funcallable, I use
+&gt&gt&gt&gt&gt
+&gt&gt&gt&gt&gt (defun mySetter (accessor object nwval)
+&gt&gt&gt&gt&gt   (funcall (fdefinition (list 'setf accessor)) nwval object))
+&gt&gt&gt&gt&gt
+&gt&gt&gt&gt&gt It works, but after delivering at level 4 (with :compact t) I
+&gt&gt&gt&gt&gt encountered
+&gt&gt&gt&gt&gt this error :
+&gt&gt&gt&gt&gt
+&gt&gt&gt&gt&gt Undefined function SETF::\"MYPACKAGE\"\ \"MYFUNCTION\" in form
+&gt&gt&gt&gt&gt (SYMBOL-FUNCTION SETF::\" MYPACKAGE\"\ \" MYFUNCTION\")
+&gt&gt&gt&gt&gt
+&gt&gt&gt&gt&gt However, MYPACKAGE and MYFUNCTION are correct and works well when
+&gt&gt&gt&gt&gt not
+&gt&gt&gt&gt&gt delivered.
+&gt&gt&gt&gt&gt
+&gt&gt&gt&gt&gt What I need is simply the possibility to use setf dynamically on
+&gt&gt&gt&gt&gt accessors.
+&gt&gt&gt&gt&gt Is it a better method to do this ?
+&gt&gt&gt&gt
+&gt&gt&gt&gt This won't work for you?
+&gt&gt&gt&gt
+&gt&gt&gt&gt CL-USER 1 &gt (defun my-first (list)
+&gt&gt&gt&gt               (first list))
+&gt&gt&gt&gt MY-FIRST
+&gt&gt&gt&gt
+&gt&gt&gt&gt CL-USER 2 &gt (defun (setf my-first) (new-value list)
+&gt&gt&gt&gt               (setf (first list) new-value))
+&gt&gt&gt&gt (SETF MY-FIRST)
+&gt&gt&gt&gt
+&gt&gt&gt&gt CL-USER 3 &gt (defparameter *list* (list 1 2 3))
+&gt&gt&gt&gt *LIST*
+&gt&gt&gt&gt
+&gt&gt&gt&gt CL-USER 4 &gt (setf (my-first *list*) 42)
+&gt&gt&gt&gt 42
+&gt&gt&gt&gt
+&gt&gt&gt&gt CL-USER 5 &gt *list*
+&gt&gt&gt&gt (42 2 3)
+&gt&gt&gt&gt
+&gt&gt&gt&gt CL-USER 6 &gt (funcall #'(setf my-first) 43 *list*)
+&gt&gt&gt&gt 43
+&gt&gt&gt&gt
+&gt&gt&gt&gt CL-USER 7 &gt *list*
+&gt&gt&gt&gt (43 2 3)
+&gt&gt&gt
+&gt&gt&gt -------------------------------------------------------
+&gt&gt&gt Denis Pousseur
+&gt&gt&gt 70 rue de Wansijn
+&gt&gt&gt 1180 Bruxelles, Belgique
+&gt&gt&gt
+&gt&gt&gt Tel : 32 (0)2 219 31 09
+&gt&gt&gt Mail :  denis.pousseur@gmail.com
+&gt&gt&gt -------------------------------------------------------
+&gt&gt&gt
+&gt&gt
+&gt&gt Rainer Joswig, Hamburg, Germany
+&gt&gt http://lispm.dyndns.org/
+&gt&gt mailto:joswig@lisp.de
+&gt&gt
+&gt&gt
+&gt&gt
+&gt
+&gt -------------------------------------------------------
+&gt Denis Pousseur
+&gt 70 rue de Wansijn
+&gt 1180 Bruxelles, Belgique
+&gt
+&gt Tel : 32 (0)2 219 31 09
+&gt Mail :  denis.pousseur@gmail.com
+&gt -------------------------------------------------------
+&gt
+
+Rainer Joswig, Hamburg, Germany
+http://lispm.dyndns.org/
+mailto:joswig@lisp.de
+
+
+
+
+</pre>
+                    </article>
+                    <section class=tree>
+                     <article class=email>
+                      <h1>Re: Funcall setf forms</h1>
+                      <pre>
+
+
+&gt&gt But is not the declaration of the setf method a kind of reference ?
+&gt&gt 
+&gt&gt 
+&gt&gt (defmethod (setf my-method) (nwval (object type)) (do-something))
+&gt 
+&gt Does your code ever use that method (directly!)? If not, why shouldn't
+&gt it be deleted during treeshaking?
+&gt 
+&gt&gt 
+&gt&gt&gt Your code might not reference it, since you compute the name.
+&gt&gt 
+&gt&gt I precise that I do not compute the name dynamically : The methods are
+&gt&gt declared normally. The name is just variable because it follows the
+&gt&gt context
+&gt&gt of the application at different moments (accessing one place or
+&gt&gt another with
+&gt&gt some existing methods).
+&gt 
+&gt Declaration is one thing. But do you use it somewhere? The function
+&gt name is
+&gt computed: (list 'setf my-name) . So that's not a direct reference of
+&gt the function.
+
+Ah yes, I understand... You're right : some of these methods are never
+called directly.
+
+&gt 
+&gt I guess you need to tell the Lisp system not to remove the definition
+&gt of these
+&gt functions and/or the function names.
+&gt 
+&gt See:
+&gt 
+&gt 
+http://www.lispworks.com/documentation/lw51/DV/html/deluser-71.htm#pgfId-85217&gt
+6
+
+Yes I did. But in my deliver context, the :keep-function-name default-value
+should be T, witch mean "Keep names as strings and retain argument
+information.". It's why I thought that my function name must be present in
+the image anyway. But I didn't thing to this special case : funcalled
+functions are not referenced as others (I suppose it's also why we don't
+find it when call the "Function Calls" utility of the IDE).
+
+Thanks for your help !
+
+Denis
+&gt 
+&gt Regards,
+&gt 
+&gt Rainer Joswig
+&gt 
+&gt 
+&gt&gt 
+&gt&gt 
+&gt&gt&gt #'(setf foo) might still be there since it is referenced in a list by
+&gt&gt&gt a global variable.
+&gt&gt 
+&gt&gt Well, in my case it's a lot of works...
+&gt&gt&gt 
+&gt&gt&gt Regards,
+&gt&gt&gt 
+&gt&gt&gt Rainer Joswig
+&gt&gt 
+&gt&gt 
+&gt&gt Best
+&gt&gt 
+&gt&gt Denis
+&gt&gt&gt&gt 
+&gt&gt&gt&gt Le 13/06/08 11:53, « [NOM] » &lt;[ADRESSE]&gt a écrit :
+&gt&gt&gt&gt 
+&gt&gt&gt&gt&gt On Fri, 13 Jun 2008 11:29:18 +0200, Denis Pousseur
+&gt&gt&gt&gt&gt &lt;denis.pousseur@gmail.com
+&gt&gt&gt&gt&gt&gt 
+&gt&gt&gt&gt&gt wrote:
+&gt&gt&gt&gt&gt 
+&gt&gt&gt&gt&gt&gt To make some setf forms funcallable, I use
+&gt&gt&gt&gt&gt&gt 
+&gt&gt&gt&gt&gt&gt (defun mySetter (accessor object nwval)
+&gt&gt&gt&gt&gt&gt   (funcall (fdefinition (list 'setf accessor)) nwval object))
+&gt&gt&gt&gt&gt&gt 
+&gt&gt&gt&gt&gt&gt It works, but after delivering at level 4 (with :compact t) I
+&gt&gt&gt&gt&gt&gt encountered
+&gt&gt&gt&gt&gt&gt this error :
+&gt&gt&gt&gt&gt&gt 
+&gt&gt&gt&gt&gt&gt Undefined function SETF::\"MYPACKAGE\"\ \"MYFUNCTION\" in form
+&gt&gt&gt&gt&gt&gt (SYMBOL-FUNCTION SETF::\" MYPACKAGE\"\ \" MYFUNCTION\")
+&gt&gt&gt&gt&gt&gt 
+&gt&gt&gt&gt&gt&gt However, MYPACKAGE and MYFUNCTION are correct and works well when
+&gt&gt&gt&gt&gt&gt not
+&gt&gt&gt&gt&gt&gt delivered.
+&gt&gt&gt&gt&gt&gt 
+&gt&gt&gt&gt&gt&gt What I need is simply the possibility to use setf dynamically on
+&gt&gt&gt&gt&gt&gt accessors.
+&gt&gt&gt&gt&gt&gt Is it a better method to do this ?
+&gt&gt&gt&gt&gt 
+&gt&gt&gt&gt&gt This won't work for you?
+&gt&gt&gt&gt&gt 
+&gt&gt&gt&gt&gt CL-USER 1 &gt (defun my-first (list)
+&gt&gt&gt&gt&gt               (first list))
+&gt&gt&gt&gt&gt MY-FIRST
+&gt&gt&gt&gt&gt 
+&gt&gt&gt&gt&gt CL-USER 2 &gt (defun (setf my-first) (new-value list)
+&gt&gt&gt&gt&gt               (setf (first list) new-value))
+&gt&gt&gt&gt&gt (SETF MY-FIRST)
+&gt&gt&gt&gt&gt 
+&gt&gt&gt&gt&gt CL-USER 3 &gt (defparameter *list* (list 1 2 3))
+&gt&gt&gt&gt&gt *LIST*
+&gt&gt&gt&gt&gt 
+&gt&gt&gt&gt&gt CL-USER 4 &gt (setf (my-first *list*) 42)
+&gt&gt&gt&gt&gt 42
+&gt&gt&gt&gt&gt 
+&gt&gt&gt&gt&gt CL-USER 5 &gt *list*
+&gt&gt&gt&gt&gt (42 2 3)
+&gt&gt&gt&gt&gt 
+&gt&gt&gt&gt&gt CL-USER 6 &gt (funcall #'(setf my-first) 43 *list*)
+&gt&gt&gt&gt&gt 43
+&gt&gt&gt&gt&gt 
+&gt&gt&gt&gt&gt CL-USER 7 &gt *list*
+&gt&gt&gt&gt&gt (43 2 3)
+&gt&gt&gt&gt 
+&gt&gt&gt&gt -------------------------------------------------------
+&gt&gt&gt&gt Denis Pousseur
+&gt&gt&gt&gt 70 rue de Wansijn
+&gt&gt&gt&gt 1180 Bruxelles, Belgique
+&gt&gt&gt&gt 
+&gt&gt&gt&gt Tel : 32 (0)2 219 31 09
+&gt&gt&gt&gt Mail :  denis.pousseur@gmail.com
+&gt&gt&gt&gt -------------------------------------------------------
+&gt&gt&gt&gt 
+&gt&gt&gt 
+&gt&gt&gt Rainer Joswig, Hamburg, Germany
+&gt&gt&gt http://lispm.dyndns.org/
+&gt&gt&gt mailto:joswig@lisp.de
+&gt&gt&gt 
+&gt&gt&gt 
+&gt&gt&gt 
+&gt&gt 
+&gt&gt -------------------------------------------------------
+&gt&gt Denis Pousseur
+&gt&gt 70 rue de Wansijn
+&gt&gt 1180 Bruxelles, Belgique
+&gt&gt 
+&gt&gt Tel : 32 (0)2 219 31 09
+&gt&gt Mail :  denis.pousseur@gmail.com
+&gt&gt -------------------------------------------------------
+&gt&gt 
+&gt 
+&gt Rainer Joswig, Hamburg, Germany
+&gt http://lispm.dyndns.org/
+&gt mailto:joswig@lisp.de
+&gt 
+&gt 
+&gt 
+
+-------------------------------------------------------
+Denis Pousseur
+70 rue de Wansijn
+1180 Bruxelles, Belgique
+
+Tel : 32 (0)2 219 31 09
+Mail :  denis.pousseur@gmail.com
+-------------------------------------------------------
+
+
+
+</pre>
+                     </article>
+                    </section>
+                   </section>
+                   <section class=tree>
+                    <article class=email>
+                     <h1>Re: Funcall setf forms</h1>
+                     <pre>
+On 13 Jun 2008, at 12:26, Denis Pousseur wrote:
+&gt
+&gt But is not the declaration of the setf method a kind of reference ?
+
+It is, but treeshaking is trying to delete references which it thinks  
+are never actually used (for instance from the symbol table).
+
+I should think an approach would be to define some kind of DEF- 
+REGISTERED-METHOD macro which:
+1. Defined a method
+2. Arranged for a reference to the appropriate object to be stored in  
+some list which you could then be careful was not itself shaken.
+
+--tim
+
+
+</pre>
+                    </article>
+                   </section>
+                  </section>
+                  <section class=tree>
+                   <article class=email>
+                    <h1>Re: Funcall setf forms</h1>
+                    <pre>
+
+
+
+Le 13/06/08 12:51, «&nbsp;[NOM]&nbsp;» &lt;[ADRESSE]&gt a écrit&nbsp;:
+
+&gt (defparameter *setters* (list #'(setf foo)))
+
+
+Well, finally, a global-variable bound to a list containing the functions
+AND function names is not sufficient to reference them. In fact, it doesn't
+change anything...
+
+But using the delivery keyword :keep-symbols works. So it's ok (but not very
+convenient to imagine an automatism).
+
+Best
+
+Denis
+
+-------------------------------------------------------
+Denis Pousseur
+70 rue de Wansijn
+1180 Bruxelles, Belgique
+
+Tel : 32 (0)2 219 31 09
+Mail :  denis.pousseur@gmail.com
+-------------------------------------------------------
+
+
+
+</pre>
+                   </article>
+                  </section>
+                 </section>
+                </section>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:39 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

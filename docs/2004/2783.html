@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Oracle BLOBs with Common SQL</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Oracle BLOBs with Common SQL</h1><!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+<HEAD>
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">
+<META NAME="Generator" CONTENT="MS Exchange Server version 6.0.6556.0">
+<TITLE>Oracle BLOBs with Common SQL</TITLE>
+</HEAD>
+<BODY>
+<!-- Converted from text/rtf format -->
+
+<P><FONT SIZE=2 FACE="Arial">Hi,</FONT>
+</P>
+
+<P><FONT SIZE=2 FACE="Arial">Recently I have been working a bit with Common SQL (+ LispWorks 4.3.7</FONT>
+
+<BR><FONT SIZE=2 FACE="Arial">on Windows 2000, ODBC driver) and unfortunately I have to use Oracle</FONT>
+
+<BR><FONT SIZE=2 FACE="Arial">BLOBs for one of our applications.</FONT>
+</P>
+
+<P><FONT SIZE=2 FACE="Arial">BLOBs don't seem to be officially supported, but they paritally work.</FONT>
+
+<BR><FONT SIZE=2 FACE="Arial">So if I define the following table:</FONT>
+
+<BR><FONT SIZE=2 FACE="Arial">&nbsp;</FONT>
+
+<BR><FONT SIZE=2 FACE="Arial">&nbsp;&nbsp;&nbsp; create table test (</FONT>
+
+<BR><FONT SIZE=2 FACE="Arial">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; id number(10) primary key,</FONT>
+
+<BR><FONT SIZE=2 FACE="Arial">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; data blob</FONT>
+
+<BR><FONT SIZE=2 FACE="Arial">&nbsp;&nbsp;&nbsp; );</FONT>
+</P>
+
+<P><FONT SIZE=2 FACE="Arial">and insert some data with another tool I can next read the inserted BLOBs:</FONT>
+</P>
+
+<P><FONT SIZE=2 FACE="Arial">&nbsp;&nbsp;&nbsp; (setf rows (with-connection *db-conn-spec*</FONT>
+
+<BR><FONT SIZE=2 FACE="Arial">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (select [id] [data] :from [test])))</FONT>
+</P>
+
+<P><FONT SIZE=2 FACE="Arial">The BLOB column is read as:</FONT>
+</P>
+
+<P><FONT SIZE=2 FACE="Arial">&nbsp;&nbsp;&nbsp; (SIMPLE-ARRAY (UNSIGNED-BYTE 8) (105814))</FONT>
+</P>
+
+<P><FONT SIZE=2 FACE="Arial">I can also insert some strings into the column:</FONT>
+</P>
+
+<P><FONT SIZE=2 FACE="Arial">&nbsp;&nbsp;&nbsp; (with-connection *db-conn-spec*</FONT>
+
+<BR><FONT SIZE=2 FACE="Arial">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (insert-records :into [test]</FONT>
+
+<BR><FONT SIZE=2 FACE="Arial">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; :attributes '(id data)</FONT>
+
+<BR><FONT SIZE=2 FACE="Arial">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; :values '(1 &quot;simple string&quot;)))</FONT>
+</P>
+
+<P><FONT SIZE=2 FACE="Arial">but if the string contains null character (of code 0) then it is truncated :-(</FONT>
+
+<BR><FONT SIZE=2 FACE="Arial">If I try to insert a vector of unsigned-bytes:</FONT>
+</P>
+
+<P><FONT SIZE=2 FACE="Arial">&nbsp;&nbsp;&nbsp; (setf v (make-array 5 :element-type '(unsigned-byte 8)))</FONT>
+
+<BR><FONT SIZE=2 FACE="Arial">&nbsp;&nbsp;&nbsp; ...</FONT>
+
+<BR><FONT SIZE=2 FACE="Arial">&nbsp;&nbsp;&nbsp; ; v --&gt; #(72 101 108 108 111 33)</FONT>
+</P>
+
+<P><FONT SIZE=2 FACE="Arial">I get the following error coming from sql::execute-with-sqlbindparameter:</FONT>
+</P>
+
+<P><FONT SIZE=2 FACE="Arial">&nbsp;&nbsp;&nbsp; CL-USER 46 &gt; (with-connection *db-conn-spec*</FONT>
+
+<BR><FONT SIZE=2 FACE="Arial">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (insert-records :into [test]</FONT>
+
+<BR><FONT SIZE=2 FACE="Arial">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; :attributes '(id data)</FONT>
+
+<BR><FONT SIZE=2 FACE="Arial">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; :values '(1 v)))</FONT>
+</P>
+
+<P><FONT SIZE=2 FACE="Arial">&nbsp;&nbsp;&nbsp; Error: Failed to allocate foreign object of size 2147483648 [allocator NIL]</FONT>
+
+<BR><FONT SIZE=2 FACE="Arial">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 1 (abort) Return to level 0.</FONT>
+
+<BR><FONT SIZE=2 FACE="Arial">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 2 Return to top loop level 0.</FONT>
+</P>
+
+<P><FONT SIZE=2 FACE="Arial">And that's all I can get.&nbsp; Do you have any further ideas / experiences with</FONT>
+
+<BR><FONT SIZE=2 FACE="Arial">registration of BLOB?</FONT>
+</P>
+
+<P><FONT SIZE=2 FACE="Arial">Kind regards,</FONT>
+</P>
+
+<P><FONT SIZE=2 FACE="Arial">Jaroslaw</FONT>
+</P>
+<BR>
+
+<P><FONT SIZE=2 FACE="Arial">--</FONT>
+
+<BR><B><I><FONT COLOR="#000080" SIZE=2 FACE="Arial">Jaros</FONT><FONT COLOR="#000080" SIZE=2 FACE="Arial CE">&#322;</FONT><FONT COLOR="#000080" SIZE=2 FACE="Arial">aw Tomczak, Ph.D.</FONT></I></B>
+
+<BR><FONT SIZE=1 FACE="Arial">Aventis Pharma Deutschland GmbH</FONT>
+
+<BR><FONT SIZE=1 FACE="Arial">DI&amp;A Lead Generation Chemoinformatics</FONT>
+
+<BR><FONT SIZE=1 FACE="Arial">Industriepark Hoechst, H840, room 114</FONT>
+
+<BR><FONT SIZE=1 FACE="Arial">D-65926 Frankfurt / Main</FONT>
+
+<BR><FONT SIZE=1 FACE="Arial">phone: +49 (69) 305-14710</FONT>
+
+<BR><FONT SIZE=1 FACE="Arial">fax: +49 (69) 305-13068</FONT>
+</P>
+
+</BODY>
+</HTML>
+
+
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Oracle BLOBs with Common SQL</h1>
+                 <p>
+                  Unable to parse email body. Email id is 2786
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:51 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

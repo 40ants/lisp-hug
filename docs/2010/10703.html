@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>LW performance problem</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>LW performance problem</h1>
+                <pre>
+Hello,
+
+My existing program runs 20-60 times slower in LispWorks than in the other CL implementations that I've been using - using different tests, I got a performance difference to other CLs by order of magnitude.  Benchmarking with somebody else's benchmark, I see the same thing (see below). 
+
+This is the Personal edition, on an i7 Mac, nothing special.
+I use "compile and load" to compile the source files in question.  I have tried to (declaim (optimize (speed 3) (space 0) (debug 0))), which made a difference, but not much.
+
+What am I doing wrong?  This is not at all in line with what I've read about LispWorks.  
+I'm new to LispWorks, so chances are I'm missing an essential step or setting.  Apologies.  I checked the FAQ and KB.
+
+Thanks for your help.
+
+- David
+
+
+cl-bench benchmark, "gabriel":
+
+SBCL 1.0.30:
+
+CL-USER&gt (time (run-triangle))
+Evaluation took:
+  0.095 seconds of real time
+  0.094654 seconds of total run time (0.094393 user, 0.000261 system)
+  100.00% CPU
+  251,782,063 processor cycles
+  98,304 bytes consed
+  
+NIL
+
+=====
+LispWorks 6.0.1(Intel):
+
+CL-USER 10 &gt (extended-time (cl-bench.gabriel::run-triangle))
+Timing the evaluation of (PROGN (CL-BENCH.GABRIEL::RUN-TRIANGLE))
+
+User time    =       28.435
+System time  =        0.148
+Elapsed time =       28.319
+Allocation   = 3460891332 bytes
+129 Page faults
+Calls to %EVAL    175946564
+
+                                      total    /   user     /   system
+total gc activity              =      1.860603 /   1.840037 /   0.020566
+main promote (    9 calls)     =      0.002537 /   0.002454 /   0.000083
+mark and sweep ( 2342 calls)   =      1.858066 /   1.837583 /   0.020483
+internal promote (    0 calls) =      0.000000 /   0.000000 /   0.000000
+promote (    0 calls)          =      0.000000 /   0.000000 /   0.000000
+fixup (    9 calls)            =      0.001596 /   0.001570 /   0.000026
+compact (    0 calls)          =      0.000000 /   0.000000 /   0.000000
+NIL
+
+CL-USER 11 &gt (room (cl-bench.gabriel::run-triangle))
+
+Total Size 30144K, Allocated 28478K, Free 1277K
+
+
+
+--
+Dr. David Reitter
+Carnegie Mellon University
+http://www.david-reitter.com  /    http://aquamacs.org
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LW performance problem</h1>
+                 <pre>
+David Reitter wrote:
+&gt My existing program runs 20-60 times slower in LispWorks...
+&gt 
+&gt LispWorks 6.0.1(Intel):
+&gt 
+&gt CL-USER 10 &gt (extended-time (cl-bench.gabriel::run-triangle))
+&gt Timing the evaluation of (PROGN (CL-BENCH.GABRIEL::RUN-TRIANGLE))
+&gt 
+&gt User time    =       28.435
+&gt System time  =        0.148
+&gt Elapsed time =       28.319
+&gt Allocation   = 3460891332 bytes
+&gt 129 Page faults
+&gt Calls to %EVAL    175946564
+
+The "calls to eval" line is suspect.
+
+I get the following results (on LW6 Professional) after compiling the 
+forms comprising that particular benchmark:
+
+CL-BENCH.GABRIEL 2 &gt (extended-time (run-triangle))
+Timing the evaluation of (PROGN (RUN-TRIANGLE))
+
+User time    =        0.166
+System time  =        0.004
+Elapsed time =        0.171
+Allocation   = 152288 bytes
+1 Page faults
+
+As you are no doubt aware, one of the limitations of LW Personal is the 
+lack of COMPILE-FILE.  What happens when you select the forms for this 
+particular benchmark and do Control-Shift-r (or M-x Compile Region, or 
+M-x Compile Buffer)?
+
+
+Mike
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LW performance problem</h1>
+                 <pre>
+&gt My existing program runs 20-60 times slower in LispWorks
+&gt than in the other CL implementations that I've been using -
+&gt using different tests, I got a performance difference to
+&gt other CLs by order of magnitude.&nbsp; Benchmarking with
+&gt somebody else's benchmark, I see the same thing (see below).
+
+I used the original triangle test. The test code for triangle stuff is the same as in 'improved' tests.
+
+Here are my results (LW6 Prof, Win32):
+
+CL-USER 40 &gt (time-triangle)
+Timing the evaluation of (TRIANGLE 22)
+
+User time    =        0.202
+System time  =        0.000
+Elapsed time =        0.202
+Allocation   = 187312 bytes
+0 Page faults
+NIL
+
+CL-USER 41 &gt (time-triangle)
+Timing the evaluation of (TRIANGLE 22)
+
+User time    =       31.215
+System time  =        0.202
+Elapsed time =       31.068
+Allocation   = 3462078328 bytes
+0 Page faults
+Calls to %EVAL    175946559
+NIL
+
+
+The first run is for compiled code, the last one is for interpreted code.
+
+
+&gt What am I doing wrong?
+
+Nothing I guess. You just compare compiled sbcl code with interpreted code in LW. :-)
+
+Best,
+ Art
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LW performance problem</h1>
+                 <pre>
+On Fri, 29 Oct 2010 04:15:13 +0100, Mike Watters &lt;mike@mwatters.net&gt wrote:
+
+&gt The "calls to eval" line is suspect.
+
+I did some profiling on a bit of seemingly slow CAPI drawing code not that  
+long ago and found out that 67% of the work were calls to EVAL even though  
+the drawing functions were perfectly compiled.
+
+Naturally, the code did not contain any calls to EVAL explicitly.
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: LW performance problem</h1>
+                  <pre>
+&gt I did some profiling on a bit of seemingly slow CAPI
+&gt drawing code not that long ago and found out that 67% of the
+&gt work were calls to EVAL even though the drawing functions
+&gt were perfectly compiled.
+
+Hard to believe to me. If there is at least a bit of interpreted code in the code being profiled, you'll see eval, a lot of them especially if the interpreted code is "topmost" forms/functions to the "innermost" compiled forms/functions.
+
+&gt Naturally, the code did not contain any calls to EVAL
+&gt explicitly.
+
+Consider this code:
+
+(defun foo (n)
+  (dotimes (i n)
+    (1+ i)))
+
+Then profile two times (foo 1000000). The first time, foo being a compiled function, the second time foo beging an interpreted function. In the last profile run you'll spot a lot of eval on the stack when profiling, even though there is no explicit calls to eval in foo (if that is what you meant by "calls to eval").
+
+Best,
+ Art
+
+
+</pre>
+                 </article>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>Re: LW performance problem</h1>
+                   <pre>On Fri, 29 Oct 2010 10:41:44 +0100, Art Obrezan &lt;artobrezan@yahoo.com&gt  
+wrote:
+
+&gt Hard to believe to me. If there is at least a bit of interpreted code in  
+&gt the code being profiled, you'll see eval, a lot of them especially if  
+&gt the interpreted code is "topmost" forms/functions to the "innermost"  
+&gt compiled forms/functions.
+
+
+Hm, try this:
+
+(defun draw-grid (pane cols rows)
+   (gp:clear-graphics-port pane)
+   (loop for x from 0 to 100 by (/ 100 cols)
+         do (gp:draw-line pane x 0 x 100 :dashed t))
+   (loop for y from 0 to 100 by (/ 100 rows)
+         do (gp:draw-line pane 0 y 100 y :dashed t)))
+
+(gp:set-graphics-port-coordinates (setf pane (capi:contain (make-instance  
+'capi:output-pane))) :left -5 :top 105 :bottom -5 :right 105)
+
+(defun test nil
+   (loop repeat 500 do (draw-grid pane 50 50)))
+
+Again, I had all this code compiled.
+</pre>
+                  </article>
+                 </section>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>Re: LW performance problem</h1>
+                   <pre>
+On Fri, 29 Oct 2010 11:33:21 +0100, Edi Weitz &lt;edi@agharta.de&gt wrote:
+
+&gt You should probably read the parts about the profiler in the LispWorks
+&gt manual again - see for example "Interpretation of profiling results".
+
+OK, I'll do that.
+
+
+</pre>
+                  </article>
+                 </section>
+                </section>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:34 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

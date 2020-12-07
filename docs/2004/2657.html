@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Open interface on second screen</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Open interface on second screen</h1>
+                <pre>hello!
+
+Our customers are complaining that with our new LWW 4.3-based beta,
+windows that should open on a second screen get cluttered on their
+main screen, making our stock trading tool almost useless (these
+traders often use even more than 4 displays!).
+
+I have some problems getting a dual monitor to work on my Win XP
+development machine, but on my PowerBook with LWM, I can reproduce
+the problem:
+
+CL-USER 26 &gt (capi:top-level-interface-geometry (capi:top-level-interface (capi:contain (make-instance 'capi:title-pane :title "Foo") :best-x 1600 )))
+980
+200
+44
+44
+
+Cl-USER 27 &gt (capi:top-level-interface-geometry eple)
+1833
+451
+360
+300
+
+The first form tries to open a window on the external screen (this is a
+12" PB which has a 1024 pixels wide screen) and fails.
+
+The second form shows that a window that has been _dragged_ to a
+position on the external screen indeed has an x-value which corresponds
+to origo in the upper left corner of the interal screen.
+
+Is this a bug, or am I missing something?
+-- 
+  (espen)
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Open interface on second screen</h1>
+                 <p>
+                  Unable to parse email body. Email id is 2665
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Open interface on second screen</h1>
+                 <pre>davef@xanalys.com writes:
+
+&gt LispWorks4.3 checks the bounds of the screen when doing CAPI:DISPLAY
+&gt to force the window to be entirely on the screen. It used to do that
+&gt in previous versions for dialogs: LispWorks4.3 only changed the
+&gt behaviour for non-dialog windows.
+&gt
+&gt Does your application work OK on multiple screens when built with
+&gt LispWorks4.2. Does it use dialogs? Did you or your customers notice
+&gt any problems with dialogs?
+
+I have no idea how many of our customers might be using multiple
+display setup, but I assume there are quite a few, we have some
+very active stock traders as customers, and these people quite
+often use _lots_ of screens. 
+
+Only a small fraction of our customers is using our new 4.3-based
+beta, and one of these is the first ever to have reported a multiple
+screen problem. For him, our 4.3-based version is practically
+useless compared to the previous version, since he must repeat
+his tedious customization work every day.
+
+&gt How do you decide which coordinates to use?
+
+Initially, the user decides this by simply dragging his windows to the
+secondary display.  The problems occur when he saves his window setup
+(which may consist of more than 50 windows on 2 or more high
+resolution screen).  The values returned from
+top-level-interface-geometry are stored (unchecked) in the user's
+setup file. On the next startup, our application will use these values
+as :best-x and :best-y, which with 4.2 apparently at least for some
+users would place the windows on the second screen as expected.
+
+This is a very critical issue to us, we can't release our new
+version if it doesn't support multiple screens at least in the
+way our 4.2-based version did, and we need to release a new
+beta of this new version within a few days in order to support
+some new products that we have introduced. 
+
+I don't think reverting to 4.2.7 is an option, I've been developing 
+with 4.3 for months now, so I'm not even sure if it compiles with 
+4.2 any more.
+
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Open interface on second screen</h1>
+                 <p>
+                  Unable to parse email body. Email id is 2667
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Open interface on second screen</h1>
+                 <pre>
+On Jul 29, 2004, at 9:17 AM, Espen Vestre wrote:
+
+&gt I have some problems getting a dual monitor to work on my Win XP
+&gt development machine, but on my PowerBook with LWM, I can reproduce
+&gt the problem:
+
+I don't know if this is related, but I reported an issue with multiple 
+screens a few months ago:
+
+DESCRIPTION: I have a debugging interface I use to test delivery opened 
+like this to put it on my second monitor:
+
+(display (make-instance 'debug-interface :owner (or (second (screens)) 
+(convert-to-screen))))
+
+Problem is that after doing this (first, after the application starts) 
+the second screen (which does not have the menubar) is now the default 
+screen -- it is always the value returned by (convert-to-screen). It 
+seems like the default screen on OS X should be the one with the 
+menubar, that is, the value returned by [[NSScreen screens] 
+objectAtIndex:0].
+
+
+This is with 4.3.7 Mac (I don't have a Windows setup with multiple 
+monitors to test).
+
+I was wondering if a possible work-around for your issue would be to 
+save screen number and use the :owner keyword with coordinates relative 
+to the single screen rather than the union of all of the screens.
+
+Best,
+
+John DeSoi, Ph.D.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Open interface on second screen</h1>
+                 <pre>John DeSoi &lt;jd@icx.net&gt writes:
+
+&gt I was wondering if a possible work-around for your issue would be to
+&gt save screen number and use the :owner keyword with coordinates
+&gt relative to the single screen rather than the union of all of the
+&gt screens.
+
+That was my first idea, but as far as I can tell, there is only
+one capi screen available even when I have two physical screens.
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Open interface on second screen</h1>
+                 <pre>John DeSoi &lt;jd@icx.net&gt writes:
+
+&gt Ah, then things must be different between capi on Mac and
+&gt Windows. Something I'll need to look out for...
+&gt
+&gt  &gt (capi:screens)
+&gt (#&lt;COLOR-SCREEN 0 Cocoa&gt #&lt;COLOR-SCREEN 1 Cocoa&gt)
+
+Not necessarily, I was speaking of Mac, and I only saw one screen
+on my mac (PB 12" with additional analog 1280x1024 external monitor).
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Open interface on second screen</h1>
+                 <pre>John DeSoi &lt;jd@icx.net&gt writes:
+
+&gt  &gt (capi:screens)
+&gt (#&lt;COLOR-SCREEN 0 Cocoa&gt #&lt;COLOR-SCREEN 1 Cocoa&gt)
+
+FYI, after investigating a little more, I discovered that I
+apparently get as many capi:screens as there are screens attached
+as LW starts up (Another observation: Dragging a window to the 
+second screen will still make convert-to-screen return the first
+screen and the coordinates will be relative to the origo of the
+first screen).
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:51 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

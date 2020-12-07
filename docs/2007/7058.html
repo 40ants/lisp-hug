@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>LWW5 delivered application, multiprocessing, and etc</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>LWW5 delivered application, multiprocessing, and etc</h1>
+                <pre>
+Hello Lispers
+
+I have been trying to deliver an existing LWW4 application code using
+LWW5(with 5.02 patch), without a success.
+
+The application itself is a bit complex, so I made it a simple
+example(lww5.lisp, below).
+
+First, I tried save-image(save-lww5.lisp, below). This works exactly I
+expected:
+* Outputs on the console(the application is console based application)
+* The order of the outputs is what I expected: "bar called", then "main
+thread called"
+
+Then I tried deliver(deliver-lww5.lisp, below) and had problems:
+* It opens new output window for the outputs
+* The output order seems wrong - "main thread called" then "bar called"
+* When I close the output window, new window with same outputs pops up
+several times.
+* It never gets quit on time - e.g. &gt4sec, &lt;5sec.
+
+Does anyone know what's going on and a good solution?
+
+Best regards
+
+Jong-won Choi
+
+;;;***************************** lww5.lisp
+(defpackage :foo )
+
+(in-package :foo)
+
+(defun main ()
+(hcl:enlarge-static (1- (expt 2 23)))
+
+(in-package "FOO")
+
+(setf mp:*initial-processes*
+(nconc mp:*initial-processes*
+(list (list "Main Thread" ; This is the function entered
+nil ; after delivery.
+#'main-thread)
+(list "Bar Thread"
+nil
+#'bar))))
+(mp:initialize-multiprocessing))
+
+(defun main-thread ()
+(sleep 4)
+(print "main-thread called")
+
+(mp:process-wait
+"Waiting for something to call stop-app"
+#'time-to-stop?)
+(user::quit))
+
+(defvar *stop?* nil)
+
+(defun time-to-stop? ()
+*stop?*)
+
+(defun bar ()
+(sleep 2)
+(print "bar called")
+(setf *stop?* t))
+
+;;;***************************** lww5.lisp END
+
+
+;;;***************************** deliver-lww5.lisp
+(in-package :cl-user)
+(load-all-patches)
+(compile-file "lww5.lisp")
+(load "lww5")
+
+(hcl:clean-down)
+(deliver 'foo::main "c:/Workspace/lww5" 0
+:delete-packages
+'(capi-library capi-toolkit capi-layout capi
+capi-internals
+ins hqn-web editor scm
+color graphics-ports
+)
+:keep-complex-numbers nil
+:keep-macros t
+:keep-pretty-printer t
+:keep-clos :full-dynamic-definition
+:keep-walker t
+:compact t
+:editor-commands-to-delete :exclude)
+(quit)
+;;;***************************** deliver-lww5.lisp END
+
+;;;***************************** save-lww5.lisp
+(in-package :cl-user)
+(load-all-patches)
+(compile-file "lww5.lisp")
+(load "lww5")
+
+(hcl:clean-down)
+(save-image "c:/Workspace/saved-lww5"
+:console t
+:environment nil
+:clean-down nil
+:restart-function 'foo::main)
+
+(quit)
+;;;***************************** save-lww5.lisp END
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>AW: LWW5 delivered application, multiprocessing, and etc</h1>
+                 <pre>
+
+
+&gt -----Ursprüngliche Nachricht-----
+&gt Von: owner-lisp-hug@lispworks.com 
+&gt [mailto:owner-lisp-hug@lispworks.com] Im Auftrag von Jong-won Choi
+&gt Gesendet: Mittwoch, 24. Oktober 2007 09:10
+&gt An: lisp-hug@lispworks.com
+&gt Betreff: LWW5 delivered application, multiprocessing, and etc
+&gt 
+&gt 
+&gt 
+&gt Hello Lispers
+&gt 
+&gt I have been trying to deliver an existing LWW4 application 
+&gt code using LWW5(with 5.02 patch), without a success.
+&gt 
+&gt The application itself is a bit complex, so I made it a 
+&gt simple example(lww5.lisp, below).
+&gt 
+&gt First, I tried save-image(save-lww5.lisp, below). This works exactly I
+&gt expected:
+&gt * Outputs on the console(the application is console based application)
+&gt * The order of the outputs is what I expected: "bar called", 
+&gt then "main thread called"
+&gt 
+&gt Then I tried deliver(deliver-lww5.lisp, below) and had problems:
+&gt * It opens new output window for the outputs
+&gt * The output order seems wrong - "main thread called" then 
+&gt "bar called"
+&gt * When I close the output window, new window with same 
+&gt outputs pops up several times.
+&gt * It never gets quit on time - e.g. &gt4sec, &lt;5sec.
+&gt 
+&gt Does anyone know what's going on and a good solution?
+&gt 
+&gt Best regards
+&gt 
+&gt Jong-won Choi
+&gt 
+&gt ;;;***************************** lww5.lisp
+&gt (defpackage :foo )
+&gt 
+&gt (in-package :foo)
+&gt 
+&gt (defun main ()
+&gt (hcl:enlarge-static (1- (expt 2 23)))
+&gt 
+&gt (in-package "FOO")
+&gt 
+&gt (setf mp:*initial-processes*
+&gt (nconc mp:*initial-processes*
+&gt (list (list "Main Thread" ; This is the function entered
+&gt nil ; after delivery.
+&gt #'main-thread)
+&gt (list "Bar Thread"
+&gt nil
+&gt #'bar))))
+&gt (mp:initialize-multiprocessing))
+&gt 
+&gt (defun main-thread ()
+&gt (sleep 4)
+&gt (print "main-thread called")
+&gt 
+&gt (mp:process-wait
+&gt "Waiting for something to call stop-app"
+&gt #'time-to-stop?)
+&gt (user::quit))
+&gt 
+&gt (defvar *stop?* nil)
+&gt 
+&gt (defun time-to-stop? ()
+&gt *stop?*)
+&gt 
+&gt (defun bar ()
+&gt (sleep 2)
+&gt (print "bar called")
+&gt (setf *stop?* t))
+&gt 
+&gt ;;;***************************** lww5.lisp END
+&gt 
+&gt 
+&gt ;;;***************************** deliver-lww5.lisp
+&gt (in-package :cl-user)
+&gt (load-all-patches)
+&gt (compile-file "lww5.lisp")
+&gt (load "lww5")
+&gt 
+&gt (hcl:clean-down)
+&gt (deliver 'foo::main "c:/Workspace/lww5" 0
+&gt :delete-packages
+&gt '(capi-library capi-toolkit capi-layout capi
+&gt capi-internals
+&gt ins hqn-web editor scm
+&gt color graphics-ports
+&gt )
+&gt :keep-complex-numbers nil
+&gt :keep-macros t
+&gt :keep-pretty-printer t
+&gt :keep-clos :full-dynamic-definition
+&gt :keep-walker t
+&gt :compact t
+&gt :editor-commands-to-delete :exclude)
+&gt (quit)
+&gt ;;;***************************** deliver-lww5.lisp END
+&gt 
+&gt ;;;***************************** save-lww5.lisp
+&gt (in-package :cl-user)
+&gt (load-all-patches)
+&gt (compile-file "lww5.lisp")
+&gt (load "lww5")
+&gt 
+&gt (hcl:clean-down)
+&gt (save-image "c:/Workspace/saved-lww5"
+&gt :console t
+&gt :environment nil
+&gt :clean-down nil
+&gt :restart-function 'foo::main)
+&gt 
+&gt (quit)
+&gt ;;;***************************** save-lww5.lisp END
+&gt 
+
+Jong-won,
+
+just a few quick guesses: When testing I would avoid as many delivery keywords as possible and deliver at level 0 (you already do).
+In your case use :multiprocessing t and remove the 'manual' start code of multiprocessing from your program. I experienced
+difficulties in doing so. For example sleep did not work correctly when I 'manually' started multiprocessing. I think there is no
+need to 'manually' start multiprocessing from code.
+
+Hope this may help a little.
+
+Happy Lisping
+
+Andreas
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: AW: LWW5 delivered application, multiprocessing, and etc</h1>
+                  <pre>
+Hi Andreas
+
+Andreas Thiele 쓴 글:
+&gt In your case use :multiprocessing t and remove the 'manual' start code of multiprocessing from your program. I experienced
+&gt difficulties in doing so. For example sleep did not work correctly when I 'manually' started multiprocessing. I think there is no
+&gt need to 'manually' start multiprocessing from code.
+&gt   
+
+For the simple example, no I don't need to start multiprocessing 
+manually, but in the real application(I'm trying to deliver), it has the 
+manual multiprocessing start code like one in the simple example.
+
+The application could be delivered correctly with LW4 for Windows and 
+Linux, and LW5 for Linux. Only LWW5 has this problem :(
+
+&gt Hope this may help a little
+&gt   
+
+Thanks for the suggestion. I'm still looking for delivery options to 
+build a binary having same behaviour as the saved image, without a 
+source code modification, if possible.
+
+&gt Happy Lisping
+
+Happy Lisping!
+
+- Jong-won
+
+
+</pre>
+                 </article>
+                 <section class=tree>
+                  <article class=email>
+                   <h1>How to access USB port on Mac</h1>
+                   <pre>
+Is there a way to access a USB port on a Mac in LW?  
+
+I can do this on a PC using an emulated serial port and the LW serial port
+functions, but they are Windows-only.
+
+Mitch
+
+
+</pre>
+                  </article>
+                  <section class=tree>
+                   <article class=email>
+                    <h1>Re: How to access USB port on Mac</h1><html><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space; ">
+<div style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; "><font face="Helvetica" size="3" style="font: 12.0px Helvetica">There's an amazing Unix tool called <b>netcat</b> (or nc or nc6) that (besides many other things) supports access to a USB port through a TCP/IP stream.</font></div><div style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; "><br class="webkit-block-placeholder"></div><div style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; ">Here's a script that I have used to set it up, in Terminal, but it's been a while since I used it so I'm not sure of all the details.  Diedrich Wolter provided the germ of this idea long ago on the MCL list.  It basically creates a bidirectional pipe between a TCP/IP stream and a Unix device.  I've only used it with MCL, but I don't see any reason it wouldn't work with LispWorks.</div> <div style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; "><br class="webkit-block-placeholder"></div><div style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; "><div>#!/bin/sh</div> <div>tcpipport=$1</div><div>usbport=$2</div> <div>while nc -l -n -p $tcpipport -vv  \</div> <div>    &gt;$usbport &lt;$usbport | tee serial.out; do echo -----; done</div><div><br class="webkit-block-placeholder"></div><div>The script takes two args, the TCP/IP port (e.g., 5678) you want to communicate through and the USB port that you're using (e.g., "/dev/cu.usbmodem0B19" has worked for me, but look in "ls /dev/cu.*" for the one that appears on your system).  The "tee" command is for debugging, so you can see what's going on, but is not necessary.</div></div><br><div><div>On Oct 24, 2007, at 4:02 AM, Mitch Berkson wrote:</div><br class="Apple-interchange-newline"><blockquote type="cite"><div style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; min-height: 14px; "><br></div><div style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; ">Is there a way to access a USB port on a Mac in LW? <span class="Apple-converted-space"> </span></div><div style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; min-height: 14px; "><br></div><div style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; ">I can do this on a PC using an emulated serial port and the LW serial port</div><div style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; ">functions, but they are Windows-only.</div><div style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; min-height: 14px; "><br></div><div style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; ">Mitch</div><div style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; min-height: 14px; "><br></div> </blockquote></div><br></body></html>
+
+                   </article>
+                  </section>
+                 </section>
+                </section>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:41 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

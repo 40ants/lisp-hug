@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>LWW and Delivering a NTSERVICE</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>LWW and Delivering a NTSERVICE</h1>
+                <pre>Has anyone successfully made a LWW deliverable that runs as a NT Service?
+
+I have ported Franz's ntservice.cl to LW but have run into a a few snags.
+First I have to deliver the executable with :multiprocessing nil, if not
+the StartServiceCtrlDispatcher fails because of stack problems.  I think
+it is because a multiprocessing deliverable does not run the "main" delivery
+entry point on the main stack.  If I deliver with :multiprocessing nil than
+when I try to (mp:initialize-multiprocessing) it drops my main entry 
+function
+into the top-level-repl (ugh).  If I forgo multiprocessing I can get most
+everything to work but the service-control-handler fails because (I assume)
+it is called from another service manager thread into the LW image which 
+does
+not have multiprocessing enabled.
+
+Any ideas?  This is a long and involved problem which needs a lot moving
+parts to test and debug.
+
+Files attached.
+
+Wade
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LWW and Delivering a NTSERVICE</h1>
+                 <pre>On Sun, 23 Oct 2005 13:49:56 -0600, Wade Humeniuk &lt;whumeniu@telus.net&gt wrote:
+
+&gt Has anyone successfully made a LWW deliverable that runs as a NT
+&gt Service?
+
+I think Nick Levine once has.  You can check the source for his
+"FastIndex" service.  The relevants parts would be here, I guess:
+
+  &lt;http://www.fast-index.com/distrib/fast-index/admin/install-as-service.lisp&gt
+  &lt;http://www.fast-index.com/distrib/fast-index/C/&gt
+
+Cheers,
+Edi.
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: LWW and Delivering a NTSERVICE</h1>
+                 <pre>
+
+--- Wade Humeniuk &lt;whumeniu@telus.net&gt wrote:
+
+&gt Has anyone successfully made a LWW deliverable that runs as a NT Service?
+&gt 
+&gt I have ported Franz's ntservice.cl to LW but have run into a a few snags.
+&gt First I have to deliver the executable with :multiprocessing nil, if not
+&gt the StartServiceCtrlDispatcher fails because of stack problems.  I think
+&gt it is because a multiprocessing deliverable does not run the "main"
+&gt delivery
+&gt entry point on the main stack.  If I deliver with :multiprocessing nil than
+&gt when I try to (mp:initialize-multiprocessing) it drops my main entry 
+&gt function
+&gt into the top-level-repl (ugh).  If I forgo multiprocessing I can get most
+&gt everything to work but the service-control-handler fails because (I assume)
+&gt it is called from another service manager thread into the LW image which 
+&gt does
+&gt not have multiprocessing enabled.
+
+What do you mean by the service-control-handler failing? It seems to work OK
+for me (XP Pro SP2). I get the sleep... sleep... messages from the loop in
+'real-main.  Also, I can get multiprocessing working like this:
+
+(defparameter *so* nil)
+
+(defun main ()
+  (let ((args system:*line-arguments-list*))
+    (format t "args are ~S~%" args)
+    (let ((exepath (pop args)))
+      (if (member "/install" args :test #'equalp)
+          (progn
+            (add-service exepath)
+            (return-from main)))
+      (if (member "/remove" args :test #'equalp)
+          (progn
+            (remove-service)
+            (return-from main)))
+      (setq *so* *standard-output*)
+      (ntservice:start-service 'idle-main :init 'init)
+      t)))
+
+(defun init (args) 
+  (format t "Start parameters: ~S~%" args)
+  t)
+
+(defun real-main ()
+  (loop
+    (format *so* "real-main sleeping...~%")
+    (sleep 5)))
+
+(defun idle-main ()
+  (push '("NT Service Process" nil real-main) mp:*initial-processes*)
+  (mp:initialize-multiprocessing)
+  (loop
+   (format *so* "idle-main sleeping...~%")
+   (sleep 5)))
+
+I never see the idle-main sleeping... message. 
+
+There still is a bug. In your original version, when I stop the service,
+there is an exception. The console window goes away quickly but I do see "no
+exception handler".  In my version, with multiprocessing, the interesting
+behavior below happens when I stop the service. I have to kill the console
+window manually.
+
+args are ("c:\\lisp\\projects\\ntservice\\testapp.exe" "arg1" "arg2" "arg3")
+ARGC 1 ARGV #&lt;Pointer to type :POINTER = #x00146B18&gt
+ARGS: ("MyService")
+Start parameters: NIL
+real-main sleeping...
+real-main sleeping...
+real-main sleeping...
+Failed to find stack-no 000000ac stack 0012f8c4
+Stack dump
+0012f8c0  0012f8d4 20944291 00000000 00000010
+0012f8d0  000000ac 0012f8ec 2000c423 210bb7f4
+0012f8e0  0012f900 00147a50 0012f988 0012f95c
+0012f8f0  77deb6ca 77deb6ca 77deb6ca 00000001
+0012f900  00000000 00000000 0012fc90 20015ed2
+0012f910  20015ed2 00000001 77deb479 00146b10
+0012f920  00650070 00000000 00147a50 00000ec4
+0012f930  00000000 00000000 0012f99c 00000000
+0012f940  00000000 0012f900 00350034 0012fbac
+0012f950  77df5655 77deb390 00000000 0012fbbc
+0012f960  77deb568 00000050 0012f988 00000216
+0012f970  00000000 2025c3ac 0012fc90 00000000
+0012f980  7c910895 00000050 0000002c 00000001
+0012f990  00000000 00000014 00000000 0079004d
+0012f9a0  00650053 00760072 00630069 00000065
+0012f9b0  00000000 0012f9c4 00000000 7c9105c8
+real-main sleeping...
+real-main sleeping...
+real-main sleeping...
+real-main sleeping...
+
+
+Jeff
+
+
+		
+__________________________________ 
+Start your day with Yahoo! - Make it your home page! 
+http://www.yahoo.com/r/hs
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: LWW and Delivering a NTSERVICE</h1>
+                  <pre>Jeff Caldwell wrote:
+
+&gt--- Wade Humeniuk &lt;whumeniu@telus.net&gt wrote:
+&gt
+&gt  
+&gt
+&gt&gtHas anyone successfully made a LWW deliverable that runs as a NT Service?
+&gt&gt
+&gt&gtI have ported Franz's ntservice.cl to LW but have run into a a few snags.
+&gt&gtFirst I have to deliver the executable with :multiprocessing nil, if not
+&gt&gtthe StartServiceCtrlDispatcher fails because of stack problems.  I think
+&gt&gtit is because a multiprocessing deliverable does not run the "main"
+&gt&gtdelivery
+&gt&gtentry point on the main stack.  If I deliver with :multiprocessing nil than
+&gt&gtwhen I try to (mp:initialize-multiprocessing) it drops my main entry 
+&gt&gtfunction
+&gt&gtinto the top-level-repl (ugh).  If I forgo multiprocessing I can get most
+&gt&gteverything to work but the service-control-handler fails because (I assume)
+&gt&gtit is called from another service manager thread into the LW image which 
+&gt&gtdoes
+&gt&gtnot have multiprocessing enabled.
+&gt&gt    
+&gt&gt
+&gt
+&gtWhat do you mean by the service-control-handler failing? It seems to work OK
+&gtfor me (XP Pro SP2). I get the sleep... sleep... messages from the loop in
+&gt'real-main.  Also, I can get multiprocessing working like this:
+&gt  
+&gt
+
+You encountered the problem I am talking about below.  It happens when 
+the service is stopped
+and the service-control-handler is invoked as a result.
+
+&gt(defparameter *so* nil)
+&gt
+&gt(defun main ()
+&gt  (let ((args system:*line-arguments-list*))
+&gt    (format t "args are ~S~%" args)
+&gt    (let ((exepath (pop args)))
+&gt      (if (member "/install" args :test #'equalp)
+&gt          (progn
+&gt            (add-service exepath)
+&gt            (return-from main)))
+&gt      (if (member "/remove" args :test #'equalp)
+&gt          (progn
+&gt            (remove-service)
+&gt            (return-from main)))
+&gt      (setq *so* *standard-output*)
+&gt      (ntservice:start-service 'idle-main :init 'init)
+&gt      t)))
+&gt
+&gt(defun init (args) 
+&gt  (format t "Start parameters: ~S~%" args)
+&gt  t)
+&gt
+&gt(defun real-main ()
+&gt  (loop
+&gt    (format *so* "real-main sleeping...~%")
+&gt    (sleep 5)))
+&gt
+&gt(defun idle-main ()
+&gt  (push '("NT Service Process" nil real-main) mp:*initial-processes*)
+&gt  (mp:initialize-multiprocessing)
+&gt  (loop
+&gt   (format *so* "idle-main sleeping...~%")
+&gt   (sleep 5)))
+&gt
+&gtI never see the idle-main sleeping... message. 
+&gt  
+&gt
+
+Yes, this is the case.  The (mp:initialize-multiprocessing) call seems 
+to create a repl loop
+and the subsequent loop does not work.  Your idle-main code gives me 
+some ideas
+to implement my actual service, thank-you, but I am going to have to 
+clear up the
+stop problems (and also any other service indications).
+
+&gtThere still is a bug. In your original version, when I stop the service,
+&gtthere is an exception. The console window goes away quickly but I do see "no
+&gtexception handler".  In my version, with multiprocessing, the interesting
+&gtbehavior below happens when I stop the service. I have to kill the console
+&gtwindow manually.
+&gt  
+&gt
+
+Yes the problem happens when I stop the service, I get a slightly 
+different message. Yes the problems
+all seem to revolve multi-processing issues.
+
+
+&gtargs are ("c:\\lisp\\projects\\ntservice\\testapp.exe" "arg1" "arg2" "arg3")
+&gtARGC 1 ARGV #&lt;Pointer to type :POINTER = #x00146B18&gt
+&gtARGS: ("MyService")
+&gtStart parameters: NIL
+&gtreal-main sleeping...
+&gtreal-main sleeping...
+&gtreal-main sleeping...
+&gtFailed to find stack-no 000000ac stack 0012f8c4
+&gtStack dump
+&gt0012f8c0  0012f8d4 20944291 00000000 00000010
+&gt0012f8d0  000000ac 0012f8ec 2000c423 210bb7f4
+&gt0012f8e0  0012f900 00147a50 0012f988 0012f95c
+&gt0012f8f0  77deb6ca 77deb6ca 77deb6ca 00000001
+&gt0012f900  00000000 00000000 0012fc90 20015ed2
+&gt0012f910  20015ed2 00000001 77deb479 00146b10
+&gt0012f920  00650070 00000000 00147a50 00000ec4
+&gt0012f930  00000000 00000000 0012f99c 00000000
+&gt0012f940  00000000 0012f900 00350034 0012fbac
+&gt0012f950  77df5655 77deb390 00000000 0012fbbc
+&gt0012f960  77deb568 00000050 0012f988 00000216
+&gt0012f970  00000000 2025c3ac 0012fc90 00000000
+&gt0012f980  7c910895 00000050 0000002c 00000001
+&gt0012f990  00000000 00000014 00000000 0079004d
+&gt0012f9a0  00650053 00760072 00630069 00000065
+&gt0012f9b0  00000000 0012f9c4 00000000 7c9105c8
+&gtreal-main sleeping...
+&gtreal-main sleeping...
+&gtreal-main sleeping...
+&gtreal-main sleeping...
+&gt
+&gt
+&gt  
+&gt
+
+This stack problem also shows up when I deliver the app with 
+:multiprocessing t
+
+Thanks for giving it a try, perhaps Lispworks can shed some more light
+on the problem.
+
+Wade
+
+
+
+</pre>
+                 </article>
+                </section>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:46 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

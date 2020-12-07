@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Bad object in ... and an occasional crash</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Bad object in ... and an occasional crash</h1>
+                <pre>
+
+I'm running my delivered app on Linux and occasionally it spits out
+this message:
+
+  &lt;**&gt Bad object in general 00000001 ptr 37ea4a4c previous 00000010
+  &lt;**&gt Bad object in general 00000001 ptr 37ea4a4c previous 00000010
+  &lt;**&gt Bad pointer found - tagged as general 206ec59c 37ea4a30 37ea4a30 00007308
+  &lt;**&gt Bad object in general 00000001 ptr 37ea4a4c previous 00000010
+
+  &lt;**&gt Illegal tag in mark-object 206e6576 ptr 00000010 previous 00000010
+  &lt;**&gtBad pointer in entry table object 36073558 slot-pointer 36076cf8 pointer 206e6576
+  Stack dump
+  36073548  3c0a3e79 6d74682f 72613e6c 00000010
+  36073558  04020000 03560417 0004ef50 00000001
+  36073568  00575f00 74683c0a 0a3e6c6d 65683c0a
+  36073578  0a3e6461 74656d3c 74682061 652d7074
+  36073588  76697571 6f43223d 6e65746e 79542d74
+
+The app often keeps going, but sometimes in crashes at this point.
+
+Some background on the code: The program has 64 threads running and
+takes up about 600 MB of ram.  Mostly it does disk and network io, but
+it does cons a fair amount as it calculates what to write to disk.
+Sometimes it takes up a lot less ram (300 MB or so).  When it does
+take less RAM it seems to be be "happier" and print out the messages
+much less often.
+
+Has anyone else seen this? Any ideas on how I could fix it? I'm guess
+it's in GC, but I really don't know for sure.
+
+Regards,
+Chris Dean
+
+P.S.  Thanks to everyone on this list for all their help.  This has
+      been a great community to be a part of and I really appreciate
+      all of your help!
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Bad object in ... and an occasional crash</h1>
+                 <pre>
+[Sorry, I cut off this part of the email]
+
+On a crash, I get a message like this:
+
+  ** &lt;&lt; SERIOUS PROBLEMS DURING GARBAGE COLLECTION    &gt&gt  **
+
+  SIG = 0000000b  PC = 2005f77f
+  Simple backtrace:
+  0805cbe4 200c6d88 #&lt;cfo 200c6b1a&gt
+
+  0805cc10 200c623f #&lt;cfo 200c622a&gt
+
+Regards,
+Chris Dean
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Bad object in ... and an occasional crash</h1><div>Well, we've found that Lispworks can exhibit this kind of behavior under either&nbsp;low-physical-memory conditions or very large image sizes. You say your app has reached 600mb; before restructuring things, our app at times exceeded 700mb on a 1GB machine and occassionally I'd see behavior similar to yours. I also think I saw a post here recently that mentioned image sizes in the ranges you and I have experienced approaches the location at which&nbsp;shared libraries&nbsp;are mapped, but I don't recall if this was Windows or some other platform.
+</div>
+<div>&nbsp;</div>
+<div>We changed certain algorithms in our system to keep image sizes generally below 200mb, but that might not be an option for you.</div>
+<div>&nbsp;</div>
+<div>- david<br><br>&nbsp;</div>
+<div><span class="gmail_quote">On 5/12/06, <b class="gmail_sendername">Chris Dean</b> &lt;<a href="mailto:ctdean@sokitomi.com">ctdean@sokitomi.com</a>&gt; wrote:</span>
+<blockquote class="gmail_quote" style="PADDING-LEFT: 1ex; MARGIN: 0px 0px 0px 0.8ex; BORDER-LEFT: #ccc 1px solid"><br>[Sorry, I cut off this part of the email]<br><br>On a crash, I get a message like this:<br><br>** &lt;&lt; SERIOUS PROBLEMS DURING GARBAGE COLLECTION&nbsp;&nbsp;&nbsp;&nbsp;&gt;&gt;&nbsp;&nbsp;**
+<br><br>SIG = 0000000b&nbsp;&nbsp;PC = 2005f77f<br>Simple backtrace:<br>0805cbe4 200c6d88 #&lt;cfo 200c6b1a&gt;<br><br>0805cc10 200c623f #&lt;cfo 200c622a&gt;<br><br>Regards,<br>Chris Dean<br><br></blockquote></div><br><br clear="all">
+<br>-- <br>And now these three remain: faith, hope, and love.<br>But the greatest of these is love.<br>&nbsp;&nbsp;-- 1 Corinthians 13:13<br><br>For wisdom is more precious than rubies,<br>and nothing you desire can compare with her.
+<br>&nbsp;&nbsp;-- Proverbs 8:11 
+
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Bad object in ... and an occasional crash</h1>
+                 <pre>
+
+"David Young" &lt;youngde811@gmail.com&gt writes:
+&gt Well, we've found that Lispworks can exhibit this kind of behavior under
+&gt either low-physical-memory conditions or very large image sizes. You say
+&gt your app has reached 600mb; before restructuring things, our app at times
+&gt exceeded 700mb on a 1GB machine and occassionally I'd see behavior similar
+&gt to yours. 
+
+Great info, thanks.  
+
+I have plenty of memory (4 GB on those machines), but I'll try
+partitioning into 2 copies each running 32 threads and see if that
+helps.
+
+Regards,
+Chris Dean
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Bad object in ... and an occasional crash</h1>
+                 <pre>
+
+&gt I have plenty of memory (4 GB on those machines), but I'll try
+&gt partitioning into 2 copies each running 32 threads and see if that
+&gt helps.
+
+We partitioned down to 24 threads on each copy (about 300mb for each
+image) and still have the same problem.  Thanks for the advice,
+though.
+
+Regards,
+Chris Dean
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Bad object in ... and an occasional crash</h1>
+                 <pre>
+
+Chris Dean &lt;ctdean@sokitomi.com&gt writes:
+
+&gt The app often keeps going, but sometimes in crashes at this point.
+&gt
+&gt Has anyone else seen this? Any ideas on how I could fix it? I'm guess
+&gt it's in GC, but I really don't know for sure.
+
+We have a system with very similar parameters to what you describe.
+We have problems identical to yours.  We have tried to debug them
+for over a year.  In a large system, with lots of FLI code, it's
+hard to ever point the finger at any one thing, but I think there
+is a problem with the GC.  I'm sad to say I don't have a lot of hope
+for a fix at this point, besides the "voodoo programming let's rearrange
+the world and hope it works" type "fix".
+
+I'd be happy to compare notes with you privately about what our
+system loads etc to help track down commonalities, if you wish.
+
+                 -Alain Picard
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Bad object in ... and an occasional crash</h1>
+                 <pre>
+
+Alain Picard &lt;Alain.Picard@memetrics.com&gt writes:
+&gt We have a system with very similar parameters to what you describe.
+&gt We have problems identical to yours.  We have tried to debug them
+&gt for over a year.  In a large system, with lots of FLI code
+
+That's too bad - I hoped I was unique enough that it would turn out to
+be an some obvious error on part.  For what it's worth, I have no FFI
+code in the app that is crashing.
+
+Thanks for the information.
+
+Regards,
+Chris Dean
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Bad object in ... and an occasional crash</h1><div>Have you involved Lispworks support? Our experience with them has been very good.</div>
+<div>&nbsp;</div>
+<div>david<br><br>&nbsp;</div>
+<div><span class="gmail_quote">On 5/15/06, <b class="gmail_sendername">Chris Dean</b> &lt;<a href="mailto:ctdean@sokitomi.com">ctdean@sokitomi.com</a>&gt; wrote:</span>
+<blockquote class="gmail_quote" style="PADDING-LEFT: 1ex; MARGIN: 0px 0px 0px 0.8ex; BORDER-LEFT: #ccc 1px solid"><br><br>Alain Picard &lt;<a href="mailto:Alain.Picard@memetrics.com">Alain.Picard@memetrics.com</a>&gt; writes:
+<br>&gt; We have a system with very similar parameters to what you describe..<br>&gt; We have problems identical to yours.&nbsp;&nbsp;We have tried to debug them<br>&gt; for over a year.&nbsp;&nbsp;In a large system, with lots of FLI code<br>
+<br>That's too bad - I hoped I was unique enough that it would turn out to<br>be an some obvious error on part.&nbsp;&nbsp;For what it's worth, I have no FFI<br>code in the app that is crashing.<br><br>Thanks for the information.<br>
+<br>Regards,<br>Chris Dean<br><br><br></blockquote></div><br><br clear="all"><br>-- <br>And now these three remain: faith, hope, and love.<br>But the greatest of these is love.<br>&nbsp;&nbsp;-- 1 Corinthians 13:13<br><br>For wisdom is more precious than rubies,
+<br>and nothing you desire can compare with her.<br>&nbsp;&nbsp;-- Proverbs 8:11 
+
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Bad object in ... and an occasional crash</h1><div>Oh, and something else I just considered. Are you delivering (via DELIVER) your app? If so, at what level? If it's anything other than 0, try delivering at level 0 and see what happens.</div>
+<div>&nbsp;</div>
+<div>david<br><br>&nbsp;</div>
+<div><span class="gmail_quote">On 5/15/06, <b class="gmail_sendername">Chris Dean</b> &lt;<a href="mailto:ctdean@sokitomi.com">ctdean@sokitomi.com</a>&gt; wrote:</span>
+<blockquote class="gmail_quote" style="PADDING-LEFT: 1ex; MARGIN: 0px 0px 0px 0.8ex; BORDER-LEFT: #ccc 1px solid"><br><br>Alain Picard &lt;<a href="mailto:Alain.Picard@memetrics.com">Alain.Picard@memetrics.com</a>&gt; writes:
+<br>&gt; We have a system with very similar parameters to what you describe..<br>&gt; We have problems identical to yours.&nbsp;&nbsp;We have tried to debug them<br>&gt; for over a year.&nbsp;&nbsp;In a large system, with lots of FLI code<br>
+<br>That's too bad - I hoped I was unique enough that it would turn out to<br>be an some obvious error on part.&nbsp;&nbsp;For what it's worth, I have no FFI<br>code in the app that is crashing.<br><br>Thanks for the information.<br>
+<br>Regards,<br>Chris Dean<br><br><br></blockquote></div><br><br clear="all"><br>-- <br>And now these three remain: faith, hope, and love.<br>But the greatest of these is love.<br>&nbsp;&nbsp;-- 1 Corinthians 13:13<br><br>For wisdom is more precious than rubies,
+<br>and nothing you desire can compare with her.<br>&nbsp;&nbsp;-- Proverbs 8:11 
+
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Bad object in ... and an occasional crash</h1>
+                 <pre>
+
+"David Young" &lt;youngde811@gmail.com&gt writes:
+&gt Oh, and something else I just considered. Are you delivering (via DELIVER)
+&gt your app? If so, at what level? If it's anything other than 0, try
+&gt delivering at level 0 and see what happens.
+
+I am delivering at level 0.  But thanks for the suggestion!
+
+Regards,
+Chris Dean
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:45 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

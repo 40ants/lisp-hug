@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Bizarre deadlock with only one lock - (LW6.01/32/Win32/Quad-core 
+             Intel/Vista64)</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Bizarre deadlock with only one lock - (LW6.01/32/Win32/Quad-core 
+                 Intel/Vista64)</h1>
+                <pre>
+I tried to distill the problem into a single code fragment (below).  If
+the problem won't repeat, perhaps change "workers-available" or put it
+in a function and compile it.  It repeated faster on a beefy quad-core
+than on a slower XP dual; but would repeat.  I think it's a multi-CPU thing.
+
+The "wl" macrolet merely expands to mp:with-lock and the single lock
+created in the code fragment.
+
+Example failure point:
+........
+Making thread #:G1590
+
+Error: Trying to lock 134220981 :
+           Deadlock {simple} : waiting for another stack which waits for
+the current thread.
+  Other stack: #&lt;MP:PROCESS Name "Worker #:G1588" Priority 0 State
+"PROCESS-LOCK waiting for Worker thread lock"&gt
+  Waits for:  #&lt;MP:LOCK "Worker thread lock" Locked once by "CAPI
+Execution Listener 1" 2071ABCB&gt
+
+The failure occurs  where, according to a stack trace, the listener
+process is still inside the "process-run-function" call, with the lock
+still held.  Notice though from the dump - the thread it was making
+above was G1590; but the "other stack" is listed as G1588.
+
+Is it legal to start a thread from within a thread that happens to hold
+a lock?  That's all I can see that could be wrong here in code, since
+otherwise there is only one lock. . . .
+
+Should I be doing this differently, or should I write this up as a
+potential LW6.01 issue?
+
+Anyway, the code is listed below:
+
+
+
+(let ((lock (mp:make-lock :name "Worker thread lock"))
+      (workers-available 16))
+  (macrolet ((wl (&amp;body body) `(mp:with-lock (lock) (prog1 (let nil
+,@body)))))
+    (labels ((worker-thread-run ()
+               (wl
+                (incf workers-available)))
+             (give-work ()
+               (wl
+                (unless (zerop workers-available)
+                  (decf workers-available)
+                  (let ((id (gensym)))
+                    (format t "Making thread ~S" id)
+                    (terpri)
+                    (mp:process-run-function (format nil "Worker ~S" id)
+nil #'worker-thread-run))))))
+      (loop while t do
+            (give-work)
+            (sleep 0)))))
+
+
+
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Bizarre deadlock with only one lock - (LW6.01/32/Win32/Quad-core 
+                  Intel/Vista64)</h1>
+                 <p>
+                  Unable to parse email body. Email id is 10472
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:35 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Custom scrolling (non-initarg scroll-bar)</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Custom scrolling (non-initarg scroll-bar)</h1>
+                <pre>
+OK so I have another question. I need to implement scrolling of a pane with a
+separate scroll-bar, i.e. one added as part of a layout rather than through the
+pane's initargs. Looking at 'scrolling-without-bar.lisp' in the examples I came
+up with this - 
+
+(define-interface my-scroll-test ()
+  ()
+  (:panes
+    (pane output-pane
+      :accessor pane
+      :horizontal-scroll :without-bar
+      :display-callback 
+        #'(lambda (pane x y width height)
+	    (declare (ignore x y width height))
+            (gp:draw-circle pane 100 100 50)))
+    (x-scroll scroll-bar
+      :callback 'scroll-pane))
+  (:layouts	  
+    (main-layout column-layout
+      '(pane	   
+	x-scroll)))
+  (:default-initargs
+   :layout 'main-layout
+   :best-height 400
+   :best-width 400))
+
+(defun scroll-pane (interface self how where)
+  (declare (ignore self how))
+  (with-slots (pane) interface
+    (set-horizontal-scroll-parameters pane :slug-position where)))
+
+But unfortunately it doesn't work. I've also tried this -
+
+(define-interface my-scroll-test ()
+  ()
+  (:panes
+    (pane output-pane
+      :accessor pane
+      :horizontal-scroll :without-bar
+      :display-callback 
+        #'(lambda (pane x y width height)
+	    (declare (ignore x y width height))
+            (gp:draw-circle pane 100 100 50))
+      :scroll-callback 'scroll-pane)
+    (x-scroll scroll-bar
+      :accessor x-scroll))
+  (:layouts	  
+    (main-layout column-layout
+      '(pane	   
+	x-scroll)))
+  (:default-initargs
+   :layout 'main-layout
+   :best-height 400
+   :best-width 400))
+
+(defun scroll-pane (pane direction kind where &amp;key &amp;allow-other-keys)
+  (declare (ignore direction kind where))
+  (with-slots (x-scroll) (top-level-interface pane)
+    (set-horizontal-scroll-parameters pane 
+      :slug-position (range-slug-start x-scroll))))
+
+But that doesn't work either. I'm most likely making a simple error, but I can't
+see it! If so I'll probably see it as soon as I've posted... if not, any help is
+very much appreciated.
+
+Thanks,
+Chris
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Custom scrolling (non-initarg scroll-bar)</h1>
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+  <meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
+</head>
+<body bgcolor="#ffffff" text="#000000">
+Chris wrote:
+<blockquote cite="mid:loom.20090125T211057-165@post.gmane.org"
+ type="cite">
+  <pre wrap="">OK so I have another question. I need to implement scrolling of a pane with a
+separate scroll-bar, i.e. one added as part of a layout rather than through the
+pane's initargs. Looking at 'scrolling-without-bar.lisp' in the examples I came
+up with this - 
+
+(define-interface my-scroll-test ()
+  ()
+  (:panes
+    (pane output-pane
+      :accessor pane
+      :horizontal-scroll :without-bar
+      :display-callback 
+        #'(lambda (pane x y width height)
+	    (declare (ignore x y width height))
+            (gp:draw-circle pane 100 100 50)))
+    (x-scroll scroll-bar
+      :callback 'scroll-pane))
+  (:layouts	  
+    (main-layout column-layout
+      '(pane	   
+	x-scroll)))
+  (:default-initargs
+   :layout 'main-layout
+   :best-height 400
+   :best-width 400))
+
+(defun scroll-pane (interface self how where)
+  (declare (ignore self how))
+  (with-slots (pane) interface
+    (set-horizontal-scroll-parameters pane :slug-position where)))
+
+But unfortunately it doesn't work. I've also tried this -
+
+(define-interface my-scroll-test ()
+  ()
+  (:panes
+    (pane output-pane
+      :accessor pane
+      :horizontal-scroll :without-bar
+      :display-callback 
+        #'(lambda (pane x y width height)
+	    (declare (ignore x y width height))
+            (gp:draw-circle pane 100 100 50))
+      :scroll-callback 'scroll-pane)
+    (x-scroll scroll-bar
+      :accessor x-scroll))
+  (:layouts	  
+    (main-layout column-layout
+      '(pane	   
+	x-scroll)))
+  (:default-initargs
+   :layout 'main-layout
+   :best-height 400
+   :best-width 400))
+
+(defun scroll-pane (pane direction kind where &amp;key &amp;allow-other-keys)
+  (declare (ignore direction kind where))
+  (with-slots (x-scroll) (top-level-interface pane)
+    (set-horizontal-scroll-parameters pane 
+      :slug-position (range-slug-start x-scroll))))
+
+But that doesn't work either. I'm most likely making a simple error, but I can't
+see it! If so I'll probably see it as soon as I've posted... if not, any help is
+very much appreciated.
+
+Thanks,
+Chris
+  </pre>
+</blockquote>
+<br>
+I think that set-horizontal-scroll-parameters will only set the slug
+position in the scroll bar for you. It won't affect your output pane.
+To see how to do that the simple-pane (superclass of output-pane)
+description in CAPI reference and the example in
+output-pane/scrolling-without-bar.lisp may be helpful. <br>
+<br>
+Mitch<code class="Code"><br>
+</code>
+</body>
+</html>
+
+
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>RE: Custom scrolling (non-initarg scroll-bar)</h1><html>
+<head>
+<style>
+..hmmessage P
+{
+margin:0px;
+padding:0px
+}
+body.hmmessage
+{
+font-size: 10pt;
+font-family:Verdana
+}
+</style>
+</head>
+<body class='hmmessage'>
+<br><br>&gt; There is no association between the scroll-bar pane and the output-pane <br>&gt; you created.<br>&gt; <br>&gt; You'll need to explicitly set slug-end and end (perhaps using the <br>&gt; accessors range-slug-end and range-end) so that the slug size <br>&gt; corresponds correctly to the pane with which you are associating it.<br>&gt; <br>&gt; Mitch<br><br>After a bit of experimentation I came up with the following, which 'seems' to work -<br><br>(define-interface my-scroll-test ()<br>&nbsp; ()<br>&nbsp; (:panes<br>&nbsp;&nbsp;&nbsp; (pane output-pane<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; :accessor pane <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; :scroll-width 500<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; :horizontal-scroll :without-bar<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; :display-callback <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; #'(lambda (pane x y width height)<br>&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (declare (ignore x y width height))<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (gp:draw-circle pane 100 100 50))<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; :focus-callback 'set-scroll-range<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; :resize-callback 'set-slug-size)<br>&nbsp;&nbsp;&nbsp; (x-scroll scroll-bar<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; :callback 'scroll-pane<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; :line-size 7))<br>&nbsp; (:layouts&nbsp;&nbsp;&nbsp; &nbsp; <br>&nbsp;&nbsp;&nbsp; (main-layout column-layout<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; '(pane&nbsp;&nbsp;&nbsp; &nbsp;&nbsp; <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; x-scroll)))<br>&nbsp; (:default-initargs<br>&nbsp;&nbsp; :layout 'main-layout<br>&nbsp;&nbsp; :best-height 400<br>&nbsp;&nbsp; :best-width 400))<br><br>(defun scroll-pane (interface self how where)<br>&nbsp; (declare (ignore how where))<br>&nbsp; (with-slots (pane) interface<br>&nbsp;&nbsp;&nbsp; (set-horizontal-scroll-parameters pane <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; :slug-position (range-slug-start self))))<br><br>(defun set-slug-size (self x y width height)<br>&nbsp; (declare (ignore x y width height))<br>&nbsp; (with-slots (x-scroll) (top-level-interface self)<br>&nbsp;&nbsp;&nbsp; (with-geometry self<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (setf (range-slug-end x-scroll)<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (+ (range-slug-start x-scroll)<br>&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; %scroll-horizontal-slug-size%)))))<br>&nbsp;&nbsp; <br>(defun set-scroll-range (self bool)<br>&nbsp; (declare (ignore bool))<br>&nbsp; (with-slots (x-scroll) (top-level-interface self)<br>&nbsp;&nbsp;&nbsp; (setf (range-end x-scroll) <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (get-horizontal-scroll-parameters self<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; :max-range))))<br><br>The only remaining problem is that when I scroll and then resize past the scroll-width on resizing to within the scroll-width again the slug is in the same scrolled position - the default behaviour is for the slug to be set back to its starting position. Also, it doesn't seem quite right to be using a focus-callback to set the scroll-bar's maximum range.. I tried passing set-scroll-range as a create-callback but then get-horizontal-scroll-parameters just returned NIL.<br><br>Cheers,<br>Chris<br><br><br><br /><hr />Share your photos with Windows Live Photos - Free <a href='http://www.microsoft.com/uk/windows/windowslive/products/messenger.aspx' target='_new'>Try it Now!</a></body>
+</html>
+
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:37 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

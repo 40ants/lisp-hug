@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Dynamic Library Load Path</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Dynamic Library Load Path</h1><!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN" "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html>
+<head>
+<meta charset="utf-8">
+<style>body{font-family:-apple-system,Helvetica,Arial,sans-serif;}blockquote{margin:0;padding:0 0 0 12px;border-left:1px solid #aaa;color:#aaa;}hr.unibox-forward{border:0;color:#888;background-color:#888;height:1px;}</style>
+</head>
+<body>
+<div>Hello,</div>
+<div><br></div>
+<div>When I try and load “woo” using quicklisp I get the following:</div>
+<div><br></div>
+<div>
+<div>(ql:quickload "woo")</div>
+<div>To load "cffi-grovel":</div>
+<div>  Load 1 ASDF system:</div>
+<div>    cffi-grovel</div>
+<div>; Loading "cffi-grovel"</div>
+<div><br></div>
+<div>To load "woo":</div>
+<div>  Load 1 ASDF system:</div>
+<div>    woo</div>
+<div>; Loading "woo"</div>
+<div><br></div>
+<div>Error: Unable to load any of the alternatives:</div>
+<div>   ("libev.4.dylib" "libev.4.so" "libev.so.4" "libev.dylib" "libev.so")</div>
+<div>   1 (continue) Try loading the foreign library again.</div>
+<div>   2 Use another library instead.</div>
+<div>   3 Try loading /Users/burtonsamograd/.cache/common-lisp/lw-7.0.0-macosx-x64/Users/burtonsamograd/quicklisp/dists/quicklisp/software/lev-20150505-git/src/lev.64xfasl again.</div>
+<div>   4 Give up loading /Users/burtonsamograd/.cache/common-lisp/lw-7.0.0-macosx-x64/Users/burtonsamograd/quicklisp/dists/quicklisp/software/lev-20150505-git/src/lev.64xfasl.</div>
+<div>   5 Try loading another file instead of /Users/burtonsamograd/.cache/common-lisp/lw-7.0.0-macosx-x64/Users/burtonsamograd/quicklisp/dists/quicklisp/software/lev-20150505-git/src/lev.64xfasl.</div>
+<div>   6 Recompile lev and try loading it again</div>
+<div>   7 Retry loading FASL for #&lt;ASDF/LISP-ACTION:CL-SOURCE-FILE "lev" "src" "lev"&gt;.</div>
+<div>   8 Continue, treating loading FASL for #&lt;ASDF/LISP-ACTION:CL-SOURCE-FILE "lev" "src" "lev"&gt; as having been</div>
+<div>     successful.</div>
+<div>   9 Retry ASDF operation.</div>
+<div>  10 Retry ASDF operation after resetting the configuration.</div>
+<div>  11 (abort) Give up on "woo"</div>
+<div>  12 Return to level 0.</div>
+<div>  13 Return to top loop level 0.</div>
+</div>
+<div><br></div>
+<div>I’m curious about how to set the search path for dynamic libraries in LispWorks on MacOS.  I have installed libev using brew and it is located in /usr/local/lib.</div>
+<div><br></div>
+<div>—</div>
+<div>Burton Samograd</div>
+<div><br></div>
+<div class="unibox-signature">Sent with <a href="http://www.uniboxapp.com/t/sig">Unibox</a>
+</div>
+</body>
+</html>
+
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Dynamic Library Load Path</h1>
+                 <pre>Hi,
+
+First make sure what you have a library of the same bitness as your LW.
+I see you are using 64bits LW, then probably it is not an issue.
+In my case I'm using 32bits LW and macports, so paths are different.
+
+In Macports case I had to build 32bit version of libev:
+
+sudo port install libev +universal
+
+To add proper path to the library:
+(ql:quickload "cffi")
+(pushnew #P"/opt/local/lib/" cffi:*foreign-library-directories* :test
+#'equal)
+
+No problems now:
+(ql:quickload "woo")
+
+If still doesn't work you can test like this:
+
+(cffi:load-foreign-library '(:default "libev"))
+
+More information here:
+https://common-lisp.net/project/cffi/manual/html_node/_002aforeign_002dlibrary_002ddirectories_002a.html
+
+
+BusFactor1 &lt;busfactor1@gmail.com&gt writes:
+
+&gt Hello,
+&gt
+&gt When I try and load “woo” using quicklisp I get the following:
+&gt
+&gt (ql:quickload "woo")
+&gt To load "cffi-grovel":
+&gt Load 1 ASDF system:
+&gt cffi-grovel
+&gt ; Loading "cffi-grovel"
+&gt
+&gt To load "woo":
+&gt Load 1 ASDF system:
+&gt woo
+&gt ; Loading "woo"
+&gt
+&gt Error: Unable to load any of the alternatives:
+&gt ("libev.4.dylib" "libev.4.so" "libev.so.4" "libev.dylib" "libev.so")
+&gt 1 (continue) Try loading the foreign library again.
+&gt 2 Use another library instead.
+&gt 3 Try loading
+&gt /Users/burtonsamograd/.cache/common-lisp/lw-7.0.0-macosx-x64/Users/burtonsamograd/quicklisp/dists/quicklisp/software/lev-20150505-git/src/lev.64xfasl
+&gt again.
+&gt 4 Give up loading
+&gt /Users/burtonsamograd/.cache/common-lisp/lw-7.0.0-macosx-x64/Users/burtonsamograd/quicklisp/dists/quicklisp/software/lev-20150505-git/src/lev.64xfasl.
+&gt
+&gt 5 Try loading another file instead of
+&gt /Users/burtonsamograd/.cache/common-lisp/lw-7.0.0-macosx-x64/Users/burtonsamograd/quicklisp/dists/quicklisp/software/lev-20150505-git/src/lev.64xfasl.
+&gt
+&gt 6 Recompile lev and try loading it again
+&gt 7 Retry loading FASL for #&lt;ASDF/LISP-ACTION:CL-SOURCE-FILE "lev" "src" "lev"&gt.
+&gt 8 Continue, treating loading FASL for #&lt;ASDF/LISP-ACTION:CL-SOURCE-FILE "lev" "src" "lev"&gt as
+&gt having been
+&gt successful.
+&gt 9 Retry ASDF operation.
+&gt 10 Retry ASDF operation after resetting the configuration.
+&gt 11 (abort) Give up on "woo"
+&gt 12 Return to level 0.
+&gt 13 Return to top loop level 0.
+&gt
+&gt I’m curious about how to set the search path for dynamic libraries in LispWorks on MacOS. I have
+&gt installed libev using brew and it is located in /usr/local/lib.
+&gt
+&gt —
+&gt Burton Samograd
+&gt
+&gt Sent with Unibox 
+&gt
+
+-- 
+Br,
+/Alexey
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Dynamic Library Load Path</h1>
+                 <pre>Hi BusFactor1,
+
+It would be even better to have a solution that avoids the use of CFFI or any external dependency.
+Any clue?
+
+
+Best,
+Cam
+
+
+
+&gt On Jan 5, 2017, at 19:51, Alexey Veretennikov &lt;txm.fourier@gmail.com&gt wrote:
+&gt 
+&gt Hi,
+&gt 
+&gt First make sure what you have a library of the same bitness as your LW.
+&gt I see you are using 64bits LW, then probably it is not an issue.
+&gt In my case I'm using 32bits LW and macports, so paths are different.
+&gt 
+&gt In Macports case I had to build 32bit version of libev:
+&gt 
+&gt sudo port install libev +universal
+&gt 
+&gt To add proper path to the library:
+&gt (ql:quickload "cffi")
+&gt (pushnew #P"/opt/local/lib/" cffi:*foreign-library-directories* :test
+&gt #'equal)
+&gt 
+&gt No problems now:
+&gt (ql:quickload "woo")
+&gt 
+&gt If still doesn't work you can test like this:
+&gt 
+&gt (cffi:load-foreign-library '(:default "libev"))
+&gt 
+&gt More information here:
+&gt https://common-lisp.net/project/cffi/manual/html_node/_002aforeign_002dlibrary_002ddirectories_002a.html
+&gt 
+&gt 
+&gt BusFactor1 &lt;busfactor1@gmail.com&gt writes:
+&gt 
+&gt&gt Hello,
+&gt&gt 
+&gt&gt When I try and load “woo” using quicklisp I get the following:
+&gt&gt 
+&gt&gt (ql:quickload "woo")
+&gt&gt To load "cffi-grovel":
+&gt&gt Load 1 ASDF system:
+&gt&gt cffi-grovel
+&gt&gt ; Loading "cffi-grovel"
+&gt&gt 
+&gt&gt To load "woo":
+&gt&gt Load 1 ASDF system:
+&gt&gt woo
+&gt&gt ; Loading "woo"
+&gt&gt 
+&gt&gt Error: Unable to load any of the alternatives:
+&gt&gt ("libev.4.dylib" "libev.4.so" "libev.so.4" "libev.dylib" "libev.so")
+&gt&gt 1 (continue) Try loading the foreign library again.
+&gt&gt 2 Use another library instead.
+&gt&gt 3 Try loading
+&gt&gt /Users/burtonsamograd/.cache/common-lisp/lw-7.0.0-macosx-x64/Users/burtonsamograd/quicklisp/dists/quicklisp/software/lev-20150505-git/src/lev.64xfasl
+&gt&gt again.
+&gt&gt 4 Give up loading
+&gt&gt /Users/burtonsamograd/.cache/common-lisp/lw-7.0.0-macosx-x64/Users/burtonsamograd/quicklisp/dists/quicklisp/software/lev-20150505-git/src/lev.64xfasl.
+&gt&gt 
+&gt&gt 5 Try loading another file instead of
+&gt&gt /Users/burtonsamograd/.cache/common-lisp/lw-7.0.0-macosx-x64/Users/burtonsamograd/quicklisp/dists/quicklisp/software/lev-20150505-git/src/lev.64xfasl.
+&gt&gt 
+&gt&gt 6 Recompile lev and try loading it again
+&gt&gt 7 Retry loading FASL for #&lt;ASDF/LISP-ACTION:CL-SOURCE-FILE "lev" "src" "lev"&gt.
+&gt&gt 8 Continue, treating loading FASL for #&lt;ASDF/LISP-ACTION:CL-SOURCE-FILE "lev" "src" "lev"&gt as
+&gt&gt having been
+&gt&gt successful.
+&gt&gt 9 Retry ASDF operation.
+&gt&gt 10 Retry ASDF operation after resetting the configuration.
+&gt&gt 11 (abort) Give up on "woo"
+&gt&gt 12 Return to level 0.
+&gt&gt 13 Return to top loop level 0.
+&gt&gt 
+&gt&gt I’m curious about how to set the search path for dynamic libraries in LispWorks on MacOS. I have
+&gt&gt installed libev using brew and it is located in /usr/local/lib.
+&gt&gt 
+&gt&gt —
+&gt&gt Burton Samograd
+&gt&gt 
+&gt&gt Sent with Unibox 
+&gt&gt 
+&gt 
+&gt -- 
+&gt Br,
+&gt /Alexey
+&gt 
+&gt _______________________________________________
+&gt Lisp Hug - the mailing list for LispWorks users
+&gt lisp-hug@lispworks.com
+&gt http://www.lispworks.com/support/lisp-hug.html
+
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:27 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

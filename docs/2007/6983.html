@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>How to step after a (break) ?</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>How to step after a (break) ?</h1>
+                <pre>
+Hi all here on the list!
+
+First one for me here - new to LW but not new to Lisp ;-) As I am  
+coming from a different implementation I am seeing challenges I  
+wasn't having before ...
+
+That is (using LW PE on Mac OS X Intel 10.4.10):
+
+(defun main ()
+    (run-window 'gnc-app-test01 nil))
+
+(defun test01-main ()
+   #+lispworks
+     (mp:process-send mp:*main-process* '(main))
+   #-lispworks
+     (main)
+)
+
+Now I open the stepper and because I need to do mp:process-send I am  
+loosing the process stepping. In other words I can't step into the  
+main function when stepping from test01-main. Wanted to be clever  
+then an put a breakpoint into main at (run-window ...) - but, hey, I  
+never get LW to stop there ... The only chance is to put  (break) in  
+at some place. Which I did in a function 'tk-togl-init which gets  
+called from within 'run-window:
+
+==========================================
+Backtrace taken at: 22 Sep 2007 18:57:33
+==========================================
+#&lt;The COMMON-LISP-USER package, 54/128 internal, 0/4 external&gt
+#&lt;MP:PROCESS Name "Cocoa Event Loop" Priority 60000000 State "Running"&gt
+
+Condition: Break.
+Call to CELTK::TK-TOGL-INIT (offset 24)
+   CELTK::INTERP : #&lt;Pointer to type :VOID = #x168B0410&gt
+
+Call to CELTK:RUN-WINDOW (offset 199)
+   CELTK::ROOT-CLASS      : NET.GOENNINGER.APP.CELLO-WIDGETS- 
+USER::GNC-APP-TEST01
+   CELTK::RESETP          : NIL
+   CELTK::WINDOW-INITARGS : NIL
+
+So far so good. Now I get a Listener window popping up giving me a  
+few choices but no way to step from there ...
+
+I get a crash of LW somewhere after that point and I need to step ...  
+Any ideas/hints/pointers on how to achieve this is really  
+appreciated ...
+
+Thanks!!!
+
+Frank
+
+--
+   Frank Goenninger
+   frgo@goenninger.net
+
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: How to step after a (break) ?</h1>
+                 <pre>
+I think what you are running into is that you can't step in a user  
+interface process on the Mac. All interfaces use a single process, so  
+stepping would lock up the entire interface. This is a major  
+limitation of the Mac version that I hope gets solved some day.
+
+
+
+On Sep 22, 2007, at 1:21 PM, Frank Goenninger wrote:
+
+&gt Now I open the stepper and because I need to do mp:process-send I  
+&gt am loosing the process stepping. In other words I can't step into  
+&gt the main function when stepping from test01-main. Wanted to be  
+&gt clever then an put a breakpoint into main at (run-window ...) -  
+&gt but, hey, I never get LW to stop there ... The only chance is to  
+&gt put  (break) in at some place. Which I did in a function 'tk-togl- 
+&gt init which gets called from within 'run-window:
+
+
+
+John DeSoi, Ph.D.
+http://pgedit.com/
+Power Tools for PostgreSQL
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: How to step after a (break) ? - Starting the stepper programmatically ?</h1>
+                 <pre>
+Another way out could be starting the stepper programmatically... Is  
+there any way to do that ?
+
+Thx!
+
+Frank
+
+Am 22.09.2007 um 19:21 schrieb Frank Goenninger:
+
+&gt
+&gt Hi all here on the list!
+&gt
+&gt First one for me here - new to LW but not new to Lisp ;-) As I am  
+&gt coming from a different implementation I am seeing challenges I  
+&gt wasn't having before ...
+&gt
+&gt That is (using LW PE on Mac OS X Intel 10.4.10):
+&gt
+&gt (defun main ()
+&gt    (run-window 'gnc-app-test01 nil))
+&gt
+&gt (defun test01-main ()
+&gt   #+lispworks
+&gt     (mp:process-send mp:*main-process* '(main))
+&gt   #-lispworks
+&gt     (main)
+&gt )
+&gt
+&gt Now I open the stepper and because I need to do mp:process-send I  
+&gt am loosing the process stepping. In other words I can't step into  
+&gt the main function when stepping from test01-main. Wanted to be  
+&gt clever then an put a breakpoint into main at (run-window ...) -  
+&gt but, hey, I never get LW to stop there ... The only chance is to  
+&gt put  (break) in at some place. Which I did in a function 'tk-togl- 
+&gt init which gets called from within 'run-window:
+&gt
+&gt ==========================================
+&gt Backtrace taken at: 22 Sep 2007 18:57:33
+&gt ==========================================
+&gt #&lt;The COMMON-LISP-USER package, 54/128 internal, 0/4 external&gt
+&gt #&lt;MP:PROCESS Name "Cocoa Event Loop" Priority 60000000 State  
+&gt "Running"&gt
+&gt
+&gt Condition: Break.
+&gt Call to CELTK::TK-TOGL-INIT (offset 24)
+&gt   CELTK::INTERP : #&lt;Pointer to type :VOID = #x168B0410&gt
+&gt
+&gt Call to CELTK:RUN-WINDOW (offset 199)
+&gt   CELTK::ROOT-CLASS      : NET.GOENNINGER.APP.CELLO-WIDGETS- 
+&gt USER::GNC-APP-TEST01
+&gt   CELTK::RESETP          : NIL
+&gt   CELTK::WINDOW-INITARGS : NIL
+&gt
+&gt So far so good. Now I get a Listener window popping up giving me a  
+&gt few choices but no way to step from there ...
+&gt
+&gt I get a crash of LW somewhere after that point and I need to  
+&gt step ... Any ideas/hints/pointers on how to achieve this is really  
+&gt appreciated ...
+&gt
+&gt Thanks!!!
+&gt
+&gt Frank
+&gt
+&gt --
+&gt   Frank Goenninger
+&gt   frgo@goenninger.net
+&gt
+&gt
+&gt
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:41 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

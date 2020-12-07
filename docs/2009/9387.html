@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Final version works off DSPECs</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Final version works off DSPECs</h1>
+                <pre>
+This is my final version... it works off of DSPEC's which permits  
+things like exploring from methods with particular signatures.
+
+;; call-path-checker.lisp -- A visual aid to determining if one  
+function can be reached from another
+;;
+;; DM/RAL 08/09
+;;  
+--------------------------------------------------------------------------------
+;; Feel free to use, modify, or whatever...
+;;
+;; Use as:
+;;  1) First load in your code that you want to explore
+;;
+;;  2) Enter:  (path-between fn1 fn2)  where path runs from fn1 to fn2
+;;      and both must be dspecs for functions or methods:
+;;      e.g., (path-between 'connect-to-database 'rollback)
+;;        or  (path-between '(method deref (oid)) 'fetch-from-logfile)
+;;
+;;  3) If there are one or more paths, they will be displayed in a  
+graph pane
+;;     Otherwise, the returned value is NIL.
+;;  
+--------------------------------------------------------------------------------
+
+(in-package :user)
+
+(defun view-tree (tree from to)
+   (when tree
+     (capi:contain
+      (make-instance
+       'capi:graph-pane
+       :title (format nil "Path from ~A to ~A" from to)
+       :roots (list tree)
+       :children-function #'cdr
+       :print-function    #'(lambda (node)
+                              (format nil "~A"
+                                      (let ((ds (car node)))
+                                        (case (car ds)
+                                          (function (cadr ds))
+                                          (method   ds)))))
+       :edge-pinboard-class 'capi:arrow-pinboard-object
+       :interaction :single-selection
+       :action-callback  'graph-pane-action-callback
+       )
+      :best-width 400
+      :best-height 300)))
+
+(defun graph-pane-action-callback (node intf)
+   (declare (ignore intf))
+   (ignore-errors
+     (ed (car node))))
+
+(defun path-between (dspec1 dspec2)
+   ;; dspec1 and dspec2 are approximate dspecs
+   ;; e.g., (path-between 'deref 'fetch-from-logfile)
+   ;;   or  (path-between '(method deref (oid)) 'fetch-from-logfile)
+   (let ((ds1  (dspec:canonicalize-dspec dspec1))
+         (ds2  (dspec:canonicalize-dspec dspec2))
+         (seen (make-hash-table :test #'dspec:dspec-equal)))
+     (labels ((dspec-type (ds)
+                (case (car ds)
+                  (function
+                   (ignore-errors ;; produce NIL on error, which will  
+just skip it
+                     (if (typep (fdefinition (cadr ds)) 'standard- 
+generic-function)
+                         'generic-function
+                       'function)))
+                  (method 'method)))
+
+              (make-method-dspec (ds meth)
+                (dspec:canonicalize-dspec
+                 `(method ,(cadr ds)
+                          ,@(method-qualifiers meth)
+                          ,(mapcar (lambda (spec)
+                                     (if (consp spec)
+                                         spec
+                                       (class-name spec)))
+                                   (method-specializers meth))))) )
+       (view-tree
+        (um:nlet iter ((ds ds1))
+          (if (dspec:dspec-equal ds ds2)
+              (list ds)
+            (let ((found nil))
+              (setf (gethash ds seen) t)
+              (case (dspec-type ds)
+
+                (generic-function
+                 (let* ((fn      (fdefinition (cadr ds)))
+                        (methods (clos:generic-function-methods fn)))
+                   (dolist (meth methods)
+                     (let ((meth-ds (make-method-dspec ds meth)))
+                       (unless (gethash meth-ds seen)
+                         (um:when-let (path (iter meth-ds))
+                           (push path found)))))))
+
+                ((function method)
+                 (dolist (sub-fn (calls-who ds))
+                   (let ((sub-ds (dspec:canonicalize-dspec sub-fn)))
+                     (unless (gethash sub-ds seen)
+                       (um:when-let (path (iter sub-ds))
+                         (push path found)))))) )
+
+              (when found
+                (cons ds (nreverse found))) )))
+        dspec1 dspec2))))
+
+
+
+Dr. David McClain
+dbm@refined-audiometrics.com
+
+
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Final version works off DSPECs</h1>
+                 <pre>
+David McClain wrote on Sun, 23 Aug 2009 04:02:18 -0700 15:02:
+
+| This is my final version... it works off of DSPEC's which permits  
+| things like exploring from methods with particular signatures.
+|...snip...|
+
+On LWW 4.4.6,
+   (make-hash-table :test #'dspec:dspec-equal)
+causes for crash later with
+  ** Processor Fault #x... at #x...
+   (#&lt;function SYSTEM::USER-TEST-HASHFN 2015F3A2&gt).
+
+AFAIU, this is LispWorks version specifics :-) 
+
+The replacement 
+   (make-hash-table  :test #'equal)
+works fine for me.
+
+Thanks, David! 
+--
+Sincerely,
+Dmitriy Ivanov
+lisp.ystok.ru
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:36 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

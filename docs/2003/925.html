@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>Name conflict with symbol from package COMMON-LISP</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>Name conflict with symbol from package COMMON-LISP</h1>
+                <pre>Hi, all!
+
+We encountered an interesting problem concerning the naming of
+functions. We have here quite a large collection of software based on a
+specific Lisp-framework that has been developed using Macintosh Lisp. 
+We are currently porting this framework to Lispworks 4.2.7 (Linux).
+
+In principle, it works quite well apart from some 'interesting'
+discoveries every now and then. But here is a problem we can't find a
+solution for:
+
+In this framework, there is a function called optimize defined in a
+package called math (it gets exported, as well). When evaluating this
+package, we get a warning stating:
+
+Defining function OPTIMIZE visible from package COMMON-LISP.
+
+That's ok, so far, naming conflicts happen all the time ;). 
+We could, of course, just rename the function, but as it is part of the
+framework which gets used in a lot of software this is annoying and
+probably will lead to quite a lot of errors.
+
+First, we tried not to export the symbol, but that's no help. So, we
+tried to get rid of the symbol 'optimize; the problem is that the symbol
+is rather persisting.
+We found a symbol of that name in package KEYWORD (and in that package
+only), so we tried the following; nothing of which worked:
+
+1. Try: (unuse-package (find-package "KEYWORD"))
+
+2. Try: (in-package :common-lisp)
+        (unuse-package (find-package "KEYWORD"))
+
+3.: (makunbound 'keyword::optimize)
+
+4.: (unintern 'optimize (find-package "KEYWORD")
+
+(This seems to be case-insensitive, we tried both optimize and OPTIMIZE)
+
+
+Does anyone of you know a way how we can keep our function optimize
+(with that name, that is) without making the Lisp useless? And shouldn't
+at least one of the things we tried "remove" the symbol 'optimize?
+
+Thanks,
+
+Kai-Florian
+
+-- 
+---------------------------------------------------------------------
+Dipl.-Inform. Kai-Florian Richter    richter@informatik.uni-bremen.de
+AG COSY
+FB 3  Mathematik &amp; Informatik        phone: +49-421-218-9043
+Universitaet Bremen                  fax:   +49-421-218-8620
+
+www.informatik.uni-bremen.de/~richter
+www.cosy.informatik.uni-bremen.de
+---------------------------------------------------------------------
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Name conflict with symbol from package COMMON-LISP</h1>
+                 <pre>Kai-Florian Richter &lt;richter@informatik.uni-bremen.de&gt writes:
+
+&gt Does anyone of you know a way how we can keep our function optimize
+&gt (with that name, that is) without making the Lisp useless? And shouldn't
+&gt at least one of the things we tried "remove" the symbol 'optimize?
+
+Personally, I would have avoided using 'optimize, but anyway, here's
+one way to do it:
+
+CAPI-E 32 &gt (defpackage foobar (:use :cl)(:shadow :optimize)(:export :optimize))
+#&lt;PACKAGE FOOBAR&gt
+
+CAPI-E 34 &gt (describe 'cl:optimize)
+
+OPTIMIZE is a SYMBOL
+NAME          "OPTIMIZE"
+VALUE         #&lt;unbound value&gt
+FUNCTION      #&lt;unbound function&gt
+PLIST         (PKG::SYMBOL-NAME-STRING "OPTIMIZE" SYSTEM::DECLARATION-P T)
+PACKAGE       #&lt;PACKAGE COMMON-LISP&gt
+
+CAPI-E 35 &gt (describe 'foobar:optimize)
+
+FOOBAR:OPTIMIZE is a SYMBOL
+NAME          "OPTIMIZE"
+VALUE         #&lt;unbound value&gt
+FUNCTION      #&lt;unbound function&gt
+PLIST         NIL
+PACKAGE       #&lt;PACKAGE FOOBAR&gt
+
+The drawback of this is of course that you must write '(cl:optimize ...) 
+in your declare forms whenever you're in a package that is or uses the 
+foobar package.
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Name conflict with symbol from package COMMON-LISP</h1>
+                 <pre>On Wednesday 05 March 2003 08:58 am, Kai-Florian Richter wrote:
+&gt Defining function OPTIMIZE visible from package COMMON-LISP.
+
+I never get this stuff correct, but it won't stop me from guessing :-).  
+
+Isn't the problem that your Math package (or the framework) :use's 
+COMMON-LISP? 
+
+If you can't prevent MATH from :use'ing COMMON-LISP, then maybe this is where 
+:shadow and :shadowing-import would be useful?
+
+pt
+
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Name conflict with symbol from package COMMON-LISP</h1>
+                 <pre>Am Mit, 2003-03-05 um 15.18 schrieb Espen Vestre:
+
+&gt Personally, I would have avoided using 'optimize, but anyway, here's
+&gt one way to do it:
+I also think that the name is not really clever. But it wasn't my idea
+and it obviously works fine on a Mac. 
+
+&gt CAPI-E 32 &gt (defpackage foobar (:use :cl)(:shadow :optimize)(:export :optimize))
+&gt #&lt;PACKAGE FOOBAR&gt
+&gt 
+&gt CAPI-E 34 &gt (describe 'cl:optimize)
+&gt 
+&gt OPTIMIZE is a SYMBOL
+&gt NAME          "OPTIMIZE"
+&gt VALUE         #&lt;unbound value&gt
+&gt FUNCTION      #&lt;unbound function&gt
+&gt PLIST         (PKG::SYMBOL-NAME-STRING "OPTIMIZE" SYSTEM::DECLARATION-P T)
+&gt PACKAGE       #&lt;PACKAGE COMMON-LISP&gt
+&gt 
+That does it. Even though I thought I already tested this one. I must
+have done something wrong back then :( 
+Thanks a lot!
+
+&gt The drawback of this is of course that you must write '(cl:optimize ...) 
+&gt in your declare forms whenever you're in a package that is or uses the 
+&gt foobar package.
+That seems to be ok. I doubt that we will use cl:optimize much (What
+does it anyway?).
+
+Again, thanks a lot!
+
+Kai-Florian
+
+-- 
+---------------------------------------------------------------------
+Dipl.-Inform. Kai-Florian Richter    richter@informatik.uni-bremen.de
+AG COSY
+FB 3  Mathematik &amp; Informatik        phone: +49-421-218-9043
+Universitaet Bremen                  fax:   +49-421-218-8620
+
+www.informatik.uni-bremen.de/~richter
+www.cosy.informatik.uni-bremen.de
+---------------------------------------------------------------------
+
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Name conflict with symbol from package COMMON-LISP</h1>
+                 <pre>Kai-Florian Richter &lt;richter@informatik.uni-bremen.de&gt writes:
+
+&gt That seems to be ok. I doubt that we will use cl:optimize much (What
+&gt does it anyway?).
+
+You use it in declaration forms to state your optimization preferences.
+
+-- 
+  (espen)
+
+
+</pre>
+                </article>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:56 UTC
+             </div>
+            </footer>
+           </body>
+          </html>

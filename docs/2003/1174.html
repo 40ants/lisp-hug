@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang=en>
+           <head>
+            <meta charset=UTF-8>
+            <title>capi and cursor interface</title>
+            <link rel=stylesheet
+                  href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
+                  integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
+                  crossorigin=anonymous>
+            <style>
+section.tree {
+    padding-left: 2em;
+}
+section.tree:first-child {
+    padding-left: 0;
+}
+.article-link {
+  margin-bottom: 1em;
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9X3G9MMWZP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9X3G9MMWZP');
+</script>
+
+           </head>
+           <body>
+            <header class="d-flex justify-content-center">
+             <nav
+                  class="navbar navbar-light bg-light w-100 mx-5 mb-3">
+              <a class=navbar-brand href="/">Lisp HUG Maillist Archive</a>
+             </nav>
+            </header>
+            <div class="d-flex justify-content-center">
+             <div class="w-100 mx-5 px-3">
+              <section class=tree>
+               <article class=email>
+                <h1>capi and cursor interface</h1>
+                <pre>Hola,
+
+I'm a new capi and looking for some wisdom about the feasibility of a 
+database interface. In particular, I'm interested in creating a 
+database cursor interface for browsing what could possibly be many 
+thousands of records (with resizable and configurable columns). I just 
+want to dynamically load just enough data to fill the display, but have 
+the scroll bars correspond to the number of rows in the cursor and use 
+scrolling for browsing.
+
+Would a grid layout be able to handle something like this, or would I 
+need to create a custom pane type? Any pointers to examples where 
+something like this has already been done?
+
+Thanks,
+
+John DeSoi, Ph.D.
+
+
+</pre>
+               </article>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: capi and cursor interface</h1>
+                 <pre>John DeSoi &lt;jd@icx.net&gt writes:
+
+&gt I'm a new capi and looking for some wisdom about the feasibility of
+&gt a database interface. In particular, I'm interested in creating a
+&gt database cursor interface for browsing what could possibly be many
+&gt thousands of records (with resizable and configurable columns). I
+&gt just want to dynamically load just enough data to fill the display,
+&gt but have the scroll bars correspond to the number of rows in the
+&gt cursor and use scrolling for browsing.
+&gt 
+&gt Would a grid layout be able to handle something like this, or would
+&gt I need to create a custom pane type? Any pointers to examples where
+&gt something like this has already been done?
+
+I'm not sure but maybe this one is close to what you want:
+
+  &lt;http://www.aha.ru/~divanov/projects.html&gt
+
+  (see Ystok-Grid)
+
+Cheers,
+Edi.
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: capi and cursor interface</h1>
+                  <pre>Hi Edi,
+
+On Wednesday, July 2, 2003, at 12:13 PM, Edi Weitz wrote:
+
+&gt I'm not sure but maybe this one is close to what you want:
+&gt
+&gt   &lt;http://www.aha.ru/~divanov/projects.html&gt
+&gt
+&gt   (see Ystok-Grid)
+
+Thanks for the pointer. This looks pretty impressive, but so far I 
+can't use it directly. It makes use of an internal capi class called 
+capi::header-control which is not in the 4.3 Mac version. I could not 
+find anything equivalent.
+
+I'm going to start with capi:multi-column-list-panel as Wade Humeniuk 
+suggested.
+
+Best,
+
+John DeSoi, Ph.D.
+
+
+</pre>
+                 </article>
+                </section>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: capi and cursor interface</h1>
+                 <p>
+                  Unable to parse email body. Email id is 1176
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: capi and cursor interface</h1>
+                 <pre>You probably are looking for a
+
+capi:multi-column-list-panel
+
+Its currently undocumented.
+
+Here is an example withinn an actual db driven interface.
+
+(capi:define-interface merchants-customer-admin-panel ()
+  ((merchant-id :initform nil))
+  (:panes
+   (admins capi:multi-column-list-panel
+           :columns '((:title id :align :left)
+                      (:title ivr-login :align :left)
+                      (:title last-name :align :left)
+                      (:title first-name :align :left)
+                      (:title email :align :left)
+                      (:title "Activate Offers?" :align :left))
+           :background :white
+           :min-height 128
+           :max-width :screen-width
+           :item-print-functions `(customer-id-string
+                                   ivr-login-string
+                                   default-column-print
+                                   default-column-print
+                                   default-column-print
+                                   ,(lambda (activate-offer-p)
+                                      (format nil "~30A"
+                                              (if (string-equal "T" activate-offer-p)
+                                                  "Yes"
+                                                "No"))))
+           :callback-type :interface-data
+
+           :selection-callback
+           (lambda (pane customer)
+             (declare (ignore customer))
+             (with-slots (remove-button toggle-activation-button) pane
+               (setf (capi:button-enabled remove-button) t
+                     (capi:button-enabled toggle-activation-button) t)))
+
+           :action-callback
+           (lambda (pane customer)
+             (declare (ignore pane))
+             (with-sql-error-handler
+              (let ((customer-admin (capi:display (make-instance 'customer-admin-tool))))
+                (capi:execute-with-interface customer-admin
+                                             'display-customer
+                                             customer-admin
+                                             (first customer))))))
+   (add-button capi:push-button
+               :max-width :screen-width
+               :text "Add Admin"
+               :data :add
+               :callback-type :interface-data
+               :callback 'merchants-administrators-callback)
+   (remove-button capi:push-button
+                  :max-width :screen-width
+                  :text "Remove Admin"
+                  :enabled nil
+                  :data :remove
+                  :callback-type :interface-data
+                  :callback 'merchants-administrators-callback)
+   (toggle-activation-button capi:push-button
+                             :max-width :screen-width
+                             :text "Toggle Activate Offers"
+                             :enabled nil
+                             :data :toggle
+                             :callback-type :interface-data
+                             :callback 'merchants-administrators-callback))
+  (:layouts
+   (main capi:column-layout '(admins buttons))
+   (buttons capi:row-layout '(add-button remove-button toggle-activation-button))))
+
+(defun display-merchants-customer-admins (admin-panel merchant-id)
+  (setf (slot-value admin-panel 'merchant-id) merchant-id
+        (capi:button-enabled (slot-value admin-panel 'remove-button)) nil
+        (capi:button-enabled (slot-value admin-panel 'toggle-activation-button)) nil
+        (capi:collection-items (slot-value admin-panel 'admins))
+        (let ((select (sql:select [customer customer_id] [customer ivr_login :string]
+                                  [customer last_name] [customer first_name] [customer
+email]
+                                  [merchant_admin can_activate_offers_p]
+                                  :from (list [merchant_admin] [customer])
+                                  :where [and [= [merchant_admin merchant_id] merchant-id]
+                                              [= [merchant_admin customer_id] [customer
+customer_id]]]
+                                  :distinct t
+                                  :order-by (list [customer customer_id]))))
+          (loop for customer in select
+                do
+                (setf (second customer) (read-from-string (second customer))))
+          select)))
+
+Wade
+
+
+----- Original Message ----- 
+From: "John DeSoi" &lt;jd@icx.net&gt
+To: &lt;lisp-hug@xanalys.com&gt
+Sent: Wednesday, July 02, 2003 9:32 AM
+Subject: capi and cursor interface
+
+
+| Hola,
+|
+| I'm a new capi and looking for some wisdom about the feasibility of a
+| database interface. In particular, I'm interested in creating a
+| database cursor interface for browsing what could possibly be many
+| thousands of records (with resizable and configurable columns). I just
+| want to dynamically load just enough data to fill the display, but have
+| the scroll bars correspond to the number of rows in the cursor and use
+| scrolling for browsing.
+|
+| Would a grid layout be able to handle something like this, or would I
+| need to create a custom pane type? Any pointers to examples where
+| something like this has already been done?
+|
+| Thanks,
+|
+| John DeSoi, Ph.D.
+|
+
+
+</pre>
+                </article>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: capi and cursor interface</h1>
+                  <pre>
+On Wednesday, July 2, 2003, at 03:22 PM, Wade Humeniuk wrote:
+
+&gt You probably are looking for a
+&gt
+&gt capi:multi-column-list-panel
+&gt
+&gt Its currently undocumented.
+&gt
+&gt
+
+Hi Wade,
+
+Yes, I missed multi-column-list-panel.
+
+Thanks very much for the example!
+
+John DeSoi, Ph.D.
+
+
+</pre>
+                 </article>
+                </section>
+                <section class=tree>
+                 <article class=email>
+                  <h1>Re: capi and cursor interface</h1>
+                  <p>
+                   Unable to parse email body. Email id is 1180
+                 </article>
+                </section>
+               </section>
+              </section>
+             </div>
+            </div>
+            <footer class="d-flex justify-content-center">
+             <div>
+              Updated at: 2020-12-07 08:56 UTC
+             </div>
+            </footer>
+           </body>
+          </html>
