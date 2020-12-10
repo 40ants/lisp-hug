@@ -3,6 +3,8 @@
            <head>
             <meta charset=UTF-8>
             <title>Building deliverables using CFFI libraries</title>
+            <meta name=viewport
+                  content="width=device-width, initial-scale=1.0">
             <link rel=stylesheet
                   href=https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css
                   integrity=sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2
@@ -1186,12 +1188,372 @@ https://gist.github.com/sgithens/1e6c68bb985e2cc31af0e8fcd19422a6</a><br>
 
                 </article>
                </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Building deliverables using CFFI libraries</h1>
+                 <pre>MacOS doesn't support unloading unfortunately.  There is also a problem if you
+close a module that has explicit references (such as the :library argument to
+cffi:defcfun).
+
+The recommended approach is to not load the library before creating the
+deliverable (and then load it on startup as you mentioend below).
+
+-- 
+Martin Simmons
+LispWorks Ltd
+http://www.lispworks.com/
+
+
+
+&gt&gt&gt&gt&gt On Fri, 04 Dec 2020 20:00:22 -0800, Steven Githens said:
+&gt 
+&gt Hi Colin,
+&gt 
+&gt Thanks for this meticulously crafted set of references.  I'm on MacOS Catalina with Lispworks 7.1.2, so everything should be 64-bit since it doesn't support 32-bit apps.  I actually went ahead and hacked up cl-freetype2 quick to use embedded-modules since that would be great, but pretty much get the same errors.
+&gt 
+&gt I did try out the deliver option ":in-memory-delivery t" and of course it works fine, so it's definitely some particular issue with loading the lisp image back up.  
+&gt 
+&gt Also randomly, I just did some small testing in the REPL with unloading the dylib, and got results that surprised me, in that I was still able to use the library after unloading it... I don't think it's being aggressively reloaded, because when I unload it again I get `nil` which would be expected...
+&gt 
+&gt I have a transcript of it here:  https://gist.github.com/sgithens/1e6c68bb985e2cc31af0e8fcd19422a6
+&gt 
+&gt ~Steve
+&gt 
+&gt On Fri, Dec 4, 2020, at 6:14 PM, Colin J.E. Lupton wrote:
+&gt &gt I came upon a similar issue, and was able to find the solution in the LispWorks documentation.
+&gt &gt 
+&gt &gt You can work your way through the following list of solutions from top to bottom:
+&gt &gt 
+&gt &gt - LW 29.8, external libraries used with 64-bit LispWorks must be 64-bit libraries, with 32-bit LispWorks must be 32-bit libraries
+&gt &gt - DV 4.4.5, be certain the calls to load the foreign libraries with CFFI, register-module (or the embedded-module interface mentioned below) are made within function bodies and not top-level. This ensures the dynamic library is loaded in full at runtime, when the wrapper function is called, and not during compilation or delivery.
+&gt &gt - DV 10.6, there are some useful notes here on how the FLI converts between foreign and Lisp objects, and parts of the delivery process that might clobber your FLI; mostly missing templates, occasionally memory errors.
+&gt &gt - FLI 5.5, how to correctly load and access both C and C++ dynamic libraries; there’s some extra work with C++. Haven’t used FREETYPE2 myself, so not immediately clear on its implementation.
+&gt &gt - FLI 5.6, covers embedding dynamically-loaded foreign libraries inside the Lisp image, instead of relying separate libraries loaded at runtime. The embedded-module interface handles a lot of extra complexity, if it can be used with CFFI. Maybe try this on a new branch of your source control some other time.
+&gt &gt 
+&gt &gt That should cover all of the possible cases for the errors you’re getting. If not, see LW 11.4 for a review of memory management in 64-bit LispWorks, or LW 11.3 for 32-bit.
+&gt &gt 
+&gt &gt If you’re interested in why you’re getting those specific memory error patterns, LW 11.6 has a few notes on reducing image size and garbage collection of foreign-objects that explains most of it. For example, clean-down is called automatically before delivery, IIRC.
+&gt &gt 
+&gt &gt 
+&gt &gt --
+&gt &gt 
+&gt &gt Colin J.E. Lupton
+&gt &gt *CEO, Founder, Principal Quantum Metamachinist*
+&gt &gt *Black Brane Systems, Inc.*
+&gt &gt https://blackbrane.com/
+&gt &gt 
+&gt &gt phone: +1 (833) 227-2630 x700
+&gt &gt fax: +1 (833) 227-2630
+&gt &gt email: colin@blackbrane.com
+&gt &gt 
+&gt &gt Sent from Outlook &lt;https://aka.ms/qtex0l&gt for iOS
+&gt &gt 
+&gt &gt *From:* owner-lisp-hug@lispworks.com &lt;owner-lisp-hug@lispworks.com&gt on behalf of Steven Githens &lt;steve@githens.org&gt
+&gt &gt *Sent:* Friday, December 4, 2020 7:48:39 PM
+&gt &gt *To:* Arnold Noronha &lt;arnold@tdrhq.com&gt
+&gt &gt *Cc:* lisp-hug@lispworks.com &lt;lisp-hug@lispworks.com&gt
+&gt &gt *Subject:* Re: Building deliverables using CFFI libraries 
+&gt &gt  
+&gt &gt Hi again,
+&gt &gt 
+&gt &gt Thanks for the responses, it's been helpful to look through all the example code.  Also, thanks Arnold for pointing out that CFFI actually does use fli under the covers, it was helpful to clone the CFFI repo and look through how that actually works.
+&gt &gt 
+&gt &gt I think I'm starting to get close...  in my Delivery script I'm using:
+&gt &gt 
+&gt &gt (cffi:close-foreign-library 'FREETYPE2::FREETYPE2)
+&gt &gt 
+&gt &gt and I can see that it's returning T.
+&gt &gt 
+&gt &gt and in application start defun I'm using:
+&gt &gt 
+&gt &gt (pushnew
+&gt &gt (make-pathname :directory
+&gt &gt (append (butlast (pathname-directory (lw:lisp-image-name)))
+&gt &gt '("Resources" "libs")))
+&gt &gt cffi:*foreign-library-directories* :test #'equal)
+&gt &gt (cffi:use-foreign-library freetype2::freetype2)
+&gt &gt 
+&gt &gt Which appears to be reloading it, although I reliably get a handful of different loading errors. (some of them below) The path in these errors IS the correct path to the library file though...
+&gt &gt 
+&gt &gt -Steve
+&gt &gt 
+&gt &gt sgithens load-foreign-library FREETYPE2 /Users/sgithens/code/boxer-sunrise2/data/boxersunrise.app/Contents/Resources/libs/libfreetype.6.dylib 
+&gt &gt 
+&gt 
+&gt &gt Error: Segmentation violation(11) [code 0] at 1006BF128
+&gt 
+&gt &gt         Foreign code offset #x38 from symbol "FT_Stream_New"
+&gt 
+&gt &gt         module "/Users/sgithens/code/boxer-sunrise2/data/boxersunrise.app/Contents/Resources/libs/libfreetype.6.dylib" [ #x1006B8000 ]
+&gt 
+&gt &gt rax        1EC00 ; rbx    108164810 ; rcx 600000008600 ; rdx 70000101FB58
+&gt 
+&gt &gt rsp 70000101FAE0 ; rbp 70000101FB10 ; rdi    1080F5570 ; rsi           50
+&gt 
+&gt &gt r8             1 ; r9    40A03B6D3B ; r10   4040070C6B ; r11    1006C00A0
+&gt 
+&gt &gt r12 70000101FBB0 ; r13 600000008680 ; r14 70000101FB58 ; r15    1080F5570
+&gt 
+&gt &gt   1 (abort) Quit process.
+&gt 
+&gt &gt 
+&gt &gt or 
+&gt &gt 
+&gt &gt sgithens load-foreign-library FREETYPE2 /Users/sgithens/code/boxer-sunrise2/data/boxersunrise.app/Contents/Resources/libs/libfreetype.6.dylib 
+&gt &gt 
+&gt 
+&gt &gt Error: FreeType error: INVALID-LIBRARY-HANDLE
+&gt 
+&gt &gt   1 (abort) Quit process.
+&gt 
+&gt &gt 
+&gt &gt 
+&gt &gt 
+&gt &gt On Fri, Dec 4, 2020, at 2:11 PM, Arnold Noronha wrote:
+&gt &gt&gt 
+&gt &gt&gt On Fri, Dec 04, 2020 at 01:02:50PM -0800, Steven Githens wrote:
+&gt &gt&gt &gt Hi all,
+&gt &gt&gt &gt
+&gt &gt&gt &gt This is a convoluted question, but to start, I'm wondering if folks have successfully used the lisp works delivery mechanism incorporating libraries that use the CFFI module (not the builtin ffi module that is part of lispworks).
+&gt &gt&gt 
+&gt &gt&gt Since CFFI uses FLI under the hood you should still be able to use FLI
+&gt &gt&gt functions.
+&gt &gt&gt 
+&gt &gt&gt I used fli:disconnect-module just before delivery. (I am using my own
+&gt &gt&gt library though, so not 100% sure it's easy to do this from an external
+&gt &gt&gt library loaded with CFFI). Then use fli:get-embedded-module in your
+&gt &gt&gt app, and fli:install-embedded-module in your init function in the
+&gt &gt&gt delivered app.
+&gt &gt&gt 
+&gt &gt&gt --Arnold
+&gt &gt&gt 
+&gt &gt 
+&gt 
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Building deliverables using CFFI libraries</h1><!DOCTYPE html><html><head><title></title><style type="text/css">p.MsoNormal,p.MsoNoSpacing{margin:0}</style></head><body><div>Aha, I think this is helpful.&nbsp; So, if I'm correct, the cffi and groveling that's used requires the compiling procedures which are gone after delivering, so I think I need to:<br></div><div><br></div><div>- Separately asdf:compile-system :cl-freetype2<br></div><div>- Somehow add all the .64xfasl files to my projects directory/cache (as well as the actual *.dylib libraries used when generating it)<br></div><div>- lispworks -build my-delivery.lisp, making sure things are factored such that it doesn't load cl-freetype2 at all during this stage<br></div><div>- The delivered application can load cl-freetype2 during it's startup methods.<br></div><div><br></div><div>Cheers,<br></div><div>Steve<br></div><div><br></div><div><br></div><div>On Mon, Dec 7, 2020, at 11:19 AM, Martin Simmons wrote:<br></div><blockquote type="cite" id="qt" style=""><div>MacOS doesn't support unloading unfortunately.&nbsp; There is also a problem if you<br></div><div>close a module that has explicit references (such as the :library argument to<br></div><div>cffi:defcfun).<br></div><div><br></div><div>The recommended approach is to not load the library before creating the<br></div><div>deliverable (and then load it on startup as you mentioend below).<br></div><div><br></div><div>--&nbsp;<br></div><div>Martin Simmons<br></div><div>LispWorks Ltd<br></div><div><a href="http://www.lispworks.com/">http://www.lispworks.com/</a><br></div><div><br></div><div><br></div><div><br></div><div>&gt;&gt;&gt;&gt;&gt; On Fri, 04 Dec 2020 20:00:22 -0800, Steven Githens said:<br></div><div>&gt;&nbsp;<br></div><div>&gt; Hi Colin,<br></div><div>&gt;&nbsp;<br></div><div>&gt; Thanks for this meticulously crafted set of references.&nbsp; I'm on MacOS Catalina with Lispworks 7.1.2, so everything should be 64-bit since it doesn't support 32-bit apps.&nbsp; I actually went ahead and hacked up cl-freetype2 quick to use embedded-modules since that would be great, but pretty much get the same errors.<br></div><div>&gt;&nbsp;<br></div><div>&gt; I did try out the deliver option ":in-memory-delivery t" and of course it works fine, so it's definitely some particular issue with loading the lisp image back up.&nbsp;&nbsp;<br></div><div>&gt;&nbsp;<br></div><div>&gt; Also randomly, I just did some small testing in the REPL with unloading the dylib, and got results that surprised me, in that I was still able to use the library after unloading it... I don't think it's being aggressively reloaded, because when I unload it again I get `nil` which would be expected...<br></div><div>&gt;&nbsp;<br></div><div>&gt; I have a transcript of it here:&nbsp;&nbsp;<a href="https://gist.github.com/sgithens/1e6c68bb985e2cc31af0e8fcd19422a6">https://gist.github.com/sgithens/1e6c68bb985e2cc31af0e8fcd19422a6</a><br></div><div>&gt;&nbsp;<br></div><div>&gt; ~Steve<br></div><div>&gt;&nbsp;<br></div><div>&gt; On Fri, Dec 4, 2020, at 6:14 PM, Colin J.E. Lupton wrote:<br></div><div>&gt; &gt; I came upon a similar issue, and was able to find the solution in the LispWorks documentation.<br></div><div>&gt; &gt;&nbsp;<br></div><div>&gt; &gt; You can work your way through the following list of solutions from top to bottom:<br></div><div>&gt; &gt;&nbsp;<br></div><div>&gt; &gt; - LW 29.8, external libraries used with 64-bit LispWorks must be 64-bit libraries, with 32-bit LispWorks must be 32-bit libraries<br></div><div>&gt; &gt; - DV 4.4.5, be certain the calls to load the foreign libraries with CFFI, register-module (or the embedded-module interface mentioned below) are made within function bodies and not top-level. This ensures the dynamic library is loaded in full at runtime, when the wrapper function is called, and not during compilation or delivery.<br></div><div>&gt; &gt; - DV 10.6, there are some useful notes here on how the FLI converts between foreign and Lisp objects, and parts of the delivery process that might clobber your FLI; mostly missing templates, occasionally memory errors.<br></div><div>&gt; &gt; - FLI 5.5, how to correctly load and access both C and C++ dynamic libraries; there’s some extra work with C++. Haven’t used FREETYPE2 myself, so not immediately clear on its implementation.<br></div><div>&gt; &gt; - FLI 5.6, covers embedding dynamically-loaded foreign libraries inside the Lisp image, instead of relying separate libraries loaded at runtime. The embedded-module interface handles a lot of extra complexity, if it can be used with CFFI. Maybe try this on a new branch of your source control some other time.<br></div><div>&gt; &gt;&nbsp;<br></div><div>&gt; &gt; That should cover all of the possible cases for the errors you’re getting. If not, see LW 11..4 for a review of memory management in 64-bit LispWorks, or LW 11.3 for 32-bit.<br></div><div>&gt; &gt;&nbsp;<br></div><div>&gt; &gt; If you’re interested in why you’re getting those specific memory error patterns, LW 11.6 has a few notes on reducing image size and garbage collection of foreign-objects that explains most of it. For example, clean-down is called automatically before delivery, IIRC.<br></div><div>&gt; &gt;&nbsp;<br></div><div>&gt; &gt;&nbsp;<br></div><div>&gt; &gt; --<br></div><div>&gt; &gt;&nbsp;<br></div><div>&gt; &gt; Colin J.E. Lupton<br></div><div>&gt; &gt; *CEO, Founder, Principal Quantum Metamachinist*<br></div><div>&gt; &gt; *Black Brane Systems, Inc.*<br></div><div>&gt; &gt;&nbsp;<a href="https://blackbrane.com/">https://blackbrane.com/</a><br></div><div>&gt; &gt;&nbsp;<br></div><div>&gt; &gt; phone: +1 (833) 227-2630 x700<br></div><div>&gt; &gt; fax: +1 (833) 227-2630<br></div><div>&gt; &gt; email:&nbsp;<a href="mailto:colin@blackbrane.com">colin@blackbrane.com</a><br></div><div>&gt; &gt;&nbsp;<br></div><div>&gt; &gt; Sent from Outlook &lt;<a href="https://aka.ms/qtex0l">https://aka.ms/qtex0l</a>&gt; for iOS<br></div><div>&gt; &gt;&nbsp;<br></div><div>&gt; &gt; *From:*&nbsp;<a href="mailto:owner-lisp-hug@lispworks.com">owner-lisp-hug@lispworks.com</a> &lt;<a href="mailto:owner-lisp-hug@lispworks..com">owner-lisp-hug@lispworks.com</a>&gt; on behalf of Steven Githens &lt;<a href="mailto:steve@githens.org">steve@githens.org</a>&gt;<br></div><div>&gt; &gt; *Sent:* Friday, December 4, 2020 7:48:39 PM<br></div><div>&gt; &gt; *To:* Arnold Noronha &lt;<a href="mailto:arnold@tdrhq.com">arnold@tdrhq.com</a>&gt;<br></div><div>&gt; &gt; *Cc:*&nbsp;<a href="mailto:lisp-hug@lispworks.com">lisp-hug@lispworks.com</a> &lt;<a href="mailto:lisp-hug@lispworks.com">lisp-hug@lispworks.com</a>&gt;<br></div><div>&gt; &gt; *Subject:* Re: Building deliverables using CFFI libraries&nbsp;<br></div><div>&gt; &gt;&nbsp;&nbsp;<br></div><div>&gt; &gt; Hi again,<br></div><div>&gt; &gt;&nbsp;<br></div><div>&gt; &gt; Thanks for the responses, it's been helpful to look through all the example code.&nbsp; Also, thanks Arnold for pointing out that CFFI actually does use fli under the covers, it was helpful to clone the CFFI repo and look through how that actually works.<br></div><div>&gt; &gt;&nbsp;<br></div><div>&gt; &gt; I think I'm starting to get close...&nbsp; in my Delivery script I'm using:<br></div><div>&gt; &gt;&nbsp;<br></div><div>&gt; &gt; (cffi:close-foreign-library 'FREETYPE2::FREETYPE2)<br></div><div>&gt; &gt;&nbsp;<br></div><div>&gt; &gt; and I can see that it's returning T.<br></div><div>&gt; &gt;&nbsp;<br></div><div>&gt; &gt; and in application start defun I'm using:<br></div><div>&gt; &gt;&nbsp;<br></div><div>&gt; &gt; (pushnew<br></div><div>&gt; &gt; (make-pathname :directory<br></div><div>&gt; &gt; (append (butlast (pathname-directory (lw:lisp-image-name)))<br></div><div>&gt; &gt; '("Resources" "libs")))<br></div><div>&gt; &gt; cffi:*foreign-library-directories* :test #'equal)<br></div><div>&gt; &gt; (cffi:use-foreign-library freetype2::freetype2)<br></div><div>&gt; &gt;&nbsp;<br></div><div>&gt; &gt; Which appears to be reloading it, although I reliably get a handful of different loading errors. (some of them below) The path in these errors IS the correct path to the library file though...<br></div><div>&gt; &gt;&nbsp;<br></div><div>&gt; &gt; -Steve<br></div><div>&gt; &gt;&nbsp;<br></div><div>&gt; &gt; sgithens load-foreign-library FREETYPE2 /Users/sgithens/code/boxer-sunrise2/data/<a href="http://boxersunrise.app/Contents/Resources/libs/libfreetype.6.dylib">boxersunrise.app/Contents/Resources/libs/libfreetype.6.dylib</a>&nbsp;<br></div><div>&gt; &gt;&nbsp;<br></div><div>&gt;&nbsp;<br></div><div>&gt; &gt; Error: Segmentation violation(11) [code 0] at 1006BF128<br></div><div>&gt;&nbsp;<br></div><div>&gt; &gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Foreign code offset #x38 from symbol "FT_Stream_New"<br></div><div>&gt;&nbsp;<br></div><div>&gt; &gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; module "/Users/sgithens/code/boxer-sunrise2/data/<a href="http://boxersunrise.app/Contents/Resources/libs/libfreetype.6.dylib">boxersunrise.app/Contents/Resources/libs/libfreetype.6.dylib</a>" [ #x1006B8000 ]<br></div><div>&gt;&nbsp;<br></div><div>&gt; &gt; rax&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 1EC00 ; rbx&nbsp;&nbsp;&nbsp; 108164810 ; rcx 600000008600 ; rdx 70000101FB58<br></div><div>&gt;&nbsp;<br></div><div>&gt; &gt; rsp 70000101FAE0 ; rbp 70000101FB10 ; rdi&nbsp;&nbsp;&nbsp; 1080F5570 ; rsi&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 50<br></div><div>&gt;&nbsp;<br></div><div>&gt; &gt; r8&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 1 ; r9&nbsp;&nbsp;&nbsp; 40A03B6D3B ; r10&nbsp;&nbsp; 4040070C6B ; r11&nbsp;&nbsp;&nbsp; 1006C00A0<br></div><div>&gt;&nbsp;<br></div><div>&gt; &gt; r12 70000101FBB0 ; r13 600000008680 ; r14 70000101FB58 ; r15&nbsp;&nbsp;&nbsp; 1080F5570<br></div><div>&gt;&nbsp;<br></div><div>&gt; &gt;&nbsp;&nbsp; 1 (abort) Quit process.<br></div><div>&gt;&nbsp;<br></div><div>&gt; &gt;&nbsp;<br></div><div>&gt; &gt; or&nbsp;<br></div><div>&gt; &gt;&nbsp;<br></div><div>&gt; &gt; sgithens load-foreign-library FREETYPE2 /Users/sgithens/code/boxer-sunrise2/data/<a href="http://boxersunrise.app/Contents/Resources/libs/libfreetype.6.dylib">boxersunrise.app/Contents/Resources/libs/libfreetype.6.dylib</a>&nbsp;<br></div><div>&gt; &gt;&nbsp;<br></div><div>&gt;&nbsp;<br></div><div>&gt; &gt; Error: FreeType error: INVALID-LIBRARY-HANDLE<br></div><div>&gt;&nbsp;<br></div><div>&gt; &gt;&nbsp;&nbsp; 1 (abort) Quit process.<br></div><div>&gt;&nbsp;<br></div><div>&gt; &gt;&nbsp;<br></div><div>&gt; &gt;&nbsp;<br></div><div>&gt; &gt;&nbsp;<br></div><div>&gt; &gt; On Fri, Dec 4, 2020, at 2:11 PM, Arnold Noronha wrote:<br></div><div>&gt; &gt;&gt;&nbsp;<br></div><div>&gt; &gt;&gt; On Fri, Dec 04, 2020 at 01:02:50PM -0800, Steven Githens wrote:<br></div><div>&gt; &gt;&gt; &gt; Hi all,<br></div><div>&gt; &gt;&gt; &gt;<br></div><div>&gt; &gt;&gt; &gt; This is a convoluted question, but to start, I'm wondering if folks have successfully used the lisp works delivery mechanism incorporating libraries that use the CFFI module (not the builtin ffi module that is part of lispworks).<br></div><div>&gt; &gt;&gt;&nbsp;<br></div><div>&gt; &gt;&gt; Since CFFI uses FLI under the hood you should still be able to use FLI<br></div><div>&gt; &gt;&gt; functions.<br></div><div>&gt; &gt;&gt;&nbsp;<br></div><div>&gt; &gt;&gt; I used fli:disconnect-module just before delivery. (I am using my own<br></div><div>&gt; &gt;&gt; library though, so not 100% sure it's easy to do this from an external<br></div><div>&gt; &gt;&gt; library loaded with CFFI). Then use fli:get-embedded-module in your<br></div><div>&gt; &gt;&gt; app, and fli:install-embedded-module in your init function in the<br></div><div>&gt; &gt;&gt; delivered app.<br></div><div>&gt; &gt;&gt;&nbsp;<br></div><div>&gt; &gt;&gt; --Arnold<br></div><div>&gt; &gt;&gt;&nbsp;<br></div><div>&gt; &gt;&nbsp;<br></div><div>&gt;&nbsp;<br></div><div><br></div><div>_______________________________________________<br></div><div>Lisp Hug - the mailing list for LispWorks users<br></div><div><a href="mailto:lisp-hug@lispworks.com">lisp-hug@lispworks.com</a><br></div><div><a href="http://www.lispworks.com/support/lisp-hug.html">http://www.lispworks.com/support/lisp-hug.html</a><br></div><div><br></div></blockquote><div><br></div></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Building deliverables using CFFI libraries</h1><!DOCTYPE html><html><head><title></title><style type="text/css">
+p.MsoNormal,p.MsoNoSpacing{margin:0}</style></head><body><div>Ok, so I think I do have this working, although it's a mess, but I can at least work backwards now.<br></div><div><br></div><div>I got the pile of compiled 64xfasl files from the cl-freetype2 cache dir and then made sure the original project wasn't anywhere in quicklisp still.&nbsp; However, I found that even using asdf:load-system with cl-freetype2 still triggered something in the cffi groveller that wanted to use compile-file, so I ended up meticulously adding a list of (load "x/y/zed.64xfasl") statements for everything defined in cl-freetype2.asd... and now it seems to work (and will hopefully continue to after cleaning up everything)!!&nbsp; So thanks for all input everyone.&nbsp;&nbsp; I'll post a link to the cleaned up source in case anyone is curious.<br></div><div><br></div><div>Also, I imagine there must be some sort of option to load the pre-compiled asdf components without exciting the groveller and making it want to grovel again, which hopefully I'll discover at some point. ( I imagine this must be a prerequisite for delivering any lispworks project that uses a module driven by cffi/grovel...)<br></div><div><br></div><div>Cheers,<br></div><div>Steve<br></div><div><br></div><div>On Mon, Dec 7, 2020, at 12:16 PM, Steven Githens wrote:<br></div><blockquote type="cite" id="qt" style=""><div>Aha, I think this is helpful.&nbsp; So, if I'm correct, the cffi and groveling that's used requires the compiling procedures which are gone after delivering, so I think I need to:<br></div><div><br></div><div>- Separately asdf:compile-system :cl-freetype2<br></div><div>- Somehow add all the .64xfasl files to my projects directory/cache (as well as the actual *.dylib libraries used when generating it)<br></div><div>- lispworks -build my-delivery.lisp, making sure things are factored such that it doesn't load cl-freetype2 at all during this stage<br></div><div>- The delivered application can load cl-freetype2 during it's startup methods.<br></div><div><br></div><div>Cheers,<br></div><div>Steve<br></div><div><br></div><div><br></div><div>On Mon, Dec 7, 2020, at 11:19 AM, Martin Simmons wrote:<br></div><blockquote type="cite" id="qt-qt" style=""><div>MacOS doesn't support unloading unfortunately.&nbsp; There is also a problem if you<br></div><div>close a module that has explicit references (such as the :library argument to<br></div><div>cffi:defcfun).<br></div><div><br></div><div>The recommended approach is to not load the library before creating the<br></div><div>deliverable (and then load it on startup as you mentioend below).<br></div><div><br></div><div>--&nbsp;<br></div><div>Martin Simmons<br></div><div>LispWorks Ltd<br></div><div><a href="http://www.lispworks.com/">http://www.lispworks.com/</a><br></div><div><br></div><div><br></div><div><br></div><div>&gt;&gt;&gt;&gt;&gt; On Fri, 04 Dec 2020 20:00:22 -0800, Steven Githens said:<br></div><div>&gt;&nbsp;<br></div><div>&gt; Hi Colin,<br></div><div>&gt;&nbsp;<br></div><div>&gt; Thanks for this meticulously crafted set of references.&nbsp; I'm on MacOS Catalina with Lispworks 7.1.2, so everything should be 64-bit since it doesn't support 32-bit apps.&nbsp; I actually went ahead and hacked up cl-freetype2 quick to use embedded-modules since that would be great, but pretty much get the same errors.<br></div><div>&gt;&nbsp;<br></div><div>&gt; I did try out the deliver option ":in-memory-delivery t" and of course it works fine, so it's definitely some particular issue with loading the lisp image back up.&nbsp;&nbsp;<br></div><div>&gt;&nbsp;<br></div><div>&gt; Also randomly, I just did some small testing in the REPL with unloading the dylib, and got results that surprised me, in that I was still able to use the library after unloading it... I don't think it's being aggressively reloaded, because when I unload it again I get `nil` which would be expected...<br></div><div>&gt;&nbsp;<br></div><div>&gt; I have a transcript of it here:&nbsp;&nbsp;<a href="https://gist.github.com/sgithens/1e6c68bb985e2cc31af0e8fcd19422a6">https://gist.github.com/sgithens/1e6c68bb985e2cc31af0e8fcd19422a6</a><br></div><div>&gt;&nbsp;<br></div><div>&gt; ~Steve<br></div><div>&gt;&nbsp;<br></div><div>&gt; On Fri, Dec 4, 2020, at 6:14 PM, Colin J.E. Lupton wrote:<br></div><div>&gt; &gt; I came upon a similar issue, and was able to find the solution in the LispWorks documentation.<br></div><div>&gt; &gt;&nbsp;<br></div><div>&gt; &gt; You can work your way through the following list of solutions from top to bottom:<br></div><div>&gt; &gt;&nbsp;<br></div><div>&gt; &gt; - LW 29.8, external libraries used with 64-bit LispWorks must be 64-bit libraries, with 32-bit LispWorks must be 32-bit libraries<br></div><div>&gt; &gt; - DV 4.4.5, be certain the calls to load the foreign libraries with CFFI, register-module (or the embedded-module interface mentioned below) are made within function bodies and not top-level. This ensures the dynamic library is loaded in full at runtime, when the wrapper function is called, and not during compilation or delivery.<br></div><div>&gt; &gt; - DV 10.6, there are some useful notes here on how the FLI converts between foreign and Lisp objects, and parts of the delivery process that might clobber your FLI; mostly missing templates, occasionally memory errors.<br></div><div>&gt; &gt; - FLI 5.5, how to correctly load and access both C and C++ dynamic libraries; there’s some extra work with C++. Haven’t used FREETYPE2 myself, so not immediately clear on its implementation.<br></div><div>&gt; &gt; - FLI 5.6, covers embedding dynamically-loaded foreign libraries inside the Lisp image, instead of relying separate libraries loaded at runtime. The embedded-module interface handles a lot of extra complexity, if it can be used with CFFI. Maybe try this on a new branch of your source control some other time.<br></div><div>&gt; &gt;&nbsp;<br></div><div>&gt; &gt; That should cover all of the possible cases for the errors you’re getting. If not, see LW 11.4 for a review of memory management in 64-bit LispWorks, or LW 11.3 for 32-bit.<br></div><div>&gt; &gt;&nbsp;<br></div><div>&gt; &gt; If you’re interested in why you’re getting those specific memory error patterns, LW 11.6 has a few notes on reducing image size and garbage collection of foreign-objects that explains most of it. For example, clean-down is called automatically before delivery, IIRC.<br></div><div>&gt; &gt;&nbsp;<br></div><div>&gt; &gt;&nbsp;<br></div><div>&gt; &gt; --<br></div><div>&gt; &gt;&nbsp;<br></div><div>&gt; &gt; Colin J.E. Lupton<br></div><div>&gt; &gt; *CEO, Founder, Principal Quantum Metamachinist*<br></div><div>&gt; &gt; *Black Brane Systems, Inc.*<br></div><div>&gt; &gt;&nbsp;<a href="https://blackbrane.com/">https://blackbrane.com/</a><br></div><div>&gt; &gt;&nbsp;<br></div><div>&gt; &gt; phone: +1 (833) 227-2630 x700<br></div><div>&gt; &gt; fax: +1 (833) 227-2630<br></div><div>&gt; &gt; email:&nbsp;<a href="mailto:colin@blackbrane.com">colin@blackbrane.com</a><br></div><div>&gt; &gt;&nbsp;<br></div><div>&gt; &gt; Sent from Outlook &lt;<a href="https://aka.ms/qtex0l">https://aka.ms/qtex0l</a>&gt; for iOS<br></div><div>&gt; &gt;&nbsp;<br></div><div>&gt; &gt; *From:*&nbsp;<a href="mailto:owner-lisp-hug@lispworks.com">owner-lisp-hug@lispworks.com</a> &lt;<a href="mailto:owner-lisp-hug@lispworks.com">owner-lisp-hug@lispworks.com</a>&gt; on behalf of Steven Githens &lt;<a href="mailto:steve@githens.org">steve@githens.org</a>&gt;<br></div><div>&gt; &gt; *Sent:* Friday, December 4, 2020 7:48:39 PM<br></div><div>&gt; &gt; *To:* Arnold Noronha &lt;<a href="mailto:arnold@tdrhq.com">arnold@tdrhq.com</a>&gt;<br></div><div>&gt; &gt; *Cc:*&nbsp;<a href="mailto:lisp-hug@lispworks.com">lisp-hug@lispworks.com</a> &lt;<a href="mailto:lisp-hug@lispworks.com">lisp-hug@lispworks.com</a>&gt;<br></div><div>&gt; &gt; *Subject:* Re: Building deliverables using CFFI libraries&nbsp;<br></div><div>&gt; &gt;&nbsp;&nbsp;<br></div><div>&gt; &gt; Hi again,<br></div><div>&gt; &gt;&nbsp;<br></div><div>&gt; &gt; Thanks for the responses, it's been helpful to look through all the example code.&nbsp; Also, thanks Arnold for pointing out that CFFI actually does use fli under the covers, it was helpful to clone the CFFI repo and look through how that actually works.<br></div><div>&gt; &gt;&nbsp;<br></div><div>&gt; &gt; I think I'm starting to get close...&nbsp; in my Delivery script I'm using:<br></div><div>&gt; &gt;&nbsp;<br></div><div>&gt; &gt; (cffi:close-foreign-library 'FREETYPE2::FREETYPE2)<br></div><div>&gt; &gt;&nbsp;<br></div><div>&gt; &gt; and I can see that it's returning T.<br></div><div>&gt; &gt;&nbsp;<br></div><div>&gt; &gt; and in application start defun I'm using:<br></div><div>&gt; &gt;&nbsp;<br></div><div>&gt; &gt; (pushnew<br></div><div>&gt; &gt; (make-pathname :directory<br></div><div>&gt; &gt; (append (butlast (pathname-directory (lw:lisp-image-name)))<br></div><div>&gt; &gt; '("Resources" "libs")))<br></div><div>&gt; &gt; cffi:*foreign-library-directories* :test #'equal)<br></div><div>&gt; &gt; (cffi:use-foreign-library freetype2::freetype2)<br></div><div>&gt; &gt;&nbsp;<br></div><div>&gt; &gt; Which appears to be reloading it, although I reliably get a handful of different loading errors. (some of them below) The path in these errors IS the correct path to the library file though...<br></div><div>&gt; &gt;&nbsp;<br></div><div>&gt; &gt; -Steve<br></div><div>&gt; &gt;&nbsp;<br></div><div>&gt; &gt; sgithens load-foreign-library FREETYPE2 /Users/sgithens/code/boxer-sunrise2/data/<a href="http://boxersunrise.app/Contents/Resources/libs/libfreetype.6.dylib">boxersunrise.app/Contents/Resources/libs/libfreetype.6.dylib</a>&nbsp;<br></div><div>&gt; &gt;&nbsp;<br></div><div>&gt;&nbsp;<br></div><div>&gt; &gt; Error: Segmentation violation(11) [code 0] at 1006BF128<br></div><div>&gt;&nbsp;<br></div><div>&gt; &gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Foreign code offset #x38 from symbol "FT_Stream_New"<br></div><div>&gt;&nbsp;<br></div><div>&gt; &gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; module "/Users/sgithens/code/boxer-sunrise2/data/<a href="http://boxersunrise.app/Contents/Resources/libs/libfreetype.6.dylib">boxersunrise.app/Contents/Resources/libs/libfreetype.6.dylib</a>" [ #x1006B8000 ]<br></div><div>&gt;&nbsp;<br></div><div>&gt; &gt; rax&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 1EC00 ; rbx&nbsp;&nbsp;&nbsp; 108164810 ; rcx 600000008600 ; rdx 70000101FB58<br></div><div>&gt;&nbsp;<br></div><div>&gt; &gt; rsp 70000101FAE0 ; rbp 70000101FB10 ; rdi&nbsp;&nbsp;&nbsp; 1080F5570 ; rsi&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 50<br></div><div>&gt;&nbsp;<br></div><div>&gt; &gt; r8&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 1 ; r9&nbsp;&nbsp;&nbsp; 40A03B6D3B ; r10&nbsp;&nbsp; 4040070C6B ; r11&nbsp;&nbsp;&nbsp; 1006C00A0<br></div><div>&gt;&nbsp;<br></div><div>&gt; &gt; r12 70000101FBB0 ; r13 600000008680 ; r14 70000101FB58 ; r15&nbsp;&nbsp;&nbsp; 1080F5570<br></div><div>&gt;&nbsp;<br></div><div>&gt; &gt;&nbsp;&nbsp; 1 (abort) Quit process.<br></div><div>&gt;&nbsp;<br></div><div>&gt; &gt;&nbsp;<br></div><div>&gt; &gt; or&nbsp;<br></div><div>&gt; &gt;&nbsp;<br></div><div>&gt; &gt; sgithens load-foreign-library FREETYPE2 /Users/sgithens/code/boxer-sunrise2/data/<a href="http://boxersunrise.app/Contents/Resources/libs/libfreetype.6.dylib">boxersunrise.app/Contents/Resources/libs/libfreetype.6.dylib</a>&nbsp;<br></div><div>&gt; &gt;&nbsp;<br></div><div>&gt;&nbsp;<br></div><div>&gt; &gt; Error: FreeType error: INVALID-LIBRARY-HANDLE<br></div><div>&gt;&nbsp;<br></div><div>&gt; &gt;&nbsp;&nbsp; 1 (abort) Quit process.<br></div><div>&gt;&nbsp;<br></div><div>&gt; &gt;&nbsp;<br></div><div>&gt; &gt;&nbsp;<br></div><div>&gt; &gt;&nbsp;<br></div><div>&gt; &gt; On Fri, Dec 4, 2020, at 2:11 PM, Arnold Noronha wrote:<br></div><div>&gt; &gt;&gt;&nbsp;<br></div><div>&gt; &gt;&gt; On Fri, Dec 04, 2020 at 01:02:50PM -0800, Steven Githens wrote:<br></div><div>&gt; &gt;&gt; &gt; Hi all,<br></div><div>&gt; &gt;&gt; &gt;<br></div><div>&gt; &gt;&gt; &gt; This is a convoluted question, but to start, I'm wondering if folks have successfully used the lisp works delivery mechanism incorporating libraries that use the CFFI module (not the builtin ffi module that is part of lispworks).<br></div><div>&gt; &gt;&gt;&nbsp;<br></div><div>&gt; &gt;&gt; Since CFFI uses FLI under the hood you should still be able to use FLI<br></div><div>&gt; &gt;&gt; functions.<br></div><div>&gt; &gt;&gt;&nbsp;<br></div><div>&gt; &gt;&gt; I used fli:disconnect-module just before delivery. (I am using my own<br></div><div>&gt; &gt;&gt; library though, so not 100% sure it's easy to do this from an external<br></div><div>&gt; &gt;&gt; library loaded with CFFI). Then use fli:get-embedded-module in your<br></div><div>&gt; &gt;&gt; app, and fli:install-embedded-module in your init function in the<br></div><div>&gt; &gt;&gt; delivered app.<br></div><div>&gt; &gt;&gt;&nbsp;<br></div><div>&gt; &gt;&gt; --Arnold<br></div><div>&gt; &gt;&gt;&nbsp;<br></div><div>&gt; &gt;&nbsp;<br></div><div>&gt;&nbsp;<br></div><div><br></div><div>_______________________________________________<br></div><div>Lisp Hug - the mailing list for LispWorks users<br></div><div><a href="mailto:lisp-hug@lispworks.com">lisp-hug@lispworks.com</a><br></div><div><a href="http://www.lispworks.com/support/lisp-hug.html">http://www.lispworks.com/support/lisp-hug.html</a><br></div><div><br></div></blockquote><div><br></div></blockquote><div><br></div></body></html>
+
+                </article>
+               </section>
+               <section class=tree>
+                <article class=email>
+                 <h1>Re: Building deliverables using CFFI libraries</h1>
+                 <pre>That will probably work, but is not the best approach because it means that
+you have to keep the fasl loader and symbols in the deliverable.
+
+I think the best approach is to find the code that is loading the library when
+the fasls are loaded (e.g. trace cffi-sys:%load-foreign-library with break).
+Then change that code to use cffi:define-foreign-library when the fasls are
+loaded and call cffi:load-foreign-library at startup.
+
+-- 
+Martin Simmons
+LispWorks Ltd
+http://www.lispworks.com/
+
+
+
+&gt&gt&gt&gt&gt On Mon, 07 Dec 2020 18:24:21 -0800, Steven Githens said:
+&gt 
+&gt Ok, so I think I do have this working, although it's a mess, but I can at least work backwards now.
+&gt 
+&gt I got the pile of compiled 64xfasl files from the cl-freetype2 cache dir and then made sure the original project wasn't anywhere in quicklisp still.  However, I found that even using asdf:load-system with cl-freetype2 still triggered something in the cffi groveller that wanted to use compile-file, so I ended up meticulously adding a list of (load "x/y/zed.64xfasl") statements for everything defined in cl-freetype2.asd... and now it seems to work (and will hopefully continue to after cleaning up everything)!!  So thanks for all input everyone.   I'll post a link to the cleaned up source in case anyone is curious.
+&gt 
+&gt Also, I imagine there must be some sort of option to load the pre-compiled asdf components without exciting the groveller and making it want to grovel again, which hopefully I'll discover at some point. ( I imagine this must be a prerequisite for delivering any lispworks project that uses a module driven by cffi/grovel...)
+&gt 
+&gt Cheers,
+&gt Steve
+&gt 
+&gt On Mon, Dec 7, 2020, at 12:16 PM, Steven Githens wrote:
+&gt &gt Aha, I think this is helpful.  So, if I'm correct, the cffi and groveling that's used requires the compiling procedures which are gone after delivering, so I think I need to:
+&gt &gt 
+&gt &gt - Separately asdf:compile-system :cl-freetype2
+&gt &gt - Somehow add all the .64xfasl files to my projects directory/cache (as well as the actual *.dylib libraries used when generating it)
+&gt &gt - lispworks -build my-delivery.lisp, making sure things are factored such that it doesn't load cl-freetype2 at all during this stage
+&gt &gt - The delivered application can load cl-freetype2 during it's startup methods.
+&gt &gt 
+&gt &gt Cheers,
+&gt &gt Steve
+&gt &gt 
+&gt &gt 
+&gt &gt On Mon, Dec 7, 2020, at 11:19 AM, Martin Simmons wrote:
+&gt &gt&gt MacOS doesn't support unloading unfortunately.  There is also a problem if you
+&gt &gt&gt close a module that has explicit references (such as the :library argument to
+&gt &gt&gt cffi:defcfun).
+&gt &gt&gt 
+&gt &gt&gt The recommended approach is to not load the library before creating the
+&gt &gt&gt deliverable (and then load it on startup as you mentioend below).
+&gt &gt&gt 
+&gt &gt&gt -- 
+&gt &gt&gt Martin Simmons
+&gt &gt&gt LispWorks Ltd
+&gt &gt&gt http://www.lispworks.com/
+&gt &gt&gt 
+&gt &gt&gt 
+&gt &gt&gt 
+&gt &gt&gt &gt&gt&gt&gt&gt On Fri, 04 Dec 2020 20:00:22 -0800, Steven Githens said:
+&gt &gt&gt &gt 
+&gt &gt&gt &gt Hi Colin,
+&gt &gt&gt &gt 
+&gt &gt&gt &gt Thanks for this meticulously crafted set of references.  I'm on MacOS Catalina with Lispworks 7.1.2, so everything should be 64-bit since it doesn't support 32-bit apps.  I actually went ahead and hacked up cl-freetype2 quick to use embedded-modules since that would be great, but pretty much get the same errors.
+&gt &gt&gt &gt 
+&gt &gt&gt &gt I did try out the deliver option ":in-memory-delivery t" and of course it works fine, so it's definitely some particular issue with loading the lisp image back up.  
+&gt &gt&gt &gt 
+&gt &gt&gt &gt Also randomly, I just did some small testing in the REPL with unloading the dylib, and got results that surprised me, in that I was still able to use the library after unloading it... I don't think it's being aggressively reloaded, because when I unload it again I get `nil` which would be expected...
+&gt &gt&gt &gt 
+&gt &gt&gt &gt I have a transcript of it here:  https://gist.github.com/sgithens/1e6c68bb985e2cc31af0e8fcd19422a6
+&gt &gt&gt &gt 
+&gt &gt&gt &gt ~Steve
+&gt &gt&gt &gt 
+&gt &gt&gt &gt On Fri, Dec 4, 2020, at 6:14 PM, Colin J.E. Lupton wrote:
+&gt &gt&gt &gt &gt I came upon a similar issue, and was able to find the solution in the LispWorks documentation.
+&gt &gt&gt &gt &gt 
+&gt &gt&gt &gt &gt You can work your way through the following list of solutions from top to bottom:
+&gt &gt&gt &gt &gt 
+&gt &gt&gt &gt &gt - LW 29.8, external libraries used with 64-bit LispWorks must be 64-bit libraries, with 32-bit LispWorks must be 32-bit libraries
+&gt &gt&gt &gt &gt - DV 4.4.5, be certain the calls to load the foreign libraries with CFFI, register-module (or the embedded-module interface mentioned below) are made within function bodies and not top-level. This ensures the dynamic library is loaded in full at runtime, when the wrapper function is called, and not during compilation or delivery.
+&gt &gt&gt &gt &gt - DV 10.6, there are some useful notes here on how the FLI converts between foreign and Lisp objects, and parts of the delivery process that might clobber your FLI; mostly missing templates, occasionally memory errors.
+&gt &gt&gt &gt &gt - FLI 5.5, how to correctly load and access both C and C++ dynamic libraries; there’s some extra work with C++. Haven’t used FREETYPE2 myself, so not immediately clear on its implementation.
+&gt &gt&gt &gt &gt - FLI 5.6, covers embedding dynamically-loaded foreign libraries inside the Lisp image, instead of relying separate libraries loaded at runtime. The embedded-module interface handles a lot of extra complexity, if it can be used with CFFI. Maybe try this on a new branch of your source control some other time.
+&gt &gt&gt &gt &gt 
+&gt &gt&gt &gt &gt That should cover all of the possible cases for the errors you’re getting. If not, see LW 11.4 for a review of memory management in 64-bit LispWorks, or LW 11.3 for 32-bit.
+&gt &gt&gt &gt &gt 
+&gt &gt&gt &gt &gt If you’re interested in why you’re getting those specific memory error patterns, LW 11.6 has a few notes on reducing image size and garbage collection of foreign-objects that explains most of it. For example, clean-down is called automatically before delivery, IIRC.
+&gt &gt&gt &gt &gt 
+&gt &gt&gt &gt &gt 
+&gt &gt&gt &gt &gt --
+&gt &gt&gt &gt &gt 
+&gt &gt&gt &gt &gt Colin J.E. Lupton
+&gt &gt&gt &gt &gt *CEO, Founder, Principal Quantum Metamachinist*
+&gt &gt&gt &gt &gt *Black Brane Systems, Inc.*
+&gt &gt&gt &gt &gt https://blackbrane.com/
+&gt &gt&gt &gt &gt 
+&gt &gt&gt &gt &gt phone: +1 (833) 227-2630 x700
+&gt &gt&gt &gt &gt fax: +1 (833) 227-2630
+&gt &gt&gt &gt &gt email: colin@blackbrane.com
+&gt &gt&gt &gt &gt 
+&gt &gt&gt &gt &gt Sent from Outlook &lt;https://aka.ms/qtex0l&gt for iOS
+&gt &gt&gt &gt &gt 
+&gt &gt&gt &gt &gt *From:* owner-lisp-hug@lispworks.com &lt;owner-lisp-hug@lispworks.com&gt on behalf of Steven Githens &lt;steve@githens.org&gt
+&gt &gt&gt &gt &gt *Sent:* Friday, December 4, 2020 7:48:39 PM
+&gt &gt&gt &gt &gt *To:* Arnold Noronha &lt;arnold@tdrhq.com&gt
+&gt &gt&gt &gt &gt *Cc:* lisp-hug@lispworks.com &lt;lisp-hug@lispworks.com&gt
+&gt &gt&gt &gt &gt *Subject:* Re: Building deliverables using CFFI libraries 
+&gt &gt&gt &gt &gt  
+&gt &gt&gt &gt &gt Hi again,
+&gt &gt&gt &gt &gt 
+&gt &gt&gt &gt &gt Thanks for the responses, it's been helpful to look through all the example code.  Also, thanks Arnold for pointing out that CFFI actually does use fli under the covers, it was helpful to clone the CFFI repo and look through how that actually works.
+&gt &gt&gt &gt &gt 
+&gt &gt&gt &gt &gt I think I'm starting to get close...  in my Delivery script I'm using:
+&gt &gt&gt &gt &gt 
+&gt &gt&gt &gt &gt (cffi:close-foreign-library 'FREETYPE2::FREETYPE2)
+&gt &gt&gt &gt &gt 
+&gt &gt&gt &gt &gt and I can see that it's returning T.
+&gt &gt&gt &gt &gt 
+&gt &gt&gt &gt &gt and in application start defun I'm using:
+&gt &gt&gt &gt &gt 
+&gt &gt&gt &gt &gt (pushnew
+&gt &gt&gt &gt &gt (make-pathname :directory
+&gt &gt&gt &gt &gt (append (butlast (pathname-directory (lw:lisp-image-name)))
+&gt &gt&gt &gt &gt '("Resources" "libs")))
+&gt &gt&gt &gt &gt cffi:*foreign-library-directories* :test #'equal)
+&gt &gt&gt &gt &gt (cffi:use-foreign-library freetype2::freetype2)
+&gt &gt&gt &gt &gt 
+&gt &gt&gt &gt &gt Which appears to be reloading it, although I reliably get a handful of different loading errors. (some of them below) The path in these errors IS the correct path to the library file though...
+&gt &gt&gt &gt &gt 
+&gt &gt&gt &gt &gt -Steve
+&gt &gt&gt &gt &gt 
+&gt &gt&gt &gt &gt sgithens load-foreign-library FREETYPE2 /Users/sgithens/code/boxer-sunrise2/data/boxersunrise.app/Contents/Resources/libs/libfreetype.6.dylib 
+&gt &gt&gt &gt &gt 
+&gt &gt&gt &gt 
+&gt &gt&gt &gt &gt Error: Segmentation violation(11) [code 0] at 1006BF128
+&gt &gt&gt &gt 
+&gt &gt&gt &gt &gt         Foreign code offset #x38 from symbol "FT_Stream_New"
+&gt &gt&gt &gt 
+&gt &gt&gt &gt &gt         module "/Users/sgithens/code/boxer-sunrise2/data/boxersunrise.app/Contents/Resources/libs/libfreetype.6.dylib" [ #x1006B8000 ]
+&gt &gt&gt &gt 
+&gt &gt&gt &gt &gt rax        1EC00 ; rbx    108164810 ; rcx 600000008600 ; rdx 70000101FB58
+&gt &gt&gt &gt 
+&gt &gt&gt &gt &gt rsp 70000101FAE0 ; rbp 70000101FB10 ; rdi    1080F5570 ; rsi           50
+&gt &gt&gt &gt 
+&gt &gt&gt &gt &gt r8             1 ; r9    40A03B6D3B ; r10   4040070C6B ; r11    1006C00A0
+&gt &gt&gt &gt 
+&gt &gt&gt &gt &gt r12 70000101FBB0 ; r13 600000008680 ; r14 70000101FB58 ; r15    1080F5570
+&gt &gt&gt &gt 
+&gt &gt&gt &gt &gt   1 (abort) Quit process.
+&gt &gt&gt &gt 
+&gt &gt&gt &gt &gt 
+&gt &gt&gt &gt &gt or 
+&gt &gt&gt &gt &gt 
+&gt &gt&gt &gt &gt sgithens load-foreign-library FREETYPE2 /Users/sgithens/code/boxer-sunrise2/data/boxersunrise.app/Contents/Resources/libs/libfreetype.6.dylib 
+&gt &gt&gt &gt &gt 
+&gt &gt&gt &gt 
+&gt &gt&gt &gt &gt Error: FreeType error: INVALID-LIBRARY-HANDLE
+&gt &gt&gt &gt 
+&gt &gt&gt &gt &gt   1 (abort) Quit process.
+&gt &gt&gt &gt 
+&gt &gt&gt &gt &gt 
+&gt &gt&gt &gt &gt 
+&gt &gt&gt &gt &gt 
+&gt &gt&gt &gt &gt On Fri, Dec 4, 2020, at 2:11 PM, Arnold Noronha wrote:
+&gt &gt&gt &gt &gt&gt 
+&gt &gt&gt &gt &gt&gt On Fri, Dec 04, 2020 at 01:02:50PM -0800, Steven Githens wrote:
+&gt &gt&gt &gt &gt&gt &gt Hi all,
+&gt &gt&gt &gt &gt&gt &gt
+&gt &gt&gt &gt &gt&gt &gt This is a convoluted question, but to start, I'm wondering if folks have successfully used the lisp works delivery mechanism incorporating libraries that use the CFFI module (not the builtin ffi module that is part of lispworks).
+&gt &gt&gt &gt &gt&gt 
+&gt &gt&gt &gt &gt&gt Since CFFI uses FLI under the hood you should still be able to use FLI
+&gt &gt&gt &gt &gt&gt functions.
+&gt &gt&gt &gt &gt&gt 
+&gt &gt&gt &gt &gt&gt I used fli:disconnect-module just before delivery. (I am using my own
+&gt &gt&gt &gt &gt&gt library though, so not 100% sure it's easy to do this from an external
+&gt &gt&gt &gt &gt&gt library loaded with CFFI). Then use fli:get-embedded-module in your
+&gt &gt&gt &gt &gt&gt app, and fli:install-embedded-module in your init function in the
+&gt &gt&gt &gt &gt&gt delivered app.
+&gt &gt&gt &gt &gt&gt 
+&gt &gt&gt &gt &gt&gt --Arnold
+&gt &gt&gt &gt &gt&gt 
+&gt &gt&gt &gt &gt 
+&gt &gt&gt &gt 
+&gt &gt&gt 
+&gt &gt&gt _______________________________________________
+&gt &gt&gt Lisp Hug - the mailing list for LispWorks users
+&gt &gt&gt lisp-hug@lispworks.com
+&gt &gt&gt http://www.lispworks.com/support/lisp-hug.html
+&gt &gt&gt 
+&gt &gt 
+&gt 
+
+_______________________________________________
+Lisp Hug - the mailing list for LispWorks users
+lisp-hug@lispworks.com
+http://www.lispworks.com/support/lisp-hug.html
+
+</pre>
+                </article>
+               </section>
               </section>
              </div>
             </div>
             <footer class="d-flex justify-content-center">
              <div>
-              Updated at: 2020-12-07 08:23 UTC
+              Updated at: 2020-12-10 08:28 UTC
              </div>
             </footer>
            </body>
